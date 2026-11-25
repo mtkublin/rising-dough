@@ -33,6 +33,7 @@ from budget_planner.db.migrate import apply_migrations
 from budget_planner.domain.accounts import NewAccount, PatchAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory, PatchCategory
+from budget_planner.domain.category_colors import PRESETS
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import (
@@ -116,6 +117,7 @@ class PlannedSeed:
     amount_minor: int
     description: str
     deleted_at: dt.datetime | None = None
+    dest_account: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,16 +197,31 @@ ACCOUNTS: Final[tuple[AccountSeed, ...]] = (
     AccountSeed("Everyday Spending", "bank", -11_986, ("2026-09-01",)),
 )
 
-_EXPENSE_COLORS: Final = (
-    "#ef4444",
-    "#f97316",
-    "#eab308",
-    "#22c55e",
-    "#14b8a6",
-    "#3b82f6",
-    "#8b5cf6",
-    "#ec4899",
-)
+# Handoff `settings/categories.html` chip colours by category name (operator decision
+# 2026-11-25, design-parity group; PAR-D): app preset names resolved to their hex.
+_PRESET_HEX: Final = {preset.name: preset.cat for preset in PRESETS}
+CATEGORY_PRESET: Final = {
+    "Bank Fees #18": "sky",
+    "Big Purchases": "cyan",
+    "Car": "seafoam",
+    "Entertainment": "silver",
+    "Fixed costs": "violet",
+    "Gifts": "orchid",
+    "Groceries": "lime",
+    "Health & Beauty": "pink",
+    "Nights Out": "aqua",
+    "Other": "coral",
+    "Sport & Hobby": "rose",
+    "Subscriptions": "gold",
+    "Takeaway": "orange",
+    "Taxes": "periwinkle",
+    "Transport": "blue",
+    "Travel": "peach",
+    "Salary": "chartreuse",
+    "Side Income": "emerald",
+    "VAT Refund": "mint",
+    "Transit": "teal",
+}
 _EXPENSE_NAMES: Final = (
     "Bank Fees #18",
     "Big Purchases",
@@ -223,9 +240,12 @@ _EXPENSE_NAMES: Final = (
     "Taxes",
     "Transport",
     "Travel",
+    "Wyjścia na miasto",  # in the handoff category picker (Q6), no colour
 )
 _INCOME_NAMES: Final = ("Interest", "Profit Share", "Salary", "Side Income", "VAT Refund")
-_DEFAULT_COLOUR: Final = frozenset({"Opłaty bankowe i prowizje", "Interest", "Profit Share"})
+_DEFAULT_COLOUR: Final = frozenset(
+    {"Opłaty bankowe i prowizje", "Wyjścia na miasto", "Interest", "Profit Share"}
+)
 
 
 def _categories() -> tuple[CategorySeed, ...]:
@@ -234,14 +254,14 @@ def _categories() -> tuple[CategorySeed, ...]:
         (_EXPENSE_NAMES, Direction.EXPENSE),
         (_INCOME_NAMES, Direction.INCOME),
     ):
-        for i, name in enumerate(names):
-            color = None if name in _DEFAULT_COLOUR else _EXPENSE_COLORS[i % len(_EXPENSE_COLORS)]
+        for name in names:
+            color = None if name in _DEFAULT_COLOUR else _PRESET_HEX[CATEGORY_PRESET[name]]
             out.append(CategorySeed(name, direction, color))
     return tuple(out)
 
 
 CATEGORIES: Final = _categories()
-SYSTEM_CATEGORY_COLORS: Final = {"Reconciliation": "#64748b", "Transit": "#0ea5e9"}
+SYSTEM_CATEGORY_COLORS: Final = {"Transit": _PRESET_HEX["teal"]}  # Reconciliation: no colour
 
 # Budget lines (value-inventory 2.4 budget): default tier per category.
 BUDGETS: Final[tuple[BudgetSeed, ...]] = (
@@ -331,6 +351,28 @@ _HISTORY: Final = tuple(
 
 TRANSACTIONS: Final = (*_LISTED, *_lumps(), *_HISTORY)
 
+# Today's upcoming list reads "showing 6 of 23" (handoff today.html; operator decision
+# 2026-11-25, PAR-D): one row per recurring rule (12 due in the 30-day window) plus 3 listed
+# planned items make 15, so eight more planned items dated 21 to 28 Nov bring it to 23. They
+# sort after the six rows the board shows, so the visible rows are unchanged. They are transfers
+# from Everyday Spending to Savings (Checking's planned count stays 3), so the forecast, budget
+# and income/expense figures the overlay pins do not move.
+_FILLER_PLANNED: Final = tuple(
+    PlannedSeed(
+        f"2026-11-{day}", "Transit", "Everyday Spending", amount, description, None, "Savings"
+    )
+    for day, amount, description in (
+        ("21", 4_500, "Dentist"),
+        ("22", 2_500, "Gym pass"),
+        ("23", 8_900, "Pharmacy"),
+        ("24", 3_300, "Parking"),
+        ("25", 12_000, "Tickets"),
+        ("26", 5_500, "Haircut"),
+        ("27", 7_000, "Books"),
+        ("28", 1_900, "Stationery"),
+    )
+)
+
 PLANNED: Final[tuple[PlannedSeed, ...]] = (
     PlannedSeed("2026-12-15", "Car", "Checking", 223_980, "Car"),
     PlannedSeed("2026-10-28", "Other", "Checking", 41_200, "Annual insurance"),
@@ -339,6 +381,7 @@ PLANNED: Final[tuple[PlannedSeed, ...]] = (
     # section 4 amendment 2026-11-25). Dated after the 7 Nov payday, so Today is unchanged.
     PlannedSeed("2026-11-20", "Side Income", "Checking", 2_500_000, "Annual bonus"),
     PlannedSeed("2026-12-15", "Car", "Checking", 230_635, "Car", _local("2026-10-29", "20:30")),
+    *_FILLER_PLANNED,
 )
 
 M, Q, Y = Cadence.MONTHLY, Cadence.QUARTERLY, Cadence.YEARLY
@@ -644,6 +687,7 @@ def _write_entries(
                 account_id=acc[p.account],
                 amount=p.amount_minor,
                 description=p.description,
+                dest_account_id=acc[p.dest_account] if p.dest_account else None,
             ),
         )
         if p.deleted_at is not None:
