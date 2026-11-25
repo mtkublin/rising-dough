@@ -10,17 +10,23 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import json
+import re
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 import pytest
+from bs4 import BeautifulSoup
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.services import analytics as analytics_service, fx as fx_service
 from budget_planner.services.analytics import MonthlyFlow
 from budget_planner.services.forecast import MonthlyProjectionPoint
-from budget_planner.web import chart_geometry, plan_data
+from budget_planner import clock
+from budget_planner.web import accounts_data, chart_geometry, plan_data
+from budget_planner.web.accounts_view import AccountRow
 from budget_planner.web.templating import build_jinja_env
 from tests.visual import handoff_seed
 from tests.visual.overlay import (
@@ -43,6 +49,9 @@ FORECAST_HTML = (HANDOFF / FORECAST_PAGE).read_text(encoding="utf-8")
 ANALYTICS_PAGE = "pages/plan/analytics.html"
 ANALYTICS_HTML = (HANDOFF / ANALYTICS_PAGE).read_text(encoding="utf-8")
 FLOW_ROOT = "section[aria-labelledby='ive-title']"
+ACCOUNTS_PAGE = "pages/accounts.html"
+ACCOUNTS_HTML = (HANDOFF / ACCOUNTS_PAGE).read_text(encoding="utf-8")
+ACCOUNTS_GLOB = "pages/*.html"  # the accounts page and every overlay that shows it behind
 MINUS = "\N{MINUS SIGN}"
 ENV = build_jinja_env(Settings(_env_file=None))
 
@@ -226,6 +235,9 @@ def _seed_charts_and_flow() -> tuple[
             forecast = plan_data.forecast_page_for(
                 conn, handoff_seed.OWNER_ID, settings, DAY, horizon=12, choices=(12,)
             )
+            with clock.frozen(dt.datetime(2026, 10, 31, 10, tzinfo=dt.UTC)):
+                page = accounts_data.hydrate(conn, handoff_seed.OWNER_ID, settings)
+                trends = cast("list[AccountRow]", page["rows"])
             flow_months = analytics_service.bundle(
                 conn,
                 handoff_seed.OWNER_ID,
@@ -251,7 +263,40 @@ def _seed_charts_and_flow() -> tuple[
             ),
         ),
     )
-    return charts, flow_months
+    return (*charts, *_account_trend_charts(trends)), flow_months
+
+
+def _baked(svg: str) -> str:
+    """The sparkline with its ``translate(0 N)`` margin added to the points (handoff: none)."""
+    soup = BeautifulSoup(svg, "html.parser")
+    for line in soup.select("polyline[transform]"):
+        found = re.search(r"translate\(0 ([\d.]+)\)", str(line["transform"]))
+        assert found is not None
+        shift = float(found[1])
+        pairs = (pair.split(",") for pair in str(line["points"]).split())
+        line["points"] = " ".join(f"{float(x):.1f},{float(y) + shift:.2f}" for x, y in pairs)
+        del line["transform"]
+    return str(soup)
+
+
+def _account_trend_charts(rows: Sequence[AccountRow]) -> tuple[tuple[str, str, str, str], ...]:
+    """One chart per account row: the app's sparkline (``rd-account__trend`` cell) per row."""
+    template = ENV.get_template("fragments/charts/sparkline.html")
+    cells = "".join(
+        f'<tr class="rd-row rd-row--account"><td class="rd-account__trend">'
+        f"{_baked(template.render(spark=row.trend))}</td></tr>"
+        for row in rows
+    )
+    app = f"<table><tbody>{cells}</tbody></table>"
+    return tuple(
+        (
+            ACCOUNTS_PAGE,
+            ACCOUNTS_HTML,
+            f"tr.rd-row--account:nth-of-type({i}) td.rd-account__trend",
+            app,
+        )
+        for i in range(1, len(rows) + 1)
+    )
 
 
 def seed_charts() -> tuple[tuple[str, str, str, str], ...]:
@@ -261,7 +306,7 @@ def seed_charts() -> tuple[tuple[str, str, str, str], ...]:
 def seed_rows() -> tuple[Row, ...]:
     """Geometry rows for the forecast and flow charts, from the app run over the base seed."""
     return tuple(
-        row
+        dataclasses.replace(row, page=ACCOUNTS_GLOB, optional=True) if page == ACCOUNTS_PAGE else row
         for page, html, root, app_html in seed_charts()
         for row in geometry_rows(page, html, root=root, app_html=app_html, reason=GEOMETRY_REASON)
     )
@@ -277,6 +322,7 @@ def rows_toml(rows: tuple[Row, ...]) -> str:
                 f"{key} = {json.dumps(getattr(r, key), ensure_ascii=False)}"
                 for key in ("page", "select", "field", "old", "value", "reason", "source")
             ),
+            *(["optional = true"] if r.optional else []),
             "",
         ]
     return "\n".join(blocks)
@@ -298,7 +344,7 @@ def test_committed_rows_equal_the_generated_rows(generated: tuple[Row, ...]) -> 
 
 def test_seed_chart_with_the_rows_equals_the_handoff_geometry(generated: tuple[Row, ...]) -> None:
     """Zero structural errors and exact coordinates once the committed rows are applied."""
-    assert {r.page for r in generated} == {FORECAST_PAGE, ANALYTICS_PAGE}
+    assert {r.page for r in generated} == {FORECAST_PAGE, ANALYTICS_PAGE, ACCOUNTS_GLOB}
     for page, html, root, app_html in seed_charts():
         applied = apply_rows(page, html, load_rows())
         assert applied != html

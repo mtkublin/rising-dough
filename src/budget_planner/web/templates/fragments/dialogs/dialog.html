@@ -32,7 +32,7 @@
      form_id (standard, optional): id of the <form> itself (e.g. a self-targeting hx-target); empty adds no attribute.
      field_count / field_errors: the context invalid_dialog_response passes; field_errors rows with no per-field element render as a dialog-level error line (Q18, no summary box).
    The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic. #}
-{% macro dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root", hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=(), form_id="") %}
+{% macro dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root", hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=(), form_id="", slim=false) %}
   {% if variant == "standard" %}
     <dialog class="rd-dialog{% if size %} rd-dialog--{{ size }}{% endif %}"
             id="{{ dialog_id }}"
@@ -44,7 +44,7 @@
             method="post"
             action="{{ action }}"
             {% if hx_post %}hx-post="{{ hx_post }}" hx-target="{{ hx_target }}" hx-swap="{{ hx_swap }}"{% endif %}>
-        <header class="rd-dialog__band">
+        <header class="rd-dialog__band{% if slim %} rd-dialog__band--slim{% endif %}">
           <div class="rd-dialog__band-head">
             <h2 class="rd-dialog__title" id="{{ dialog_id }}-title">{{ title }}</h2>
             {{ _close() }}

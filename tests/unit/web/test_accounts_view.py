@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
 from budget_planner.domain.accounts import Account
-from budget_planner.web.accounts_view import CreditUtilisation, credit_utilisation
+from budget_planner.web.accounts_view import (
+    AccountDialog,
+    CreditUtilisation,
+    account_dialog,
+    checked_label,
+    credit_utilisation,
+)
 
 _NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -64,3 +70,34 @@ def test_zero_or_missing_limit_has_no_utilisation(limit: int | None) -> None:
 
 def test_non_liability_has_no_utilisation() -> None:
     assert credit_utilisation(_acc(limit=100_000, liability=False), -10_000) is None
+
+
+# --- F4b: checked label, new-account chip and as-of, credit limit visibility -----------
+
+
+def test_checked_label_is_the_day_of_the_newest_signal() -> None:
+    assert checked_label(datetime(2026, 10, 29, tzinfo=UTC)) == "29 OCT"
+    assert checked_label(None) == "never"
+
+
+def _new(**entered: str) -> AccountDialog:
+    return account_dialog(None, values=entered, base_currency="PLN", today=date(2026, 10, 31))
+
+
+def test_new_dialog_chip_follows_a_known_code_and_keeps_base_for_an_unknown_one() -> None:
+    assert (_new().hero or {})["currency"] == "PLN"
+    assert (_new(currency="eur").hero or {})["currency"] == "EUR"
+    assert (_new(currency="XYZ").hero or {})["currency"] == "PLN"
+
+
+def test_new_dialog_is_as_of_today_and_the_edit_dialog_has_no_date() -> None:
+    assert _new().as_of == "2026-10-31"
+    edit = account_dialog(_acc(limit=None), base_currency="PLN", today=date(2026, 10, 31))
+    assert edit.as_of == ""
+
+
+def test_edit_dialog_hint_counts_transactions_even_when_there_are_none() -> None:
+    edit = account_dialog(
+        _acc(limit=None, liability=False), base_currency="PLN", today=date(2026, 10, 31)
+    )
+    assert edit.liability_hint == "▲ 0 transactions: this balance will count against net worth."
