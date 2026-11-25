@@ -24,19 +24,20 @@
     if (busy) busy.setAttribute('aria-busy', 'true');
   });
 
-  function restore(event) {
-    const elt = event.detail.elt;
-    const target = region(elt);
+  /* htmx:afterRequest fires for every outcome, also for error bodies app-toast.js swaps nothing for
+     (it clears isError there, so htmx:responseError never fires). A failed request puts the previous
+     list back; a good one only clears aria-busy (the response replaced the region). */
+  document.addEventListener('htmx:afterRequest', (event) => {
+    const detail = event.detail;
+    const elt = detail.elt;
     const nodes = saved.get(elt);
-    if (!target || !nodes) return;
+    if (!nodes) return;
     saved.delete(elt);
-    if (!target.isConnected) return;
-    target.replaceChildren(...nodes);
-    const busy = target.closest('[data-skeleton-busy]');
+    const status = detail.xhr ? detail.xhr.status : 0;
+    const failed = !detail.successful || status === 0 || status >= 400;
+    const target = region(elt);
+    if (failed && target && target.isConnected) target.replaceChildren(...nodes);
+    const busy = elt.closest('[data-skeleton-busy]');
     if (busy) busy.removeAttribute('aria-busy');
-  }
-
-  ['htmx:sendError', 'htmx:responseError', 'htmx:timeout', 'htmx:sendAbort'].forEach((name) =>
-    document.addEventListener(name, restore)
-  );
+  });
 })();
