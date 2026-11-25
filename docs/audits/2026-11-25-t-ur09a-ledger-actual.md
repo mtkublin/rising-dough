@@ -138,3 +138,18 @@ port; lock `/tmp/ui-redesign-heavy.lock` taken and released. Screenshots in the 
 - Numbers unchanged from the first run (day NETs equal `actual_day_nets`).
 
 Result: FINDINGS (1: form controls not restored on browser Back).
+
+---
+
+# Re-audit 2 (2026-11-25, head 617c9d26): Back restores the filter fields
+
+Same scratch DB copy, own port, lock taken and released. Walk at 1440, 1024 and 375 on `/ledger`: category, then direction, then search, Back twice,
+then a new filter change, then Back again. At every step (start, cat, dir, search, back1, back2, change-after-back, back-again) the category select,
+direction select and search box equal the query string, the table matches (28 rows for the category, 50 unfiltered) and the export links carry the same
+filters: 24 of 24 checks match, no filter dropped by the change after Back (`category_id=15&q=e` keeps the category, loses only the direction that Back
+had undone). Previous finding (fields not restored on Back): fixed by `app-ledger.js` on `htmx:historyRestore`.
+
+Standard sweep re-run (60 captures): horizontalScroll 0, overflowingElements 0 (raw 24, the same scroller and skip-link items as before), duplicateIds 0,
+consoleErrors 0, requestFailures 0. Step 3b unchanged (the diff is a script and an e2e test, no template change).
+
+Result: CLEAN.
