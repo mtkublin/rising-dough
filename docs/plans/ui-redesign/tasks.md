@@ -230,6 +230,9 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Page part done 2026-11-25 (UR08a, 40f1ff1f; audit docs/audits/2026-11-24-t-ur08a-accounts.md). Open (UR08b): new/edit/delete/reconcile dialogs, ISO currency combobox in the new-account form (currently dead in the new shell), unknown-id POST /accounts/<id>/delete reports success (audit F5); re-enable the T-UR08b skips and the /accounts KNOWN_BUGS xfail.
 - Remaining: UR08b (awaiting operator contract-test decision).
 
+#### T-UR08c Account delete of an unknown or foreign id returns 404 (operator decision Q15, audit F5)
+- `POST /accounts/{id}/delete` for an unknown, foreign or archived id: 404, no `HX-Trigger` toast, no DB or audit change, same response for every case. Contract test renamed `test_delete_unknown_or_foreign_is_404`. ADR-0152 §5 amended; no new ADR; no template change. Files: `web/routers/accounts.py`, `tests/contract/test_accounts.py`.
+
 ### ◻ T-UR09 [P] Ledger · actual → T-UR07
 - Handoff: `pages/ledger/actual` (+ `--empty`, `--no-matches`, `--long`); overlays `edit-transaction*`, `row-menu--transaction`, `category-picker*`.
 - Fragments: `ledger/filter-bar`, `ledger/bulk-bar`, `rows/transaction-row`, `rows/transaction-day`.
@@ -280,6 +283,10 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ✅ T-UR21 [P] First-run `/setup` page with one-time token → T-UR05, T-UR32, T-UR21a
 - Token service and "setup open" predicate shipped in Phase P (T-UR32, ADR-0148); this task adds the page and route. Page on `/setup` (not `/auth/register*`), reachable only while no users exist and no bootstrap admin is configured, and only with a valid single-use setup token; 404 without it (no oracle). Token invalidated once the first admin is created, never committed, never logged. Errors: invalid email, credential under 12 characters, mismatch. Once any user exists it redirects to sign in. ADR-0134 §9.
 - Done (2026-11-25): UR21 first-run `/setup` page (ef3458b2, ADR-0134 §9).
+
+### ✅ T-UR21d [P] Redact the `/setup` query string in the access log → T-UR21
+- Operator decision Q28 (2026-11-25): the access log keeps the `/setup` path and never the query string, so the setup token (`/setup?token=...`) never reaches the logs. The existing `strip_access_query` processor (`logging.py`, T-D59) already drops the query of every `uvicorn.access` request line and is wired into the formatter's pre-chain; this task pins the behaviour for `/setup` with a test and records it in ADR-0134 §9. No new code path, no allowlist entry.
+- ADR-0134 §9, ADR-0078 §5.
 
 ### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
 - Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0134 §9, ADR-0099.
