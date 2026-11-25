@@ -1,13 +1,9 @@
 {# fragment: today/hero
    Inputs: view (view_models.TodayView: figure, fit, status_text, status_over, note_long, note_short).
-   Refetches itself on today-stale (a promote or skip moved the budget). #}
+   Swapped out of band by the refresher in pages/today/index.html on today-stale and ledger-stale. #}
 <section class="rd-hero rd-hero--tall"
          id="today-hero"
-         aria-labelledby="hero-label"
-         hx-get="/today"
-         hx-trigger="today-stale from:body, ledger-stale from:body"
-         hx-select="#today-hero"
-         hx-swap="outerHTML">
+         aria-labelledby="hero-label">
   <pre class="rd-hero__loaf" aria-hidden="true">          .:+*###%%%%###*+:.
        .:*#%@@@@@@@@@@@@@@@%#*:.
      .+#%@@@@@@@@@@@@@@@@@@@@@%#+.

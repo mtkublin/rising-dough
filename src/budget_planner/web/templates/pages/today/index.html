@@ -1,30 +1,27 @@
 {# pages/today/index.html: Today on the new shell (T-UR07, handoff pages/today*.html).
    Context: nav_current, view (TodayView), afford (AffordPanel), upcoming (TodayUpcoming), window_label.
-   The bar, the stats and the net worth refetch on ledger-stale (an edit or delete moves them); the afford form is left alone.
+   One hidden refresher fetches /today on ledger-stale / today-stale and swaps the hero, bar, stats and net worth out of band
+   (an edit or delete moves them); the afford form and the upcoming list (own URL) are left alone.
    States: empty (no upcoming rows), loading (htmx-request on the upcoming section), afford-over and
    afford-invalid (GET /today?amount=...), flash (fragments/flash/* via #flash-region). #}
 {% extends "layouts/base.html" %}
 {% block title %}Today · Rising Dough{% endblock %}
 {% block main %}
+  <div hidden
+       hx-get="/today"
+       hx-trigger="today-stale from:body, ledger-stale from:body"
+       hx-swap="none"
+       hx-select-oob="#today-hero,#today-bar,#today-stats,#today-networth"></div>
   {% include "fragments/today/hero.html" %}
   <section class="rd-panel rd-today" aria-label="Period and net worth">
     <div class="rd-today__period">
       <p class="rd-caption">{{ view.caption }}</p>
-      <p id="today-bar"
-         hx-get="/today"
-         hx-trigger="ledger-stale from:body"
-         hx-select="#today-bar"
-         hx-swap="outerHTML">
+      <p id="today-bar">
         <span class="rd-bar rd-bar--lg{% if view.bar.modifier %} {{ view.bar.modifier }}{% endif %}"
               role="img"
               aria-label="{{ view.bar.label }}">{{ view.bar.solid }}<span class="{{ view.bar.remainder_class }}">{{ view.bar.remainder }}</span></span>
       </p>
-      <dl class="rd-stats"
-          id="today-stats"
-          hx-get="/today"
-          hx-trigger="ledger-stale from:body"
-          hx-select="#today-stats"
-          hx-swap="outerHTML">
+      <dl class="rd-stats" id="today-stats">
         {% for stat in view.stats %}
           <div>
             <dt class="rd-stats__label">{{ stat.label }}</dt>
@@ -55,12 +52,7 @@
         {% if afford.invalid %}<p class="rd-field__error" id="afford-error">▲ {{ afford.message }}</p>{% endif %}
       </form>
     </div>
-    <div class="rd-today__networth"
-         id="today-networth"
-         hx-get="/today"
-         hx-trigger="ledger-stale from:body"
-         hx-select="#today-networth"
-         hx-swap="outerHTML">
+    <div class="rd-today__networth" id="today-networth">
       <p class="rd-caption">NET WORTH · ALL ACCOUNTS</p>
       <p class="rd-figure-row">
         <span class="rd-figure">{{ view.net_total }}</span><span class="rd-caption">{{ base_ccy }}</span>
