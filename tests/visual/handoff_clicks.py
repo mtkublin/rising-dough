@@ -7,8 +7,8 @@ here each recipe drives the app page the way a user does (the real click or key)
 same state is open as in the handoff file, then waits until it is settled (the caller
 applies ``FREEZE_CSS`` afterwards). The page is the overlay's base page, already loaded.
 
-``override--year-cell`` has no recipe: the app opens the override dialog from a year cell,
-it has no inline cell editor (the handoff shows an inline ``rd-year-editor`` form).
+``override--year-cell`` clicks the Nights Out November cell: the app turns it into the inline
+``rd-year-editor`` form the handoff shows (``app-year-cell.js``).
 """
 
 from __future__ import annotations
@@ -49,12 +49,20 @@ def _row_menu(page: Page) -> None:
     page.mouse.move(0, 0)
 
 
-def _row_menu_by_keyboard(page: Page) -> None:
-    """The first row menu opened with Enter: the handoff file shows the first item's focus ring."""
+def _row_menu_keyboard(page: Page) -> None:
+    """The first row menu opened from the keyboard: the handoff shows its item focus ring."""
     page.locator(_ROW_MENU).first.focus()
     page.keyboard.press("Enter")
     page.wait_for_selector(".rd-menu:popover-open", timeout=_TIMEOUT_MS)
     page.mouse.move(0, 0)
+
+
+def _year_cell_editor(page: Page) -> None:
+    """Click the Nights Out November cell: it becomes the inline editor (``rd-year-editor``)."""
+    page.click("main a.rd-year-cell[aria-label^='Nights Out, November: ']")
+    page.wait_for_selector("main form[data-js='year-cell-editor']", timeout=_TIMEOUT_MS)
+    # The handoff shows the field filled, with no text selection and no focus ring.
+    page.evaluate("() => { document.activeElement?.blur(); getSelection()?.removeAllRanges(); }")
 
 
 def _category_picker(page: Page, query: str = "") -> None:
@@ -88,11 +96,12 @@ CLICK_RECIPES: Final[dict[str, Recipe]] = {
     "period-picker": _period_picker,
     "period-picker--year": _period_picker,
     "row-menu--upcoming": _row_menu,
-    "row-menu--budget": _row_menu,
-    "row-menu--account": _row_menu_by_keyboard,
+    "row-menu--budget": _row_menu_keyboard,
+    "row-menu--account": _row_menu_keyboard,
     "row-menu--planned": _row_menu,
     "row-menu--recurring": _row_menu,
     "row-menu--transaction": _row_menu,
+    "override--year-cell": _year_cell_editor,
     "category-picker": _category_picker,
     "category-picker--no-match": _picker_with("zoo"),
 }

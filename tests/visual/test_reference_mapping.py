@@ -53,6 +53,7 @@ from tests.visual.test_reference import (
     ANONYMOUS_PAGES,
     FORM_SUBMITS,
     LEDGER_BOARD,
+    LEDGER_LONG,
     OPENER_PAGES,
     OVERLAY_DIALOGS,
     OVERLAY_MODIFIERS,
@@ -104,8 +105,10 @@ def test_click_recipes_name_handoff_overlays_and_leave_the_unmapped_set() -> Non
         assert click_recipe(f"pages/overlays/{name}.html") is None
     assert click_recipe("pages/overlays/shortcuts.html") is CLICK_RECIPES["shortcuts"]
     assert click_recipe("pages/today.html") is None
-    # The year-cell inline editor does not exist in the app: it stays unmapped.
-    assert "override--year-cell" in UNMAPPED_OVERLAYS
+    # The year-cell inline editor is mapped: the recipe clicks the cell (T-UR00b F7).
+    assert "override--year-cell" not in UNMAPPED_OVERLAYS
+    year_cell = click_recipe("pages/overlays/override--year-cell.html")
+    assert year_cell is CLICK_RECIPES["override--year-cell"]
 
 
 def test_new_entry_input_states_are_mapped() -> None:
@@ -131,11 +134,11 @@ _BASES = {
     "new-account--error": ("/accounts", ()),
     "delete-account": ("/accounts", ("unreferenced-account",)),
     "delete-account--blocked-planned": ("/accounts", ("account-with-rules",)),
-    "new-category--filled": ("/settings", ()),
-    "new-category--error": ("/settings", ()),
-    "edit-category": ("/settings", ()),
-    "archive-category": ("/settings", ()),
-    "new-category": ("/settings", ()),
+    "new-category--filled": ("/settings", ("settings-categories",)),
+    "new-category--error": ("/settings", ("settings-categories",)),
+    "edit-category": ("/settings", ("settings-categories",)),
+    "archive-category": ("/settings", ("settings-categories",)),
+    "new-category": ("/settings", ("settings-categories",)),
     "edit-planned": ("/ledger?view=planned", ()),
     "promote--planned": ("/ledger?view=planned", ()),
     "edit-recurring--fixed": ("/ledger?view=recurring", ("recurring-board",)),
@@ -340,7 +343,7 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ("pages/overlays/shortcuts.html", "/today?amount=250.00", ()),
         ("pages/accounts--empty.html", "/accounts", ("empty-accounts",)),
         ("pages/ledger/actual--empty.html", "/ledger", ("empty-ledger",)),
-        ("pages/ledger/actual--long.html", LEDGER_BOARD, ("long",)),
+        ("pages/ledger/actual--long.html", LEDGER_LONG, ("long",)),
         ("pages/ledger/actual.html", LEDGER_BOARD, ()),
         (
             "pages/ledger/actual--no-matches.html",
@@ -349,7 +352,7 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ),
         ("pages/ledger/planned--empty.html", "/ledger?view=planned", ("empty-planned",)),
         ("pages/ledger/recurring--empty.html", "/ledger?view=recurring", ("empty-recurring",)),
-        ("pages/settings/categories.html", "/settings", ()),
+        ("pages/settings/categories.html", "/settings", ("settings-categories",)),
         ("pages/settings/preferences.html", "/settings?tab=prefs", ()),
         ("pages/settings/currency-fx.html", "/settings?tab=fx", ()),
         ("pages/settings/security.html", "/settings/security", ()),
@@ -504,6 +507,9 @@ def test_post_state_recipes_type_what_the_handoff_shows() -> None:
         "pages/overlays/new-account--error.html",
         "pages/overlays/new-category--filled.html",
         "pages/overlays/new-category--error.html",
+        "pages/overlays/override--budget-month.html",
+        "pages/overlays/override--budget-every.html",
+        "pages/overlays/override--budget-default.html",
     }
     assert not {p for p in DIALOG_SUBMITS if p.split("/")[-1][:-5] in UNMAPPED_OVERLAYS}
     for page, recipe in DIALOG_SUBMITS.items():

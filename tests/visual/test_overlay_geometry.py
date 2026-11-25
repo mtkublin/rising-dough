@@ -364,7 +364,33 @@ def test_the_seed_draws_the_boards_four_flow_months() -> None:
     ]
 
 
+def regenerate(text: str, rows: tuple[Row, ...]) -> str:
+    """``text`` with the generated geometry rows replaced and every other row kept in place."""
+    head, tail = text.split(GEOMETRY_MARKER, 1)
+    kept = []
+    for block in re.split(r"(?m)^(?=\[\[row\]\]$)", tail):
+        if 'source = "geometry"' not in block:
+            kept.append(block)
+        else:  # a section comment after the last geometry row belongs to the rows after it
+            kept.extend(f"{ln}\n\n" for ln in block.splitlines() if ln.startswith("# --- "))
+    others = "".join(kept).strip("\n")
+    generated = rows_toml(rows).rstrip("\n")
+    return f"{head.rstrip(chr(10))}\n\n{generated}\n\n{others}\n"
+
+
+def test_regenerate_keeps_rows_that_are_not_geometry() -> None:
+    row = Row("pages/x.html", "p", "text", "a", "b", "r", source="geometry")
+    other = '[[row]]\npage = "pages/y.html"\nsource = "app-values"\n'
+    old = f'head\n\n{GEOMETRY_MARKER}\n\n[[row]]\npage = "old"\nsource = "geometry"\n\n{other}'
+    out = regenerate(old, (row,))
+    assert out.startswith("head\n")
+    assert 'page = "old"' not in out
+    assert 'page = "pages/x.html"' in out
+    assert other.strip() in out
+    assert out.count("[[row]]") == 2
+
+
 if __name__ == "__main__":
-    text = OVERLAY_FILE.read_text(encoding="utf-8")
-    head = text.split(GEOMETRY_MARKER)[0].rstrip("\n")
-    OVERLAY_FILE.write_text(f"{head}\n\n{rows_toml(seed_rows())}", encoding="utf-8")
+    OVERLAY_FILE.write_text(
+        regenerate(OVERLAY_FILE.read_text(encoding="utf-8"), seed_rows()), encoding="utf-8"
+    )
