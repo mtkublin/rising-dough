@@ -66,6 +66,10 @@ def error_client(tmp_path: Path) -> Iterator[TestClient]:
     def _un() -> None:
         raise RuntimeError("kaboom")
 
+    @router.post("/_boom/unhandled-write")
+    def _unw() -> None:
+        raise RuntimeError("kaboom")
+
     app.include_router(router)
     cookie = login_cookie(cfg)
     with TestClient(app, raise_server_exceptions=False) as c:
@@ -143,6 +147,19 @@ def test_service_error_htmx_renders_flash_with_reference(error_client: TestClien
     assert "Reference:" in flash
     rid = r.headers["X-Request-Id"]
     assert rid in flash
+
+
+def test_failed_htmx_write_flashes_the_handoff_copy_with_retry(error_client: TestClient) -> None:
+    """handoff today--flash: a failed save keeps the form, offers retry, tooltip holds the id."""
+    r = error_client.post("/_boom/unhandled-write", headers={"HX-Request": "true"})
+    assert r.status_code == 500
+    rid = r.headers["X-Request-Id"]
+    flash = _html.resolve_one(r.text, by_id("flash-region-assertive"))
+    message = flash.select_one(".rd-flash--error > span")
+    assert message is not None
+    assert message.get_text() == "\u25b2 Couldn\u2019t save. Your changes are still in the form."
+    assert message["title"] == f"Reference: {rid}"
+    assert [b.get_text() for b in flash.select("button.rd-flash__action")] == ["retry"]
 
 
 def test_unhandled_exception_falls_back_to_500(

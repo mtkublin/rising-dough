@@ -25,6 +25,9 @@ router = APIRouter(tags=["dev"])
 
 DialogVariant = Literal["standard", "confirm", "blocked", "sheet", "reconcile", "invalid"]
 _VARIANTS_TEMPLATE: Final = "pages/dev/dialog_variants.html"
+# The handoff flash board copy (pages/today--flash.html): the dev routes answer with it.
+_DEV_SAVED: Final = "Saved \N{MIDDLE DOT} Takeaway \N{MINUS SIGN}35.50 PLN"
+_DEV_DELETED: Final = "Takeaway \N{MIDDLE DOT} \N{MINUS SIGN}35.50 PLN deleted"
 _DEV_FIELD_ERRORS: Final = MappingProxyType(
     {
         "amount": "Enter an amount above 0.00",
@@ -103,7 +106,7 @@ def dev_shell_dialog_variant_save(
     if getattr(settings, "env", "dev") == "production":
         raise HTTPException(status_code=404)
     if variant == "confirm":
-        return saved_response(request, None, {}, message="Dev account deleted")
+        return saved_response(request, None, {}, message=_DEV_SAVED)
     return invalid_dialog_response(
         request, _VARIANTS_TEMPLATE, {"variant": "invalid"}, _DEV_FIELD_ERRORS
     )
@@ -119,7 +122,7 @@ def dev_shell_toast(
     response = Response(status_code=204)
     trigger(
         response,
-        toast=toast_payload("success", "Dev toast saved", undo_url="/dev/shell/toast/undo"),
+        toast=toast_payload("success", _DEV_DELETED, undo_url="/dev/shell/toast/undo"),
     )
     return response
 

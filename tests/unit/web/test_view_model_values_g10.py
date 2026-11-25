@@ -60,6 +60,23 @@ def test_bar_cells(
     assert (bar.filled, bar.empty, bar.left_pct) == expected
 
 
+@pytest.mark.parametrize(
+    ("spent", "budget", "expected"),
+    [
+        (501_455, 644_908, (16, 4, 22)),  # 77.76 % of 20 cells: 16 (handoff Today bar), not 15
+        (0, 100, (0, 20, 100)),
+        (1, 1_000, (1, 19, 100)),  # min_one
+        (644_908, 644_908, (20, 0, 0)),
+        (650_000, 644_908, (20, 0, 0)),  # clamped
+    ],
+)
+def test_bar_cells_exact_rounds_the_share_not_the_floored_percent(
+    spent: int, budget: int, expected: tuple[int, int, int]
+) -> None:
+    bar = view_models.bar_cells_exact(spent, budget, 20, min_one=True)
+    assert (bar.filled, bar.empty, bar.left_pct) == expected
+
+
 def _line(cid: int, budgeted: int, spent: int) -> CategoryBudgetLine:
     return CategoryBudgetLine(
         category_id=cid,
