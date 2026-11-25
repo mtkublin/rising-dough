@@ -31,7 +31,12 @@ from budget_planner.web.dialogs import (
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.http_headers import HX_RESWAP
 from budget_planner.web.params import parse_int
-from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TRANSACTIONS_PATH
+from budget_planner.web.paths import (
+    LEDGER_PATH,
+    PLANNED_PATH,
+    RESTORE_SEGMENT,
+    TRANSACTIONS_PATH,
+)
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import is_hx_request, render, render_context
 
@@ -268,7 +273,7 @@ def deleted_txn_response(request: Request, txn_id: int) -> Response:
     return removed_response(
         request,
         message="transaction deleted",
-        undo_url=f"{TRANSACTIONS_PATH}/{txn_id}/restore",
+        undo_url=f"{TRANSACTIONS_PATH}/{txn_id}/{RESTORE_SEGMENT}",
         events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
     )
 
