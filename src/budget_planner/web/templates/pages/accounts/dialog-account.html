@@ -97,9 +97,9 @@
                {% if not dlg.is_liability %}disabled data-reveal-disabled{% endif %}
                {% if errors.credit_limit|default(none) %}aria-invalid="true" aria-describedby="field-credit_limit-error"{% endif %}>
       </span>
-      {% if errors.credit_limit|default(none) %}<span class="rd-field__error"
-      id="field-credit_limit-error">▲ {{ errors.credit_limit }}</span>{% endif %}
     </label>
+    {% if errors.credit_limit|default(none) %}<p class="rd-field__error"
+   id="field-credit_limit-error">▲ {{ errors.credit_limit }}</p>{% endif %}
     {% if dlg.liability_hint %}
       <p class="rd-field__hint rd-field__hint--solo rd-field__hint--ink"
          role="status"

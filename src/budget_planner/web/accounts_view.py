@@ -15,7 +15,7 @@ from datetime import date
 from typing import cast
 
 from budget_planner.domain.accounts import Account, AccountReferences, AccountStats
-from budget_planner.domain.money import format_figure, format_major, percent_of
+from budget_planner.domain.money import format_figure, format_major, format_money, percent_of
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services.account_planned import AccountPlanned
 from budget_planner.services.balance import sparkline_points
@@ -290,49 +290,49 @@ def _type_options(selected: str) -> tuple[TypeOption, ...]:
     return tuple(options)
 
 
-def account_dialog(
-    acc: Account | None,
-    *,
-    values: Mapping[str, str] | None = None,
-    base_currency: str,
-    txn_count: int = 0,
-    errors: Mapping[str, str] | None = None,
+def _new_dialog(
+    entered: Mapping[str, str], problems: Mapping[str, str], base: str
 ) -> AccountDialog:
-    """New (``acc`` is ``None``) or edit dialog values; ``values`` refill a rejected submit."""
-    entered = values or {}
-    problems = errors or {}
-    if acc is None:
-        currency = entered.get("currency", "")
-        opening = entered.get("opening_balance", "0.00")
-        return AccountDialog(
-            editing=False,
-            dialog_id="new-account",
-            title="new account",
-            action="/accounts",
-            target="#account-form",
-            swap="outerHTML",
-            submit_label="[ create account ]",
-            hero={
-                "currency": currency.upper() or base_currency,
-                "amount_value": opening,
-                "amount_label": "Opening balance",
-                "amount_id": "field-opening_balance",
-                "amount_name": "opening_balance",
-                "note": "opening balance",
-                "error": problems.get("opening_balance"),
-            },
-            name=entered.get("name", ""),
-            currency=currency,
-            type_options=_type_options(entered.get("type", "bank")),
-            is_liability=entered.get("is_liability", "") == "on",
-            credit_limit=entered.get("credit_limit", ""),
-            liability_hint="",
-        )
+    currency = entered.get("currency", "")
+    hero: dict[str, object] = {
+        "currency": currency.upper() or base,
+        "amount_value": entered.get("opening_balance", "0.00"),
+        "amount_label": "Opening balance",
+        "amount_id": "field-opening_balance",
+        "amount_name": "opening_balance",
+        "note": "opening balance",
+        "error": problems.get("opening_balance"),
+    }
+    return AccountDialog(
+        editing=False,
+        dialog_id="new-account",
+        title="new account",
+        action="/accounts",
+        target="#account-form",
+        swap="outerHTML",
+        submit_label="[ create account ]",
+        hero=hero,
+        name=entered.get("name", ""),
+        currency=currency,
+        type_options=_type_options(entered.get("type", "bank")),
+        is_liability=entered.get("is_liability", "") == "on",
+        credit_limit=entered.get("credit_limit", ""),
+        liability_hint="",
+    )
+
+
+def _edit_dialog(acc: Account, entered: Mapping[str, str], txn_count: int) -> AccountDialog:
     limit = format_major(acc.credit_limit_minor, acc.currency) if acc.credit_limit_minor else ""
+    plural = "" if txn_count == 1 else "s"
+    hint = (
+        f"\u25b2 {txn_count} transaction{plural}: this balance will count against net worth."
+        if txn_count
+        else ""
+    )
     return AccountDialog(
         editing=True,
         dialog_id="edit-account",
-        title=f"edit account · {acc.name}",
+        title=f"edit account \u00b7 {acc.name}",
         action=f"/accounts/{acc.id}",
         target=f"#account-{acc.id}",
         swap="outerHTML",
@@ -343,13 +343,23 @@ def account_dialog(
         type_options=_type_options(entered.get("type", acc.type or "")),
         is_liability=entered.get("is_liability", "on" if acc.is_liability else "") == "on",
         credit_limit=entered.get("credit_limit", limit),
-        liability_hint=(
-            f"\u25b2 {txn_count} transaction{'' if txn_count == 1 else 's'}: "
-            "this balance will count against net worth."
-            if txn_count
-            else ""
-        ),
+        liability_hint=hint,
     )
+
+
+def account_dialog(
+    acc: Account | None,
+    *,
+    values: Mapping[str, str] | None = None,
+    base_currency: str,
+    txn_count: int = 0,
+    errors: Mapping[str, str] | None = None,
+) -> AccountDialog:
+    """New (``acc`` is ``None``) or edit dialog values; ``values`` refill a rejected submit."""
+    entered = values or {}
+    if acc is None:
+        return _new_dialog(entered, errors or {}, base_currency)
+    return _edit_dialog(acc, entered, txn_count)
 
 
 @dataclass(frozen=True, slots=True)
@@ -368,24 +378,9 @@ def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
-def delete_dialog(acc: Account, refs: AccountReferences, balance_minor: int) -> DeleteDialog:
-    """Confirm when nothing points at the account, else the blocked variant with counts.
-
-    Mirrors ``services.accounts.archive_account``: a non-zero balance or any live
-    transaction, planned or recurring row blocks the delete.
-    """
+def _blocked(acc: Account, refs: AccountReferences, balance_minor: int) -> DeleteDialog:
     action = f"/accounts/{acc.id}/delete"
     ledger = f"/ledger?account_id={acc.id}"
-    if not (refs.transactions or refs.planned or refs.recurring or balance_minor):
-        return DeleteDialog(
-            blocked=False,
-            title=f"Delete {acc.name}?",
-            text="Nothing points at it: no transactions, planned or recurring items. "
-            "This can\u2019t be undone.",
-            action=action,
-            link_label="",
-            link_href="",
-        )
     title = f"Can\u2019t delete {acc.name}"
     items = []
     if refs.planned:
@@ -395,29 +390,122 @@ def delete_dialog(acc: Account, refs: AccountReferences, balance_minor: int) -> 
     if refs.transactions:
         extra = f" and {' and '.join(items)}" if items else ""
         text = f"It still has {_count(refs.transactions, 'transaction')}{extra}."
-        text += " Move or delete them first."
+        label = f"view {_count(refs.transactions, 'transaction')}"
         return DeleteDialog(
             True,
             title,
-            text,
+            f"{text} Move or delete them first.",
             action,
-            f"view {_count(refs.transactions, 'transaction')}",
+            label,
             f"{ledger}&view=actual",
         )
     if items:
         verb = "uses" if refs.planned + refs.recurring == 1 else "use"
-        text = (
-            f"It has no transactions, but {' and '.join(items)} still {verb} it. "
-            "Move or delete them first."
+        text = f"It has no transactions, but {' and '.join(items)} still {verb} it."
+        only_rules = bool(refs.recurring) and not refs.planned
+        view = "recurring" if only_rules else "planned"
+        label = "view recurring rules" if only_rules else "view planned items"
+        return DeleteDialog(
+            True,
+            title,
+            f"{text} Move or delete them first.",
+            action,
+            label,
+            f"{ledger}&view={view}",
         )
-        view, label = (
-            ("recurring", "view recurring rules")
-            if refs.recurring and not refs.planned
-            else ("planned", "view planned items")
-        )
-        return DeleteDialog(True, title, text, action, label, f"{ledger}&view={view}")
-    text = (
-        f"Its balance is {format_figure(balance_minor, acc.currency, with_currency=True)}. "
-        "Bring it to zero first."
+    figure = format_figure(balance_minor, acc.currency, with_currency=True)
+    return DeleteDialog(
+        True, title, f"Its balance is {figure}. Bring it to zero first.", action, "", ""
     )
-    return DeleteDialog(True, title, text, action, "", "")
+
+
+def delete_dialog(acc: Account, refs: AccountReferences, balance_minor: int) -> DeleteDialog:
+    """Confirm when nothing points at the account, else the blocked variant with counts.
+
+    Mirrors ``services.accounts.archive_account``: a non-zero balance or any live
+    transaction, planned or recurring row blocks the delete.
+    """
+    if refs.transactions or refs.planned or refs.recurring or balance_minor:
+        return _blocked(acc, refs, balance_minor)
+    return DeleteDialog(
+        blocked=False,
+        title=f"Delete {acc.name}?",
+        text="Nothing points at it: no transactions, planned or recurring items. "
+        "This can\u2019t be undone.",
+        action=f"/accounts/{acc.id}/delete",
+        link_label="",
+        link_href="",
+    )
+
+
+# --- T-UR08b: reconcile dialog ----------------------------------------------------
+@dataclass(frozen=True, slots=True)
+class CategoryChoice:
+    value: str
+    label: str
+    selected: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ReconcileDialog:
+    """Everything ``dialog-reconcile`` prints: the signed difference hero, facts and form."""
+
+    title: str
+    action: str
+    preview_url: str
+    target: str
+    currency: str
+    difference_text: str
+    facts_text: str
+    field_label: str
+    hint: str
+    hint_id: str
+    value: str
+    categories: tuple[CategoryChoice, ...]
+    save_snapshot: bool
+    snapshots: tuple[SnapshotLine, ...]
+
+
+def reconcile_dialog(
+    acc: Account,
+    *,
+    current_minor: int,
+    difference_minor: int,
+    value: str,
+    credit: CreditUtilisation | None,
+    categories: list[tuple[int, str]],
+    category_id: str,
+    save_snapshot: bool,
+    snapshots: list[AccountSnapshot],
+) -> ReconcileDialog:
+    """Reconcile dialog values; ``credit`` is set when reconciling by available credit."""
+    ccy = acc.currency
+    if credit is None:
+        field_label, hint = "balance in your bank", ""
+    else:
+        field_label = "remaining balance in your bank"
+        hint = (
+            "enter what you can still spend (limit \u2212 spent). "
+            f"Limit {format_money(credit.limit_minor, ccy)} \u00b7 "
+            f"implied used {format_money(credit.used_minor, ccy)}"
+        )
+    choices = [CategoryChoice("", "\u00b1ADJUST \u00b7 Reconciliation (system)", category_id == "")]
+    choices += [
+        CategoryChoice(str(cid), label, category_id == str(cid)) for cid, label in categories
+    ]
+    return ReconcileDialog(
+        title=f"reconcile \u00b7 {acc.name}",
+        action=f"/accounts/{acc.id}/reconcile",
+        preview_url=f"/accounts/{acc.id}/reconcile?preview=1",
+        target=f"#account-{acc.id}",
+        currency=ccy,
+        difference_text=format_figure(difference_minor, ccy, plus=True),
+        facts_text=format_money(current_minor, ccy),
+        field_label=field_label,
+        hint=hint,
+        hint_id="rec-available-help",
+        value=value,
+        categories=tuple(choices),
+        save_snapshot=save_snapshot,
+        snapshots=tuple(snapshot_line(s) for s in snapshots),
+    )

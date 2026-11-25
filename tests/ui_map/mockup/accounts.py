@@ -7,7 +7,7 @@ no row ids, so the id-parameterised builders return a sample row.
 from __future__ import annotations
 
 from tests.ui_map import accounts as _app
-from tests.ui_map.locator import Locator, by_id, label, role
+from tests.ui_map.locator import Locator, by_id, role
 
 heading = role("heading", "net worth", level=1)
 new_account_button = role("link", "+ new account")
@@ -67,6 +67,8 @@ NO_HANDOFF_TWIN = frozenset(
         "last_checked_row",
         "snapshot_item",
         "reconcile_record",
+        "reconcile_difference",
+        "reconcile_preview",
         "new_account_cta",
     }
 )
@@ -115,10 +117,12 @@ def menu_item(label_text: str) -> Locator:
     return _app.menu_item(label_text)
 
 
-reconcile_dialog = role("dialog")
-reconcile_actual = label("Your bank says")
-reconcile_available = label("Available")
-reconcile_available_help = by_id("rec-available-help")
+reconcile_dialog = _app.reconcile_dialog
+reconcile_actual = _app.reconcile_actual
+reconcile_available = _app.reconcile_available
+reconcile_available_help = _app.reconcile_available_help
+reconcile_difference = _app.reconcile_difference
+reconcile_preview = _app.reconcile_preview
 last_checked_row = role("listitem")
 snapshot_item = role("listitem")
-reconcile_record = role("button", "Record").inside(reconcile_dialog)
+reconcile_record = _app.reconcile_record

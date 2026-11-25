@@ -323,14 +323,6 @@ epic = "E16"
 owner = "T-UR02"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/accounts/_reconcile_modal.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR08"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/categories/_form.html"
 rule = "tpl-set"
 count = 1

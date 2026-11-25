@@ -23,7 +23,8 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import balance as balance_service
-from tests.ui_map import _html, accounts, errors, shell
+from tests.ui_map import _html, accounts, shell
+from tests.ui_map.locator import role
 
 USER_ID = 1
 
@@ -184,7 +185,7 @@ def test_reconcile_form_renders(client: TestClient, acc_id: int) -> None:
 def test_reconcile_form_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/reconcile")
     assert r.status_code == 404
-    assert "Account not found." in _html.text_of(r.text, accounts.reconcile_dialog)
+    assert r.text == "account not found"
 
 
 def test_reconcile_submit(client: TestClient, acc_id: int) -> None:
@@ -200,7 +201,7 @@ def test_reconcile_submit_bad_number(
     before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "notnum"})
     assert r.status_code == 422
-    assert "actual_balance: invalid number" in _html.all_text(r.text, errors.alert)
+    assert "Actual balance : invalid number" in _html.text_of(r.text, accounts.form_errors)
     assert _count(db, "transactions") == before
 
 
@@ -366,8 +367,8 @@ def test_new_form_hides_credit_limit_by_default(client: TestClient) -> None:
 
 def test_new_dialog_lists_every_iso_currency_in_the_datalist(client: TestClient) -> None:
     r = client.get("/accounts/new")
-    soup = BeautifulSoup(r.text, "html.parser")
-    codes = [o["value"] for o in soup.select("datalist#iso-codes option")]
+    options = _html.resolve(r.text, role("option").inside(accounts.currency_options))
+    codes = [o["value"] for o in options]
     assert {"PLN", "EUR", "USD"} <= set(codes)
     assert len(codes) == len(set(codes)) > 100
     assert _html.resolve_one(r.text, accounts.form_currency)["list"] == "iso-codes"

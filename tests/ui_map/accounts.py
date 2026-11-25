@@ -71,16 +71,17 @@ def menu_item(label_text: str) -> Locator:
     return role("menuitem", label_text, exact=True)
 
 
-# --- reconcile dialog (UR08b) ---
-reconcile_dialog = role("dialog")
-reconcile_actual = label("Your bank says")
-reconcile_available = label("Available")
+# --- reconcile dialog (UR08b; handoff overlays reconcile, reconcile--liability) ---
+reconcile_dialog = role("dialog", _re.compile(r"^reconcile \u00b7 "))
+reconcile_actual = label("balance in your bank", exact=True)
+reconcile_available = label("remaining balance in your bank", exact=True)
 reconcile_available_help = by_id("rec-available-help")
+reconcile_difference = role("status").inside(reconcile_dialog)  # the hero <output>
+reconcile_preview = role("button", "preview", exact=True).inside(reconcile_dialog)
+reconcile_record = role("button", "[ reconcile ]", exact=True).inside(reconcile_dialog)
 
 # --- last-checked fragment ---
 last_checked_row = role("listitem")
 
 # --- snapshot fragment (bare list item) ---
 snapshot_item = role("listitem")
-
-reconcile_record = role("button", "Record").inside(reconcile_dialog)

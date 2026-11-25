@@ -110,14 +110,7 @@ NOT_PAGES: dict[str, str] = {
 # route -> (task id, substring identifying the problem, reason). The page test
 # ignores matching problems; ``test_known_bug`` re-crawls and xfails strictly,
 # so the day the bug is fixed the xfail turns into a failure and the entry must go.
-KNOWN_BUGS: dict[str, tuple[str, str, str]] = {
-    "/accounts": (
-        "T-UR08b",
-        "control did nothing",
-        "the new-account and reconcile dialogs are the old markup in the new shell, whose "
-        "close script it does not load; T-UR08b ports them",
-    ),
-}
+KNOWN_BUGS: dict[str, tuple[str, str, str]] = {}
 
 # Shell controls (header / nav / aside / footer) are identical on every page;
 # activate each once per run and only list them per page. Serial-run state.

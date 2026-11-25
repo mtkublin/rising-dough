@@ -13,26 +13,20 @@ from typing import Any
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.money import parse_amount_minor
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.services import (
-    account_reconcile as reconcile_service,
     accounts as accounts_service,
     balance as balance_service,
-    reconciliation as reconciliation_service,
 )
 from budget_planner.web import accounts_data, form_responses
 from budget_planner.web.account_forms import (
     parse_account_patch,
-    parse_category_id,
     parse_new_account,
     parse_save_snapshot,
 )
 from budget_planner.web.accounts_view import (
     account_dialog,
-    account_row,
     delete_dialog,
     snapshot_line,
 )
@@ -59,14 +53,9 @@ def index(
 
 _ACCOUNT_DIALOG = "pages/accounts/dialog-account.html"
 _DELETE_DIALOG = "pages/accounts/dialog-delete.html"
+_RECONCILE_DIALOG = "pages/accounts/dialog-reconcile.html"
 _ROW = "fragments/rows/account-row.html"
 _NOT_FOUND = "account not found"
-
-
-def _row_context(
-    conn: sqlite3.Connection, user_id: int, account_id: int, settings: Settings
-) -> dict[str, object]:
-    return {"row": account_row(accounts_data.single_card(conn, user_id, account_id, settings))}
 
 
 @router.get(NEW_PATH, response_class=HTMLResponse)
@@ -111,7 +100,7 @@ def create_account(
         )
         return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
     acc = accounts_service.create(conn, user_id, parsed.command)
-    html = render_context(request, _ROW, _row_context(conn, user_id, acc.id, settings))
+    html = render_context(request, _ROW, accounts_data.row_context(conn, user_id, acc.id, settings))
     trigger(html, Event.BALANCE_STALE)
     # T-D150: the accounts list has no region that refetches on a trigger for a new row,
     # so skip the swap and reload to show the new item (the reload also closes the dialog).
@@ -177,7 +166,7 @@ def update_account(
     return saved_response(
         request,
         _ROW,
-        _row_context(conn, user_id, account_id, settings),
+        accounts_data.row_context(conn, user_id, account_id, settings),
         message=f"{name.strip()} saved",
         events=(Event.BALANCE_STALE,),
     )
@@ -233,35 +222,12 @@ def reconcile_form(
     actual_balance: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return render(
-            request,
-            "partials/accounts/_reconcile_modal.html",
-            account=None,
-            derived=0,
-            errors={"account": "not found"},
-            status_code=404,
-        )
-    derived = balance_service.derive_balance(conn, user_id, account_id)
-    errors: dict[str, str] = {}
-    entered = parse_amount_minor(actual_balance, acc.currency) if actual_balance.strip() else None
-    if actual_balance.strip() and entered is None:
-        errors["actual_balance"] = "invalid number"
-    try:
-        modal: dict[str, Any] = accounts_data.reconcile_modal_context(
-            conn, user_id, acc, derived, entered
-        )
-    except reconciliation_service.InvalidAvailableError as exc:
-        errors["actual_balance"] = str(exc)
-        modal = accounts_data.reconcile_modal_context(conn, user_id, acc, derived)
-    return render(
-        request,
-        "partials/accounts/_reconcile_modal.html",
-        snapshots=accounts_data.recent_snapshots(conn, user_id, account_id),
-        errors=errors,
-        **modal,
+        return Response(status_code=404, content=_NOT_FOUND)
+    return form_responses.reconcile_dialog_response(
+        request, conn, user_id, acc, actual_text=actual_balance
     )
 
 
@@ -273,37 +239,31 @@ def reconcile_submit(
     actual_balance: str = Form(...),
     category_id: str = Form(""),
     save_snapshot: str = Form(""),
+    preview: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    """Book the reconcile adjustment; ``?preview=1`` only re-renders the dialog's difference."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return Response(status_code=404, content="not found")
-    derived = balance_service.derive_balance(conn, user_id, account_id)
-
-    entered = parse_amount_minor(actual_balance, acc.currency)
-    if entered is None:
+    typed: dict[str, Any] = {
+        "actual_text": actual_balance,
+        "category_id": category_id,
+        "save_snapshot": parse_save_snapshot(save_snapshot),
+    }
+    if preview:
+        return form_responses.reconcile_dialog_response(request, conn, user_id, acc, **typed)
+    refused = accounts_data.book_reconcile(conn, user_id, acc, settings, **typed)
+    if refused is not None:
         return form_responses.reconcile_modal_error(
-            request, conn, user_id, acc=acc, derived=derived, message="invalid number"
+            request, conn, user_id, acc=acc, message=refused, **typed
         )
-    try:
-        reconcile_service.reconcile_account(
-            conn,
-            user_id,
-            account_id=account_id,
-            actual_balance_minor=reconcile_service.target_balance_minor(acc, entered),
-            today=clock.today_local(settings),
-            category_id=parse_category_id(category_id),
-            save_snapshot=parse_save_snapshot(save_snapshot),
-        )
-    except (
-        reconciliation_service.InvalidAvailableError,
-        reconciliation_service.ValidationError,
-    ) as exc:
-        return form_responses.reconcile_modal_error(
-            request, conn, user_id, acc=acc, derived=derived, message=str(exc)
-        )
-    html = render_context(request, _ROW, _row_context(conn, user_id, account_id, settings))
-    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE)
-    return html
+    return saved_response(
+        request,
+        _ROW,
+        accounts_data.row_context(conn, user_id, account_id, settings),
+        message=f"{acc.name} reconciled",
+        events=(Event.BALANCE_STALE, Event.FORECAST_STALE),
+    )
