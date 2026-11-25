@@ -1,6 +1,6 @@
 {# fragment: dialogs/edit-recurring (T-UR10, ADR-0107, ADR-0152; handoff overlays/edit-recurring--*.html)
    Context (web.recurring_views.edit_context, a new_entry_context for the repeats tab): title, action, hero_url,
-   rule_id, hero (the amount input, or the formula's next amount as a static output), picker, selected_category_id,
+   rule_id, hero (the amount input, or the formula's next amount figure as a static output), next_amount (the note under the components), picker, selected_category_id,
    picked_name, accounts, selected_account_id, selected_dest_id, transit_when, amount_source, components,
    source_categories, values (posted text), errors, field_count / field_errors (422).
    States: fixed value | formula (filled, empty, incomplete: the messages are errors.formula) | the category
@@ -55,7 +55,7 @@
        hx-include="closest form"
        hx-target="find .rd-formula__result"
        hx-swap="innerHTML">
-    {% with formula_id="formula-edit-recurring", options=source_categories, next_amount=none %}
+    {% with formula_id="formula-edit-recurring", options=source_categories, next_amount=next_amount|default(none) %}
       {% include "fragments/fields/formula.html" %}
     {% endwith %}
     {% if errors.formula|default(none) %}<p class="rd-field__error"

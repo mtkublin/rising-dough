@@ -160,7 +160,10 @@ def test_edit_a_formula_rule_shows_its_terms_and_the_computed_amount(
     # the hero is the server's computed figure: 20 % of the 1000.00 Salary rule
     figure = _hero(r.text, "Taxes", "rd-dialog__amount")
     assert (figure.name, figure.get_text()) == ("output", "200.00")
-    assert _hero(r.text, "Taxes", "rd-dialog__hero-note").get_text() == "→ next amount 200.00 PLN"
+    # the note sits in the formula body (handoff), not in the hero band
+    assert _hero(r.text, "Taxes", "rd-dialog__hero").find(class_="rd-dialog__hero-note") is None
+    group = _html.resolve_one(r.text, edit_dialogs.formula_group(scope))
+    assert _child(group, "output").get_text() == "→ next amount 200.00 PLN"
     assert _hero(r.text, "Taxes", "rd-dialog__sign").get_text() == sign_glyph(True)
     percent = _html.resolve_one(r.text, edit_dialogs.formula_percent(scope))
     assert percent.get("value") == "20"

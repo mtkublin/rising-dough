@@ -398,11 +398,23 @@ def _term_rows(
 
 
 def _signed_hero(context: dict[str, object]) -> dict[str, object]:
-    """The formula hero is a static output without a sign; the handoff still signs it."""
+    """Sign the static formula hero (the handoff does) and move its note into the formula body.
+
+    The handoff shows "-> next amount ..." under "+ add component", not in the hero band; the
+    note's amount becomes ``next_amount`` of the formula fragment.
+    """
     hero = context["hero"]
     if not isinstance(hero, dict):
         return context
-    return {**context, "hero": {"sign": context["sign"], **hero}}
+    note = str(hero.get("note") or "")
+    shown = {k: v for k, v in hero.items() if k != "note"}
+    prefix = "\N{RIGHTWARDS ARROW} next amount "
+    next_amount = note.removeprefix(prefix) if note.startswith(prefix) else None
+    return {
+        **context,
+        "hero": {"sign": context["sign"], **shown},
+        "next_amount": next_amount,
+    }
 
 
 def render_edit_dialog(
