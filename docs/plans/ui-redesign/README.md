@@ -48,7 +48,7 @@ v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3]
 ## Guardrails
 
 - **Presentation from the handoff only** (ADR-0107 §1–§2). Old templates and CSS may be read to understand behaviour, never copied.
-- **Behaviour is pinned by the harness.** If a contract test needs to change, stop: that is a behaviour change and needs a requirement or ADR first.
+- **Behaviour is pinned by the harness.** If a contract test needs to change, stop: that is a behaviour change and needs a requirement or ADR first; transport-markup assertions follow ADR-0152.
 - **Parity, not features.** Handoff-only screens are wired only after a requirement exists (`derived.md` records the decision).
 - **No mixed chrome in prod.** Release once, after T-UR15 (ADR-0107 §8). Prod only via GitHub Actions from `main` (ADR-0099).
 - **Reuse check** (ADR-0130, CLAUDE.md "Canonical modules"): search before writing a helper, reuse the canonical module, report `Searched / Reused / New helper` in every surface handoff; new templates start at zero on the template-logic guards (no allowlist entries).

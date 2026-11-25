@@ -370,6 +370,41 @@ def test_row_menu_has_button_menu_items_and_cancel() -> None:
     assert len(_html.resolve(html, role("menuitem"))) == 3
 
 
+def test_row_menu_item_kinds_get_post_confirm_phone_and_danger() -> None:
+    html = _render(
+        "menus/row-menu",
+        menu_id="menu-3",
+        title="Checking",
+        items=(
+            {"label": "edit", "hx_get": "/accounts/3/edit"},
+            {"label": "reconcile", "hx_get": "/accounts/3/reconcile", "href": "/r", "phone": True},
+            {
+                "label": "remove",
+                "hx_post": "/accounts/3/remove",
+                "hx_confirm": "Sure?",
+                "danger": True,
+            },
+        ),
+    )
+    edit = _html.resolve_one(html, f.row_menu_item("edit"))
+    assert (edit.name, edit.get("href"), edit.get("hx-get")) == (
+        "a",
+        "/accounts/3/edit",
+        "/accounts/3/edit",
+    )
+    assert (edit.get("hx-target"), edit.get("hx-swap")) == ("#modal-root", "innerHTML")
+    rec = _html.resolve_one(html, f.row_menu_item("reconcile"))
+    assert (rec.get("href"), rec.get("class")) == ("/r", ["rd-menu__item", "rd-menu__item--phone"])
+    rem = _html.resolve_one(html, f.row_menu_item("remove"))
+    assert (rem.name, rem.get("hx-post"), rem.get("hx-confirm")) == (
+        "button",
+        "/accounts/3/remove",
+        "Sure?",
+    )
+    assert rem.get("class") == ["rd-menu__item", "rd-menu__item--danger"]
+    assert "rd-menu__sub" not in html  # no sub line without ``sub``
+
+
 def test_pagination_shows_older_newer_and_the_aside() -> None:
     html = _render(
         "ledger/pagination",
