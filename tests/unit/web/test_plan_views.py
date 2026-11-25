@@ -123,3 +123,18 @@ def test_spend_rows_share_bar_and_deltas() -> None:
         "/ledger?view=actual&category_id=1&date_from=2026-10-01&date_to=2026-10-31"
     )
     assert by_name["Taxes"].link_label == "Taxes: 5,000.00 PLN, open in ledger"
+
+
+def test_negative_balance_text_uses_the_minus_sign() -> None:
+    points = (_point(10, -18_830_45), _point(11, 5_00))
+
+    page = forecast_page(
+        points,
+        None,
+        horizon=6,
+        choices=(6,),
+        currency="PLN",
+        base_url="/plan?tab=forecast&horizon=",
+    )
+
+    assert [r.balance_text for r in page.rows] == [f"{MINUS}18,830.45", "5.00"]

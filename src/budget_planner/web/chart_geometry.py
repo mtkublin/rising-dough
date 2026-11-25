@@ -271,7 +271,7 @@ def forecast_chart(
             f"{caption_prefix} {_DOT} {_month_abbr(first)} {first.year} {_EN_DASH} "
             f"{_month_abbr(last)} {last.year} {_DOT} {currency}"
         ),
-        grid=_grid(scale, tick_values, format_axis_number),
+        grid=_grid(scale, tick_values, _axis_label),
         ticks=tuple(
             MonthTick(
                 x=fmt(x),
@@ -351,6 +351,12 @@ def _loaf_path(x: float, width: float, apex: float) -> str:
         f"L{fmt(right)},{fmt(apex)} A{fmt(radius)},{fmt(radius)} 0 0 0 "
         f"{fmt(x)},{fmt(apex)} Z"
     )
+
+
+def _axis_label(value: float) -> str:
+    """Axis tick text; a negative tick takes U+2212 like every other figure."""
+    text = format_axis_number(abs(value))
+    return f"\N{MINUS SIGN}{text}" if value < 0 else text
 
 
 def _k_label(value: float) -> str:

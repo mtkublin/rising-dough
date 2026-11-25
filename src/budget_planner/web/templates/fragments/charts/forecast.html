@@ -4,7 +4,10 @@
    the top. #}
 <figure class="rd-chart-card" aria-labelledby="fc-chart-title">
   <figcaption class="rd-caption" id="fc-chart-title">{{ chart.caption }}</figcaption>
-  <div class="rd-chart-card__plot">
+  <div class="rd-chart-card__plot"
+       tabindex="0"
+       role="region"
+       aria-label="Chart (scrolls sideways)">
     <svg class="rd-chart rd-chart--forecast"
          role="img"
          viewBox="{{ chart.view_box }}"

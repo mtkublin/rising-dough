@@ -136,3 +136,10 @@ def test_no_months_draws_an_empty_chart() -> None:
     chart = flow_chart((), "PLN", current=(2026, 1))
 
     assert chart.months == () and chart.grid == ()
+
+
+def test_negative_axis_ticks_use_the_minus_sign() -> None:
+    chart = forecast_chart(_series([-2_000_000, -500_000]), "PLN", caption_prefix="P")
+
+    assert chart.grid[0].label == f"{MINUS}20,000"
+    assert all(g.label.startswith(MINUS) or g.label == "0" for g in chart.grid)

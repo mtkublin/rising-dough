@@ -95,3 +95,35 @@ def test_analytics_range_buttons_reload_the_page_for_another_range(journey: Jour
 
     expect(_find(journey, plan_analytics.range_selected)).to_have_text("12 months")
     expect(journey.page).to_have_url(re.compile(r"tab=analytics&period=trailing-12"))
+
+
+def test_back_keeps_the_pressed_horizon_in_step_with_the_url(journey: Journey) -> None:
+    if journey.target != "app":
+        pytest.skip("the handoff horizon buttons are static")
+    _open(journey, "/plan?tab=forecast")
+
+    for months in (6, 12, 24):
+        _find(journey, plan_forecast.horizon_button(months)).click()
+        expect(journey.page).to_have_url(re.compile(rf"horizon={months}$"))
+        expect(_find(journey, plan_forecast.chart_points)).to_have_count(months)
+    journey.page.go_back()
+
+    expect(journey.page).to_have_url(re.compile(r"horizon=12"))
+    expect(_find(journey, plan_forecast.horizon_selected)).to_have_text("12")
+    expect(_find(journey, plan_forecast.chart_points)).to_have_count(12)
+
+
+def test_back_keeps_the_pressed_range_in_step_with_the_url(journey: Journey) -> None:
+    if journey.target != "app":
+        pytest.skip("the handoff range buttons are static")
+    _open(journey, "/plan?tab=analytics")
+
+    for name in ("year to date", "12 months"):
+        _find(journey, plan_analytics.range_button(name)).click()
+        expect(journey.page).to_have_url(
+            re.compile(r"period=" + ("year&" if name[0] == "y" else "trailing-12&"))
+        )
+    journey.page.go_back()
+
+    expect(journey.page).to_have_url(re.compile(r"period=year&"))
+    expect(_find(journey, plan_analytics.range_selected)).to_have_text("year to date")

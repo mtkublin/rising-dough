@@ -170,11 +170,11 @@ def test_forecast_tab_series_labels_and_end_balance(
     assert cells[2][-2:] == ["\u25b2 \u2212300.00 PLN", "600.00 PLN"]
     last_balance = OPENING_MINOR - DEFAULT_HORIZON * GROCERIES_BUDGET_MINOR + PAYDAY_MINOR
     assert last_balance == -210_000
-    assert cells[-1][-1] == "-2,100.00 PLN"
+    assert cells[-1][-1] == "\u22122,100.00 PLN"
     series = forecast_service.monthly_projection(
         db, USER_ID, _migrated, today, horizon=DEFAULT_HORIZON
     )
-    assert [c[-1] for c in cells] == [
+    assert [c[-1].replace("\u2212", "-") for c in cells] == [
         f"{format(Decimal(p.end_balance_minor) / 100, ',.2f')} PLN" for p in series
     ]
 
@@ -317,3 +317,13 @@ def test_forecast_hero_delta_is_measured_from_todays_net_worth(
     # net worth today 1,000.00; end -2,100.00; the strip says "-3,100.00 over 12 months"
     assert "-2,100.00 PLN \u22123,100.00 PLN over 12 months" in text, text
     assert " \u00b7 peak 900.00 in " in text, text
+
+
+def test_forecast_chart_scrolls_sideways_as_a_keyboard_reachable_region(
+    client: TestClient, world: None
+) -> None:
+    r = client.get("/plan?tab=forecast")
+
+    region = _html.resolve_one(r.text, plan_forecast.chart_scroll)
+    assert region["tabindex"] == "0"
+    assert _html.count(r.text, plan_forecast.chart) == 1

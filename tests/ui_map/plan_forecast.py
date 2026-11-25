@@ -26,6 +26,7 @@ def horizon_button(months: int) -> Locator:
 
 # The chart: one focusable point per month, named "<Mon YYYY>: <balance> PLN, net <net>"
 chart = role("img", re.compile(r"^Projected balance by month"))
+chart_scroll = role("region", "Chart (scrolls sideways)")
 chart_points = label(", net ")
 
 # The table

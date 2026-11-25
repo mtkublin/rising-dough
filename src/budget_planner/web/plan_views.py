@@ -45,6 +45,7 @@ class ForecastRowView:
     net_text: str
     net_negative: bool
     end_balance_minor: int
+    balance_text: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +110,7 @@ def forecast_page(
             net_text=format_figure(p.net_minor, currency),
             net_negative=p.net_minor < 0,
             end_balance_minor=p.end_balance_minor,
+            balance_text=format_figure(p.end_balance_minor, currency),
         )
         for p in projection
     )

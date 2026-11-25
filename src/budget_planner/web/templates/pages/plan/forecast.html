@@ -22,7 +22,10 @@
       {% include "pages/plan/_tabs.html" %}
       <div class="rd-horizon">
         <span class="rd-caption" id="horizon-label">HORIZON · MONTHS</span>
-        <div class="rd-segmented" role="group" aria-labelledby="horizon-label">
+        <div class="rd-segmented"
+             role="group"
+             aria-labelledby="horizon-label"
+             hx-history="false">
           {% for option in forecast.options %}
             <button type="button"
                     class="rd-segmented__option"
