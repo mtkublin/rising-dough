@@ -5,6 +5,7 @@
 {% block title %}{{ status_code }} · Something broke · Rising Dough{% endblock %}
 {% block main %}
   <section class="rd-error"
+           id="error-card"
            aria-labelledby="err-title"
            {% if request_id %}data-request-id="{{ request_id }}"{% endif %}>
     <p class="rd-caption">ERROR {{ status_code }}</p>

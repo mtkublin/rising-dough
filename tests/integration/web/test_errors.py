@@ -131,7 +131,8 @@ def test_service_error_browser_renders_500_with_request_id(
     assert rid
     main_text = _html.text_of(r.text, errors.main)
     assert "downstream unavailable" in main_text
-    assert f'data-request-id="{rid}"' in r.text  # the handoff card prints no reference line
+    # The handoff card prints no reference line: the id rides on the card.
+    assert _html.resolve_one(r.text, by_id("error-card"))["data-request-id"] == rid
     # Correlation id present in log context.
     found = any(getattr(rec, "request_id", None) == rid for rec in caplog.records)
     assert found, "request_id missing from log context"

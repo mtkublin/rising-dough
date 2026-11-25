@@ -94,7 +94,7 @@ SECURITY_PASSKEYS_URL: Final = "/settings/security#passkeys"
 #: purpose (the session cookie is already expired; the CSRF cookie must survive).
 _CLEAR_SITE_DATA: Final = '"cache", "storage"'
 REAUTH_FAILED: Final = "reauth_failed"
-GENERIC_REAUTH_ERROR: Final = "That password doesn’t match."
+GENERIC_REAUTH_ERROR: Final = "That password doesn\u2019t match."
 RATE_LIMITED_REAUTH_ERROR: Final = "Too many attempts. Please wait a few minutes and try again."
 
 
