@@ -1,0 +1,12 @@
+{# fragment: rows/year-grid-row
+   Inputs: row (plan_year_view.YearRow). One category row of the year grid: the chip, then twelve
+   month cells (rows/year-cell-editor). #}
+<tr class="rd-year__row">
+  <th scope="row" class="rd-year__cat">
+    <span class="rd-chip"
+          {% if (row.category_color|category_color).name %}data-color="{{ (row.category_color|category_color).name }}"{% endif %}>{{ row.category_name }}</span>
+  </th>
+  {% for cell in row.cells %}
+    {% include "fragments/rows/year-cell-editor.html" %}
+  {% endfor %}
+</tr>

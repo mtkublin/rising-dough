@@ -364,27 +364,6 @@
       "kind": "submit-get",
       "name": "Go",
       "target": "/budget"
-    },
-    {
-      "kind": "button",
-      "name": "Close",
-      "target": "",
-      "via": "Add override for Groceries"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Groceries This month only Every Nov New default PLN Save \u21b5",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "Add override for Groceries"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save \u21b5",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "Add override for Groceries"
     }
   ],
   "/forecast": [
@@ -787,44 +766,19 @@
   ],
   "/plan?tab=year": [
     {
-      "kind": "disclosure",
-      "name": "Show 1 category without a budget",
+      "kind": "button",
+      "name": "Keyboard shortcuts",
       "target": ""
     },
     {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
-    },
-    {
-      "kind": "link",
-      "name": "Analytics",
-      "target": "/plan?tab=analytics"
-    },
-    {
-      "kind": "link",
-      "name": "Budget",
-      "target": "/plan?tab=budget"
-    },
-    {
-      "kind": "link",
-      "name": "Forecast",
-      "target": "/plan?tab=forecast"
-    },
-    {
-      "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
+      "kind": "disclosure",
+      "name": "1 category without a budget",
+      "target": ""
     },
     {
       "kind": "link",
       "name": "Next year",
       "target": "/plan?tab=year&year={n}"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
     },
     {
       "kind": "link",
@@ -838,37 +792,95 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "analytics",
+      "target": "/plan?tab=analytics"
+    },
+    {
+      "kind": "link",
+      "name": "budget",
+      "target": "/plan?tab=budget"
+    },
+    {
+      "kind": "link",
+      "name": "forecast",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
     },
     {
       "kind": "link",
-      "name": "Year",
+      "name": "year",
       "target": "/plan?tab=year"
+    },
+    {
+      "kind": "popover",
+      "name": "2026 \u25be",
+      "target": "#period-year"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out",
+      "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
     },
     {
       "kind": "hx-get",
-      "name": "Set budget",
-      "target": "/budget/rules/{id}/overrides/new?year={n}",
-      "via": "Show 1 category without a budget"
+      "name": "Groceries",
+      "target": "/budget/rules/{id}/overrides/new?year={n}&month={n}&tier=default",
+      "via": "1 category without a budget"
+    },
+    {
+      "kind": "link",
+      "name": "2025",
+      "target": "/plan?tab=year&year={n}",
+      "via": "2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "2026",
+      "target": "/plan?tab=year&year={n}",
+      "via": "2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "2027",
+      "target": "/plan?tab=year&year={n}",
+      "via": "2026 \u25be"
     }
   ],
   "/settings": [
