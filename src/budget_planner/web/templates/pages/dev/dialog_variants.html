@@ -1,0 +1,53 @@
+{# Dev-only gallery of the shared dialog shell variants (T-UR04e): standard, confirm, blocked, phone sheet, 422. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% if variant == "standard" %}
+  {% call dialog("dev-standard", "new account", action="/dev/shell/dialog/standard", hx_post="/dev/shell/dialog/standard", hero={"currency": "PLN", "amount_value": "0.00", "amount_label": "Opening balance", "note": "opening balance"}, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ create account ]"}]) %}
+    <div class="rd-field">
+      <label class="rd-field__label" for="field-name">name</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="field-name"
+               name="name"
+               type="text"
+               placeholder="e.g. Revolut EUR">
+      </span>
+    </div>
+  {% endcall %}
+{% elif variant == "confirm" %}
+  {% call dialog("dev-confirm", "Delete Investments E?", variant="confirm", action="/dev/shell/dialog/confirm", hx_post="/dev/shell/dialog/confirm", actions=[{"tone": "cancel"}, {"tone": "danger", "label": "delete account", "name": "delete", "value": "1"}]) %}
+    <p>Nothing points at it: no transactions, planned or recurring items. This can’t be undone.</p>
+  {% endcall %}
+{% elif variant == "blocked" %}
+  {% call dialog("dev-blocked", "Can’t delete Checking", variant="blocked", actions=[{"tone": "link", "label": "view 84 transactions", "href": "/dev/shell"}, {"tone": "ok"}]) %}
+    <p>It still has 84 transactions and 3 planned or recurring items. Move or delete them first.</p>
+  {% endcall %}
+{% elif variant == "sheet" %}
+  {% call dialog("dev-sheet", "new entry", action="/dev/shell/dialog/sheet", hx_post="/dev/shell/dialog/sheet", hero={"sign": "−", "currency": "PLN", "amount_value": "35.50"}, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}]) %}
+    <div class="rd-field">
+      <label class="rd-field__label" for="field-note">note</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="field-note"
+               name="note"
+               type="text"
+               autocomplete="off">
+      </span>
+    </div>
+  {% endcall %}
+{% else %}
+  {# invalid: 422 through invalid_dialog_response; errors maps field name to message #}
+  {% call dialog("dev-invalid", "new account", action="/dev/shell/dialog/invalid", hx_post="/dev/shell/dialog/invalid", hero={"currency": "PLN", "amount_value": "0.00", "amount_label": "Opening balance", "amount_id": "field-amount", "error": errors.amount}, field_count=field_count, field_errors=field_errors, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ create account ]"}]) %}
+    <div class="rd-field">
+      <label class="rd-field__label" for="field-name">name</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="field-name"
+               name="name"
+               type="text"
+               aria-invalid="true"
+               aria-describedby="field-name-error">
+      </span>
+      <p class="rd-field__error" id="field-name-error">▲ {{ errors.name }}</p>
+    </div>
+  {% endcall %}
+{% endif %}

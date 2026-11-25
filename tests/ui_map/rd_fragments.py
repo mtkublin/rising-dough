@@ -69,7 +69,11 @@ row_menu = role("menu", "Row actions")
 
 
 def row_menu_item(text: str) -> Locator:
+    """Any kind of item: link, HTMX get (opens a dialog), HTMX post, destructive or phone-only."""
     return role("menuitem", text, exact=True).inside(row_menu)
+
+
+row_menu_cancel = row_menu_item("cancel")  # always appended; closes the popover
 
 
 # Ledger pagination

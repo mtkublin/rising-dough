@@ -38,6 +38,22 @@
               hx-target="#modal-root">open dev dialog</button>
     </div>
   </section>
+  <section class="rd-card rd-card--outline" aria-labelledby="shell-menu-title">
+    <h2 class="rd-card__title" id="shell-menu-title">Dialog shell</h2>
+    <div class="rd-card__body">
+      {% with menu_id="dev-row-menu", title="Dev row", sub="every item kind", items=[
+        {"label": "standard", "hx_get": "/dev/shell/dialog/standard"},
+        {"label": "invalid", "hx_get": "/dev/shell/dialog/invalid"},
+        {"label": "sheet", "hx_get": "/dev/shell/dialog/sheet", "phone": true},
+        {"label": "blocked", "hx_get": "/dev/shell/dialog/blocked"},
+        {"label": "delete", "hx_get": "/dev/shell/dialog/confirm", "danger": true},
+        {"label": "plain link", "href": "/dev/shell"},
+        {"label": "post toast", "hx_post": "/dev/shell/toast", "hx_swap": "none", "hx_confirm": "Show the dev toast?"},
+      ] %}
+        {% include "fragments/menus/row-menu.html" %}
+      {% endwith %}
+    </div>
+  </section>
   <section class="rd-card rd-card--outline" aria-labelledby="toast-title">
     <h2 class="rd-card__title" id="toast-title">Toast</h2>
     <div class="rd-card__body">

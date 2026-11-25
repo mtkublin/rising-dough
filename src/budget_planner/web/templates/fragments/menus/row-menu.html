@@ -1,7 +1,8 @@
 {# fragment: menus/row-menu
    Inputs: menu_id (unique, the trigger's popovertarget), title (e.g. "Takeaway · −35.50 PLN"),
-   sub (e.g. "31 OCT · Credit Card"), items (list of: label, href for a link item, or hx_post
-   [+ hx_target, hx_swap] for an action item; danger bool). A cancel item is always appended.
+   sub (e.g. "31 OCT · Credit Card"), items (list of: label plus one kind: href (link), hx_get (opens a dialog:
+   anchor with href fallback, hx-target #modal-root, hx-swap innerHTML), or hx_post [+ hx_target, hx_swap,
+   hx_confirm] (action button); flags: danger (destructive style), phone (shown below md only; T-UR04e)). A cancel item is always appended.
    Native popover with role=menu; row-menu.js handles arrow keys, Home/End and placement. #}
 <button type="button"
         class="rd-btn rd-btn--icon"
@@ -24,17 +25,25 @@
     {% if sub|default(none) %}<p class="rd-menu__sub">{{ sub }}</p>{% endif %}
   </div>
   {% for item in items %}
-    {% if item.href|default(none) %}
-      <a class="rd-menu__item{% if item.danger|default(none) %} rd-menu__item--danger{% endif %}"
+    {% if item.hx_get|default(none) %}
+      <a class="rd-menu__item{% if item.phone|default(none) %} rd-menu__item--phone{% endif %}{% if item.danger|default(none) %} rd-menu__item--danger{% endif %}"
+         role="menuitem"
+         href="{{ item.href|default(item.hx_get) }}"
+         hx-get="{{ item.hx_get }}"
+         hx-target="{{ item.hx_target|default('#modal-root') }}"
+         hx-swap="{{ item.hx_swap|default('innerHTML') }}">{{ item.label }}</a>
+    {% elif item.href|default(none) %}
+      <a class="rd-menu__item{% if item.phone|default(none) %} rd-menu__item--phone{% endif %}{% if item.danger|default(none) %} rd-menu__item--danger{% endif %}"
          role="menuitem"
          href="{{ item.href }}">{{ item.label }}</a>
     {% else %}
       <button type="button"
-              class="rd-menu__item{% if item.danger|default(none) %} rd-menu__item--danger{% endif %}"
+              class="rd-menu__item{% if item.phone|default(none) %} rd-menu__item--phone{% endif %}{% if item.danger|default(none) %} rd-menu__item--danger{% endif %}"
               role="menuitem"
               hx-post="{{ item.hx_post }}"
               {% if item.hx_target|default(none) %}hx-target="{{ item.hx_target }}"{% endif %}
-              {% if item.hx_swap|default(none) %}hx-swap="{{ item.hx_swap }}"{% endif %}>{{ item.label }}</button>
+              {% if item.hx_swap|default(none) %}hx-swap="{{ item.hx_swap }}"{% endif %}
+              {% if item.hx_confirm|default(none) %}hx-confirm="{{ item.hx_confirm }}"{% endif %}>{{ item.label }}</button>
     {% endif %}
   {% endfor %}
   <button type="button"

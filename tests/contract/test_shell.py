@@ -315,6 +315,56 @@ def test_dev_dialog_save_is_404_in_production(client: TestClient, settings: Sett
 
 
 # ---------------------------------------------------------------------------
+# GET / POST /dev/shell/dialog/{variant} (T-UR04e: shared dialog shell gallery)
+# ---------------------------------------------------------------------------
+
+
+@covers("GET /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_opens_into_the_modal_root_and_invalid_is_422(
+    client: TestClient,
+) -> None:
+    ok = client.get("/dev/shell/dialog/confirm", headers=HX)
+    assert (ok.status_code, ok.headers["hx-retarget"]) == (200, "#modal-root")
+    bad = client.get("/dev/shell/dialog/invalid", headers=HX)
+    assert (bad.status_code, bad.headers["hx-retarget"]) == (422, "#modal-root")
+
+
+@covers("GET /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.get("/dev/shell/dialog/standard", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("GET /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_requires_a_session(anon_client: TestClient) -> None:
+    r = anon_client.get("/dev/shell/dialog/standard", follow_redirects=False)
+    assert r.status_code == 302
+
+
+@covers("POST /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_save_fails_with_two_field_errors(client: TestClient) -> None:
+    r = client.post("/dev/shell/dialog/standard", headers=HX)
+    assert r.status_code == 422
+    assert "2 fields need attention" in " ".join(r.text.split())
+
+
+@covers("POST /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_save_is_404_in_production(
+    client: TestClient, settings: Settings
+) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.post("/dev/shell/dialog/confirm", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
 # GET /debug/audit-tail
 # ---------------------------------------------------------------------------
 
