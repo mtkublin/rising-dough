@@ -48,13 +48,18 @@ def _category(settings: Settings, name: str) -> dict[str, object]:
 
 
 @covers("GET /categories/new")
-def test_new_form_targets_itself_and_resets(client: TestClient) -> None:
+def test_new_form_opens_the_dialog_shell(client: TestClient) -> None:
+    # ADR-0152: transport changed from a self-targeting inline form to the dialog shell.
     r = client.get("/categories/new", headers=HX)
     assert r.status_code == 200
-    form = _html.resolve_one(r.text, ui.category_form)
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert r.headers["HX-Reswap"] == "innerHTML"
+    dialog = _html.resolve_one(r.text, ui.category_form)
+    assert dialog["aria-labelledby"] == f"{dialog['id']}-title"
+    form = dialog.find("form")
+    assert form is not None
     assert form["hx-post"] == "/categories"
-    assert form["hx-target"] == "#category-form"
-    assert form.has_attr("data-reset-on-submit")
+    assert form["hx-target"] == "#modal-root"
     assert _html.exists(r.text, ui.category_name)
     assert _html.exists(r.text, ui.category_expense)
     assert _html.exists(r.text, ui.category_income)
@@ -209,6 +214,31 @@ def test_delete_missing_system_and_csrf(
 
 
 # --- POST /categories/{id}/archive and /restore --------------------------------
+
+
+@covers("GET /categories/{category_id}/archive")
+def test_archive_form_is_a_confirm_dialog_with_usage(client: TestClient, cat_id: int) -> None:
+    # New route (T-UR13): the confirm dialog the archive link opens; the POST below is unchanged.
+    r = client.get(f"/categories/{cat_id}/archive", headers=HX)
+    assert r.status_code == 200
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    dialog = _html.resolve_one(r.text, ui.archive_dialog)
+    assert dialog["aria-labelledby"] == f"{dialog['id']}-title"
+    assert "Archive Groceries?" in _html.text_of(r.text, ui.archive_dialog)
+    form = dialog.find("form")
+    assert form is not None
+    assert form["hx-post"] == f"/categories/{cat_id}/archive"
+    assert _html.exists(r.text, ui.archive_confirm)
+
+
+@covers("GET /categories/{category_id}/archive")
+def test_archive_form_missing_is_404_and_needs_login(
+    client: TestClient, anon_client: TestClient, cat_id: int
+) -> None:
+    assert client.get("/categories/9999/archive").status_code == 404
+    anon = anon_client.get(f"/categories/{cat_id}/archive", follow_redirects=False)
+    assert anon.status_code == 302
+    assert anon.headers["location"].startswith("/auth/login")
 
 
 @covers("POST /categories/{category_id}/archive")

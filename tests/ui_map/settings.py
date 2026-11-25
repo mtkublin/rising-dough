@@ -7,10 +7,7 @@ from tests.ui_map.locator import Locator, by_id, label, role
 # --- shell of every settings page ---
 tabs = role("tablist")
 tab_any = role("tab").inside(tabs)
-drawer = role("dialog", "Settings")
-drawer_title = by_id("drawer-title")
-
-panel = role("tabpanel")
+panel = by_id("main")
 any_link = role("link")
 heading = role("heading", level=1)
 security_heading = role("heading", "Security", level=1)
@@ -18,18 +15,24 @@ users_heading = role("heading", "Users", level=1)
 preferences_heading = role("heading", "Preferences")
 fx_heading = role("heading", "FX cache")
 
-# --- categories ---
-new_category = role("button", "+ New category")
-create_category = role("button", "Create category")
+# --- categories (T-UR13: handoff pages/settings/categories and the category dialogs) ---
+new_category = role("link", "+ new category")
+create_category = role("button", "create category")
 any_category_row = by_id("category-", prefix=True)
-category_slot = by_id("cat-form-slot")
-category_form = by_id("category-form")
-category_name = label("Name")
-category_default_colour = label("Use direction colour")
-category_expense = label("Expense")
-category_income = label("Income")
-income_anchor = label("Income anchor")
+category_slot = by_id(
+    "settings-categories"
+)  # the list region that refetches on settings-categories-stale
+category_form = role("dialog", "category")  # the new / edit category dialog
+category_name = label("name", exact=True)
+category_default_colour = label("default colour")
+category_expense = label("\u2193 expense")
+category_income = label("\u2191 income")
+income_anchor = label("income anchor")
 form_errors = role("alert")
+archive_dialog = role("alertdialog")
+archive_confirm = role("button", "archive", exact=True).inside(archive_dialog)
+modal_root = by_id("modal-root")
+section_headings = role("heading", level=2)  # Expense, Income, System group titles
 
 # --- security page ---
 password_form = by_id("password-form")
@@ -74,11 +77,11 @@ def category_row(category_id: int) -> Locator:
 
 
 def edit_category(category_id: int) -> Locator:
-    return role("link", f"Edit category {category_id}")
+    return role("link", "edit", exact=True).inside(category_row(category_id))
 
 
 def archive_category(category_id: int) -> Locator:
-    return role("link", f"Archive category {category_id}")
+    return role("link", "archive", exact=True).inside(category_row(category_id))
 
 
 def user_row(user_id: int) -> Locator:
@@ -101,9 +104,9 @@ def passkey_remove(name: str) -> Locator:
 form_name = category_name.inside(category_form)
 form_income = category_income.inside(category_form)
 form_expense = category_expense.inside(category_form)
-form_create = role("button", "Create category").inside(category_form)
-edit_form_save = role("button", "Save").inside(by_id("cat-form-slot"))
-edit_form_name = label("Name").inside(by_id("cat-form-slot"))
+form_create = create_category.inside(category_form)
+edit_form_save = role("button", "save").inside(category_form)
+edit_form_name = category_name.inside(category_form)
 fx_table = role("table", "Cached FX rates")
 
 
@@ -112,6 +115,6 @@ def fx_row(pair: str) -> Locator:
     return role("row", pair).inside(fx_table)
 
 
-pref_terms = role("term")
-pref_values = role("definition")
-prefs_panel_heading = role("heading", "Preferences", level=3)
+pref_terms = role("term").inside(panel)
+pref_values = role("definition").inside(panel)
+prefs_panel_heading = role("heading", "Workspace", level=2)

@@ -18,6 +18,7 @@ def test_event_values_are_the_wire_names_templates_listen_for() -> None:
     assert {e.name: e.value for e in Event} == {
         "BALANCE_STALE": "balance-stale",
         "BUDGET_STALE": "budget-stale",
+        "DIALOG_CLOSE": "dialog-close",
         "FORECAST_STALE": "forecast-stale",
         "LEDGER_STALE": "ledger-stale",
         "TODAY_STALE": "today-stale",

@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from typing import Final
 
 from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
@@ -17,6 +18,11 @@ from budget_planner.domain.limits import name_error
 _DIRECTIONS_BY_VALUE: Mapping[str, Direction] = MappingProxyType(
     {d.value: d for d in (Direction.INCOME, Direction.EXPENSE)}
 )
+
+
+DEFAULT_COLOUR: Final = "default"
+"""``color`` value of the dialog's "default colour" radio. An empty value cannot carry the intent:
+FastAPI reads an empty form value as absent, and absent means "leave the colour unchanged"."""
 
 
 @dataclass(frozen=True)
@@ -48,9 +54,11 @@ def resolve_color_form(color: str | None, clear_color: str | None) -> tuple[str 
     """ADR-0048: return ``(hex_or_none, clear_requested)``.
 
     ``clear_color`` present means "reset to direction default" and wins over any ``color`` value
-    the browser might send. Raises ``ValueError`` via ``normalise_color`` on malformed hex.
+    the browser might send. ``color == DEFAULT_COLOUR`` (the dialog's "default colour" radio,
+    T-UR13) means the same; an absent ``color`` leaves the colour unchanged.
+    Raises ``ValueError`` via ``normalise_color`` on malformed hex.
     """
-    if clear_color:
+    if clear_color or color == DEFAULT_COLOUR:
         return None, True
     return normalise_color(color), False
 
