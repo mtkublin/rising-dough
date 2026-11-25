@@ -8,7 +8,7 @@ re-exports these names and one journey runs on both targets. The old shell
 
 from __future__ import annotations
 
-from tests.ui_map.locator import Locator, by_id, role
+from tests.ui_map.locator import Locator, by_id, by_testid, role
 
 skip_link = role("link", "skip to content")
 main = by_id("main")
@@ -74,3 +74,7 @@ dev_dialog_save = role("button", "[ save note ]").inside(dev_dialog)
 offline_state = role("alert").inside(dev_dialog)
 offline_retry = role("button", "retry now").inside(offline_state)
 flash_saved = role("status").inside(flash_region)
+
+# Error flash shown inside an open modal dialog (T-UR02c): app-toast.js adds the region.
+in_dialog_flash = by_testid("flash-in-dialog")
+in_dialog_flash_box = role("alert").inside(in_dialog_flash)

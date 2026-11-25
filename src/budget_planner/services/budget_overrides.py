@@ -63,8 +63,38 @@ def set_one_off(
     return budgets_repo.set_one_off(conn, user_id, data)
 
 
+def get_recurring(
+    conn: sqlite3.Connection, user_id: int, category_id: int, month: int
+) -> BudgetRecurringOverride | None:
+    """The category's every-year override for ``month``, or ``None``."""
+    return budgets_repo.get_recurring(conn, user_id, category_id, month)
+
+
+def get_one_off(
+    conn: sqlite3.Connection, user_id: int, category_id: int, year: int, month: int
+) -> BudgetOneOffOverride | None:
+    """The category's single-month override for ``(year, month)``, or ``None``."""
+    return budgets_repo.get_one_off(conn, user_id, category_id, year, month)
+
+
+def clear_recurring(conn: sqlite3.Connection, user_id: int, category_id: int, month: int) -> None:
+    """Remove the every-year override for ``month`` (soft delete and audit; no-op when unset)."""
+    budgets_repo.clear_recurring(conn, user_id, category_id, month)
+
+
+def clear_one_off(
+    conn: sqlite3.Connection, user_id: int, category_id: int, year: int, month: int
+) -> None:
+    """Remove the single-month override for ``(year, month)`` (soft delete and audit)."""
+    budgets_repo.clear_one_off(conn, user_id, category_id, year, month)
+
+
 __all__ = [
+    "clear_one_off",
+    "clear_recurring",
     "get_default",
+    "get_one_off",
+    "get_recurring",
     "list_defaults",
     "set_default",
     "set_one_off",
