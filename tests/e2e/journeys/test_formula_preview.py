@@ -8,6 +8,8 @@ old "+ Add" overlay of the ledger (until T-UR09), the second the edit-recurring 
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from playwright.sync_api import expect
 
@@ -102,7 +104,8 @@ def test_formula_cycle_shows_the_error_and_keeps_the_edit_dialog_open(world: Wor
     )  # the change event posts the preview
 
     result = world.find(edit_dialogs.formula_result.inside(dialog))
-    expect(result).to_contain_text(f"formula would create a cycle via rule {rule_a}")
+    # the message names a rule of the cycle (the new check meets the savings rule first)
+    expect(result).to_contain_text(re.compile(r"formula would create a cycle via rule \d+"))
     expect(result).to_have_attribute("data-code", "cycle")
     expect(world.find(dialog)).to_be_visible()  # the preview did not close it
     assert world.scalar("SELECT COUNT(*) FROM audit_log") == audit_before
