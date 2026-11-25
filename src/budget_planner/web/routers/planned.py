@@ -21,11 +21,12 @@ from budget_planner.services import (
 )
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
+from budget_planner.web.dialogs import removed_response, saved_response
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice
-from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
-from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
+from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, PLANNED_PATH, TABLE_PATH
+from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/planned", tags=["planned"])
 
@@ -180,33 +181,24 @@ def create_planned(
 def edit_form(
     planned_id: int,
     request: Request,
+    hero: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
+    """The edit-planned dialog (T-UR10); ``hero=1`` renders it from the form for the hero swap."""
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return render(
+        return Response(status_code=404, content="planned: not found")
+    if hero:
+        return form_responses.edit_planned_dialog(
             request,
-            "partials/planned/_form.html",
-            planned=None,
-            action="",
-            categories=[],
-            accounts=[],
-            errors={"planned": "not found"},
-            status_code=404,
+            conn,
+            user_id,
+            pl,
+            posted=dict(request.query_params),
+            hero_only=True,
         )
-    # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /planned/new.
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="Edit planned transaction",
-        form_include="partials/planned/_form.html",
-        planned=pl,
-        action=f"/planned/{planned_id}",
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        errors={},
-    )
+    return form_responses.edit_planned_dialog(request, conn, user_id, pl)
 
 
 @router.post("/{planned_id}")
@@ -214,10 +206,11 @@ def update_planned(
     planned_id: int,
     request: Request,
     *,
-    operation_date: str = Form(...),
-    category_id: int = Form(...),
-    account_id: int = Form(...),
-    amount: str = Form(...),
+    operation_date: str = Form(""),
+    category_id: str = Form(""),
+    category: str = Form(""),
+    account_id: str = Form(""),
+    amount: str = Form(""),
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
@@ -226,19 +219,33 @@ def update_planned(
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
+    chosen = entry_forms.category_choice(category_id, category)
+    account = entry_forms.account_choice(account_id)
     check = entry_forms.check_planned_update(
         conn,
         user_id,
         existing_dest_id=pl.dest_account_id,
         operation_date=operation_date,
-        category_id=category_id,
-        account_id=account_id,
+        category_id=chosen,
+        account_id=account,
         amount=amount,
         dest_account_id=dest_account_id,
     )
     if check.errors:
-        return form_responses.planned_form_errors(
-            request, conn, user_id, planned=pl, errors=check.errors
+        return form_responses.edit_planned_dialog(
+            request,
+            conn,
+            user_id,
+            pl,
+            posted=entry_forms.posted_entry(
+                chosen,
+                account_id,
+                amount,
+                operation_date=operation_date,
+                description=description,
+                dest_account_id=dest_account_id,
+            ),
+            errors=entry_forms.pick_category_error(check.errors, chosen),
         )
     op_date, amount_minor = check.valid_values()
     planned_service.update(
@@ -247,29 +254,39 @@ def update_planned(
         planned_id,
         PatchPlannedTransaction(
             operation_date=op_date,
-            category_id=category_id,
-            account_id=account_id,
+            category_id=chosen,
+            account_id=account,
             amount=amount_minor,
             description=description,
         ),
     )
-    # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
-    return form_responses.stale_refresh(request, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    return saved_response(
+        request,
+        None,
+        {},
+        message="Planned entry saved",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
 
 
 @router.post("/{planned_id}/delete")
 def delete_planned(
     planned_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    """Soft-delete: the row goes, the toast offers undo (``/restore``)."""
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
     planned_service.soft_delete(conn, user_id, planned_id)
-    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    return resp
+    return removed_response(
+        request,
+        message="Planned entry deleted",
+        undo_url=f"{PLANNED_PATH}/{planned_id}/restore",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
 
 
 @router.post("/{planned_id}/restore")

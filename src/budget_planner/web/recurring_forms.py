@@ -369,6 +369,16 @@ def _lookup_refs(
     return acc, cat, dest_id, {**errors, **dest_errors}
 
 
+def _missing_id_errors(fields: RuleFields) -> dict[str, str]:
+    """Per-field messages for a category or account that is blank or not a number."""
+    errors: dict[str, str] = {}
+    if parse_int(fields.category_id) is None:
+        errors["category_id"] = "pick a category" if not fields.category_id else "unknown category"
+    if parse_int(fields.account_id) is None:
+        errors["account_id"] = "unknown account"
+    return errors
+
+
 def validate_rule_draft(
     conn: sqlite3.Connection,
     user_id: int,
@@ -384,7 +394,7 @@ def validate_rule_draft(
     start = parse_date(fields.start_date)
     end, errors = _date_errors(fields, cadence, start, cadence_error)
     if ids is None:
-        return RuleDraft(None, {**errors, "account_id": "invalid account/category"})
+        return RuleDraft(None, {**errors, **_missing_id_errors(fields)})
     category_id, account_id = ids
     acc, cat, dest_id, ref_errors = _lookup_refs(conn, user_id, fields, ids)
     errors = {**errors, **ref_errors}

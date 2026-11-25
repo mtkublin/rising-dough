@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
@@ -13,6 +14,7 @@ from budget_planner.repositories._unaudited import set_next_due
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import audit_ops, hx_events, query, rule_form, scalar
 from tests.ui_map import _html, ledger
+from tests.ui_map.locator import by_id, role
 
 Ids = dict[str, int]
 HTMX = {"HX-Request": "true"}
@@ -126,6 +128,8 @@ def test_create_validation_errors(client: TestClient, seeded: Ids, _migrated: Se
 def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     ok = client.get(f"/recurring/{seeded['rule']}/edit", headers=HTMX)
     assert ok.status_code == 200
+    assert ok.headers["HX-Retarget"] == "#modal-root"  # a dialog now, not a slide-over
+    assert _html.exists(ok.text, role("dialog", re.compile(r"^edit recurring rule")))
     assert "<html" not in ok.text
     assert client.get("/recurring/99999/edit").status_code == 404
 
@@ -140,7 +144,9 @@ def test_update_persists_audits_and_signals(
     )
     assert r.status_code == 200
     assert hx_events(r) == FORECAST_LEDGER
-    assert r.headers["HX-Reswap"] == "none"
+    # the dialog closes: #modal-root is emptied out of band (was HX-Reswap none + reload)
+    assert "HX-Reswap" not in r.headers
+    assert _html.resolve_one(r.text, by_id("modal-root")).get("hx-swap-oob") == "innerHTML"
     row = query(
         _migrated,
         "SELECT default_amount, cadence FROM recurring_rules WHERE id = ?",
@@ -192,6 +198,8 @@ def test_override_add_and_delete_round_trip(
     rid = seeded["rule"]
     form = client.get(f"/recurring/{rid}/overrides/new", headers=HTMX)
     assert form.status_code == 200
+    assert form.headers["HX-Retarget"] == "#modal-root"  # a dialog now, not a slide-over
+    assert _html.exists(form.text, role("dialog", re.compile(r"^override occurrence")))
     assert "<html" not in form.text
     assert client.get("/recurring/99999/overrides/new").status_code == 404
 
@@ -202,7 +210,8 @@ def test_override_add_and_delete_round_trip(
     )
     assert added.status_code == 200
     assert hx_events(added) == FORECAST_LEDGER
-    assert added.headers["HX-Reswap"] == "none"
+    assert "HX-Reswap" not in added.headers  # the dialog closes out of band instead
+    assert _html.resolve_one(added.text, by_id("modal-root")).get("hx-swap-oob") == "innerHTML"
     occ = scalar(
         _migrated,
         "SELECT occurrence_date FROM recurring_rule_overrides WHERE rule_id = ?",

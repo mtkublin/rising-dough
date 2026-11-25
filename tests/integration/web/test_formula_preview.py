@@ -20,7 +20,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, edit_dialogs
 
 USER_ID = 1
 
@@ -73,14 +73,15 @@ def test_formula_preview_ok(client: TestClient, seed_ids: dict[str, int]) -> Non
         },
     )
     assert r.status_code == 200
-    assert _html.text_of(r.text, ledger.formula_preview).startswith("=")
+    # 25 % of the 1000.00 salary, in the form account's currency (base currency without one)
+    assert _html.text_of(r.text, edit_dialogs.formula_result) == "→ next amount 250.00 PLN"
 
 
 def test_formula_preview_empty_returns_422(client: TestClient) -> None:
     r = client.post("/recurring/formula/preview", data={})
     assert r.status_code == 422
-    assert _html.text_of(r.text, ledger.formula_preview)
-    assert _html.resolve_one(r.text, ledger.formula_preview).has_attr("data-code")
+    assert _html.text_of(r.text, edit_dialogs.formula_result)
+    assert _html.resolve_one(r.text, edit_dialogs.formula_result).has_attr("data-code")
 
 
 def test_formula_preview_invalid_source(client: TestClient) -> None:
@@ -93,7 +94,7 @@ def test_formula_preview_invalid_source(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
-    assert _html.resolve_one(r.text, ledger.formula_preview)["data-code"] == "invalid_source"
+    assert _html.resolve_one(r.text, edit_dialogs.formula_result)["data-code"] == "invalid_source"
 
 
 def test_formula_preview_invalid_draft_rule_id(client: TestClient) -> None:

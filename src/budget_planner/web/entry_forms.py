@@ -423,12 +423,30 @@ def formula_hero(
     currency: str,
     today: date,
     fx: FormulaFx,
+    rule_id: int | None = None,
 ) -> tuple[str, str]:
-    """(figure, note) of the formula hero: the service's next amount, or why there is none."""
+    """(figure, note) of the formula hero: the service's next amount, or why there is none.
+
+    ``rule_id`` is the rule being edited, left out of its own sources (the edit dialog).
+    """
     drafts = parse_draft_terms(form)
     if drafts is None:
         return "\N{EM DASH}", "invalid source category"
-    result = formula_svc.preview(conn, user_id, today, None, drafts, fx=fx, target_ccy=currency)
+    return draft_hero(conn, user_id, drafts, currency=currency, today=today, fx=fx, rule_id=rule_id)
+
+
+def draft_hero(
+    conn: sqlite3.Connection,
+    user_id: int,
+    drafts: Sequence[formula_svc.DraftTerm],
+    *,
+    currency: str,
+    today: date,
+    fx: FormulaFx,
+    rule_id: int | None = None,
+) -> tuple[str, str]:
+    """(figure, note) of the formula hero for already parsed terms."""
+    result = formula_svc.preview(conn, user_id, today, rule_id, drafts, fx=fx, target_ccy=currency)
     if isinstance(result, formula_svc.PreviewOk):
         figure = format_major(result.amount_minor, currency)
         return (

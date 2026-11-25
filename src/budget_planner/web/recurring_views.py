@@ -6,15 +6,16 @@ Moved out of the recurring router; services supply the values, ``render`` builds
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import Response
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
-from budget_planner.domain.money import format_major
+from budget_planner.domain.money import format_major, format_money
+from budget_planner.domain.periods import shift_month
 from budget_planner.domain.recurring import RecurringOverride, RecurringRule
 from budget_planner.services import (
     accounts as accounts_service,
@@ -23,6 +24,8 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web import entry_forms
+from budget_planner.web.deps import today_for
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response
 from budget_planner.web.entry_forms import promote_context
 from budget_planner.web.form_responses import (
@@ -40,13 +43,16 @@ from budget_planner.web.recurring_forms import (
     RuleFields,
     TermInput,
     formula_source_candidates,
-    month_or,
-    year_or,
+    parse_terms_from_form,
 )
-from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
+from budget_planner.web.rendering import render, render_context
+from budget_planner.web.view_models import month_name
 
 _FORM_TEMPLATE = "partials/recurring/_form.html"
-_OVERRIDE_FORM = "partials/recurring/_override_form.html"
+EDIT_TEMPLATE = "fragments/dialogs/edit-recurring.html"
+FORMULA_RESULT_TEMPLATE = "fragments/dialogs/formula-result.html"
+OCCURRENCE_TEMPLATE = "fragments/dialogs/override-occurrence.html"
+OCCURRENCE_REMOVE_TEMPLATE = "fragments/dialogs/override-remove-occurrence.html"
 CREATE_ACTION = "/recurring"
 _LEGACY_PROMOTE = "partials/recurring/_promote_modal.html"
 _ROW = "partials/recurring/_row.html"
@@ -270,43 +276,177 @@ def render_new_form(request: Request, conn: sqlite3.Connection, user_id: int) ->
     return open_new_entry(request, conn, user_id, tab="repeats")
 
 
-def render_edit_form(
-    request: Request, conn: sqlite3.Connection, user_id: int, rule_id: int
-) -> HTMLResponse:
-    """Edit slide-over (T-114 / ADR-0030 section 4), mirroring the new-rule form."""
+def _rule_values(rule: RecurringRule, account: Account | None) -> dict[str, str]:
+    """The stored rule as the dialog's posted text (the amount in its account's currency)."""
+    return {
+        "category": str(rule.category_id),
+        "account_id": str(rule.account_id),
+        "dest_account_id": str(rule.dest_account_id or ""),
+        "default_amount": format_major(rule.default_amount, account.currency) if account else "",
+        "start_date": rule.start_date.isoformat(),
+        "end_date": rule.end_date.isoformat() if rule.end_date else "",
+        "day_of_month": str(rule.day_of_month or ""),
+        "cadence": rule.cadence.value,
+        "amount_source": "fixed" if rule.amount_formula is None else "formula",
+        "default_description": rule.default_description,
+    }
+
+
+def _drafts(terms: Sequence[Mapping[str, object]]) -> list[formula_svc.DraftTerm]:
+    """Term rows as preview drafts; a source id that is not a number is left out."""
+    drafts: list[formula_svc.DraftTerm] = []
+    for row in terms:
+        raw = row.get("source_category_ids")
+        ids = [parse_int(str(v)) for v in raw] if isinstance(raw, tuple | list) else []
+        drafts.append(
+            formula_svc.DraftTerm(
+                sign=str(row.get("sign", "+")),
+                coefficient_percent=str(row.get("coefficient_percent", "")),
+                source_category_ids=tuple(i for i in ids if i is not None),
+            )
+        )
+    return drafts
+
+
+def edit_context(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    fx: FormulaFx,
+    *,
+    posted: Mapping[str, str] | None = None,
+    terms: Sequence[Mapping[str, object]] | None = None,
+    errors: Mapping[str, str] | None = None,
+) -> dict[str, object]:
+    """What ``fragments/dialogs/edit-recurring.html`` renders: the stored rule or the posted text.
+
+    A new-entry context for the repeats tab (one builder, so both dialogs agree) plus the rule's
+    title, action and id. In formula mode the hero shows the service's next amount for the terms.
+    """
+    account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    values = dict(posted) if posted is not None else _rule_values(rule, account)
+    rows: Sequence[Mapping[str, object]]
+    if terms is not None:
+        rows = terms
+    elif rule.amount_formula is not None:
+        rows = formula_svc.term_input_rows(rule.amount_formula)
+    else:
+        rows = [dict(EMPTY_TERM_INPUT)]
+    today = today_for(request)
+    base = request.app.state.settings.base_currency
+
+    def build(formula: tuple[str, str] | None) -> dict[str, object]:
+        return entry_forms.new_entry_context(
+            conn,
+            user_id,
+            tab="repeats",
+            today=today,
+            base_currency=base,
+            posted=values,
+            terms=rows,
+            errors=errors,
+            formula=formula,
+        )
+
+    context = build(None)
+    if values.get("amount_source") == "formula":
+        context = build(
+            entry_forms.draft_hero(
+                conn,
+                user_id,
+                _drafts(rows),
+                currency=str(context["currency"]),
+                today=today,
+                fx=fx,
+                rule_id=rule.id,
+            )
+        )
+    category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
+    hero = context["hero"]
+    if isinstance(hero, dict):  # the formula hero is a static output; the handoff still signs it
+        context = {**context, "hero": {"sign": context["sign"], **hero}}
+    return {
+        **context,
+        "title": f"edit recurring rule \N{MIDDLE DOT} {category.name if category else ''}",
+        "action": f"{CREATE_ACTION}/{rule.id}",
+        "hero_url": f"{CREATE_ACTION}/{rule.id}/edit?hero=1",
+        "rule_id": rule.id,
+        "selected_dest_id": parse_int(values.get("dest_account_id", "")),
+    }
+
+
+def render_edit_dialog(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule_id: int,
+    fx: FormulaFx,
+    *,
+    hero_only: bool = False,
+) -> Response:
+    """The edit-recurring dialog for the stored rule; ``hero_only`` renders it from the form."""
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return render(
+        return Response(status_code=404, content="rule: not found")
+    if hero_only:
+        form = request.query_params
+        context = edit_context(
             request,
-            _FORM_TEMPLATE,
-            rule=None,
-            action="",
-            categories=[],
-            accounts=[],
-            source_categories=[],
-            amount_source="fixed",
-            terms=[dict(EMPTY_TERM_INPUT)],
-            errors={"rule": "not found"},
-            status_code=404,
+            conn,
+            user_id,
+            rule,
+            fx,
+            posted=dict(form),
+            terms=parse_terms_from_form(form) or [dict(EMPTY_TERM_INPUT)],
         )
-    amount_source, terms = (
-        ("fixed", [dict(EMPTY_TERM_INPUT)])
-        if rule.amount_formula is None
-        else ("formula", formula_svc.term_input_rows(rule.amount_formula))
+        return render_context(request, EDIT_TEMPLATE, context)
+    return dialog_response(request, EDIT_TEMPLATE, edit_context(request, conn, user_id, rule, fx))
+
+
+def render_edit_errors(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    fx: FormulaFx,
+    *,
+    fields: RuleFields,
+    errors: Mapping[str, str],
+) -> Response:
+    """422: the edit dialog again with the posted values, the summary and the field errors."""
+    posted = {
+        "category": fields.category_id,
+        "account_id": fields.account_id,
+        "dest_account_id": fields.dest_account_id,
+        "default_amount": fields.default_amount,
+        "start_date": fields.start_date,
+        "end_date": fields.end_date,
+        "day_of_month": fields.day_of_month,
+        "cadence": fields.cadence,
+        "amount_source": fields.amount_source,
+        "default_description": fields.default_description,
+    }
+    context = edit_context(
+        request, conn, user_id, rule, fx, posted=posted, terms=fields.form_terms, errors=errors
     )
+    return invalid_dialog_response(request, EDIT_TEMPLATE, context, errors)
+
+
+def render_formula_result(
+    request: Request, result: formula_svc.PreviewResult, currency: str
+) -> Response:
+    """The live preview text of the formula (``.rd-formula__result``): next amount or the reason."""
+    ok = isinstance(result, formula_svc.PreviewOk)
     return render(
         request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="Edit recurring rule",
-        form_include=_FORM_TEMPLATE,
-        rule=rule,
-        action=f"/recurring/{rule_id}",
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        source_categories=formula_source_candidates(conn, user_id),
-        amount_source=amount_source,
-        terms=terms,
-        errors={},
+        FORMULA_RESULT_TEMPLATE,
+        result=result,
+        next_amount=format_money(result.amount_minor, currency)
+        if isinstance(result, formula_svc.PreviewOk)
+        else "",
+        is_ok=ok,
+        status_code=200 if ok else 422,
     )
 
 
@@ -365,57 +505,164 @@ def render_rule_row(
     return html
 
 
-def render_override_form(
-    request: Request, conn: sqlite3.Connection, user_id: int, rule_id: int
+def _month_link(rule_id: int, year: int, month: int, delta: int) -> str:
+    """Dialog URL of the month ``delta`` months from ``(year, month)`` (the stepper's links)."""
+    shifted_year, shifted_month = shift_month(year, month, delta)
+    first = date(shifted_year, shifted_month, 1).isoformat()
+    return f"{CREATE_ACTION}/{rule_id}/overrides/new?occurrence_date={first}"
+
+
+def _override_for(
+    conn: sqlite3.Connection, user_id: int, rule: RecurringRule, occurrence: date | None
+) -> RecurringOverride | None:
+    """The stored override of ``occurrence`` (``None`` when there is none or no occurrence)."""
+    if occurrence is None:
+        return None
+    return override_on_next_due(conn, user_id, rule.id, occurrence)
+
+
+def occurrence_context(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    fx: FormulaFx,
+    *,
+    year: int,
+    month: int,
+    base_currency: str,
+    amount: str | None = None,
+    error: OverrideError | None = None,
+) -> dict[str, object]:
+    """What ``fragments/dialogs/override-occurrence.html`` renders for one month of a rule.
+
+    The amount opens on the stored override of that month's occurrence, else on what the rule
+    posts there; ``amount`` (posted text) wins when the dialog comes back with an error.
+    """
+    account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    occurrence = recurring_svc.occurrence_in_month(rule, year, month)
+    stored = _override_for(conn, user_id, rule, occurrence)
+    if stored is not None and stored.amount_override is not None:
+        minor = stored.amount_override
+    else:
+        minor = formula_svc.resolve_rule_amount(
+            conn, user_id, rule, occurrence or date(year, month, 1), fx=fx
+        )
+    shown = promote_context(
+        conn,
+        user_id,
+        action="",
+        category_id=rule.category_id,
+        account=account,
+        amount_minor=minor,
+        date_value=occurrence or date(year, month, 1),
+        note_value="",
+        base_currency=base_currency,
+    )
+    category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
+    return {
+        "title": f"override occurrence \N{MIDDLE DOT} {category.name if category else ''}",
+        "action": f"{CREATE_ACTION}/{rule.id}/overrides",
+        "hero": {
+            "currency": shown["currency"],
+            "sign": shown["sign"],
+            "amount_id": "field-amount",
+            "amount_value": shown["amount_value"] if amount is None else amount,
+            "error": error.message if error is not None and error.field == "amount" else None,
+        },
+        "year": year,
+        "month": month,
+        "month_label": f"{month_name(month)} {year}",
+        "prev_url": _month_link(rule.id, year, month, -1),
+        "next_url": _month_link(rule.id, year, month, 1),
+        "errors": {error.field: error.message} if error is not None else {},
+        "has_override": stored is not None,
+    }
+
+
+def render_override_dialog(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule_id: int,
+    fx: FormulaFx,
+    *,
+    occurrence: date | None,
+    remove: bool = False,
 ) -> Response:
-    """Generic override form: year, month and amount default to the rule's ``next_due``."""
+    """The override dialog of the occurrence's month (default: the next) or its remove confirm."""
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return render(
-            request,
-            _OVERRIDE_FORM,
-            rule=None,
-            account=None,
-            default_year=None,
-            default_month=None,
-            default_amount_str=None,
-            errors={"rule": "not found"},
-            status_code=404,
-        )
+        return Response(status_code=404, content="not found")
+    target = occurrence or rule.next_due
+    base = request.app.state.settings.base_currency
+    if remove:
+        return _remove_confirm(request, conn, user_id, rule, fx=fx, target=target)
+    context = occurrence_context(
+        conn, user_id, rule, fx, year=target.year, month=target.month, base_currency=base
+    )
+    return dialog_response(request, OCCURRENCE_TEMPLATE, context)
+
+
+def _remove_confirm(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    *,
+    fx: FormulaFx,
+    target: date,
+) -> Response:
+    """Confirm dialog for dropping the override stored on ``target``'s occurrence."""
+    occurrence = recurring_svc.occurrence_in_month(rule, target.year, target.month)
+    stored = _override_for(conn, user_id, rule, occurrence)
+    if occurrence is None or stored is None:
+        return Response(status_code=404, content="override: not found")
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    return render(
+    category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
+    currency = account.currency if account else request.app.state.settings.base_currency
+    back_to = format_money(
+        formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence, fx=fx), currency
+    )
+    name = category.name if category else ""
+    return dialog_response(
         request,
-        _OVERRIDE_FORM,
-        rule=rule,
-        account=account,
-        default_year=rule.next_due.year,
-        default_month=rule.next_due.month,
-        default_amount_str=format_major(rule.default_amount, account.currency) if account else "",
-        errors={},
+        OCCURRENCE_REMOVE_TEMPLATE,
+        {
+            "action": f"{CREATE_ACTION}/{rule.id}/overrides/{occurrence.isoformat()}/delete",
+            "text": f"{name} \N{MIDDLE DOT} {month_name(occurrence.month)} {occurrence.year} "
+            f"goes back to the rule amount {back_to}.",
+        },
     )
 
 
 def render_override_error(
     request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
     rule: RecurringRule,
-    account: Account | None,
+    fx: FormulaFx,
     *,
     year: int,
     month: int,
     amount: str,
     error: OverrideError,
 ) -> Response:
-    """T-D151: re-render the override form with the error inside the slide-over."""
-    return render(
-        request,
-        _OVERRIDE_FORM,
-        rule=rule,
-        account=account,
-        default_year=year_or(year, rule.next_due.year),
-        default_month=month_or(month, rule.next_due.month),
-        default_amount_str=amount,
-        errors={error.field: error.message},
-        status_code=422,
+    """422: the override dialog again with the posted amount, the summary and the error."""
+    shown_year = year if year in range(1900, 10000) else rule.next_due.year
+    shown_month = month if month in range(1, 13) else rule.next_due.month
+    context = occurrence_context(
+        conn,
+        user_id,
+        rule,
+        fx,
+        year=shown_year,
+        month=shown_month,
+        base_currency=request.app.state.settings.base_currency,
+        amount=amount,
+        error=error,
+    )
+    return invalid_dialog_response(
+        request, OCCURRENCE_TEMPLATE, context, {error.field: error.message}
     )
 
 
