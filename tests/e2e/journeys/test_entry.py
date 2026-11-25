@@ -1,7 +1,7 @@
-"""New-entry journeys: happened, planned, repeats (fixed and formula) (T-UT08b).
+"""New-entry journeys: happened, planned, repeats (fixed and formula) (T-UT08b, T-UR09).
 
-Each journey drives the add-entry overlay through UI-map names and asserts the
-row on screen plus the DB effect (the row, its amount in minor units).
+Each journey drives the new-entry dialog opened from the ledger's top bar through UI-map names
+and asserts the row on screen plus the DB effect (the row, its amount in minor units, the audit).
 """
 
 from __future__ import annotations
@@ -10,40 +10,33 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World, days_from_today
-from tests.ui_map import ledger
-from tests.ui_map.locator import Locator
+from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry
+from tests.ui_map import entries, ledger
+from tests.ui_map.locator import label
 
 pytestmark = pytest.mark.e2e
 
 LEDGER_ALL_TIME = "/ledger?view=actual&date_from=2000-01-01&date_to=2099-12-31"
 
 
-def _pick(world: World, field: Locator, option: str) -> None:
-    box = world.find(ledger.overlay_field(field))
-    box.click()
-    box.fill(option)
-    world.find(ledger.combo_option(option)).click()
-
-
-def _open_overlay(world: World, tab: str) -> None:
+def _open_dialog(world: World, tab: str) -> None:
     world.goto(LEDGER_ALL_TIME)
-    world.find(ledger.add_new).click()
-    expect(world.find(ledger.slideover)).to_be_visible()
-    if tab != "Happened":
-        world.find(ledger.entry_tab(tab)).click()
-    expect(world.find(ledger.entry_tab(tab))).to_have_attribute("aria-selected", "true")
+    open_new_entry(world.page)
+    if tab != "happened":
+        tab_link = {"planned": entries.tab_planned, "repeats": entries.tab_repeats}[tab]
+        world.find(tab_link).click()
+        expect(world.find(tab_link)).to_have_attribute("aria-current", "page")
 
 
-@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_happened_entry_lands_in_actual(world: World) -> None:
     account = world.account("Checking")
     category = world.category("Groceries")
-    _open_overlay(world, "Happened")
-    _pick(world, ledger.field_category, "Groceries")
-    world.find(ledger.overlay_field(ledger.field_amount)).fill("12.50")
-    _pick(world, ledger.field_account, "Checking")
-    world.find(ledger.overlay_field(ledger.field_note)).fill("happened-entry")
-    world.find(ledger.overlay_add_entry).click()
+    _open_dialog(world, "happened")
+    choose_category(world.page, "Groceries")
+    choose_account(world.page, "Checking")
+    world.find(entries.hero_amount).fill("12.50")
+    world.find(entries.field_note.inside(entries.dialog)).fill("happened-entry")
+    world.find(entries.save).click()
 
     txn = world.wait_rows("SELECT * FROM transactions WHERE description = 'happened-entry'")
     assert len(txn) == 1
@@ -54,21 +47,20 @@ def test_new_happened_entry_lands_in_actual(world: World) -> None:
     )
     assert txn[0]["deleted_at"] is None
     assert world.audit_ops("transaction", txn[0]["id"]) == ["create"]
-    expect(world.find(ledger.slideover)).to_have_count(0)  # saved: the overlay closes itself
+    expect(world.find(entries.dialog)).to_have_count(0)  # saved: the dialog closes itself
     expect(world.find(ledger.row(txn[0]["id"]))).to_contain_text("happened-entry")
 
 
-@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_planned_entry_lands_in_planned(world: World) -> None:
     account = world.account("Checking")
     category = world.category("Groceries")
-    _open_overlay(world, "Planned")
-    _pick(world, ledger.field_category, "Groceries")
-    world.find(ledger.overlay_field(ledger.field_amount)).fill("33.00")
-    _pick(world, ledger.field_account, "Checking")
-    world.find(ledger.overlay_field(ledger.field_date)).fill(days_from_today(3))
-    world.find(ledger.overlay_field(ledger.field_note)).fill("planned-entry")
-    world.find(ledger.overlay_add_entry).click()
+    _open_dialog(world, "planned")
+    choose_category(world.page, "Groceries")
+    choose_account(world.page, "Checking")
+    world.find(entries.hero_amount).fill("33.00")
+    world.find(entries.field_due).fill(days_from_today(3))
+    world.find(entries.field_note.inside(entries.dialog)).fill("planned-entry")
+    world.find(entries.save).click()
 
     found = world.wait_rows(
         "SELECT * FROM planned_transactions WHERE description = 'planned-entry'"
@@ -82,24 +74,22 @@ def test_new_planned_entry_lands_in_planned(world: World) -> None:
     assert found[0]["promoted_to_txn_id"] is None
     assert world.audit_ops("planned_transaction", found[0]["id"]) == ["create"]
     assert world.scalar("SELECT COUNT(*) FROM transactions") == 0
-    expect(world.find(ledger.slideover)).to_have_count(0)
     world.goto("/ledger?view=planned&date_from=2000-01-01&date_to=2099-12-31")
     expect(world.find(ledger.planned_row(found[0]["id"]))).to_contain_text("planned-entry")
 
 
-@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_repeating_fixed_rule_lands_in_recurring(world: World) -> None:
     account = world.account("Checking")
     category = world.category("Rent")
-    _open_overlay(world, "Repeats")
-    _pick(world, ledger.field_category, "Rent")
-    _pick(world, ledger.field_account, "Checking")
-    world.find(ledger.amount_source_fixed).check()
-    world.find(ledger.rule_amount).fill("1800.00")
-    world.find(ledger.overlay_field(ledger.field_start)).fill(days_from_today(5))
-    world.find(ledger.overlay_field(ledger.field_cadence)).select_option("quarterly")
-    world.find(ledger.overlay_field(ledger.field_note)).fill("fixed-rule")
-    world.find(ledger.add_rule).click()
+    _open_dialog(world, "repeats")
+    choose_category(world.page, "Rent")
+    choose_account(world.page, "Checking")
+    world.find(entries.amount_fixed).check(force=True)
+    world.find(entries.hero_amount).fill("1800.00")
+    world.find(entries.field_start).fill(days_from_today(5))
+    world.find(entries.cadence_quarterly).check(force=True)
+    world.find(entries.field_note.inside(entries.dialog)).fill("fixed-rule")
+    world.find(entries.save).click()
 
     rule = world.wait_rows(
         "SELECT * FROM recurring_rules WHERE default_description = 'fixed-rule'"
@@ -111,28 +101,24 @@ def test_new_repeating_fixed_rule_lands_in_recurring(world: World) -> None:
     )
     assert (rule["category_id"], rule["amount_formula"], rule["active"]) == (category, None, 1)
     assert world.audit_ops("recurring_rule", rule["id"]) == ["create"]
-    expect(world.find(ledger.slideover)).to_have_count(0)
     world.goto("/ledger?view=recurring")
     expect(world.find(ledger.recurring_row(rule["id"]))).to_contain_text("fixed-rule")
 
 
-@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_repeating_formula_rule_derives_from_source(world: World) -> None:
     account = world.account("Checking")
     salary = world.category("Salary", "income")
     world.category("Savings", "expense")
     source_rule = world.rule(account, salary, "1000.00", "salary-rule")
-    _open_overlay(world, "Repeats")
-    _pick(world, ledger.field_category, "Savings")
-    _pick(world, ledger.field_account, "Checking")
-    world.find(ledger.amount_source_formula).dispatch_event(
-        "click"
-    )  # sr-only radio behind a styled label
-    world.find(ledger.formula_pick_sources).click()
-    world.find(ledger.formula_source("Salary")).check()
-    world.find(ledger.formula_coefficient).fill("10")
-    world.find(ledger.overlay_field(ledger.field_note)).fill("formula-rule")
-    world.find(ledger.add_rule).click()
+    _open_dialog(world, "repeats")
+    choose_category(world.page, "Savings")
+    choose_account(world.page, "Checking")
+    world.find(entries.amount_formula).check(force=True)
+    world.find(entries.formula_pick).click()
+    world.find(label("Salary", exact=True).inside(entries.formula_group)).check(force=True)
+    world.find(entries.formula_percent).fill("10")
+    world.find(entries.field_note.inside(entries.dialog)).fill("formula-rule")
+    world.find(entries.save).click()
 
     rule = world.wait_rows(
         "SELECT * FROM recurring_rules WHERE default_description = 'formula-rule'"
@@ -141,7 +127,6 @@ def test_new_repeating_formula_rule_derives_from_source(world: World) -> None:
     assert f'"source_category_ids": [{salary}]' in rule["amount_formula"].replace('":[', '": [')
     assert source_rule != rule["id"]
     assert world.audit_ops("recurring_rule", rule["id"]) == ["create"]
-    expect(world.find(ledger.slideover)).to_have_count(0)
     world.goto("/ledger?view=recurring")
     row = world.find(ledger.recurring_row(rule["id"]))
     expect(row).to_contain_text("formula-rule")
