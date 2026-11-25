@@ -296,3 +296,32 @@ def test_reconcile_like_variant_has_named_primary_and_a_secondary_button(
         "hx-target": "#modal-root",
         "hx-swap": "innerHTML",
     }
+
+
+def test_reconcile_variant_output_hero_matches_the_reconcile_overlay(client: TestClient) -> None:
+    _, html = _open(client, "reconcile")
+    ours = _skeleton(html)
+    theirs = _handoff("reconcile")
+    assert theirs["band"], "reconcile: band and hero not parsed from the handoff"
+    for key in ("dialog", "form", "band", "title", "close"):
+        assert ours[key] == theirs[key], key
+    output = BeautifulSoup(html, "html.parser").find("output")
+    assert isinstance(output, Tag)
+    assert (output.get("class"), output.get("for"), output.get_text()) == (
+        ["rd-dialog__amount", "rd-dialog__amount--static"],
+        ["field-actual_balance"],
+        "+4.29",
+    )
+    assert BeautifulSoup(html, "html.parser").find("input", id="hero-amount") is None
+    bank = BeautifulSoup(html, "html.parser").find("input", id="field-actual_balance")
+    assert isinstance(bank, Tag)
+    assert (bank.get("name"), bank.get("value")) == ("actual_balance", "3,690.10")
+
+
+def test_reconcile_variant_skeleton_matches_the_liability_overlay(client: TestClient) -> None:
+    _, html = _open(client, "reconcile")
+    ours = _skeleton(html)
+    theirs = _handoff("reconcile--liability")
+    assert theirs["band"], "reconcile--liability: band and hero not parsed from the handoff"
+    for key in ("dialog", "form", "band", "title", "close"):
+        assert ours[key] == theirs[key], key

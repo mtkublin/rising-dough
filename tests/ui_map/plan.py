@@ -12,7 +12,6 @@ override = role("button", "Override")
 year_selector = role("group", "Yearly budget year selector")
 previous_year = role("button", "Previous year")
 next_year = role("button", "Next year")
-spend_by_category = role("img", "Spend by category")
 
 
 def year_card(category_id: int) -> Locator:
@@ -49,7 +48,7 @@ override_amount = role("textbox")
 override_save = role("button", "Save")
 override_cancel = role("button", "Cancel")
 
-# --- forecast ---
+# --- /forecast (legacy page, contract-pinned until T-UR15; the tab is plan_forecast) ---
 forecast_view = by_id("forecast-view")
 forecast_chart = by_id("forecast-chart")
 forecast_table = by_id("forecast-monthly-table")
@@ -58,11 +57,8 @@ forecast_planned_header = role("columnheader", "Planned budget").inside(forecast
 forecast_horizon = role("spinbutton", "Horizon (months)")
 plan_nav_link = role("link", "Plan", exact=True)
 
-# --- analytics bundle (fragment) ---
-analytics_bundle = by_id("analytics-bundle")
-
 # --- anchor select (rendered on settings, posted to /budget/preferences/income-anchor) ---
-anchor_select = by_id("anchor-select")
+anchor_select = by_id("income-anchor")  # settings categories page (T-UR13)
 
 
 def summary_row(category_name: str) -> Locator:
@@ -156,10 +152,4 @@ remainder_bar = role("progressbar", re.compile("actual vs planned"))
 year_heading = by_id("plan-year-heading")
 year_table = role("table", "Yearly budget heatmap")
 year_body_rows = role("row").inside(year_table)
-forecast_caption = by_id("forecast-caption")
-forecast_projection = role("table", "Monthly projection table")
-forecast_projection_rows = role("row").inside(forecast_projection)
 year_cell_open_any = by_id("yc-", prefix=True)
-
-# --- T-UR36b: forecast summary strip (ADR-0151 section 2) ---
-forecast_summary = role("complementary", "Projection summary")

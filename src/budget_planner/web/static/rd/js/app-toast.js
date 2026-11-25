@@ -59,6 +59,13 @@
     if (window.RD && window.RD.toast) window.RD.toast.arm(toast);
   });
 
+  /* HX-Trigger "dialog-close" (web/htmx.py Event.DIALOG_CLOSE): a 204 response leaves the confirm dialog
+     open, so the server asks the page to close the dialog in #modal-root. */
+  document.addEventListener('dialog-close', () => {
+    const open = document.querySelector('#modal-root dialog[open]');
+    if (open) open.close('cancel');
+  });
+
   const FLASH_OOB = /id="flash-region(-assertive)?"[^>]*hx-swap-oob/;
   /* Same copy as the old shell (static/js/app-init.js) for error bodies that carry no flash. */
   const STATUS_TEXT = {
