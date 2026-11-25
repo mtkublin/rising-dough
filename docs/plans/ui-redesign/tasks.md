@@ -312,8 +312,9 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Preferences Appearance control (system, light, dark), default system, per browser, full light set. ADR-0134 §8.
 - Done (2026-11-25): UR27 theme switch e2e, ui_map entries and audit (427f6c17, ADR-0134 §8).
 
-### ◻ T-UR28 [P] Ledger export menu and credit-limit line → T-UR09
+### ✅ T-UR28 [P] Ledger export menu and credit-limit line → T-UR09
 - `export` menu beside the Ledger Actual and Planned tabs (csv, parquet, current tab and filters, kept on phone, none on Recurring); credit-limit line under the account in new entry, edit and phone sheet (pink with `role=alert` over limit, saving allowed). ADR-0134 §2, §6.
+- Done (2026-11-25): the pieces landed with T-UR09, T-UR07b, T-UR34b and the edit dialog; T-UR28 pins them with `tests/integration/web/test_ledger_export_credit.py`: the Planned tab export hrefs follow `date_from` and `q` (`/planned/export?...&format=csv|parquet`), Recurring renders no menu, and the edit dialog's credit line is the service text, `role=alert` and pink over the limit (`▲ Card · 250.00 over the credit limit (1,000.00 left)`), saving allowed. No template or CSS change, so no new audit record.
 
 ### ✅ T-UR28b [P] Hero figures through `format_figure` → T-UR09
 - The static hero figure (the formula's next amount, shown in the new-entry repeats tab and the edit-recurring dialog) is formatted by `domain.money.format_figure` (thousands separator), like the edit-transaction hero. The amount inputs of the new-entry, edit-planned and edit-recurring heroes keep `format_major` (a bare decimal the parser reads back; `parse_amount_str` takes no grouping).
