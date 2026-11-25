@@ -1,0 +1,21 @@
+{# fragment: ledger/hero
+   Inputs: title, hero (ledger_view.LedgerHero | none), view, oob (set when sent with a table refetch:
+   the hero sits outside the swapped region, so the fragment swaps itself in place). #}
+<section class="rd-hero"
+         id="ledger-hero"
+         aria-labelledby="hero-label"
+         {% if oob|default(none) %}hx-swap-oob="true"{% endif %}>
+  <div class="rd-hero__body">
+    <h1 class="rd-hero__label" id="hero-label">{{ title }}</h1>
+    {% if hero %}
+      <p class="rd-hero__figure-row">
+        <span class="rd-hero__figure{% if hero.wide %} rd-hero__figure--wide{% endif %}"
+              {% if view == "actual" %}id="ledger-spent"{% else %}id="ledger-figure"{% endif %}
+              data-digits="{{ hero.fit.digits }}"
+              data-marks="{{ hero.fit.marks }}"
+              data-signs="{{ hero.fit.signs }}">{{ hero.figure }}</span><span class="rd-hero__unit">{{ hero.unit }}</span>
+      </p>
+      {% if hero.note %}<p class="rd-hero__note">{{ hero.note }}</p>{% endif %}
+    {% endif %}
+  </div>
+</section>

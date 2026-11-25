@@ -18,7 +18,7 @@ from budget_planner.services import (
 )
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
-from budget_planner.web.dialogs import removed_response
+from budget_planner.web.dialogs import removed_response, saved_response
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice
@@ -280,7 +280,12 @@ def restore_planned(
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    trigger(
+        resp,
+        Event.FORECAST_STALE,
+        Event.LEDGER_STALE,
+        toast=toast_payload("success", "Planned entry restored"),
+    )
     return resp
 
 
@@ -364,8 +369,13 @@ def promote_submit(
         return form_responses.promote_planned_dialog(
             request, conn, user_id, pl, acc, posted=posted, errors={"promotion": str(exc)}
         )
-    html = Response()
-    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    html = saved_response(
+        request,
+        None,
+        {},
+        message="Planned entry promoted",
+        events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
     refresh_unless_on(request, html, LEDGER_PATH)
     return html
 

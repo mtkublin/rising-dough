@@ -1,0 +1,38 @@
+{# fragment: rows/planned-row
+   Inputs: row (ledger_view.SchedRowView). One planned item: due date, description + account, category chip,
+   signed amount, status (in N days, due today, overdue N days, promoted), promote button and row menu
+   (promote below md, edit, delete). Recurring-derived virtual rows have no actions. #}
+<tr class="rd-row rd-row--sched" id="{{ row.dom_id }}">
+  <td class="rd-sched__due">{{ row.due_text }}</td>
+  <td class="rd-row__desc">
+    <span class="rd-row__title">{{ row.title }}</span><span class="rd-row__sub">{{ row.sub }}</span>
+  </td>
+  <td class="rd-row__cat">
+    <span class="rd-chip"
+          {% if row.category_hue %} data-color="{{ row.category_hue }}"{% endif %}>{{ row.category_name }}</span>
+  </td>
+  <td class="rd-row__amount">
+    <span class="rd-amount">{{ row.amount_text }} <span class="rd-amount__cur">{{ row.currency }}</span></span>
+  </td>
+  <td class="rd-sched__status">
+    {% if row.status_kind == "later" %}
+      <span class="rd-muted">{{ row.status_text }}</span>
+    {% else %}
+      {{ row.status_text }}
+    {% endif %}
+  </td>
+  <td class="rd-row__actions">
+    {% if row.promote_url %}
+      <a class="rd-btn"
+         href="{{ row.promote_url }}"
+         hx-get="{{ row.promote_url }}"
+         hx-target="#modal-root"
+         hx-swap="innerHTML">promote</a>
+    {% endif %}
+    {% if row.menu_items %}
+      {% with menu_id=row.menu_id, title=row.menu_title, sub=row.menu_sub, items=row.menu_items %}
+        {% include "fragments/menus/row-menu.html" %}
+      {% endwith %}
+    {% endif %}
+  </td>
+</tr>

@@ -178,7 +178,8 @@ def test_deactivate_soft_deletes_the_rule(
 ) -> None:
     r = client.post(f"/recurring/{seeded['rule']}/deactivate")
     assert r.status_code == 200
-    assert r.text == ""
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Recurring rule deactivated")
+    assert not _html.exists(r.text, ledger.recurring_row(seeded["rule"]))
     assert hx_events(r) == FORECAST_LEDGER
     assert (
         scalar(_migrated, "SELECT active FROM recurring_rules WHERE id = ?", (seeded["rule"],)) == 0
@@ -340,7 +341,7 @@ def test_skip_next_advances_without_a_transaction(
     r = client.post(f"/recurring/{rid}/skip-next")
     assert r.status_code == 200
     assert hx_events(r) == PROMOTE_EVENTS
-    assert _html.exists(r.text, ledger.recurring_row(rid))
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Next occurrence skipped")
     assert _next_due(_migrated, rid) > due_before
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before
     assert client.post("/recurring/99999/skip-next").status_code == 404

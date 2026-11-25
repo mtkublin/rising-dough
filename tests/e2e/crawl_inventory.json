@@ -615,19 +615,9 @@
   ],
   "/ledger/recently-deleted": [
     {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
-    },
-    {
-      "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
+      "kind": "button",
+      "name": "Keyboard shortcuts",
+      "target": ""
     },
     {
       "kind": "link",
@@ -636,29 +626,44 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
-    },
-    {
-      "kind": "link",
-      "name": "\u2190 Ledger",
-      "target": "/ledger"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out",
+      "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
     }

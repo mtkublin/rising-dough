@@ -1,0 +1,66 @@
+{# fragment: ledger/planned-table
+   The Planned view region the filter bar and ledger-stale refetch (GET /ledger/table?view=planned).
+   Inputs: planned_rows (ledger_view.SchedRowView list), color_rules (custom hues), no_matches, summary_text,
+   export. States: rows, nothing planned, no matches. Ids ledger-table and planned-table are contract ids. #}
+<div id="ledger-table"
+     data-ledger-table-root
+     data-view="planned"
+     aria-live="polite"
+     hx-get="/ledger/table?view=planned"
+     hx-trigger="ledger-stale from:body"
+     hx-swap="outerHTML"
+     hx-include="#ledger-filters"
+     hx-disinherit="hx-include">
+  <div id="planned-table" data-ledger-table data-view="planned">
+    {% if color_rules %}
+      <style nonce="{{ csp_nonce }}">
+          {{ color_rules|safe }}
+      </style>
+    {% endif %}
+    {% if planned_rows %}
+      <div class="rd-table-scroll"
+           tabindex="0"
+           role="region"
+           aria-label="Planned entries (scrolls sideways)">
+        <table class="rd-ledger rd-ledger--sched">
+          <caption class="u-visually-hidden">Planned entries</caption>
+          <thead>
+            <tr class="rd-row rd-row--head rd-row--sched">
+              <th scope="col" class="rd-sched__due">DUE</th>
+              <th scope="col">DESCRIPTION · ACCOUNT</th>
+              <th scope="col">CATEGORY</th>
+              <th scope="col" class="rd-row__amount">AMOUNT</th>
+              <th scope="col" class="rd-sched__status">STATUS</th>
+              <th scope="col">
+                <span class="u-visually-hidden">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in planned_rows %}
+              {% include "fragments/rows/planned-row.html" %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif no_matches %}
+      {% with summary=summary_text, clear_url="/ledger?view=planned" %}
+        {% include "fragments/states/no-matches.html" %}
+      {% endwith %}
+    {% else %}
+      {% with new_entry_url="/transactions/new" %}
+        {% include "fragments/states/planned-empty.html" %}
+      {% endwith %}
+    {% endif %}
+    <nav class="rd-pagination" aria-label="Pages">
+      <a class="rd-link rd-pagination__aside" href="/ledger/recently-deleted">recently deleted →</a>
+    </nav>
+  </div>
+</div>
+{% if oob|default(none) %}
+  {% include "fragments/ledger/hero.html" %}
+  {% include "fragments/ledger/tabs.html" %}
+{% endif %}
+{% if oob_export|default(none) and export %}
+  {% include "fragments/ledger/export-menu.html" %}
+{% endif %}

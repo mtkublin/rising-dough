@@ -92,11 +92,11 @@ def test_delete_transaction_then_undo_from_recently_deleted(world: World) -> Non
     expect(world.find(ledger.row(txn))).to_contain_text("delete-me")
 
 
-@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_delete_planned_entry_then_undo(world: World) -> None:
     planned = world.planned(world.account(), world.category(), "25.00", "planned-delete-me")
     world.goto(LEDGER.format(view="planned"))
-    _menu_action(world, ledger.planned_menu(planned), "Delete")
+    world.page.on("dialog", lambda d: d.accept())
+    _menu_action(world, ledger.planned_menu(planned), "delete")
 
     expect(world.find(ledger.planned_row(planned))).to_have_count(0)
     world.wait_rows(

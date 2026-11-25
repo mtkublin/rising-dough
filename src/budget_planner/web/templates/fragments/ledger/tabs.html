@@ -1,0 +1,13 @@
+{# fragment: ledger/tabs
+   Inputs: tabs (ledger_view.LedgerTab list), oob (set when sent with a table refetch: the counts sit
+   outside the swapped region, so the fragment swaps itself in place). #}
+<nav class="rd-tabs"
+     id="ledger-tabs"
+     aria-label="Ledger view"
+     {% if oob|default(none) %}hx-swap-oob="true"{% endif %}>
+  {% for tab in tabs %}
+    <a class="rd-tabs__tab"
+       href="{{ tab.href }}"
+       {% if tab.current %}aria-current="page"{% endif %}>{{ tab.label }}</a>
+  {% endfor %}
+</nav>

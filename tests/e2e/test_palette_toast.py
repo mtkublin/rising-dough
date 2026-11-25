@@ -28,7 +28,7 @@ def _open_palette(page: Page) -> None:
     expect(to_playwright(page, shell.palette)).to_be_visible()
 
 
-@pytest.mark.parametrize("route", ["/ledger/recently-deleted"])  # old shell until T-UR10a
+@pytest.mark.parametrize("route", ["/forecast"])  # old shell until T-UR15
 def test_palette_new_transaction_opens_add_slide_over(
     live_server: tuple[str, Path], page: Page, route: str
 ) -> None:
@@ -42,7 +42,7 @@ def test_palette_new_transaction_opens_add_slide_over(
 
 def test_palette_shortcuts_opens_dialog(live_server: tuple[str, Path], page: Page) -> None:
     base_url, _ = live_server
-    page.goto(f"{base_url}/ledger/recently-deleted")  # old shell page (palette: test_rd_shell)
+    page.goto(f"{base_url}/forecast")  # old shell page (palette: test_rd_shell)
     _open_palette(page)
     to_playwright(page, shell.palette_option("Shortcuts")).click()
     expect(to_playwright(page, shell.shortcuts_dialog)).to_be_visible()

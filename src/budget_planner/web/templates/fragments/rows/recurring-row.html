@@ -1,0 +1,93 @@
+{# fragment: rows/recurring-row
+   Inputs: row (ledger_view.SchedRowView). One rule in its own tbody: next due, description + account (ƒ mark for a
+   formula), category chip, effective amount, override badge, expand button (when there is a detail), row menu
+   (promote, override, skip next, edit, delete). The detail row lists the formula terms and the overrides
+   with their delta against the rule amount; each override has a remove button that opens the confirm dialog. #}
+<tbody class="rd-rec">
+  <tr class="rd-row rd-row--sched" id="{{ row.dom_id }}">
+    <td class="rd-sched__due">{{ row.due_text }}</td>
+    <td class="rd-row__desc">
+      <span class="rd-row__title">{{ row.title }}
+        {% if row.formula %}<abbr class="rd-formula-mark" title="formula amount">ƒ</abbr>{% endif %}
+      </span><span class="rd-row__sub">{{ row.sub }}</span>
+    </td>
+    <td class="rd-row__cat">
+      <span class="rd-chip"
+            {% if row.category_hue %} data-color="{{ row.category_hue }}"{% endif %}>{{ row.category_name }}</span>
+    </td>
+    <td class="rd-row__amount">
+      <span class="rd-amount">{{ row.amount_text }} <span class="rd-amount__cur">{{ row.currency }}</span></span>
+    </td>
+    <td class="rd-sched__status">
+      {% if row.overrides_badge %}<span class="rd-ovr-badge">{{ row.overrides_badge }}</span>{% endif %}
+    </td>
+    <td class="rd-row__actions">
+      {% if row.expand_id %}
+        <button type="button"
+                class="rd-btn rd-btn--icon rd-expand"
+                aria-expanded="false"
+                aria-controls="{{ row.expand_id }}"
+                aria-label="Show formula and overrides"
+                data-js="expand"></button>
+      {% else %}
+        <span class="rd-expand-spacer" aria-hidden="true"></span>
+      {% endif %}
+      {% with menu_id=row.menu_id, title=row.menu_title, sub=row.menu_sub, items=row.menu_items %}
+        {% include "fragments/menus/row-menu.html" %}
+      {% endwith %}
+    </td>
+  </tr>
+  {% if row.expand_id %}
+    <tr class="rd-detail" id="{{ row.expand_id }}" hidden>
+      <td colspan="6">
+        <div class="rd-detail__grid">
+          {% if row.formula_rows %}
+            <div class="rd-detail__panel">
+              <p class="rd-caption">FORMULA</p>
+              {% for term in row.formula_rows %}
+                <p class="rd-formula__line">
+                  <span class="rd-formula__sign">{{ term.sign }}</span><span class="rd-num">{{ term.label }}</span><span class="rd-muted rd-formula__of">of</span>
+                  {% for name, hue in term.sources %}
+                    <span class="rd-chip" {% if hue %}data-color="{{ hue }}"{% endif %}>{{ name }}</span>
+                  {% endfor %}
+                </p>
+              {% endfor %}
+              <p class="rd-formula__next">→ next amount {{ row.formula_next }}</p>
+            </div>
+          {% endif %}
+          {% if row.override_rows %}
+            <div class="rd-detail__panel">
+              <div class="rd-ovr__head">
+                <p class="rd-caption">OVERRIDES · {{ row.override_rows|length }}</p>
+                <a class="rd-btn rd-btn--quiet"
+                   href="{{ row.new_override_url }}"
+                   hx-get="{{ row.new_override_url }}"
+                   hx-target="#modal-root"
+                   hx-swap="innerHTML">+ override</a>
+              </div>
+              <ul class="rd-ovr__list">
+                {% for ov in row.override_rows %}
+                  <li class="rd-ovr__item">
+                    <span>{{ ov.label }}</span>
+                    <span class="rd-ovr__amount rd-num">{{ ov.amount_text }}</span>
+                    <span class="rd-ovr__delta rd-num">{{ ov.delta_text }}</span>
+                    <a class="rd-btn rd-btn--icon"
+                       href="{{ ov.remove_url }}"
+                       hx-get="{{ ov.remove_url }}"
+                       hx-target="#modal-root"
+                       hx-swap="innerHTML"
+                       aria-label="{{ ov.remove_label }}">
+                      <svg class="rd-icon" aria-hidden="true" focusable="false">
+                        <use href="/static/rd/icons/sprite.svg#icon-close"></use>
+                      </svg>
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+  {% endif %}
+</tbody>

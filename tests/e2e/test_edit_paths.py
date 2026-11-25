@@ -155,16 +155,16 @@ def test_txn_edit_dialog_closes_and_row_updates(live_server: tuple[str, Path], p
     expect(to_playwright(page, tx)).to_contain_text("99.00")
 
 
-@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_ledger_planned_promote_closes(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _planned(base_url, page, _seed(base_url, db_path, page))
-    planned_row = ledger.planned_row(db_probe.planned_id(db_path, "edit-planned"))
     page.goto(_ledger(base_url, "planned"))
     assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, ledger.promote.inside(planned_row)).first.click()
+    to_playwright(
+        page, ledger.planned_promote(db_probe.planned_id(db_path, "edit-planned"))
+    ).click()
     expect(_panel(page)).to_be_visible()
-    to_playwright(page, ledger.promote.inside(shell.slideover)).click()
+    to_playwright(page, entries.promote_submit).click()
     expect(_panel(page)).to_have_count(0)
     assert db_probe.txn_amounts(db_path, "edit-planned") == [2500]
     page.goto(_ledger(base_url, "actual"))
