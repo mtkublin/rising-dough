@@ -1,0 +1,7 @@
+{# fragment: dialogs/override-remove-occurrence (T-UR10, ADR-0107; handoff overlays/override--remove.html)
+   Context (web.recurring_views): action (POST /recurring/{id}/overrides/{date}/delete), text, field_count /
+   field_errors (422). The stored override is soft-deleted and audited; the month goes back to the rule amount. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog("override-remove-occurrence-dialog", "Remove override?", variant="confirm", action=action, hx_post=action, actions=[{"tone": "cancel", "label": "keep"}, {"tone": "danger", "label": "remove", "name": "remove", "value": "1"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  <p>{{ text }}</p>
+{% endcall %}
