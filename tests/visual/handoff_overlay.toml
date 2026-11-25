@@ -252,16 +252,16 @@ page = "pages/overlays/archive-category.html"
 select = "p:-soup-contains-own(\"Its 41 entries\")"
 field = "text"
 old = "It disappears from pickers. Its 41 entries and budget history stay, and you can restore it from recently deleted."
-value = "It disappears from pickers. Its 3 entries and budget history stay, and you can restore it from recently deleted."
-reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+value = "It disappears from pickers. Its 6 entries and budget history stay, and you can restore it from recently deleted."
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 6 live entries in the seed, the board says 41"
 
 [[row]]
 page = "pages/overlays/edit-category.html"
 select = "p:-soup-contains-own(\"locked by 41 entries\")"
 field = "text"
 old = "↓ expense · locked by 41 entries"
-value = "↓ expense · locked by 3 entries"
-reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+value = "↓ expense · locked by 6 entries"
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 6 live entries in the seed, the board says 41"
 
 [[row]]
 page = "pages/overlays/reset-password.html"
@@ -293,7 +293,7 @@ exclude = ["pages/ledger/actual--empty.html", "pages/ledger/actual--long.html"]
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
 old = "actual 616"
-value = "actual 42"
+value = "actual 55"
 optional = true
 reason = "seed value via ledger_data tab_counts (transactions.count_filtered)"
 
@@ -339,7 +339,7 @@ page = "pages/*.html"
 select = ".rd-row--account:nth-of-type(4) .rd-account__txns"
 field = "text"
 old = "84"
-value = "33"
+value = "46"
 optional = true
 reason = "seed value via balance.account_stats_many: Checking txn_count"
 
@@ -972,7 +972,7 @@ old = "\u25b2 2 transactions: this balance will count against net worth."
 value = "\u25b2 0 transactions: this balance will count against net worth."
 reason = "seed value via accounts.account_references: Investments A has no transactions"
 
-# Accounts delete-account--blocked: the counts are the seed's (Checking: 33 transactions after the
+# Accounts delete-account--blocked: the counts are the seed's (Checking: 46 transactions after the
 # ledger rows of F1, 3 planned items and 7 recurring rules, 10 planned or recurring items).
 
 [[row]]
@@ -980,7 +980,7 @@ page = "pages/overlays/delete-account--blocked.html"
 select = ".rd-dialog__confirm > p"
 field = "text"
 old = "It still has 84 transactions and 3 planned or recurring items. Move or delete them first."
-value = "It still has 33 transactions and 10 planned or recurring items. Move or delete them first."
+value = "It still has 46 transactions and 10 planned or recurring items. Move or delete them first."
 reason = "seed value via accounts.account_references: Checking transactions, planned items and rules"
 
 [[row]]
@@ -988,7 +988,7 @@ page = "pages/overlays/delete-account--blocked.html"
 select = ".rd-dialog__actions > a.rd-btn"
 field = "text"
 old = "view 84 transactions"
-value = "view 33 transactions"
+value = "view 46 transactions"
 reason = "seed value via accounts.account_references: Checking transactions"
 
 # --- row 4: Today --empty keeps totals the empty state cannot have (the seed has nothing upcoming).
@@ -3188,7 +3188,7 @@ select = "tr.rd-row--spend:nth-of-type(1) .rd-spend__delta"
 field = "text"
 old = "▲ +1,288.90"
 value = "▲ +7,894.17"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3197,7 +3197,7 @@ select = "tr.rd-row--spend:nth-of-type(2) .rd-spend__delta"
 field = "text"
 old = "▲ +295.71"
 value = "▲ +5,308.24"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3205,8 +3205,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(3) .rd-spend__delta"
 field = "text"
 old = "▲ +320.12"
-value = "▲ +1,467.01"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▲ +1,466.84"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3214,8 +3214,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(4) .rd-spend__delta"
 field = "text"
 old = "▲ +166.64"
-value = "▲ +611.45"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▲ +611.20"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3224,7 +3224,7 @@ select = "tr.rd-row--spend:nth-of-type(5) .rd-spend__delta"
 field = "text"
 old = "▲ +191.50"
 value = "▲ +488.59"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3232,8 +3232,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(6) .rd-spend__delta"
 field = "text"
 old = "▼ −277.96"
-value = "▼ −229.38"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▼ −229.79"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3242,7 +3242,7 @@ select = "tr.rd-row--spend:nth-of-type(7) .rd-spend__delta"
 field = "text"
 old = "▼ −12.10"
 value = "▼ −241.35"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3251,7 +3251,7 @@ select = "tr.rd-row--spend:nth-of-type(8) .rd-spend__delta"
 field = "text"
 old = "▼ −571.48"
 value = "▼ −291.55"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3259,8 +3259,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(9) .rd-spend__delta"
 field = "text"
 old = "▼ −294.33"
-value = "▼ −456.83"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▼ −456.61"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3268,8 +3268,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(10) .rd-spend__delta"
 field = "text"
 old = "▼ −158.70"
-value = "▼ −475.43"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▼ −475.21"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3277,8 +3277,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(11) .rd-spend__delta"
 field = "text"
 old = "▼ −248.70"
-value = "▼ −484.80"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▼ −484.58"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3286,8 +3286,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(12) .rd-spend__delta"
 field = "text"
 old = "▼ −33.90"
-value = "▼ −520.84"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▼ −520.96"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3295,8 +3295,8 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(13) .rd-spend__delta"
 field = "text"
 old = "▼ −3,379.18"
-value = "▼ −695.86"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▼ −695.73"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
 
 [[row]]
@@ -3304,6 +3304,6 @@ page = "pages/plan/analytics.html"
 select = "tr.rd-row--spend:nth-of-type(14) .rd-spend__delta"
 field = "text"
 old = "▼ −591.11"
-value = "▼ −707.35"
-reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+value = "▼ −707.21"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"

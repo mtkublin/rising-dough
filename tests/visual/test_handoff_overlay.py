@@ -343,7 +343,7 @@ def test_serve_returns_the_overlaid_page_and_static_files_as_is() -> None:
 DAY = dt.date(2026, 10, 31)
 VALUES_MARKER = "# --- generated app-value rows (do not edit; regenerate, see below) ---"
 VALUES_REASON = (
-    "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed "
+    "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed "
     "(its own chart implies different totals); the app computes the delta from the seed history"
 )
 REGENERATE = "uv run python -m tests.visual.test_handoff_overlay"
