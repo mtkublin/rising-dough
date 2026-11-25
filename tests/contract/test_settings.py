@@ -192,7 +192,7 @@ def test_security_page_marks_current_session_and_lists_others(
     client: TestClient, db: sqlite3.Connection
 ) -> None:
     before = _html.text_of(client.get("/settings/security").text, ui.sessions)
-    assert "This device" in before
+    assert "THIS DEVICE" in before
     issue_session(db)
     after = client.get("/settings/security").text
     assert _html.count(after, ui.session_signout.inside(ui.sessions)) == 2
