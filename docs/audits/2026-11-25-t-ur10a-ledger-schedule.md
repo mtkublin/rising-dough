@@ -79,3 +79,46 @@ delete, as specified in the task. Deviations that the board shares: see F4 and F
   Shots: shots/light-1024-planned.png, shots/board-ledger_planned-1024-light.png.
 
 Status: FINDINGS (F1, F2, F3 are for the implementer; F4 and F5 are handoff parity and can be triaged).
+
+## Re-audit at c53cde87 (fixes for F1, F2, F3)
+
+Method: frontend-visual-audit skill (Playwright, chromium), heavy lock /tmp/ui-redesign-heavy.lock taken and released. Scratch copy of data/demo.sqlite (migrated,
+login user set, four extra planned rows, three deleted planned rows, one deleted category), server on 127.0.0.1:8141. data/budget.sqlite not touched.
+Screenshots: /tmp/claude-0/-home-user-rising-dough/86228838-e551-5ec3-979b-dd5580a5d147/scratchpad/ur10/shots/ (viewed: recently-deleted all-empty state at 1440,
+recurring at 375).
+
+### Routes x viewports (/ledger, /ledger?view=planned, /ledger?view=recurring, /ledger/recently-deleted at 1440, 1024, 375: 12 rows)
+
+| Route | Width | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|---|
+| all four | 1440 | 0 | 0 | 0 | 0 | 0 |
+| actual, recently-deleted | 1024 | 0 | 0 | 0 | 0 | 0 |
+| planned, recurring | 1024 | 0 | 20 (table inside `.rd-table-scroll`, F5) | 0 | 0 | 0 |
+| actual, planned, recurring | 375 | 0 | 1 (`a.rd-tabs__tab`, right 380, inside its scroll strip, F5) | 0 | 0 | 0 |
+| recently-deleted | 375 | 0 | 0 | 0 | 0 | 0 |
+
+The non-zero overflowingElements are the known F5 handoff-parity items (unchanged from the first audit, no page scroll); not caused by the fixes.
+
+### Fix verification (1440)
+
+- F1 fixed. Planned delete: hero 7,560.20 / "5 items · 1 overdue" to 7,610.20 / "4 items · 0 overdue", tab planned 5 to 4, no reload. Edit save (7,530.20) and promote
+  (7,560.20, "3 items", tab actual 617) also update. Recurring skip, promote (note "next due 05 nov", actual 618) and deactivate (hero −13,731.65, "26 rules",
+  tab recurring 26) update without reload; every value equals the reloaded page.
+- F2 fixed. Flashes: "Next occurrence skipped", "Recurring occurrence promoted", "Recurring rule deactivated", "Planned entry promoted", "Planned entry saved",
+  toast "Planned entry deleted" with undo. After skip and promote the row's menu button is still present (row moved to 01 DEC); deactivate removes the row.
+- F3 fixed. Restoring all 4 deleted planned rows and 4 categories one by one: each row leaves, group count decrements, table header goes with the last row,
+  "Nothing deleted." shows, toast "Planned entry restored" / "Category restored" each time; reload equals the live state. Category restore no longer leaves the row.
+
+### Step 3b
+
+1. Swap targets `#ledger-table`, `#ledger-hero`, `#ledger-tabs`, `#deleted-panel`, `#modal-root` count 1 before and after every action. ok.
+2. Forced 404, 409, 500 on skip-next, deactivate and restore: each shows the visible flash ("That item was not found...", "changed in the meantime...",
+   "Something went wrong..."); rows unchanged (26 rules, 2 restore rows). ok.
+3. Template arithmetic: the diff's template lines contain no float, /100, *100 or set; remaining `set` blocks in planned/recurring `_row.html` and `_form.html` are
+   untouched by this change (pre-existing). ok.
+4. Money by currency: not re-run for JPY/EUR (templates for amounts unchanged since the first audit); the deleted-row fragments still print through the same filter. ok.
+5. Rendered equals data: planned hero 5,158.85 / 7 items equals an independent SQL sum (7 pending rows, 515,885 minor); recurring 26 rules, actual 618 equal the DB counts. ok.
+6. No duplicate ids after any swap (checked after each action); `ledger-stale` listeners: table, hero/tabs refresh and `#deleted-panel`
+   (also `settings-categories-stale`); no console errors. ok.
+
+Status: CLEAN for F1, F2, F3. Remaining: F4 and F5 (handoff parity, triaged).
