@@ -173,6 +173,7 @@ class SeedData:
     invite_age_days: int
     invite_accepted: bool
     invite_link: str  # fixed path segment of the invite URL in the scratch DB
+    owner_must_change: bool = False  # the signed-in owner's password was reset by an admin
 
 
 # value-inventory 2.2 (balances in PLN as the handoff prints them; the two EUR-named
@@ -525,6 +526,10 @@ def _invite_used(d: SeedData) -> SeedData:
     return replace(d, invite_accepted=True)
 
 
+def _owner_must_change(d: SeedData) -> SeedData:
+    return replace(d, owner_must_change=True)
+
+
 def _no_data_change(d: SeedData) -> SeedData:
     return d
 
@@ -551,6 +556,11 @@ _MODIFIERS: Final = (
     ),
     ("invite-expired", _invite_expired, "invite page --expired: link older than 7 days"),
     ("invite-used", _invite_used, "invite page --used: the link was already accepted"),
+    (
+        "owner-must-change",
+        _owner_must_change,
+        "force-password pages: the signed-in owner must set a new password first",
+    ),
     ("form-error", _no_data_change, "request states (422, wrong password): no data change"),
 )
 MODIFIER_NAMES: Final = tuple(name for name, _, _ in _MODIFIERS)
@@ -811,7 +821,10 @@ def build_seed(db_path: Path, *, modifiers: Iterable[str] = ()) -> SeedResult:
     try:
         apply_migrations(conn)
         seed_login_user(conn)
-        conn.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (OWNER_ID,))
+        conn.execute(
+            "UPDATE users SET is_admin = 1, must_change_password = ? WHERE id = ?",
+            (int(data.owner_must_change), OWNER_ID),
+        )
         conn.commit()
         frozen_now = _at(FROZEN_DAY.isoformat(), 10)
         with clock.frozen(frozen_now):

@@ -14,7 +14,7 @@ import shutil
 import socket
 import subprocess
 import time
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 
@@ -156,8 +156,10 @@ def _wait_until_ready(url: str, proc: subprocess.Popen[bytes]) -> None:
 
 
 @contextmanager
-def serve_db(db_path: Path) -> Iterator[str]:
+def serve_db(db_path: Path, extra_env: Mapping[str, str] | None = None) -> Iterator[str]:
     """Boot uvicorn (frozen clock) against the scratch DB at ``db_path``; yield its base URL.
+
+    ``extra_env`` overrides the server's environment (first-run setup: env, setup token hash).
 
     Routes the server at `127.0.0.1:<free-port>`. Blocks until `/health` returns 200
     or raises after the ready timeout (cold `uv run` start can take >10 s).
@@ -173,6 +175,7 @@ def serve_db(db_path: Path) -> Iterator[str]:
         "BUDGET_VISUAL_FROZEN_DATE": FROZEN_DATE,
         # pragma: allowlist nextline secret
         "BUDGET_COOKIE_SECRET": "visual-dev-cookie-secret-not-a-real-secret",
+        **(extra_env or {}),
     }
     cmd = ["uv", "run", "python", "-m", "tests.visual.frozen_server", str(port)]
     with subprocess.Popen(cmd, env=env) as proc:  # noqa: S603 — fixed args, local loopback port
