@@ -27,6 +27,7 @@ class DialogSubmit:
     answer: str  # "" = wait for the server's response only (it may carry no error element)
     checks: tuple[str, ...] = ()  # radio inputs to check (CSS selector)
     skip_validation: bool = False  # submit past the browser's ``required`` check
+    keep_focus: bool = False  # the handoff shows the typed field focused (thick hero underline)
 
 
 # overlay page -> recipe; the values are what the handoff shows typed in the form.
@@ -79,6 +80,17 @@ DIALOG_SUBMITS: Final[dict[str, DialogSubmit]] = {
         answer="",
         skip_validation=True,
     ),
+    # T-UR00b F7. The handoff shows the budget override dialogs with the amount typed (the
+    # scope radio is the opener's `tier`); the app prefills the default and selects it.
+    **{
+        f"pages/overlays/override--budget-{tier}.html": DialogSubmit(
+            fills=(("#modal-root input[name=amount]", amount),),
+            press="",
+            answer="",
+            keep_focus=True,
+        )
+        for tier, amount in (("month", "650.00"), ("every", "700.00"), ("default", "650.00"))
+    },
 }
 
 
@@ -99,4 +111,6 @@ def submit_dialog(page: Any, handoff_page: str) -> None:
         else:
             page.wait_for_load_state("networkidle", timeout=15000)
     # No focus ring or text selection: the handoff files show neither.
-    page.evaluate("() => { document.activeElement?.blur(); getSelection()?.removeAllRanges(); }")
+    if not recipe.keep_focus:
+        page.evaluate("() => document.activeElement?.blur()")
+    page.evaluate("() => getSelection()?.removeAllRanges()")

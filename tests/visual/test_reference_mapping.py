@@ -100,8 +100,9 @@ def test_click_recipes_name_handoff_overlays_and_leave_the_unmapped_set() -> Non
         assert click_recipe(f"pages/overlays/{name}.html") is None
     assert click_recipe("pages/overlays/shortcuts.html") is CLICK_RECIPES["shortcuts"]
     assert click_recipe("pages/today.html") is None
-    # The year-cell inline editor does not exist in the app: it stays unmapped.
-    assert "override--year-cell" in UNMAPPED_OVERLAYS
+    # The year-cell inline editor is mapped: the recipe clicks the cell (T-UR00b F7).
+    assert "override--year-cell" not in UNMAPPED_OVERLAYS
+    assert click_recipe("pages/overlays/override--year-cell.html") is CLICK_RECIPES["override--year-cell"]
 
 
 def test_new_entry_input_states_are_mapped() -> None:
@@ -482,6 +483,9 @@ def test_post_state_recipes_type_what_the_handoff_shows() -> None:
         "pages/overlays/new-account--error.html",
         "pages/overlays/new-category--filled.html",
         "pages/overlays/new-category--error.html",
+        "pages/overlays/override--budget-month.html",
+        "pages/overlays/override--budget-every.html",
+        "pages/overlays/override--budget-default.html",
     }
     assert not {p for p in DIALOG_SUBMITS if p.split("/")[-1][:-5] in UNMAPPED_OVERLAYS}
     for page, recipe in DIALOG_SUBMITS.items():

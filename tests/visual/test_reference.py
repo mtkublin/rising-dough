@@ -155,11 +155,7 @@ OVERLAY_DIALOGS: dict[str, str] = {
 # Overlay pages with no way to open their state yet: the year-cell inline editor, which the
 # app does not have (compared against the plain base page, red). Every other overlay is
 # mapped: dialogs (OVERLAY_DIALOGS, OPENERS), clicks, new-entry and state recipes.
-UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
-    {
-        "override--year-cell",
-    }
-)
+UNMAPPED_OVERLAYS: frozenset[str] = frozenset()
 OPENER_PAGES: frozenset[str] = frozenset(f"pages/overlays/{n}.html" for n in OPENERS)
 # Pages that need the base seed plus named modifiers (handoff_seed.MODIFIER_NAMES).
 PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {

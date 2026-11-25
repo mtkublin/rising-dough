@@ -42,3 +42,20 @@ def test_unbudgeted_categories_are_listed_by_use() -> None:
     assert [c.text for c in page.rows[1].cells] == ["\N{EN DASH}"] * 12
     assert [u.category_name for u in page.unbudgeted] == ["Fixed costs", "Taxes"]
     assert page.unbudgeted_heading == "2 categories without a budget"
+
+
+def test_cells_carry_the_inline_editor_values() -> None:
+    rows = (_row(2, "Big purchases", 60_435), _row(1, "Bank fees", None))
+    usage = {1: _usage(0, rules=1)}
+
+    page = year_page(rows, 2026, current=(2026, 10), currency="PLN", usage=usage)
+
+    november = page.rows[0].cells[10]
+    assert november.editor_label == "Big purchases, November budget"
+    assert (november.amount_text, november.action, november.year) == (
+        "604.35",
+        "/budget/rules/2/overrides",
+        2026,
+    )
+    unset = page.rows[1].cells[10]
+    assert (unset.editor_label, unset.amount_text) == ("Bank fees, November budget", "")
