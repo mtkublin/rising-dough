@@ -247,6 +247,7 @@ _EXPENSE_NAMES: Final = (
     "Travel",
     "Wyjścia na miasto",  # in the handoff category picker (Q6), no colour
 )
+PICKER_ONLY_CATEGORY: Final = "Wyjścia na miasto"  # the settings board does not list it
 _INCOME_NAMES: Final = ("Interest", "Profit Share", "Salary", "Side Income", "VAT Refund")
 _DEFAULT_COLOUR: Final = frozenset(
     {"Opłaty bankowe i prowizje", "Wyjścia na miasto", "Interest", "Profit Share"}
@@ -568,6 +569,11 @@ def _owner_must_change(d: SeedData) -> SeedData:
     return replace(d, owner_must_change=True)
 
 
+def _settings_categories(d: SeedData) -> SeedData:
+    """Settings categories board: its 17 expense categories (the picker-only one is not listed)."""
+    return replace(d, categories=tuple(c for c in d.categories if c.name != PICKER_ONLY_CATEGORY))
+
+
 def _no_data_change(d: SeedData) -> SeedData:
     return d
 
@@ -598,6 +604,11 @@ _MODIFIERS: Final = (
         "owner-must-change",
         _owner_must_change,
         "force-password pages: the signed-in owner must set a new password first",
+    ),
+    (
+        "settings-categories",
+        _settings_categories,
+        "Settings categories: the board lists 17 expense categories, without the picker-only one",
     ),
     ("form-error", _no_data_change, "request states (422, wrong password): no data change"),
 )

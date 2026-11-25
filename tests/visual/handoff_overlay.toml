@@ -206,6 +206,14 @@ value = "Bank Fees #18"
 reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages (the rule description too); the seed has one such category"
 
 [[row]]
+page = "pages/settings/categories.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
 page = "pages/*.html"
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
