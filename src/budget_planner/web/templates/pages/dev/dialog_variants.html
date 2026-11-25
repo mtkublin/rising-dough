@@ -34,6 +34,10 @@
       </span>
     </div>
   {% endcall %}
+{% elif variant == "reconcile" %}
+  {% call dialog("dev-reconcile", "reconcile Checking", action="/dev/shell/dialog/reconcile", hx_post="/dev/shell/dialog/reconcile", hero={"currency": "PLN", "amount_value": "3,685.81", "amount_label": "Actual balance", "note": "actual balance"}, actions=[{"tone": "cancel"}, {"tone": "secondary", "id": "dev-reconcile-preview", "label": "preview", "hx_get": "/dev/shell/dialog/standard", "hx_target": "#modal-root", "hx_swap": "innerHTML"}, {"tone": "primary", "id": "dev-reconcile-apply", "label": "[ reconcile ]", "name": "apply", "value": "1"}]) %}
+    <p>Compare the actual balance with the ledger.</p>
+  {% endcall %}
 {% else %}
   {# invalid: 422 through invalid_dialog_response; errors maps field name to message #}
   {% call dialog("dev-invalid", "new account", action="/dev/shell/dialog/invalid", hx_post="/dev/shell/dialog/invalid", hero={"currency": "PLN", "amount_value": "0.00", "amount_label": "Opening balance", "amount_id": "field-amount", "error": errors.amount}, field_count=field_count, field_errors=field_errors, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ create account ]"}]) %}

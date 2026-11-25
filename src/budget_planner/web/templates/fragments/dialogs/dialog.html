@@ -21,7 +21,9 @@
      variant: "standard" | "confirm" | "blocked".  size: "" | "sm" | "md" (confirm and blocked default to "sm").
      hero (standard): dict with currency, amount_value, note, sign, amount_label, amount_id (hero-amount), amount_name (amount),
                       error (message; sets aria-invalid + aria-describedby).
-     actions: list of dicts {tone, label, name, value, href}; tone: cancel | primary | danger | link | ok.
+     actions: list of dicts {tone, label, id, name, value, href, hx_get, hx_post, hx_target, hx_swap, formaction};
+                      tone: cancel | primary (name/value) | secondary (type=button, does not close) | danger (name/value) | link | ok.
+                      Any action may carry an id; secondary takes the hx_* and formaction keys.
      field_count / field_errors: the context invalid_dialog_response passes; renders forms/error-summary above the body.
    The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic, no set. #}
 {% macro dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root", hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=()) %}
@@ -126,20 +128,37 @@
     {% for a in actions %}
       {% if a.tone == "cancel" %}
         <button type="button"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
                 class="rd-btn rd-btn--lg rd-btn--quiet"
                 data-js="dialog-close">{{ a.label|default("cancel") }}</button>
       {% elif a.tone == "ok" %}
         <button type="button"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
                 class="rd-btn rd-btn--lg rd-btn--primary"
                 data-js="dialog-close">{{ a.label|default("[ ok ]") }}</button>
       {% elif a.tone == "link" %}
-        <a class="rd-btn rd-btn--lg" href="{{ a.href }}">{{ a.label }}</a>
+        <a {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+           class="rd-btn rd-btn--lg"
+           href="{{ a.href }}">{{ a.label }}</a>
+      {% elif a.tone == "secondary" %}
+        <button type="button"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+                class="rd-btn rd-btn--lg"
+                {% if a.hx_get|default(none) %}hx-get="{{ a.hx_get }}"{% endif %}
+                {% if a.hx_post|default(none) %}hx-post="{{ a.hx_post }}"{% endif %}
+                {% if a.hx_target|default(none) %}hx-target="{{ a.hx_target }}"{% endif %}
+                {% if a.hx_swap|default(none) %}hx-swap="{{ a.hx_swap }}"{% endif %}
+                {% if a.formaction|default(none) %}formaction="{{ a.formaction }}"{% endif %}>{{ a.label }}</button>
       {% elif a.tone == "danger" %}
         <button type="submit"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
                 class="rd-btn rd-btn--lg rd-btn--danger"
                 {% if a.name|default(none) %}name="{{ a.name }}" value="{{ a.value }}"{% endif %}>{{ a.label }}</button>
       {% else %}
-        <button type="submit" class="rd-btn rd-btn--lg rd-btn--primary">{{ a.label }}</button>
+        <button type="submit"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+                class="rd-btn rd-btn--lg rd-btn--primary"
+                {% if a.name|default(none) %}name="{{ a.name }}" value="{{ a.value }}"{% endif %}>{{ a.label }}</button>
       {% endif %}
     {% endfor %}
   </div>

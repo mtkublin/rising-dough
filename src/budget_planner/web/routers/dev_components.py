@@ -23,7 +23,7 @@ from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["dev"])
 
-DialogVariant = Literal["standard", "confirm", "blocked", "sheet", "invalid"]
+DialogVariant = Literal["standard", "confirm", "blocked", "sheet", "reconcile", "invalid"]
 _VARIANTS_TEMPLATE: Final = "pages/dev/dialog_variants.html"
 _DEV_FIELD_ERRORS: Final = MappingProxyType(
     {

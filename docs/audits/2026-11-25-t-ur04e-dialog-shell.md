@@ -17,7 +17,7 @@ Note on console: the only console entries in the run are the browser's own "Fail
 
 ## Visual compare against the handoff overlays
 
-- Standard (new-account, new-account--error): band with title, round close button, hero amount with the PLN unit and the hero note or the `▲` hero error; body with field, actions row (quiet cancel left of the orange primary). 422: the rose error summary ("2 fields need attention", two links) above the field, `▲` per-field message. Matches the error overlays' treatment.
+- Standard (new-account, new-account--error): band with title, round close button, hero amount with the PLN unit and the hero note or the `▲` hero error; body with field, actions row (quiet cancel left of the orange primary). 422: the rose error summary ("2 fields need attention", two links) above the field, `▲` per-field message. Deviation: no handoff overlay shows a summary (new-entry--error and new-account--error have inline errors only); the summary reuses the full-page pages/errors/422.html treatment and is recorded in derived.md.
 - Confirm (delete-account, archive-category): small centred card, title, text, quiet cancel plus the rose-outlined destructive submit. Blocked: same card, link action plus `[ ok ]`, no form.
 - Phone sheet (new-entry--phone-sheet) at 375: same markup, docked to the bottom edge full width, orange band with signed hero (−35.50 PLN), lime primary filling the row, grabber-less sheet as in the handoff. Dark theme tokens apply.
 - Row menu at 375 (row-menu--*): bottom action sheet with grabber, head (title and sub), 52 px rows, destructive `delete` in rose, `cancel` last. Desktop: anchored popover; the phone-only item is hidden at 1440 and 1024 (asserted in e2e).

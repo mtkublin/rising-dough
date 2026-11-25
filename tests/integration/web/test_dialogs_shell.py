@@ -7,6 +7,9 @@ overlays (``aria-labelledby`` -> ``<id>-title``).
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from tests.ui_map import _html, rd_dialogs as d, rd_fragments as f
@@ -179,3 +182,109 @@ def test_dev_row_menu_renders_every_item_kind(client: TestClient) -> None:
         "dev-row-menu",
         "hide",
     )
+
+
+# ---------------------------------------------------------------------------
+# Markup parity with the handoff overlays (ADR-0107 section 2)
+# ---------------------------------------------------------------------------
+
+_OVERLAYS = Path(__file__).resolve().parents[3] / "docs/design/rising-dough-frontend/pages/overlays"
+
+
+def _skeleton(html: str) -> dict[str, object]:
+    """Classes, roles and aria wiring of the dialog, its chrome and its actions, ids normalised."""
+    dlg = BeautifulSoup(html, "html.parser").find("dialog")
+    assert isinstance(dlg, Tag)
+    dlg_id = str(dlg.get("id"))
+    footer = dlg.find(class_="rd-dialog__actions")
+    assert isinstance(footer, Tag)
+
+    def norm(value: object) -> object:
+        return str(value).replace(dlg_id, "ID") if isinstance(value, str) else value
+
+    def chrome(*classes: str) -> object:
+        return [
+            (e.name, e.get("class"), norm(e.get("id")), e.get("role"))
+            for e in dlg.find_all(class_=lambda c: c in classes)
+        ]
+
+    return {
+        "dialog": (
+            dlg.get("class"),
+            dlg.get("role"),
+            dlg.get("data-js"),
+            norm(dlg.get("aria-labelledby")),
+        ),
+        "form": [(f.get("class"), f.get("method")) for f in dlg.find_all("form")],
+        "band": chrome(
+            ".rd-dialog__band, .rd-dialog__band-head, .rd-dialog__hero, .rd-dialog__hero-row"
+        ),
+        "title": chrome("rd-dialog__title", "rd-dialog__confirm", "rd-dialog__confirm-title"),
+        "close": [
+            (c.get("class"), c.get("aria-label"), c.get("data-js"), c.get("type"))
+            for c in dlg.find_all("button", class_="rd-dialog__close")
+        ],
+        "body": chrome("rd-dialog__body", "rd-dialog__actions"),
+        "actions": [
+            (
+                a.name,
+                a.get("class"),
+                a.get("type"),
+                a.get("name"),
+                a.get("value"),
+                a.get("data-js"),
+                " ".join(a.get_text().split()),
+            )
+            for a in footer.find_all(recursive=False)
+        ],
+    }
+
+
+def _handoff(name: str) -> dict[str, object]:
+    skeleton = _skeleton((_OVERLAYS / f"{name}.html").read_text())
+    assert skeleton["actions"] and skeleton["title"], f"{name}: nothing parsed from the handoff"
+    return skeleton
+
+
+def test_standard_matches_the_new_account_overlay(client: TestClient) -> None:
+    _, html = _open(client, "standard")
+    assert _skeleton(html) == _handoff("new-account")
+
+
+def test_confirm_matches_the_delete_account_overlay(client: TestClient) -> None:
+    _, html = _open(client, "confirm")
+    assert _skeleton(html) == _handoff("delete-account")
+
+
+def test_blocked_matches_the_delete_account_blocked_overlay(client: TestClient) -> None:
+    _, html = _open(client, "blocked")
+    assert _skeleton(html) == _handoff("delete-account--blocked")
+
+
+# ---------------------------------------------------------------------------
+# Action API: named primary, secondary hx_get, ids
+# ---------------------------------------------------------------------------
+
+
+def test_reconcile_like_variant_has_named_primary_and_a_secondary_button(
+    client: TestClient,
+) -> None:
+    _, html = _open(client, "reconcile")
+    dlg = d.dialog("reconcile Checking")
+    primary = _html.resolve_one(html, d.action(dlg, "[ reconcile ]"))
+    assert (primary.get("id"), primary.get("type"), primary.get("name"), primary.get("value")) == (
+        "dev-reconcile-apply",
+        "submit",
+        "apply",
+        "1",
+    )
+    assert primary.get("class") == ["rd-btn", "rd-btn--lg", "rd-btn--primary"]
+    sec = _html.resolve_one(html, d.action(dlg, "preview"))
+    assert dict(sec.attrs) == {
+        "id": "dev-reconcile-preview",
+        "type": "button",
+        "class": ["rd-btn", "rd-btn--lg"],
+        "hx-get": "/dev/shell/dialog/standard",
+        "hx-target": "#modal-root",
+        "hx-swap": "innerHTML",
+    }
