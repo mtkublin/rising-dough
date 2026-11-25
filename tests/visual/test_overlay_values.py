@@ -84,6 +84,8 @@ class Vals:
     afford_small_delta: int
     afford_over_per_day: int
     afford_over_over: int
+    empty_afford_per_day: int
+    empty_afford_delta: int
     actual_count: int
     recurring_count: int
     rec_figure: str
@@ -106,7 +108,12 @@ class Vals:
     takeaway_entries: int
 
 
-def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
+def _collect(
+    conn: sqlite3.Connection,
+    settings: Settings,
+    token: str,
+    empty_afford: today_service.AffordResult,
+) -> Vals:
     tz = settings.display_timezone
     year, month = budget_service.fiscal_month_for(conn, USER, DAY)
     summary = budget_service.month_summary(
@@ -167,6 +174,8 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
         afford_small_delta=small.delta_minor,
         afford_over_per_day=over.unclamped_per_day_minor,
         afford_over_over=over.over_minor,
+        empty_afford_per_day=empty_afford.per_day_minor,
+        empty_afford_delta=empty_afford.delta_minor,
         actual_count=counts["actual"],
         recurring_count=counts["recurring"],
         rec_figure=hero.figure,
@@ -198,11 +207,27 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
 def vals(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Vals]:
     result = seed.build_seed(tmp_path_factory.mktemp("overlay-values") / "base.sqlite")
     settings = Settings(_env_file=None, database_url=f"sqlite:///{result.db_path.as_posix()}")
+    # today--empty: the seed with nothing upcoming (no planned items or rules)
+    empty = seed.build_seed(
+        tmp_path_factory.mktemp("overlay-empty") / "empty.sqlite", modifiers=("empty",)
+    )
+    empty_conn = get_connection(
+        Settings(_env_file=None, database_url=f"sqlite:///{empty.db_path.as_posix()}")
+    )
     conn = get_connection(settings)
     try:
-        yield _collect(conn, settings, result.session_token)
+        empty_afford = today_service.afford(
+            empty_conn,
+            USER,
+            DAY,
+            25_000,
+            base_currency="PLN",
+            display_timezone=settings.display_timezone,
+        )
+        yield _collect(conn, settings, result.session_token, empty_afford)
     finally:
         conn.close()
+        empty_conn.close()
 
 
 @dataclass(frozen=True)
@@ -399,6 +424,23 @@ _LISTED_CASES: tuple[Case, ...] = (
         f"{ARROW} per day becomes 164.28 ",
         lambda v: f"{ARROW} per day becomes {money(v.afford_small_per_day)} ",
         f"{_SEED} today.afford(250.00): per day after the entry",
+    ),
+    Case(
+        "pages/today--empty.html",
+        ".rd-afford__result",
+        f"{ARROW} per day becomes 105.42 ",
+        lambda v: f"{ARROW} per day becomes {money(v.empty_afford_per_day)} ",
+        f"{_SEED} today.afford(250.00) with an empty upcoming list; the handoff repeats the "
+        "figure of the full Today beside 'Nothing due'",
+        optional=False,
+    ),
+    Case(
+        "pages/today--empty.html",
+        ".rd-afford__result .rd-muted",
+        "(↓ 35.71)",
+        lambda v: f"(↓ {money(-v.empty_afford_delta)})",
+        f"{_SEED} today.afford(250.00) with an empty upcoming list: the delta is the whole amount",
+        optional=False,
     ),
     Case(
         "pages/today--afford-over.html",
@@ -616,6 +658,7 @@ def test_overlay_values_pin(vals: Vals) -> None:
     assert (vals.committed, vals.left, vals.per_day) == (44_660, 98_793, 14_113)
     assert (vals.afford_small_per_day, vals.afford_small_delta) == (10_542, -3_571)
     assert (vals.afford_over_per_day, vals.afford_over_over) == (-11_601, 81_207)
+    assert (vals.empty_afford_per_day, vals.empty_afford_delta) == (118_453, -25_000)
     assert (vals.actual_count, vals.recurring_count) == (55, 24)
 
 
