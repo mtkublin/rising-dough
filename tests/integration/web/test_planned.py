@@ -26,7 +26,15 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, edit_dialogs, entries, errors, ledger, rd_fragments, rd_shell as shell
+from tests.ui_map import (
+    _html,
+    edit_dialogs,
+    entries,
+    errors,
+    ledger,
+    rd_fragments,
+    rd_shell as shell,
+)
 from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
