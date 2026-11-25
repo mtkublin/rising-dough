@@ -209,7 +209,7 @@ _DIALOG_TEXT = {
     "edit-recurring--fixed": "Fixed Costs",
     "edit-recurring--formula": "Taxes",
     "promote--recurring": "Fixed Costs",
-    "override--occurrence": "Fixed costs",
+    "override--occurrence": "override occurrence \N{MIDDLE DOT} Fixed Costs",
     "override--budget-month": "Big Purchases",
     "override--budget-every": "Big Purchases",
     "override--budget-default": "Big Purchases",
