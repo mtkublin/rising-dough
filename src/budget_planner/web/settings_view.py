@@ -179,7 +179,7 @@ def category_form_view(
         direction_text=direction_label(picked),
         expense_checked=picked is Direction.EXPENSE,
         income_checked=picked is Direction.INCOME,
-        default_checked=not picked_color,
+        default_checked=not valid,
         swatches=tuple(
             SwatchView(name=swatch, hex=_PRESET_HEX[swatch], checked=_PRESET_HEX[swatch] == lowered)
             for swatch in _FORM_SWATCH_NAMES
@@ -212,7 +212,7 @@ def fx_rate_rows(rates: Sequence[FxRate]) -> tuple[FxRateRow, ...]:
 
 def settings_page_context(raw: Mapping[str, object]) -> dict[str, object]:
     """Template context of a settings page: the service context plus its view models."""
-    context = dict(raw)
+    context = {**raw, "nav_current": "settings"}
     categories = context.get("categories")
     if isinstance(categories, list):
         context["groups"] = category_groups(context)
@@ -277,6 +277,13 @@ def _user_menu(user_id: int) -> tuple[Mapping[str, object], ...]:
     )
 
 
+def _user_last_seen(user: UserListing, *, is_me: bool, tz: str) -> str:
+    """``now`` on the signed-in admin's own row, ``30 OCT 21:12``, or ``—`` for never signed in."""
+    if is_me:
+        return "now"
+    return _local(user.last_seen_at, tz, "%d %b %H:%M") if user.last_seen_at else "\u2014"
+
+
 def user_row_view(user: UserListing, *, me_id: int, tz: str) -> UserRowView:
     """Row values; the admin's own row carries no menu (``is_me``), ADR-0134 section 11."""
     role = "admin" if user.is_admin else "member"
@@ -284,10 +291,10 @@ def user_row_view(user: UserListing, *, me_id: int, tz: str) -> UserRowView:
     return UserRowView(
         id=user.id,
         email_text=user.email or user.name,
-        sub_text="You" if is_me else user.name,
+        sub_text="you" if is_me else user.name,
         role_text=role,
         name=user.name,
-        last_seen=_local(user.last_seen_at, tz, "%d %b %H:%M") if user.last_seen_at else "never",
+        last_seen=_user_last_seen(user, is_me=is_me, tz=tz),
         status_text=ROTATION_PENDING_TEXT if user.must_change_password else ACTIVE_TEXT,
         is_me=is_me,
         menu_id=f"user-menu-{user.id}",
@@ -430,7 +437,7 @@ class SessionRowView:
 
 
 def session_row_view(row: SessionRow, tz: str) -> SessionRowView:
-    """Values of a session row; the current device keeps its sign-out button (contract pin)."""
+    """Values of a session row; the current device reads ``now`` and has no button (handoff)."""
     session = row.session
     return SessionRowView(
         handle=session.handle,
@@ -438,7 +445,7 @@ def session_row_view(row: SessionRow, tz: str) -> SessionRowView:
         ip_text=session.ip or "—",
         title=session.user_agent or "Unknown device",
         signed_in=_local(session.created_at, tz, _STAMP),
-        last_seen=_local(session.last_seen_at, tz, _STAMP),
+        last_seen="now" if row.is_current else _local(session.last_seen_at, tz, _STAMP),
         expires=_local(row.absolute_expires_at, tz, _DAY),
         is_current=row.is_current,
         button_label="Sign out this device" if row.is_current else f"Sign out {row.device_label}",

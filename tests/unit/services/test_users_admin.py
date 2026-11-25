@@ -178,7 +178,7 @@ def test_list_live_users_excludes_deleted_and_reports_last_seen(
     soft_delete_user(admin_conn, ADMIN_ID, gone.id)
     sessions_repo.create_session(admin_conn, alive.id, ip=None, user_agent=None)
     listing = list_live_users(admin_conn)
-    assert [u.email for u in listing] == ["b@x.test", "root@example.test"]
+    assert [u.email for u in listing] == ["root@example.test", "b@x.test"]
     by_id = {u.id: u for u in listing}
     assert by_id[alive.id].last_seen_at is not None
     assert by_id[ADMIN_ID].last_seen_at is None

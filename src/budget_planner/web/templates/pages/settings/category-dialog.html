@@ -91,6 +91,6 @@
   </div>
   <div class="rd-preview" aria-live="polite">
     <span class="rd-caption">PREVIEW</span><span class="rd-chip"
-      {% if form.preview_color %} data-color="{{ form.preview_color }}"{% endif %}>{{ form.name }}</span>
+      {% if form.preview_color %} data-color="{{ form.preview_color }}"{% endif %}>{{ form.name or "name" }}</span>
   </div>
 {% endcall %}

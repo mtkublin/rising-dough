@@ -31,7 +31,6 @@ from budget_planner.services.invites import (
 from budget_planner.services.password_change import MSG_TOO_SHORT
 from budget_planner.services.setup import MSG_CONFIRM_MISMATCH
 from budget_planner.services.users import (
-    DUPLICATE_EMAIL_MESSAGE,
     INVALID_EMAIL_MESSAGE,
     UserInputError,
 )
@@ -121,7 +120,7 @@ def test_create_refuses_live_user_email(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE users SET email = 'root@example.test' WHERE id = ?", (ADMIN_ID,))
     with pytest.raises(UserInputError) as err:
         _issue(conn, FakeTokenSource(), email="ROOT@example.test")
-    assert err.value.fields == {"email": DUPLICATE_EMAIL_MESSAGE}
+    assert err.value.fields == {"email": invites_service.EXISTING_ACCOUNT_MESSAGE}
     assert conn.execute("SELECT count(*) FROM invites").fetchone()[0] == 0
 
 

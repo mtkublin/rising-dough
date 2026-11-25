@@ -14,9 +14,8 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.services import password_change as password_service, rate_limit
+from budget_planner.services import password_change as password_service
 from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next, set_session_cookie
-from budget_planner.web.auth_deps import rate_limit_now
 from budget_planner.web.http_headers import HX_REDIRECT
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.middleware.must_change_password import PASSWORD_PATH
@@ -51,31 +50,6 @@ def default_target(user: CurrentUser, next_path: str | None) -> str:
     return SECURITY_PATH if target == DEFAULT_LANDING else target
 
 
-def attempts_text(
-    request: Request, conn: sqlite3.Connection, settings: Settings, user: CurrentUser
-) -> str:
-    """``"2 attempts left."`` for the current-password error (services.rate_limit.attempts_left)."""
-    left = rate_limit.attempts_left(
-        conn,
-        rate_limit.SCOPE_PASSWORD_CHANGE,
-        rate_limit.user_identity(user.id),
-        rate_limit.password_change_rules(settings),
-        now=rate_limit_now(request),
-    )
-    if left is None:
-        return ""
-    return f"{left} attempt{'' if left == 1 else 's'} left."
-
-
-def summary_rows(
-    outcome: password_service.PasswordChangeOutcome | None,
-) -> tuple[tuple[str, str, str], ...]:
-    """(input id, label, message) per invalid field for the 422 summary."""
-    if outcome is None:
-        return ()
-    return tuple((INPUTS[e.field][0], INPUTS[e.field][1], e.message) for e in outcome.errors)
-
-
 def render_form(
     request: Request,
     conn: sqlite3.Connection,
@@ -84,7 +58,6 @@ def render_form(
     next_path: str,
     outcome: password_service.PasswordChangeOutcome | None = None,
     throttled: bool = False,
-    attempts: str | None = None,
 ) -> HTMLResponse:
     """The password form: page, Security tab or HTMX fragment (422 on failure, 429 throttled)."""
     failed = outcome is not None and not outcome.ok
@@ -95,8 +68,6 @@ def render_form(
         "next_path": next_path,
         "outcome": outcome,
         "errors": {e.field: e.message for e in outcome.errors} if outcome else {},
-        "summary_rows": summary_rows(outcome),
-        "attempts_text": attempts,
         "min_length": password_service.MIN_PASSWORD_LENGTH,
         "throttle_error": THROTTLED_FORM_ERROR if throttled else None,
     }
