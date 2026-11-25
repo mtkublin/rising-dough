@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 from collections.abc import Iterator
 
@@ -36,6 +37,19 @@ def log_stream() -> Iterator[io.StringIO]:
     finally:
         root.removeHandler(handler)
         root.setLevel(previous)
+
+
+def test_setup_token_absent_from_access_log(log_stream: io.StringIO) -> None:
+    """Q28 (ADR-0134 §9): the `/setup` path is logged, its query string never is."""
+    token = "SECRET123"  # noqa: S105  # test sentinel, not a credential
+    logging.getLogger("uvicorn.access").info(
+        '%s - "%s %s HTTP/%s" %d', "127.0.0.1", "GET", f"/setup?token={token}", "1.1", 404
+    )
+    out = log_stream.getvalue()
+    assert "/setup" in out
+    assert token not in out
+    assert "token=" not in out
+    assert json.loads(out)["event"] == '127.0.0.1 - "GET /setup HTTP/1.1" 404'
 
 
 def test_ledger_search_sentinel_absent_from_logs(

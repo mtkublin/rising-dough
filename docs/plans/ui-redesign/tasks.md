@@ -281,6 +281,10 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Token service and "setup open" predicate shipped in Phase P (T-UR32, ADR-0148); this task adds the page and route. Page on `/setup` (not `/auth/register*`), reachable only while no users exist and no bootstrap admin is configured, and only with a valid single-use setup token; 404 without it (no oracle). Token invalidated once the first admin is created, never committed, never logged. Errors: invalid email, credential under 12 characters, mismatch. Once any user exists it redirects to sign in. ADR-0134 §9.
 - Done (2026-11-25): UR21 first-run `/setup` page (ef3458b2, ADR-0134 §9).
 
+### ✅ T-UR21d [P] Redact the `/setup` query string in the access log → T-UR21
+- Operator decision Q28 (2026-11-25): the access log keeps the `/setup` path and never the query string, so the setup token (`/setup?token=...`) never reaches the logs. The existing `strip_access_query` processor (`logging.py`, T-D59) already drops the query of every `uvicorn.access` request line and is wired into the formatter's pre-chain; this task pins the behaviour for `/setup` with a test and records it in ADR-0134 §9. No new code path, no allowlist entry.
+- ADR-0134 §9, ADR-0078 §5.
+
 ### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
 - Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0134 §9, ADR-0099.
 
