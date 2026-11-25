@@ -632,3 +632,25 @@ Two features in two releases: savings goals first (useful on their own), then a 
 - Shared or household goals; recurring or automatic allocations; goals linked to whole accounts; tagging transactions to goals.
 - Starter levels or growing jars, leaderboards, social sharing, push or e-mail notifications, sound.
 - Resetting the starter or its milestones.
+
+---
+
+## 13. Design Workflow From the Repo (added 2026-11-25)
+
+Design work (proposals, canvases, handoffs) runs from Claude Code in this repo. Plan: `docs/plans/design-workflow/` (T-DW01..T-DW08). Decision: [ADR-0151](adr/0151-designer-skill-handoff-builder-and-package-template.md).
+
+### 13.1 Outputs
+
+- One design system, **Rising Dough — Sourdough**, light and dark themes, in `docs/design/system/`; `tokens.json` generated from the base handoff's `tokens.css` (`just design-system`), published to claude.ai as a new Design System.
+- `/designer` skill (main session): current UI from the running demo app, a Canvas with a light and a dark artboard for every designed screen, component and state, the comment loop with the operator, a handoff spec (`docs/design/specs/`) and designer change requests (`docs/design/requests/`) for scope changes.
+- `handoff-builder` agent: canvas + spec to a static package in `docs/design/<name>/` following `docs/design/handoff-template.md`.
+- `just check-handoff <dir>` (`scripts/ci/check_handoff.py`): the package's executable Definition of Done.
+
+### 13.2 Constraints
+
+- Every designed element in a package is wired (links, overlays, menus, tabs, states, theme switch) and matches its canvas artboard visually 1-to-1 within the ADR-0147 tolerance, in light and dark.
+- One markup per page; colours from tokens only; no request outside the package and its base; fonts vendored.
+- New feature packages extend the base package (`kind = "extension"`) instead of copying its chrome.
+- Existing claude.ai artifacts (design systems, canvases) are never changed or deleted without the operator asking in the session.
+- `docs/design/rising-dough-frontend/` and `rising-dough-goals-starter/` stay as delivered; the base package is re-delivered through the builder only after the `ui/sourdough` migration is merged.
+- A design proposal that changes scope is a change request; `docs/requirements.md` or an ADR changes before code.

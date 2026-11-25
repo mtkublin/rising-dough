@@ -37,3 +37,7 @@
 
 - **Merge into `rising-dough-frontend/`.** Rejected: path collisions, two layouts in one folder, a broken redesign manifest.
 - **Ask the designer to re-cut it as an overlay first.** Rejected: costs a round trip for a layout change only; porting maps the markup onto Jinja partials either way.
+
+## Amendment 2026-11-25 (ADR-0151)
+
+New feature packages are `kind = "extension"` packages: they link the base package's `static/` by relative path instead of copying its chrome, and never redefine a base token ([ADR-0151](0151-designer-skill-handoff-builder-and-package-template.md) §3, §5). `rising-dough-goals-starter/` stays standalone as delivered.
