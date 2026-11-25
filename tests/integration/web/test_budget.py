@@ -26,10 +26,11 @@ from budget_planner.repositories import (
     planned as planned_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, errors, plan, plan_budget
-from tests.ui_map.locator import role
+from tests.ui_map import _html, plan, plan_budget
+from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
+ERROR_SUMMARY = by_id("error-summary")
 
 
 @pytest.fixture
@@ -276,33 +277,32 @@ def test_plan_budget_override_item_targets_its_own_category(
     assert len(ids) == len(set(ids))
 
 
-def test_inline_override_form_is_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
-    r = client.get(f"/budget/rules/{cat_id}/overrides/new?inline=1")
+def test_override_dialog_is_a_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?year=2026&month=3")
     assert r.status_code == 200
     assert _html.is_fragment(r.text)
     form = _html.form_of(r.text, plan.override_amount)
-    assert form.has_attr("data-override-inline")
+    assert form.get("hx-post") == f"/budget/rules/{cat_id}/overrides"
+    assert form.get("hx-target") == "#modal-root"
     assert _html.exists(r.text, plan.override_cancel)
+    assert _html.count(r.text, plan.override_tier) == 3
     assert form.find("script") is None
-
-
-def test_slideover_override_form_has_no_cancel(client: TestClient, cat_id: int) -> None:
-    r = client.get(f"/budget/rules/{cat_id}/overrides/new")
-    assert not _html.exists(r.text, plan.override_cancel)
 
 
 def test_new_override_form_404_for_unknown_category(client: TestClient) -> None:
     r = client.get("/budget/rules/9999/overrides/new")
     assert r.status_code == 404
-    assert "category: not found" in _html.all_text(r.text, errors.alert)
+    assert r.text == "not found"
 
 
-def test_new_override_form_returns_slide_over(client: TestClient, cat_id: int) -> None:
-    r = client.get(f"/budget/rules/{cat_id}/overrides/new")
+def test_override_dialog_submits_tier_month_year_and_amount(
+    client: TestClient, cat_id: int
+) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?year=2026&month=3")
     assert r.status_code == 200
     form = _html.form_of(r.text, plan.tier_one_off)
     names = {name for name, _ in _html.submitted_fields(form)}
-    assert {"tier", "month", "amount"} <= names
+    assert {"tier", "year", "month", "amount"} <= names
 
 
 def test_create_override_recurring(client: TestClient, cat_id: int) -> None:
@@ -346,7 +346,7 @@ def test_create_override_rejects_bad_tier(
         data={"tier": "monthly", "month": "6", "amount": "1"},
     )
     assert r.status_code == 422
-    assert r.text == "invalid tier"
+    assert "Tier : choose where the override applies" in _html.all_text(r.text, ERROR_SUMMARY)
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -360,7 +360,7 @@ def test_create_override_rejects_bad_month(
         data={"tier": "recurring", "month": "13", "amount": "1"},
     )
     assert r.status_code == 422
-    assert r.text == "invalid month"
+    assert "Month : pick a month from 1 to 12" in _html.all_text(r.text, ERROR_SUMMARY)
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -374,7 +374,7 @@ def test_create_override_rejects_bad_amount(
         data={"tier": "recurring", "month": "6", "amount": "nope"},
     )
     assert r.status_code == 422
-    assert r.text == "invalid amount"
+    assert "Amount : enter an amount of 0 or more" in _html.all_text(r.text, ERROR_SUMMARY)
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -388,7 +388,7 @@ def test_create_override_one_off_rejects_bad_year(
         data={"tier": "one-off", "month": "7", "year": "bogus", "amount": "1"},
     )
     assert r.status_code == 422
-    assert r.text == "invalid year"
+    assert "Year : enter a year" in _html.all_text(r.text, ERROR_SUMMARY)
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -598,8 +598,8 @@ def test_budget_breakdown_points_to_plan_analytics(client: TestClient, cat_id: i
     assert not _html.exists(r.text, plan.chart_image.inside(plan.budget_breakdown))
 
 
-def test_inline_override_form_prefills_month_and_year(client: TestClient, cat_id: int) -> None:
-    r = client.get(f"/budget/rules/{cat_id}/overrides/new?inline=1&month=3&year=2027")
+def test_override_dialog_prefills_month_and_year(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?month=3&year=2027")
     soup = BeautifulSoup(r.text, "html.parser")
     month = soup.find("input", {"name": "month"})
     year = soup.find("input", {"name": "year"})

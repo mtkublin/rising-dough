@@ -37,7 +37,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | keep: ADR-0107 §2: CSRF header on HTMX requests, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
 | `src/budget_planner/web/static/js/account-form.js` | T-UR08 | delete |  |
 | `src/budget_planner/web/static/js/app-init.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | delete |  |
+| `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | deleted | UR11b: the override dialog is plain radios and `dialog.js`; no script loaded it any more |
 | `src/budget_planner/web/static/js/category-form.js` | T-UR13 | deleted |  |
 | `src/budget_planner/web/static/js/combobox.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/kebab.js` | T-UR15 | delete |  |
@@ -85,7 +85,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/auth/login.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/base.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/budget/_yearly.html` | T-UR11 | delete |  |
+| `src/budget_planner/web/templates/budget/_yearly.html` | T-UR15 | delete | UR11b: kept. `GET /budget` (`budget/index.html`) includes it and `GET /budget/yearly` returns it; `tests/contract/test_plan_views.py` pins both routes and the yearly section, so it moves to the final sweep with `budget/index.html` |
 | `src/budget_planner/web/templates/budget/index.html` | T-UR15 | delete | UR11a: `GET /budget` still renders it; `tests/contract/test_plan_views.py::test_budget_page_renders_sections_in_order` pins its sections (hero, summary, rules, yearly, breakdown), so it moves to the final sweep |
 | `src/budget_planner/web/templates/budget/manage.html` | T-UR11 | deleted | UR11a: no route or template used it |
 | `src/budget_planner/web/templates/categories/index.html` | T-UR13 | deleted |  |
@@ -119,7 +119,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/accounts/_row.html` | T-UR08 | delete |  |
 | `src/budget_planner/web/templates/partials/accounts/_snapshot_item.html` | T-UR08 | delete |  |
 | `src/budget_planner/web/templates/partials/accounts/_totals.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/partials/budget/_override_form.html` | T-UR11 | delete |  |
+| `src/budget_planner/web/templates/partials/budget/_override_form.html` | T-UR11 | deleted | UR11b: `GET /budget/rules/{id}/overrides/new` renders `fragments/dialogs/override-budget.html` |
 | `src/budget_planner/web/templates/partials/categories/_form.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/partials/categories/_row.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/partials/forecast/_chart.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
@@ -146,8 +146,8 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/plan/_analytics_tab.html` | T-UR12 | deleted |  |
 | `src/budget_planner/web/templates/plan/_budget_tab.html` | T-UR11 | deleted | UR11a: `GET /plan?tab=budget` renders `pages/plan/budget.html`; `plan/index.html:67` still names it in a dead branch (T-UR15 removes the hub) |
 | `src/budget_planner/web/templates/plan/_forecast_tab.html` | T-UR12 | deleted |  |
-| `src/budget_planner/web/templates/plan/_year_tab.html` | T-UR11 | delete |  |
-| `src/budget_planner/web/templates/plan/index.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/plan/_year_tab.html` | T-UR11 | deleted | UR11b: `GET /plan?tab=year` renders `pages/plan/year.html` |
+| `src/budget_planner/web/templates/plan/index.html` | T-UR15 | deleted | UR11b: every tab renders its own `pages/plan/*.html`; the hub template had no caller left |
 | `src/budget_planner/web/templates/planned/index.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/recurring/index.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/settings/_categories.html` | T-UR13 | deleted |  |

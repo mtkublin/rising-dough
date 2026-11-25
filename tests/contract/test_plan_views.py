@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.contract.conftest import covers
-from tests.ui_map import _html, plan
+from tests.ui_map import _html, plan, plan_year
 
 pytest_plugins = ("tests.contract.test_plan_support",)
 
@@ -152,5 +152,5 @@ def test_plan_year_tab_exposes_year_cells(client: TestClient, cat_id: int) -> No
     client.post(f"/budget/defaults/{cat_id}", data={"amount": "10"})
     r = client.get("/plan?tab=year&year=2026")
     assert r.status_code == 200
-    assert _html.exists(r.text, plan.year_cell(cat_id, 1))
-    assert _html.exists(r.text, plan.year_card(cat_id))
+    assert _html.exists(r.text, plan_year.cell("Groceries", "January"))
+    assert _html.exists(r.text, plan_year.row("Groceries"))
