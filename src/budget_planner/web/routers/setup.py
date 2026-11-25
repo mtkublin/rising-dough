@@ -167,6 +167,6 @@ def invite_accept(
         hasher=hasher,
         request_ctx=ctx,
     )
-    if session is None:  # pragma: no cover - the user was created a moment ago
+    if session is None:
         return redirect(LOGIN_PATH)
     return start_session(request, conn, settings, session, redirect(DEFAULT_LANDING))
