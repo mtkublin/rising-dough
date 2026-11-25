@@ -38,7 +38,7 @@ __pycache__/
 coverage.xml
 htmlcov/
 
-# Node (Tailwind build toolchain is dev-only, see ADR-0027)
+# Node (stylelint toolchain is dev-only, see ADR-0027)
 node_modules/
 
 # Terraform state / plan artifacts

@@ -7,7 +7,7 @@ import pytest
 from budget_planner.db import migrate
 from budget_planner.domain import money
 from budget_planner.services import audit
-from budget_planner.web import recurring_forms, templating, today_data
+from budget_planner.web import recurring_forms, today_data
 
 
 @pytest.mark.parametrize(
@@ -16,8 +16,6 @@ from budget_planner.web import recurring_forms, templating, today_data
         money.CURRENCY_EXPONENTS,
         migrate._POST_APPLY_HOOKS,
         audit._SHAPE_RULES,
-        templating._DIRECTION_COLORS,
-        templating._DIRECTION_CSS_VARS,
         today_data._PACE_LABELS,
         today_data._WINDOWS,
         recurring_forms.EMPTY_TERM_INPUT,

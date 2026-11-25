@@ -15,26 +15,26 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 
 | Path | Owner | Status | Note |
 |---|---|---|---|
-| `src/budget_planner/web/static/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
-| `src/budget_planner/web/static/app.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/auth.css` | T-UR15 | delete | T-UR14 (2026-11-25): settings security and password no longer use `rd-auth__*`; the only remaining linker is the old `templates/base.html` (T-UR15); the new pages use the vendored `rd-auth__*` of `static/rd/css/pages/auth.css`. `test_forced_exempt_paths` only names the URL |
-| `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: operator decision Q1 (2026-11-25) KEEP; ADR-0107 §2 (amendment 2026-11-25): shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
-| `src/budget_planner/web/static/favicon.svg` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/LICENSE-OFL.txt` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/hanken-grotesk-normal-400-700-latin-ext.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/hanken-grotesk-normal-400-700-latin.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-400-latin-ext.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-400-latin.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-500-latin-ext.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-500-latin.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-600-latin-ext.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-600-latin.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/newsreader-italic-400-latin-ext.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/newsreader-italic-400-latin.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin-ext.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | keep: ADR-0107 §2: CSRF header on HTMX requests, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
+| `src/budget_planner/web/static/.gitkeep` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/app.css` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/auth.css` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/csrf.js` | T-UR15 | deleted | UR15d: the old copy is deleted; the kept behaviour lives in `static/rd/js/` (loaded by `layouts/base.html` and `layouts/auth.html`) |
+| `src/budget_planner/web/static/favicon.svg` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts.css` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/LICENSE-OFL.txt` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/hanken-grotesk-normal-400-700-latin-ext.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/hanken-grotesk-normal-400-700-latin.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-400-latin-ext.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-400-latin.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-500-latin-ext.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-500-latin.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-600-latin-ext.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/ibm-plex-mono-normal-600-latin.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/newsreader-italic-400-latin-ext.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/newsreader-italic-400-latin.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin-ext.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin.woff2` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | deleted | UR15d: the old copy is deleted; the kept behaviour lives in `static/rd/js/` (loaded by `layouts/base.html` and `layouts/auth.html`) |
 | `src/budget_planner/web/static/js/account-form.js` | T-UR08 | deleted |  |
 | `src/budget_planner/web/static/js/app-init.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | deleted | UR11b: the override dialog is plain radios and `dialog.js`; no script loaded it any more |
@@ -44,7 +44,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/numeric-input.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/overlay-actions.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/palette.js` | T-UR15 | deleted |  |
-| `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | keep: ADR-0107 §2: WebAuthn ceremonies, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
+| `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | deleted | UR15d: the old copy is deleted; the kept behaviour lives in `static/rd/js/` (loaded by `layouts/base.html` and `layouts/auth.html`) |
 | `src/budget_planner/web/static/js/rd-wire.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/reconcile-form.js` | T-UR08 | deleted |  |
 | `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | deleted | UR10b kept: the old "+ Add" repeats form (`recurring/_form.html`) still needs it; goes with it; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
@@ -52,14 +52,14 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/shortcuts.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/txn-form.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/users-admin.js` | T-UR14 | deleted | The handoff users page has the copy button markup (no script); the one-time password dialog prints the value in a selectable `<output>`. Copy-to-clipboard moves to T-UR20 with the add-user dialog |
-| `src/budget_planner/web/static/rising-dough.css` | T-UR15 | delete |  |
+| `src/budget_planner/web/static/rising-dough.css` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/settings-security.css` | T-UR14 | deleted |  |
 | `src/budget_planner/web/static/settings-users.css` | T-UR14 | deleted |  |
-| `src/budget_planner/web/static/tailwind.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/tailwind.src.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/tokens.css` | T-UR15 | delete |  |
+| `src/budget_planner/web/static/tailwind.css` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/tailwind.src.css` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/tokens.css` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/vendor/htmx-2.0.11.min.js` | T-UR15 | keep: operator decision Q1 (2026-11-25) KEEP; ADR-0107 §2 (amendment 2026-11-25) keeps the HTMX endpoints and triggers; the HTMX runtime is a vendored library, not design |  |
-| `src/budget_planner/web/templates/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
+| `src/budget_planner/web/templates/.gitkeep` | T-UR15 | deleted | placeholder |
 | `src/budget_planner/web/templates/_partials/combobox.html` | T-UR15 | deleted |  |
 | `src/budget_planner/web/templates/_partials/components/_amount.html` | T-UR15 | deleted |  |
 | `src/budget_planner/web/templates/_partials/components/_button.html` | T-UR15 | deleted |  |
@@ -205,13 +205,13 @@ All owned by T-UR15 (ADR-0107 §4: Tailwind removed, no Node for CSS, `just css`
 
 | Item | Where | Owner | Status |
 |---|---|---|---|
-| Tailwind config | `tailwind.config.js` | T-UR15 | delete |
-| Tailwind npm dependency (`tailwindcss`) and the `css`, `css:watch` npm scripts | `package.json`, `package-lock.json` | T-UR15 | delete |
-| Old stylelint config (the `stylelint` block of `package.json` and the `stylelint` npm script over `static/*.css`) | `package.json` | T-UR15 | delete |
-| `just css` (Tailwind build) and `just css-watch` recipes | `justfile` | T-UR15 | delete |
-| `npm run stylelint` line in the `just lint` recipe (old config) | `justfile` | T-UR15 | delete |
-| `tailwind-check` pre-commit hook and its script | `.pre-commit-config.yaml`, `scripts/pre-commit/tailwind_check.sh` | T-UR15 | delete |
-| `stylelint (hand-authored CSS)` pre-commit hook over `static/[^/]+\.css` | `.pre-commit-config.yaml` | T-UR15 | delete |
-| `tailwind.css` exclusions in the whitespace and EOF hooks | `.pre-commit-config.yaml` | T-UR15 | delete |
-| CI steps "Set up Node (Tailwind + stylelint)", "Install Node dev toolchain", "Build Tailwind CSS" | `.github/workflows/ci.yml` | T-UR15 | delete |
-| Dockerfile | `Dockerfile` | T-UR15 | nothing to remove: no Node or Tailwind step at the branch point (the built CSS is committed); re-check at T-UR15 |
+| Tailwind config | `tailwind.config.js` | T-UR15 | deleted |
+| Tailwind npm dependency (`tailwindcss`) and the `css`, `css:watch` npm scripts | `package.json`, `package-lock.json` | T-UR15 | deleted (UR15d: the `css` npm script stays as a shim to `scripts/build_css_bundle.py` because the unchanged `ci.yml` still runs `npm run css`; operator edit in `q-ci-tailwind-removal.md`) |
+| Old stylelint config (the `stylelint` block of `package.json` and the `stylelint` npm script over `static/*.css`) | `package.json` | T-UR15 | deleted |
+| `just css` (Tailwind build) and `just css-watch` recipes | `justfile` | T-UR15 | deleted (`just css` stays and builds only the rd bundle) |
+| `npm run stylelint` line in the `just lint` recipe (old config) | `justfile` | T-UR15 | deleted (replaced by stylelint with the rd config) |
+| `tailwind-check` pre-commit hook and its script | `.pre-commit-config.yaml`, `scripts/pre-commit/tailwind_check.sh` | T-UR15 | deleted |
+| `stylelint (hand-authored CSS)` pre-commit hook over `static/[^/]+\.css` | `.pre-commit-config.yaml` | T-UR15 | deleted |
+| `tailwind.css` exclusions in the whitespace and EOF hooks | `.pre-commit-config.yaml` | T-UR15 | deleted |
+| CI steps "Set up Node (Tailwind + stylelint)", "Install Node dev toolchain", "Build Tailwind CSS" | `.github/workflows/ci.yml` | T-UR15 | operator: the agent token cannot push workflow files; exact edits in [q-ci-tailwind-removal.md](q-ci-tailwind-removal.md); the unchanged workflow keeps working (`npm ci` on the slimmed lock, `npm run css` is the bundle shim) |
+| Dockerfile | `Dockerfile` | T-UR15 | nothing to remove: re-checked at UR15d, no Node or Tailwind step |

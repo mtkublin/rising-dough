@@ -52,7 +52,7 @@ def test_unauthenticated_paths_unchanged(anon_client: TestClient, path: str) -> 
 
 
 def test_static_assets_stay_cacheable(client: TestClient) -> None:
-    r = client.get("/static/app.css")
+    r = client.get("/static/rd/css/app.bundle.css")
     assert r.status_code == 200
     assert "no-store" not in r.headers.get("cache-control", "")
 

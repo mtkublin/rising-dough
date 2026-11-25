@@ -6,14 +6,14 @@ Local-first personal budget planning and fortune tracking. Single user, multi-ac
 
 - Local-only web app. Binds to `127.0.0.1:8000`. No LAN exposure, no auth.
 - SQLite file on disk; data stays on the machine.
-- Python 3.12 / FastAPI / HTMX / Jinja2 / Tailwind (compiled locally; see [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md)) / Plotly.
+- Python 3.12 / FastAPI / HTMX / Jinja2 / plain `@layer` CSS bundled by `just css` (no Tailwind, [ADR-0107](docs/adr/0107-sourdough-redesign-from-designer-handoff.md)) / server-rendered SVG charts.
 
 ## Prerequisites
 
 | Tool | Why | Install |
 |------|-----|---------|
 | Python 3.12 | Runtime | `uv python install 3.12` |
-| Node 20 + npm | Dev-only frontend toolchain — Tailwind build, stylelint, visual-regression diff helper (see [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md)) | `brew install node` / `nvm install 20` |
+| Node 20 + npm | Dev-only frontend toolchain — stylelint, visual-regression diff helper (see [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md)) | `brew install node` / `nvm install 20` |
 | [`uv`](https://docs.astral.sh/uv/) `>= 0.4` | Dependency + venv manager (see [ADR-0004](docs/adr/0004-package-manager-uv.md)) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | [`just`](https://github.com/casey/just) | Task runner (see [ADR-0016](docs/adr/0016-task-runner-just.md)) | `brew install just` / `cargo install just` |
 
@@ -31,7 +31,7 @@ uv run playwright install chromium
 git clone <repo-url> budget_planner
 cd budget_planner
 just install    # uv sync + install pre-commit hooks + npm ci
-just css        # compile Tailwind once (one-off; `just dev` + `just css-watch` on separate panes thereafter)
+just css        # rebuild the rd CSS bundle (only after editing static/rd/css)
 just migrate    # apply pending SQL migrations into the dev SQLite file
 just seed       # seed default categories (Transit, Reconciliation) and demo accounts
 just dev        # start FastAPI with hot reload on http://127.0.0.1:8000
@@ -44,8 +44,7 @@ The first `uv sync` pulls `pyarrow` (~70 MB). One-off cost.
 | Command | Does |
 |---------|------|
 | `just dev` | FastAPI dev server, hot reload, `127.0.0.1:8000`. |
-| `just css` | Build Tailwind once (purged + minified → `static/tailwind.css`). |
-| `just css-watch` | Rebuild Tailwind on save; pair with `just dev`. |
+| `just css` | Rebuild `static/rd/css/app.bundle.css` from `main.css` imports. |
 | `just test` | Pytest with coverage; fails under 90%. |
 | `just test-visual` | Playwright visual-regression snapshots (opt-in; not part of `just ci`). |
 | `just test-visual-update` | Refresh visual baselines after an intentional design change. |
@@ -112,11 +111,11 @@ Amounts are stored as positive integer minor units; direction derives from `cate
 
 ## Accessibility
 
-The four primary tabs plus the Settings drawer target WCAG 2.1 AA: semantic landmarks, keyboard navigation, visible focus rings, labelled inputs, announced HTMX swaps, 4.5:1 contrast. Native `<dialog>` (command palette, shortcuts cheatsheet) ships focus trap + Esc close for free; `role="dialog"` overlays (settings drawer, slide-over form) share a stack so `Esc` always closes the topmost one. Reduced-motion preference is honoured. Styles live in [`src/budget_planner/web/static/app.css`](src/budget_planner/web/static/app.css).
+The four primary tabs plus the Settings drawer target WCAG 2.1 AA: semantic landmarks, keyboard navigation, visible focus rings, labelled inputs, announced HTMX swaps, 4.5:1 contrast. Native `<dialog>` (command palette, shortcuts cheatsheet) ships focus trap + Esc close for free; `role="dialog"` overlays (settings drawer, slide-over form) share a stack so `Esc` always closes the topmost one. Reduced-motion preference is honoured. Styles live in [`src/budget_planner/web/static/rd/css/`](src/budget_planner/web/static/rd/css/).
 
 ## Design
 
-Editorial / Swiss direction: serif display, sans body, mono for numbers, hairline rules, generous page gutters, flat surfaces, single ink accent. Design tokens are CSS custom properties in [`src/budget_planner/web/static/app.css`](src/budget_planner/web/static/app.css); templates compose them rather than ship hard-coded colours. Default Tailwind utilities are allowed on top but used sparingly.
+Editorial / Swiss direction: serif display, sans body, mono for numbers, hairline rules, generous page gutters, flat surfaces, single ink accent. Design tokens are CSS custom properties in [`src/budget_planner/web/static/rd/css/`](src/budget_planner/web/static/rd/css/); templates compose them rather than ship hard-coded colours.
 
 ## Troubleshooting
 

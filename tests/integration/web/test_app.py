@@ -41,36 +41,26 @@ def test_today_renders_shell(client: TestClient) -> None:
     # T-R50 — Plotly removed per ADR-0054; SVG charts are server-rendered now.
     soup = BeautifulSoup(body, "html.parser")
     sheets = [str(link.get("href", "")) for link in soup.find_all("link", rel="stylesheet")]
-    assert any("tailwind" in href or "app.bundle" in href for href in sheets)
+    assert any("rd/css/app.bundle.css" in href for href in sheets)
     assert soup.find("main", id="main") is not None
     assert soup.find("a", href="#main") is not None
 
 
 def test_static_css_is_served(client: TestClient) -> None:
-    r = client.get("/static/app.css")
+    r = client.get("/static/rd/css/app.bundle.css")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/css")
-    assert "--surface" in r.content.decode()  # CSS asset body, not markup
+    assert "--color-ground" in r.content.decode()  # CSS asset body, not markup
 
 
 def test_jinja_filters_registered() -> None:
     env = build_jinja_env(_settings())
-    for name in ("money", "date_fmt", "dt_local", "direction_badge"):
+    for name in ("money", "date_fmt"):
         assert name in env.filters
-    tmpl = env.from_string(
-        "{{ 123400|money('PLN') }} | {{ '2026-01-02'|date_fmt }} | "
-        "{{ '2026-01-02T10:00:00'|dt_local }} | {{ 'income'|direction_badge }}"
-    )
+    tmpl = env.from_string("{{ 123400|money('PLN') }} | {{ '2026-01-02'|date_fmt }}")
     out = tmpl.render()
     assert "1,234.00 PLN" in out
     assert "2026-01-02" in out
-    assert "Income" in out
-
-
-def test_dt_local_uses_display_timezone() -> None:
-    env = build_jinja_env(Settings(_env_file=None, display_timezone="UTC"))
-    tmpl = env.from_string("{{ '2026-01-02T10:00:00'|dt_local('%H:%M') }}")
-    assert tmpl.render() == "10:00"
 
 
 def test_jinja_autoescape_prevents_xss() -> None:
@@ -114,26 +104,6 @@ def test_host_rejects_public_bind() -> None:
         Settings(_env_file=None, bind_host="0.0.0.0")  # noqa: S104 — asserting we reject it
 
 
-def test_direction_badge_renders_all_variants() -> None:
-    env = build_jinja_env(_settings())
-    tmpl = env.from_string(
-        "{{ 'income'|direction_badge }}{{ 'expense'|direction_badge }}"
-        "{{ 'transit'|direction_badge }}{{ 'adjustment'|direction_badge }}"
-    )
-    out = tmpl.render()
-    assert out.count("pill ") == 4
-    assert "pill-income" in out
-    assert "pill-expense" in out
-    assert "pill-transit" in out
-    assert "pill-adjust" in out
-
-
-def test_direction_badge_handles_none() -> None:
-    env = build_jinja_env(_settings())
-    tmpl = env.from_string("[{{ none|direction_badge }}]")
-    assert tmpl.render() == "[]"
-
-
 def test_money_filter_handles_none() -> None:
     env = build_jinja_env(_settings())
     tmpl = env.from_string("[{{ none|money('PLN') }}]")
@@ -144,12 +114,6 @@ def test_date_fmt_handles_none_and_bad_input() -> None:
     env = build_jinja_env(_settings())
     assert env.from_string("[{{ none|date_fmt }}]").render() == "[]"
     assert env.from_string("[{{ 'nope'|date_fmt }}]").render() == "[nope]"
-
-
-def test_dt_local_handles_none_and_bad_input() -> None:
-    env = build_jinja_env(_settings())
-    assert env.from_string("[{{ none|dt_local }}]").render() == "[]"
-    assert env.from_string("[{{ 'nope'|dt_local }}]").render() == "[nope]"
 
 
 _EXPECTED_ROUTER_MODULES = frozenset(

@@ -108,10 +108,10 @@ Planned transactions and recurring rules are two independent concepts with two i
 
 - Python 3.12.
 - SQLite (OLTP). DuckDB attach deferred to a later iteration if analytics queries become slow.
-- FastAPI + HTMX + Jinja2 (templates) + Tailwind CSS (compiled via local Tailwind CLI, output to `static/tailwind.css`; see [ADR-0027](adr/0027-frontend-toolchain-hardening.md)).
+- FastAPI + HTMX + Jinja2 (templates) + plain CSS in `@layer`s under `static/rd/css/`, bundled to `app.bundle.css` by `just css` (Python, `scripts/build_css_bundle.py`); no Tailwind ([ADR-0107](adr/0107-sourdough-redesign-from-designer-handoff.md) §4).
 - Charts are Jinja-rendered server-side SVG with data-table fallbacks (no Plotly, no CDN; §5.1, [ADR-0123](adr/0123-frontend-stays-server-rendered-no-spa-framework.md)).
 - `uv` for Python dependency and virtual-environment management.
-- `npm` for the small dev-only Node toolchain (`tailwindcss`, `stylelint`, `pixelmatch`, Playwright). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
+- `npm` for the small dev-only Node toolchain (`stylelint`, `pixelmatch`, Playwright); it builds no CSS. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) (Tailwind parts superseded by ADR-0107).
 - `Pillow` as a dev-only dependency: PNG decode for the visual compare harness ([ADR-0153](adr/0153-pillow-dev-dependency-for-visual-compare-decode.md)).
 - `just` as the task runner.
 - Architecture and test-quality tooling: `import-linter` (layer contracts) and Mutmut (mutation testing, `domain` + `services`; [ADR-0131](adr/0131-mutation-testing-policy.md)), both pinned dev dependencies. Architecture guards live in `tests/architecture/` ([ADR-0130](adr/0130-prevention-regime-and-full-architectural-compliance.md)).
@@ -142,7 +142,7 @@ The principles below are **enforceable rules**, not guidance. Each has an automa
 - Formatted and linted with `ruff` (replaces `black` + `isort` + `flake8`; `black`-compatible output).
 - SQL formatted/linted with `sqlfluff`.
 - Jinja templates linted with `djlint`.
-- Hand-authored CSS (`static/*.css`, excluding generated `tailwind.css`) linted with `stylelint`. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
+- Hand-authored CSS (`static/rd/css/**`, excluding the generated `app.bundle.css`) linted with `stylelint` and the handoff config `static/rd/.stylelintrc.json`; the bundle is checked by `css-bundle-check`.
 - Imports are layered and checked with `import-linter` (pre-commit and `just lint`).
 - CI runs every check pre-commit runs: `pre-commit run --all-files` with `SKIP=pytest-fast` (CI runs the full pytest suite with coverage itself). Parity is CI-side only: local pre-commit speed must not regress (ADR-0108, ADR-0120), new local hooks are fast and measured, otherwise they run in CI only. A small guard checks `ci.yml` keeps doing so and that hook tool versions match `uv.lock` ([ADR-0130](adr/0130-prevention-regime-and-full-architectural-compliance.md), amends ADR-0120).
 - Mutation score (`just mutate`, weekly job) tracks test strength on `domain` and `services`; it is not a merge gate ([ADR-0131](adr/0131-mutation-testing-policy.md)).
@@ -154,8 +154,7 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), 
 ### 3.5 Developer Experience
 
 - `just dev` — run the app with hot reload.
-- `just css` — build `static/tailwind.css` once from source.
-- `just css-watch` — watch mode for Tailwind, run alongside `just dev`.
+- `just css` — rebuild `static/rd/css/app.bundle.css` from `main.css` imports (no Tailwind).
 - `just test` — run the test suite with coverage.
 - `just test-visual` — run Playwright visual-regression snapshot tests (opt-in; not part of `just ci` by default).
 - `just visual` / `just visual-update` — run / regenerate the visual-regression suite inside the pinned Playwright container (docker required; ADR-0027 amendment 2026-11-22).
@@ -178,7 +177,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 ### 3.6 CI
 
 - GitHub Actions.
-- Single matrix row: `ubuntu-latest` + Python 3.12 + Node 20 (dev-only, for the Tailwind + stylelint + Playwright toolchain).
+- Single matrix row: `ubuntu-latest` + Python 3.12 + Node 20 (dev-only, for the stylelint + Playwright toolchain).
 - Setup steps: `actions/setup-python@v5` + `actions/setup-node@v4` + `npm ci`.
 - Runs `just ci` on push/PR.
 - Coverage uploaded as artifact.
@@ -549,7 +548,7 @@ The whole presentation layer is replaced by the designer's handoff "Rising Dough
 
 ### 10.2 Non-functional
 
-- Tailwind removed; plain CSS in `@layer`s bundled by `just css` (Python). The dev-only Node toolchain keeps `stylelint`, `pixelmatch` and Playwright. The §3 stack lines are updated at T-UR15.
+- Tailwind removed; plain CSS in `@layer`s bundled by `just css` (Python). The dev-only Node toolchain keeps `stylelint`, `pixelmatch` and Playwright. The §3 stack lines were updated at T-UR15.
 - WCAG 2.1 AA: axe 0 serious / critical on every page at 375 and 1440 in both themes; 44 px touch targets; reduced motion respected.
 - Budgets: CSS ≤ 50 kB gzipped, JS ≤ 30 kB gzipped plus htmx, fonts ≤ 250 kB; LCP < 2.5 s, CLS < 0.1, INP < 200 ms on `/today`, `/ledger`, `/plan`.
 - Chromium, Firefox and WebKit (latest two versions).

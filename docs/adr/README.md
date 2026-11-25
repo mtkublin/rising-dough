@@ -54,12 +54,12 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0047 | [Recurring Formula — Linear Combination of Terms + Chained Formulas](0047-recurring-formula-linear-combination-and-chaining.md) (supersedes ADR-0045 §Decision) |
 | 0048 | [Category Color Coding — Per-Category Override with Direction Default](0048-category-color-coding.md) (amends ADR-0023; extends F1.6) |
 | 0049 | [Budget Monthly Summary — Surface Analytics Columns (Avg/mo, YTD avg, Δ prev)](0049-budget-monthly-summary-analytics-columns.md) (amends ADR-0031 §Monthly summary; surfaces F4.5) |
-| 0050 | [v2 Rising Dough — Product Rename and Visual Direction](0050-v2-rising-dough-rename-and-visual-direction.md) (supersedes ADR-0023 §Design direction; amends ADR-0048) |
+| 0050 | [v2 Rising Dough — Product Rename and Visual Direction](0050-v2-rising-dough-rename-and-visual-direction.md) (supersedes ADR-0023 §Design direction; amends ADR-0048) | (visual direction superseded by ADR-0107, 2026-11-25) |
 | 0051 | [v2 Rising Dough — Information Architecture (Today · Ledger · Plan · Accounts · Settings)](0051-v2-information-architecture-rising-dough.md) (supersedes ADR-0023 §Information architecture) |
-| 0052 | [v2 Rising Dough — Tailwind v4 Migration, `@theme` Tokens, and Self-Hosted Fonts](0052-v2-tailwind-v4-tokens-and-font-hosting.md) (amends ADR-0027) | (Accepted in part; addendum 2026-11-21: Tailwind v4 not adopted)
-| 0053 | [v2 Rising Dough — Component System and Jinja Macro Inventory](0053-v2-component-system-and-jinja-macros.md) |
+| 0052 | [v2 Rising Dough — Tailwind v4 Migration, `@theme` Tokens, and Self-Hosted Fonts](0052-v2-tailwind-v4-tokens-and-font-hosting.md) (amends ADR-0027) | (Superseded by ADR-0107, 2026-11-25)
+| 0053 | [v2 Rising Dough — Component System and Jinja Macro Inventory](0053-v2-component-system-and-jinja-macros.md) (Superseded by ADR-0107, 2026-11-25) |
 | 0054 | [v2 Rising Dough — Charts Move From Plotly to Server-Rendered SVG](0054-v2-charts-plotly-to-server-svg.md) (supersedes ADR-0002 §Plotly) |
-| 0055 | [v2 Rising Dough — Responsive Layer and Mobile Shell](0055-v2-responsive-layer-mobile-first.md) (supersedes ADR-0023 §"no mobile adaptive nav") |
+| 0055 | [v2 Rising Dough — Responsive Layer and Mobile Shell](0055-v2-responsive-layer-mobile-first.md) (supersedes ADR-0023 §"no mobile adaptive nav"; Superseded by ADR-0107, 2026-11-25) |
 | 0056 | [v2 Rising Dough — Inline Interactions, Live Previews, and Backend Additions](0056-v2-inline-interactions-and-backend-additions.md) (amends ADR-0026) |
 | 0057 | [v2 — Archived categories on recurring rules (allow, mute, block creation)](0057-v2-archived-categories-on-recurring-rules.md) (amends ADR-0048) | (addendum 2026-11-21: archived-category validation not implemented)
 | 0058 | [v2 — UI language: English chrome, user data as-typed](0058-v2-ui-language-english-chrome.md) (amends ADR-0051) |

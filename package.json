@@ -2,35 +2,14 @@
   "name": "budget-planner-frontend",
   "version": "1.0.0",
   "private": true,
-  "description": "Dev-only Node toolchain for Budget Planner frontend (Tailwind build, stylelint, visual-regression diff helper). See ADR-0027.",
+  "description": "Dev-only Node toolchain for Budget Planner frontend (stylelint for the rd CSS, visual-regression diff helper). Tailwind is gone (ADR-0107 section 4).",
   "scripts": {
-    "css": "tailwindcss -i ./src/budget_planner/web/static/tailwind.src.css -o ./src/budget_planner/web/static/tailwind.css --minify",
-    "css:watch": "tailwindcss -i ./src/budget_planner/web/static/tailwind.src.css -o ./src/budget_planner/web/static/tailwind.css --watch",
-    "stylelint": "stylelint \"src/budget_planner/web/static/*.css\" --ignore-pattern \"src/budget_planner/web/static/tailwind.css\""
+    "css": "uv run python scripts/build_css_bundle.py"
   },
   "devDependencies": {
     "pixelmatch": "5.3.0",
     "pngjs": "7.0.0",
     "stylelint": "16.10.0",
-    "stylelint-config-standard": "36.0.1",
-    "tailwindcss": "3.4.14"
-  },
-  "stylelint": {
-    "extends": ["stylelint-config-standard"],
-    "rules": {
-      "custom-property-pattern": "^[a-z][a-z0-9-]*$",
-      "no-descending-specificity": null,
-      "selector-class-pattern": null,
-      "declaration-block-no-redundant-longhand-properties": null,
-      "shorthand-property-no-redundant-values": null,
-      "color-function-notation": null,
-      "alpha-value-notation": null,
-      "hue-degree-notation": null,
-      "value-keyword-case": null,
-      "font-family-no-missing-generic-family-keyword": null,
-      "declaration-block-single-line-max-declarations": null,
-      "at-rule-no-unknown": [true, { "ignoreAtRules": ["tailwind", "apply", "layer", "variants", "responsive", "screen"] }]
-    },
-    "ignoreFiles": ["src/budget_planner/web/static/tailwind.css", "node_modules/**"]
+    "stylelint-config-standard": "36.0.1"
   }
 }
