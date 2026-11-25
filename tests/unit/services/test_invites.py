@@ -31,7 +31,6 @@ from budget_planner.services.invites import (
 from budget_planner.services.password_change import MSG_TOO_SHORT
 from budget_planner.services.setup import MSG_CONFIRM_MISMATCH
 from budget_planner.services.users import (
-    DUPLICATE_EMAIL_MESSAGE,
     INVALID_EMAIL_MESSAGE,
     UserInputError,
 )

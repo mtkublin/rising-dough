@@ -10,11 +10,11 @@ from fastapi.responses import HTMLResponse, Response
 from budget_planner.domain.errors import ValidationError, require_present
 from budget_planner.services import categories as categories_service
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
+from budget_planner.web.category_dialogs import edit_category_invalid, new_category_invalid
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.dialogs import (
     MODAL_ROOT,
     dialog_response,
-    invalid_dialog_response,
     saved_response,
 )
 from budget_planner.web.htmx import Event, toast_payload, trigger
@@ -64,31 +64,15 @@ def create_category(
     parsed = parse_new_category(
         name=name, direction=direction, color=color, clear_color=clear_color
     )
-    if parsed.command is None:
-        return invalid_dialog_response(
-            request,
-            _DIALOG,
-            {
-                "category": None,
-                "form": category_form_view(None, name=name, direction=direction, color=color),
-                "action": "/categories",
-                "target": MODAL_ROOT,
-            },
-            parsed.errors,
-        )
-    try:
-        cat = categories_service.create(conn, user_id, parsed.command)
-    except ValidationError as exc:
-        return invalid_dialog_response(
-            request,
-            _DIALOG,
-            {
-                "category": None,
-                "form": category_form_view(None, name=name, direction=direction, color=color),
-                "action": "/categories",
-                "target": MODAL_ROOT,
-            },
-            exc.fields,
+    errors = parsed.errors
+    if parsed.command is not None:
+        try:
+            cat = categories_service.create(conn, user_id, parsed.command)
+        except ValidationError as exc:
+            errors = exc.fields
+    if errors:
+        return new_category_invalid(
+            request, name=name, direction=direction, color=color, errors=errors
         )
     response = saved_response(
         request,
@@ -165,37 +149,15 @@ def update_category(
     if cat is None:
         return category_not_found()
     parsed = parse_category_patch(name=name, color=color, clear_color=clear_color)
-    if parsed.patch is None:
-        usage = categories_service.usage_for(conn, user_id, category_id)
-        return invalid_dialog_response(
-            request,
-            _DIALOG,
-            {
-                "category": cat,
-                "form": category_form_view(
-                    cat, name=name, color=color, usage_text=category_usage_text(usage)
-                ),
-                "action": f"/categories/{category_id}",
-                "target": f"#category-{category_id}",
-            },
-            parsed.errors,
-        )
-    try:
-        categories_service.update(conn, user_id, category_id, parsed.patch)
-    except ValidationError as exc:
-        usage = categories_service.usage_for(conn, user_id, category_id)
-        return invalid_dialog_response(
-            request,
-            _DIALOG,
-            {
-                "category": cat,
-                "form": category_form_view(
-                    cat, name=name, color=color, usage_text=category_usage_text(usage)
-                ),
-                "action": f"/categories/{category_id}",
-                "target": f"#category-{category_id}",
-            },
-            exc.fields,
+    errors = parsed.errors
+    if parsed.patch is not None:
+        try:
+            categories_service.update(conn, user_id, category_id, parsed.patch)
+        except ValidationError as exc:
+            errors = exc.fields
+    if errors:
+        return edit_category_invalid(
+            request, conn, user_id, cat, name=name, color=color, errors=errors
         )
     updated = require_present(
         categories_service.find_by_id(conn, user_id, category_id), "updated category"

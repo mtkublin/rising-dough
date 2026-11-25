@@ -212,7 +212,7 @@ def fx_rate_rows(rates: Sequence[FxRate]) -> tuple[FxRateRow, ...]:
 
 def settings_page_context(raw: Mapping[str, object]) -> dict[str, object]:
     """Template context of a settings page: the service context plus its view models."""
-    context = dict(raw)
+    context = {**raw, "nav_current": "settings"}
     categories = context.get("categories")
     if isinstance(categories, list):
         context["groups"] = category_groups(context)

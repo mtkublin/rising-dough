@@ -34,6 +34,7 @@ def security_context(
     )
     tz = request.app.state.settings.display_timezone
     return {
+        "nav_current": "settings",
         "active_tab": "security",
         "current_user": user,
         "session_rows": tuple(session_row_view(r, tz) for r in view.session_rows),
