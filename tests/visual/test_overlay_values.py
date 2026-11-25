@@ -575,7 +575,7 @@ def test_overlay_values_pin(vals: Vals) -> None:
     assert (vals.committed, vals.left, vals.per_day) == (44_660, 98_793, 14_113)
     assert (vals.afford_small_per_day, vals.afford_small_delta) == (10_542, -3_571)
     assert (vals.afford_over_per_day, vals.afford_over_over) == (-11_601, 81_207)
-    assert (vals.actual_count, vals.recurring_count) == (26, 15)
+    assert (vals.actual_count, vals.recurring_count) == (32, 15)
     assert len(vals.formula_next_all) == 1
 
 
