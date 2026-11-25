@@ -1,0 +1,18 @@
+{# fragment: rows/deleted-category
+   Inputs: row (ledger_view.DeletedRowView). An archived category: when, name chip, direction, restore. #}
+<tr class="rd-row rd-row--del-cat" id="{{ row.dom_id }}">
+  <td class="rd-del__when rd-muted">
+    <span class="u-hide-from-md">deleted </span>{{ row.deleted_at }}
+  </td>
+  <td class="rd-del__cat">
+    <span class="rd-chip"
+          {% if row.category_hue %} data-color="{{ row.category_hue }}"{% endif %}>{{ row.category_name }}</span>
+  </td>
+  <td class="rd-del__dir">{{ row.direction_text }}</td>
+  <td class="rd-row__actions">
+    <button type="button"
+            class="rd-btn"
+            hx-post="{{ row.restore_url }}"
+            hx-swap="none">restore</button>
+  </td>
+</tr>

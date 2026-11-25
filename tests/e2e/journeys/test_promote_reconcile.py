@@ -6,21 +6,20 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World, days_from_today
-from tests.ui_map import accounts, ledger
+from tests.ui_map import accounts, entries, ledger
 
 pytestmark = pytest.mark.e2e
 
 LEDGER = "/ledger?view={view}&date_from=2000-01-01&date_to=2099-12-31"
 
 
-@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_promote_planned_entry_creates_the_transaction(world: World) -> None:
     account = world.account()
     planned = world.planned(account, world.category(), "25.00", "promote-planned")
     world.goto(LEDGER.format(view="planned"))
     world.find(ledger.planned_promote(planned)).click()
     expect(world.find(ledger.slideover)).to_be_visible()
-    world.find(ledger.overlay_promote).click()
+    world.find(entries.promote_submit).click()
 
     expect(world.find(ledger.slideover)).to_have_count(0)
     txn = world.wait_rows(
@@ -40,16 +39,15 @@ def test_promote_planned_entry_creates_the_transaction(world: World) -> None:
     expect(world.find(ledger.row(txn["id"]))).to_contain_text("promote-planned")
 
 
-@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_promote_recurring_rule_advances_it(world: World) -> None:
     account = world.account()
     start = days_from_today(1)
     rule = world.rule(account, world.category("Rent"), "800.00", "promote-rule", start=start)
     world.goto(LEDGER.format(view="recurring"))
     world.find(ledger.recurring_menu(rule)).click()
-    world.find(ledger.row_action("Promote")).click()
-    expect(world.find(ledger.promote_dialog)).to_be_visible()
-    world.find(ledger.overlay_promote).click()
+    world.find(ledger.row_action("promote")).click()
+    expect(world.find(ledger.slideover)).to_be_visible()
+    world.find(entries.promote_submit).click()
 
     expect(world.find(ledger.slideover)).to_have_count(0)
     txn = world.wait_rows(

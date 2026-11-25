@@ -72,15 +72,17 @@ def _seed(settings: Settings) -> None:
 def test_planned_strip_is_signed_net(client: TestClient, _migrated: Settings) -> None:
     _seed(_migrated)
     html = client.get("/ledger?view=planned").text
-    assert _html.text_of(html, ledger.planned_strip).startswith("2 items · 3,799.50 PLN")
+    assert (
+        _html.text_of(html, ledger.schedule_hero)
+        == "planned 3,799.50 PLN net 2 items · 0 overdue · 0 due today"
+    )
 
 
 def test_recurring_strip_splits_in_and_out(client: TestClient, _migrated: Settings) -> None:
     _seed(_migrated)
     html = client.get("/ledger?view=recurring").text
-    text = _html.text_of(html, ledger.recurring_strip)
-    assert "Monthly out 1,200.50 PLN" in text
-    assert "Monthly in 5,000.00 PLN" in text
+    text = _html.text_of(html, ledger.schedule_hero)
+    assert "recurring · per month \N{MINUS SIGN}1,200.50 PLN out in +5,000.00 · 2 rules" in text
 
 
 # ---------------------------------------------------------------------------
@@ -131,14 +133,14 @@ def _seed_eur_rule(settings: Settings, *, rate: str | None) -> None:
 
 def test_recurring_strip_converts_eur_rule_to_pln(client: TestClient, _migrated: Settings) -> None:
     _seed_eur_rule(_migrated, rate="4.30")
-    text = _html.text_of(client.get("/ledger?view=recurring").text, ledger.recurring_strip)
-    assert "Monthly out 430.00 PLN" in text
+    text = _html.text_of(client.get("/ledger?view=recurring").text, ledger.schedule_hero)
+    assert "\N{MINUS SIGN}430.00 PLN out" in text
 
 
 def test_planned_strip_converts_eur_row_to_pln(client: TestClient, _migrated: Settings) -> None:
     _seed_eur_rule(_migrated, rate="4.30")
-    text = _html.text_of(client.get("/ledger?view=planned").text, ledger.planned_strip)
-    assert text.startswith("1 items · -86.00 PLN")
+    text = _html.text_of(client.get("/ledger?view=planned").text, ledger.schedule_hero)
+    assert text.startswith("planned \N{MINUS SIGN}86.00 PLN net 1 items")
 
 
 def test_strips_503_when_rate_missing(client: TestClient, _migrated: Settings) -> None:

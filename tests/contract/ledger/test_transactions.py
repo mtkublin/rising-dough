@@ -185,7 +185,10 @@ def test_delete_then_restore_round_trip(
     )
     restored = client.post(f"/transactions/{seeded['txn']}/restore")
     assert restored.status_code == 200
-    assert hx_events(restored) == STALE
+    assert hx_events(restored) == {
+        **STALE,
+        "toast": {"variant": "success", "message": "Transaction restored"},
+    }
     assert (
         scalar(
             _migrated, "SELECT deleted_at IS NULL FROM transactions WHERE id = ?", (seeded["txn"],)

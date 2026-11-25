@@ -14,7 +14,7 @@
   <td class="text-right space-x-2 text-sm">
     {% if view.kind == "persisted" %}
       <button hx-get="/planned/{{ view.persisted_id }}/edit"
-              hx-target="#planned-form-slot"
+              hx-target="#modal-root"
               hx-swap="innerHTML"
               aria-label="Edit planned {{ view.persisted_id }}">Edit</button>
       {% if not view.is_promoted %}

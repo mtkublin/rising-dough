@@ -37,7 +37,7 @@ def row_menu(tx_id: int) -> Locator:
 
 
 def skip_next(rule_id: int) -> Locator:
-    return role("button", f"Skip next occurrence of rule {rule_id}")
+    return role("menuitem", "skip next").inside(recurring_row(rule_id))
 
 
 table_container = by_id("ledger-table")
@@ -123,8 +123,7 @@ planned_form = by_id("planned-form")
 recurring_form = by_id("recurring-form")
 slideover = role("dialog")
 form_errors = role("alert")
-planned_strip = role("complementary", "Planned items summary")
-recurring_strip = role("complementary", "Monthly cash flow summary")
+schedule_hero = by_id("ledger-hero")  # planned and recurring hero: label, figure, unit and note
 limit_preview = by_id("limit-preview")
 field_date = label("Date")
 field_amount = label("Amount")
@@ -206,7 +205,7 @@ def menu_actions(source: _html.Source, row: Locator) -> dict[str, Tag]:
     it; navigate from the mapped row instead.
     """
     tag = _html.resolve_one(source, row)
-    return {b.get_text(strip=True): b for b in tag.find_all("button", attrs={"role": "menuitem"})}
+    return {b.get_text(strip=True): b for b in tag.find_all(None, {"role": "menuitem"})}
 
 
 def form_in(source: _html.Source, container: Locator) -> Tag:
@@ -233,17 +232,15 @@ cancel_button = role("button", "Cancel")
 add_rule_button = role("button", "Add rule")
 next_month_button = role("button", "Next month")
 any_virtual_planned_row = by_id("planned-v-", prefix=True)
-row_actions = role("button", "Row actions")
 
 
 def view_row_actions(view: str) -> Locator:
-    """One 'Row actions' kebab per data row of a view (counts rows without id prefixes)."""
-    trigger = role("button", "Row menu") if view == "actual" else row_actions
-    return trigger.inside(view_table(view))
+    """One row menu button per data row of a view (counts rows without id prefixes)."""
+    return role("button", "Row menu").inside(view_table(view))
 
 
 def row_kebab(row_loc: Locator) -> Locator:
-    return row_actions.inside(row_loc)
+    return role("button", "Row menu").inside(row_loc)
 
 
 def row_menu_item(row_loc: Locator, name: str) -> Locator:
@@ -299,19 +296,19 @@ def row_action(name: str) -> Locator:
 
 
 def planned_promote(planned_id: int) -> Locator:
-    return role("button", "Promote").inside(planned_row(planned_id))
+    return role("link", "promote").inside(planned_row(planned_id))
 
 
 def planned_edit(planned_id: int) -> Locator:
-    return role("button", "Edit", exact=True).inside(planned_row(planned_id))
+    return role("menuitem", "edit", exact=True).inside(planned_row(planned_id))
 
 
 def planned_menu(planned_id: int) -> Locator:
-    return role("button", "Row actions").inside(planned_row(planned_id))
+    return role("button", "Row menu").inside(planned_row(planned_id))
 
 
 def recurring_menu(rule_id: int) -> Locator:
-    return role("button", "Row actions").inside(recurring_row(rule_id))
+    return role("button", "Row menu").inside(recurring_row(rule_id))
 
 
 recently_deleted_link = role("link", "Recently deleted")

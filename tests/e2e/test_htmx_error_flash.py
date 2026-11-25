@@ -77,11 +77,16 @@ def test_form_rerender_on_422_still_swaps(live_server: tuple[str, Path], page: P
     expect(to_playwright(page, _PROBE_TARGET)).to_have_text("bad value")
 
 
-def test_network_failure_shows_flash(live_server: tuple[str, Path], page: Page) -> None:
+def test_network_failure_shows_offline_banner_alone(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """Outside a form the offline banner shows alone; no assertive flash (Q29, T-UR02e)."""
     base_url, _ = live_server
     _open(page, base_url)
     page.route("**/__probe", lambda route: route.abort())
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(
+    expect(to_playwright(page, shell.flash_region)).to_contain_text("You\u2019re offline")
+    page.wait_for_timeout(200)
+    expect(to_playwright(page, shell.flash_region_assertive)).not_to_contain_text(
         "Could not reach the server"
     )

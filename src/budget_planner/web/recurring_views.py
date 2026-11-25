@@ -491,15 +491,6 @@ def render_formula_result(
     )
 
 
-def stale_response(request: Request, *events: Event, refresh_ledger: bool = True) -> Response:
-    """Empty response that signals stale views; reload unless the page is the ledger."""
-    html = Response()
-    trigger(html, *events)
-    if refresh_ledger:
-        refresh_unless_on(request, html, LEDGER_PATH)
-    return html
-
-
 def render_created_row(
     request: Request,
     rule: RecurringRule,
@@ -519,30 +510,6 @@ def render_created_row(
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
     refresh_unless_on(request, html, LEDGER_PATH)
-    return html
-
-
-def render_rule_row(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule: RecurringRule,
-    fx: FormulaFx,
-    *events: Event,
-) -> Response:
-    """Re-render one ledger row for a rule (overrides, account, category, formula amount)."""
-    html = render(
-        request,
-        _ROW,
-        rule=rule,
-        overrides=recurring_svc.list_overrides(conn, user_id, rule.id),
-        account=accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True),
-        category=categories_service.find_by_id(
-            conn, user_id, rule.category_id, include_deleted=True
-        ),
-        effective_amount_minor=effective_amount_for_render(conn, user_id, rule, fx),
-    )
-    trigger(html, *events)
     return html
 
 

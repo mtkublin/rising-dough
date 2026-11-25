@@ -164,7 +164,10 @@ def test_delete_then_restore_round_trip(
     assert scalar(_migrated, sql, (seeded["pl"],)) == 1
     restored = client.post(f"/planned/{seeded['pl']}/restore")
     assert restored.status_code == 200
-    assert hx_events(restored) == FORECAST_LEDGER
+    assert hx_events(restored) == {
+        **FORECAST_LEDGER,
+        "toast": {"variant": "success", "message": "Planned entry restored"},
+    }
     assert scalar(_migrated, sql, (seeded["pl"],)) == 0
     assert len(audit_ops(_migrated, "planned_transaction", seeded["pl"])) == 3
 
