@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import pytest
@@ -101,3 +102,13 @@ def test_edit_dialog_hint_counts_transactions_even_when_there_are_none() -> None
         _acc(limit=None, liability=False), base_currency="PLN", today=date(2026, 10, 31)
     )
     assert edit.liability_hint == "▲ 0 transactions: this balance will count against net worth."
+
+
+@pytest.mark.parametrize("stored", ["credit_card", "credit card", "bank", "savings"])
+def test_edit_type_select_has_one_selected_option_equal_to_the_stored_type(stored: str) -> None:
+    acc = replace(_acc(limit=None, liability=False), type=stored)
+    dlg = account_dialog(acc, base_currency="PLN", today=date(2026, 10, 31))
+    selected = [o for o in dlg.type_options if o.selected]
+    assert [o.value for o in selected] == [stored]  # saving posts the stored value back
+    labels = [o.label for o in dlg.type_options]
+    assert len(labels) == len(set(labels))

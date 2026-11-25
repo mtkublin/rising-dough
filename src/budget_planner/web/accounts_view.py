@@ -287,7 +287,8 @@ class AccountDialog:
 
 
 def _type_options(selected: str) -> tuple[TypeOption, ...]:
-    values = list(ACCOUNT_TYPES)
+    """Type choices; a stored ``credit_card`` is the one ``credit card`` option, value kept."""
+    values = [selected if v == type_label(selected) else v for v in ACCOUNT_TYPES]
     if selected and selected not in values:
         values.append(selected)
     options = [TypeOption(v, type_label(v), v == selected) for v in values]
