@@ -429,3 +429,48 @@ def test_accept_errors_show_under_the_field_and_write_nothing(
     assert db.execute("SELECT count(*) FROM users WHERE email = ?", (NEW_EMAIL,)).fetchone()[0] == 0
     assert _invite_row(db)["used_at"] is None
     assert SESSION_COOKIE_NAME not in mismatch.headers.get("set-cookie", "")
+
+
+# --- landing: no-store and rate limit (security review) ---------------------------------------
+
+
+def test_landing_responses_are_no_store(admin_client: TestClient, anon_client: TestClient) -> None:
+    token = _create(admin_client)
+    assert anon_client.get(f"/invite/{token}").headers["cache-control"] == "no-store"
+    assert anon_client.get("/invite/unknown").headers["cache-control"] == "no-store"
+    bad = anon_client.post(
+        f"/invite/{token}", data=_accept_form(password_confirm=SHORT_VALUE), follow_redirects=False
+    )
+    assert bad.status_code == 422
+    assert bad.headers["cache-control"] == "no-store"
+
+
+def test_post_is_rate_limited_per_ip_and_audited(
+    admin_client: TestClient,
+    anon_client: TestClient,
+    _migrated: Settings,
+    db: sqlite3.Connection,
+) -> None:
+    limit = 2
+    token = _create(admin_client)
+    anon_client.app.state.settings = _migrated.model_copy(  # type: ignore[attr-defined]  # test-only swap of the app settings
+        update={"rate_limit_login_ip_per_hour": limit}
+    )
+    for _ in range(limit):
+        spent = anon_client.post(
+            f"/invite/{token}",
+            data=_accept_form(password_confirm=SHORT_VALUE),
+            follow_redirects=False,
+        )
+        assert spent.status_code == 422
+    throttled = anon_client.post(f"/invite/{token}", data=_accept_form(), follow_redirects=False)
+    assert throttled.status_code == 429
+    assert int(throttled.headers["Retry-After"]) > 0
+    assert throttled.headers["cache-control"] == "no-store"
+    assert _html.exists(throttled.text, auth.invite_alert)
+    assert db.execute("SELECT count(*) FROM users WHERE email = ?", (NEW_EMAIL,)).fetchone()[0] == 0
+    assert _invite_row(db)["used_at"] is None
+    audits = db.execute(
+        "SELECT new_json FROM audit_log WHERE entity_type = 'auth_event'"
+    ).fetchall()
+    assert [json.loads(a["new_json"])["event"] for a in audits] == ["rate_limited"]

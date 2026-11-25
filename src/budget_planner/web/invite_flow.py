@@ -22,6 +22,7 @@ from budget_planner.services.invites import EXPIRED, INVALID, PENDING, USED, Inv
 from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_deps import RETRY_AFTER
 from budget_planner.web.auth_flow import RATE_LIMITED_LOGIN_ERROR
+from budget_planner.web.middleware.asgi import CACHE_CONTROL_HEADER, NO_STORE
 from budget_planner.web.rendering import render
 
 INVITE_TEMPLATE: Final = "pages/auth/invite.html"
@@ -57,7 +58,7 @@ def invite_page(
 ) -> HTMLResponse:
     """The accept form for a pending link, or the state page (expired, used, invalid)."""
     form = state == PENDING and invite is not None
-    return render(
+    response = render(
         request,
         INVITE_TEMPLATE,
         status_code=status_code,
@@ -69,6 +70,8 @@ def invite_page(
         errors=errors or {},
         alert=alert if alert else STATE_MESSAGES.get(state, ""),
     )
+    response.headers[CACHE_CONTROL_HEADER] = NO_STORE  # the page and its URL carry a secret
+    return response
 
 
 def throttled_invite(

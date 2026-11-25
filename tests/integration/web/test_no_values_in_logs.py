@@ -52,6 +52,21 @@ def test_setup_token_absent_from_access_log(log_stream: io.StringIO) -> None:
     assert json.loads(out)["event"] == '127.0.0.1 - "GET /setup HTTP/1.1" 404'
 
 
+def test_invite_token_absent_from_access_log(log_stream: io.StringIO) -> None:
+    """T-UR20a: the invite token (a path segment) never reaches the access log, GET or POST."""
+    sentinel = "INVITETOKEN123"
+    for method in ("GET", "POST"):
+        logging.getLogger("uvicorn.access").info(
+            '%s - "%s %s HTTP/%s" %d', "127.0.0.1", method, f"/invite/{sentinel}", "1.1", 200
+        )
+    lines = log_stream.getvalue().splitlines()
+    assert sentinel not in log_stream.getvalue()
+    assert [json.loads(line)["event"] for line in lines] == [
+        '127.0.0.1 - "GET /invite/[redacted] HTTP/1.1" 200',
+        '127.0.0.1 - "POST /invite/[redacted] HTTP/1.1" 200',
+    ]
+
+
 def test_ledger_search_sentinel_absent_from_logs(
     client: TestClient, log_stream: io.StringIO, caplog: pytest.LogCaptureFixture
 ) -> None:
