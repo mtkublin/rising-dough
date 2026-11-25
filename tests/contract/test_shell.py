@@ -350,7 +350,10 @@ def test_dev_dialog_variant_requires_a_session(anon_client: TestClient) -> None:
 def test_dev_dialog_variant_save_fails_with_two_field_errors(client: TestClient) -> None:
     r = client.post("/dev/shell/dialog/standard", headers=HX)
     assert r.status_code == 422
-    assert "2 fields need attention" in " ".join(r.text.split())
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+        "field-name-error": "▲ Name is required",
+    }
 
 
 @covers("POST /dev/shell/dialog/{variant}")

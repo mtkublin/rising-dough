@@ -232,7 +232,9 @@ def test_create_override_rejects_bad_tier(
         data={"tier": "monthly", "month": "6", "amount": "1"},
     )
     assert r.status_code == 422
-    assert "Tier : choose where the override applies" in _html.all_text(r.text, ERROR_SUMMARY)
+    assert _html.error_lines(r.text) == {
+        "dialog-error-tier": "▲ Tier: choose where the override applies",
+    }
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -246,7 +248,9 @@ def test_create_override_rejects_bad_month(
         data={"tier": "recurring", "month": "13", "amount": "1"},
     )
     assert r.status_code == 422
-    assert "Month : pick a month from 1 to 12" in _html.all_text(r.text, ERROR_SUMMARY)
+    assert _html.error_lines(r.text) == {
+        "dialog-error-month": "▲ Month: pick a month from 1 to 12",
+    }
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -260,7 +264,9 @@ def test_create_override_rejects_bad_amount(
         data={"tier": "recurring", "month": "6", "amount": "nope"},
     )
     assert r.status_code == 422
-    assert "Amount : enter an amount of 0 or more" in _html.all_text(r.text, ERROR_SUMMARY)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ enter an amount of 0 or more",
+    }
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -274,7 +280,9 @@ def test_create_override_one_off_rejects_bad_year(
         data={"tier": "one-off", "month": "7", "year": "bogus", "amount": "1"},
     )
     assert r.status_code == 422
-    assert "Year : enter a year" in _html.all_text(r.text, ERROR_SUMMARY)
+    assert _html.error_lines(r.text) == {
+        "dialog-error-year": "▲ Year: enter a year",
+    }
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 

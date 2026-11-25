@@ -106,11 +106,12 @@ def invalid_dialog_response(
     context: Mapping[str, object],
     fields: Mapping[str, str],
 ) -> HTMLResponse:
-    """A failed save: 422 with the dialog re-rendered, the summary and per-field errors.
+    """A failed save: 422 with the dialog re-rendered and a visible error per invalid field.
 
-    The dialog template gets ``field_count`` and ``field_errors`` for
-    ``forms/error-summary`` plus ``errors`` (name -> message), and sets
-    ``aria-invalid="true"`` on every field named in ``errors``.
+    The dialog template gets ``errors`` (name -> message), which sets ``aria-invalid="true"`` and
+    the ``▲ message`` line on every field named in it, and ``field_errors`` ((name, label, message)
+    rows) from which the dialog shell draws a dialog-level ``▲ Label: message`` line for an error
+    with no field line of its own (Q18: no summary box; a failed save is never silent).
     """
     rows = field_summary(fields)
     merged: dict[str, object] = {

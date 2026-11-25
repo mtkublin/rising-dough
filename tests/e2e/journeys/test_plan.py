@@ -10,7 +10,7 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World, today
-from tests.ui_map import plan_year
+from tests.ui_map import plan_year, rd_dialogs
 
 pytestmark = pytest.mark.e2e
 
@@ -110,14 +110,17 @@ def test_removing_an_override_restores_the_default(world: World) -> None:
     )
 
 
-def test_invalid_amount_keeps_the_dialog_open_with_the_summary(world: World) -> None:
+def test_invalid_amount_keeps_the_dialog_open_with_the_field_error(world: World) -> None:
     _budgeted(world)
     year = _open_march(world)
     dialog = plan_year.dialog("Groceries", f"Mar {year}")
     world.find(plan_year.amount(dialog)).fill("1.2.3")
     world.find(plan_year.save(dialog)).click()
 
-    expect(world.find(dialog)).to_contain_text("1 field needs attention")
+    expect(world.find(dialog)).to_be_visible()
+    expect(world.find(rd_dialogs.field_error(dialog, "amount"))).to_contain_text(
+        "enter an amount of 0 or more"
+    )
     assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0
 
 

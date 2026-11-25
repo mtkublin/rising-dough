@@ -12,7 +12,7 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import accounts as accounts_repo, categories as categories_repo
 from budget_planner.services import balance as balance_svc
-from tests.ui_map import _html, errors
+from tests.ui_map import _html
 
 USER_ID = 1
 OPENING = 100_000
@@ -46,18 +46,23 @@ def _state(settings: Settings, account_id: int) -> tuple[int, int]:
 
 
 @pytest.mark.parametrize(
-    ("cat", "typed"),
-    [("expense", "1500"), ("income", "500")],
+    ("cat", "typed", "sign"),
+    [("expense", "1500", "positive"), ("income", "500", "negative")],
 )
 def test_mismatching_category_is_rejected_and_writes_nothing(
-    client: TestClient, world: dict[str, int], _migrated: Settings, cat: str, typed: str
+    client: TestClient, world: dict[str, int], _migrated: Settings, cat: str, typed: str, sign: str
 ) -> None:
     r = client.post(
         f"/accounts/{world['a']}/reconcile",
         data={"actual_balance": typed, "category_id": str(world[cat])},
     )
     assert r.status_code == 422
-    assert f"a {cat} category cannot book" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-actual_balance-error": (
+            f"▲ a {cat} category cannot book a {sign} difference;"
+            " pick a matching category or the default Reconciliation"
+        )
+    }
     assert _state(_migrated, world["a"]) == (0, OPENING)
 
 

@@ -31,7 +31,7 @@
                       Any action may carry an id; secondary takes the hx_* and formaction keys; primary takes hx_include and hx_vals.
      form_id (standard, optional): id of the <form> itself (e.g. a self-targeting hx-target); empty adds no attribute.
      field_count / field_errors: the context invalid_dialog_response passes; field_errors rows with no per-field element render as a dialog-level error line (Q18, no summary box).
-   The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic, no set. #}
+   The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic. #}
 {% macro dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root", hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=(), form_id="") %}
   {% if variant == "standard" %}
     <dialog class="rd-dialog{% if size %} rd-dialog--{{ size }}{% endif %}"
@@ -84,9 +84,8 @@
           {% endif %}
         </header>
         <div class="rd-dialog__body">
-          {% set body = caller() %}
-          {{ _orphans(field_errors, body, hero) }}
-          {{ body }}
+          {{ _orphans(field_errors, caller(), hero) }}
+          {{ caller() }}
           {{ _actions(actions) }}
         </div>
       </form>
