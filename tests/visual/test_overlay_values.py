@@ -465,8 +465,7 @@ _LISTED_CASES: tuple[Case, ...] = (
     Case(
         "pages/overlays/delete-account--blocked.html",
         ".rd-dialog__confirm > p",
-        "It still has 84 transactions and 3 planned or recurring items. "
-        "Move or delete them first.",
+        "It still has 84 transactions and 3 planned or recurring items. Move or delete them first.",
         lambda v: (
             f"It still has {v.refs['Checking'][0]} transactions and "
             f"{v.refs['Checking'][1] + v.refs['Checking'][2]} planned or recurring items. "
