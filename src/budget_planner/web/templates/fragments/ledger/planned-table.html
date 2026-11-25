@@ -48,7 +48,7 @@
         {% include "fragments/states/no-matches.html" %}
       {% endwith %}
     {% else %}
-      {% with new_entry_url="/transactions/new" %}
+      {% with new_entry_url="/add?when=happened&dialog=1" %}
         {% include "fragments/states/planned-empty.html" %}
       {% endwith %}
     {% endif %}

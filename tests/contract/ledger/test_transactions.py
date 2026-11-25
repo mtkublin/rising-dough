@@ -33,16 +33,6 @@ def test_table_alias_matches_ledger_fragment(client: TestClient, seeded: Ids) ->
     assert _html.exists(r.text, ledger.row(seeded["txn"]))
 
 
-@covers("GET /transactions/new")
-def test_new_form_is_the_new_entry_dialog(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/transactions/new", headers=HTMX)
-    assert r.status_code == 200
-    assert "<html" not in r.text
-    assert r.headers["HX-Retarget"] == "#modal-root"  # ADR-0152: dialog-shell transport
-    assert _html.exists(r.text, entries.dialog)
-    assert _html.exists(r.text, entries.save)
-
-
 @covers("GET /transactions/_limit_preview")
 def test_limit_preview_blank_ok_and_malformed_ids_422(client: TestClient, seeded: Ids) -> None:
     blank = client.get("/transactions/_limit_preview")

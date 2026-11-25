@@ -7,10 +7,9 @@ pins every redirect in the map, and additionally confirms that
 
 - the HTMX fragment aliases (``/transactions/table``, ``/planned/table``)
   continue to return 200 with the ledger fragment shape, and
-- the Phase 3 CRUD sub-routes (``/transactions/new``, ``/planned/new``,
-  ``/recurring/new``, ``/categories/new`` and matching ``POST``s) are
-  **not** redirected because the FAB (T-069), palette (T-068) and
-  Settings drawer (T-067) reuse them.
+- the Phase 3 CRUD sub-routes (``/categories/new`` and the matching ``POST``s) are
+  **not** redirected because the Settings drawer (T-067) reuses them; the new-entry
+  dialog is ``/add`` (T-UR15b removed the ``/{transactions,planned,recurring}/new`` GETs).
 
 The redirects are intentionally ``302`` for one release; a follow-up
 task flips them to ``301`` once the new IA is stable.
@@ -83,8 +82,8 @@ def test_legacy_transactions_redirects(client: TestClient) -> None:
 
 
 def test_crud_subroutes_get_new_still_200(client: TestClient, seeded: dict[str, int]) -> None:
-    """GET on the ``/new`` sub-routes must not redirect — the FAB uses them."""
-    for path in ("/transactions/new", "/planned/new", "/recurring/new", "/categories/new"):
+    """GET on the ``/new`` sub-route must not redirect — the Settings drawer uses it."""
+    for path in ("/categories/new",):
         r = client.get(path, follow_redirects=False)
         assert r.status_code == 200, f"{path} returned {r.status_code}"
 

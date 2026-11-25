@@ -48,7 +48,7 @@ def _dialog_form(html: str) -> Tag:
 
 
 def test_new_transaction_opens_the_dialog_on_happened(client: TestClient) -> None:
-    response = client.get("/transactions/new", headers=HX)
+    response = client.get("/add?when=happened&dialog=1", headers=HX)
     assert response.status_code == 200
     assert response.headers["HX-Retarget"] == "#modal-root"
     assert _dialog_form(response.text).get("hx-post") == "/transactions"
@@ -56,14 +56,14 @@ def test_new_transaction_opens_the_dialog_on_happened(client: TestClient) -> Non
 
 
 def test_new_planned_opens_the_dialog_on_planned(client: TestClient) -> None:
-    response = client.get("/planned/new", headers=HX)
+    response = client.get("/add?when=planned&dialog=1", headers=HX)
     assert response.status_code == 200
     assert _dialog_form(response.text).get("hx-post") == "/planned"
     assert _html.resolve_one(response.text, entries.tab_planned).get("aria-current") == "page"
 
 
 def test_new_recurring_opens_the_dialog_on_repeats(client: TestClient) -> None:
-    response = client.get("/recurring/new", headers=HX)
+    response = client.get("/add?when=repeats&dialog=1", headers=HX)
     assert response.status_code == 200
     assert _dialog_form(response.text).get("hx-post") == "/recurring"
     assert _html.resolve_one(response.text, entries.tab_repeats).get("aria-current") == "page"

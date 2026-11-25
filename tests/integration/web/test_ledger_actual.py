@@ -217,7 +217,7 @@ def test_first_run_with_no_entries(client: TestClient, db: sqlite3.Connection) -
     new_entry = _html.resolve_one(
         r.text, role("link", "[ new entry ]").inside(ledger.table_container)
     )
-    assert new_entry.get("href") == "/transactions/new"
+    assert new_entry.get("href") == "/add?when=happened&dialog=1"
 
 
 def test_no_matches_names_the_filters_and_clears_them(
@@ -313,7 +313,8 @@ def test_new_entry_button_opens_the_dialog_in_place(client: TestClient) -> None:
     button = _html.resolve_one(r.text, rd_shell.new_entry)
     assert button.get("hx-get") == "/add?when=happened&dialog=1"
     assert button.get("hx-target") == "#modal-root"
-    assert button.get("href") == "/transactions/new"  # no script: the shell page opens the dialog
+    # no script: the shell page opens the dialog
+    assert button.get("href") == "/add?when=happened&dialog=1"
 
 
 def test_filter_response_refreshes_the_export_links_and_pushes_the_url(

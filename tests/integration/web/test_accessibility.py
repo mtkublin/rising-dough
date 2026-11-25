@@ -107,7 +107,7 @@ def _control_is_labelled(control: Tag) -> bool:
         # so it is intentionally omitted here; the labelling is still
         # exercised via /settings?tab=categories in test_settings.py.
         "/transactions",
-        "/transactions/new",
+        "/add?when=happened&dialog=1",
         "/accounts",
         "/forecast",
     ),
@@ -204,7 +204,7 @@ def test_settings_page_has_no_drawer_and_category_dialog_is_labelled(client: Tes
 
 def test_new_entry_is_a_labelled_modal_dialog(client: TestClient) -> None:
     """T-071, T-UR07b: the new-entry dialog is a modal dialog named by its heading."""
-    r = client.get("/transactions/new", headers={"HX-Request": "true"})
+    r = client.get("/add?when=happened&dialog=1", headers={"HX-Request": "true"})
     assert r.status_code == 200
     dialog = _html.resolve_one(r.text, entries.dialog)
     assert dialog.get("data-js") == "modal"

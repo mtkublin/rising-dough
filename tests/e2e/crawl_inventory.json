@@ -35,7 +35,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -228,7 +228,7 @@
       "kind": "link",
       "name": "[ new entry ]",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -633,7 +633,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -698,7 +698,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -888,7 +888,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1045,7 +1045,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1238,7 +1238,7 @@
       "kind": "link",
       "name": "[ new entry ]",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1376,7 +1376,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1500,7 +1500,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1648,7 +1648,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",

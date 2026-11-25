@@ -23,7 +23,7 @@ from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, g
 from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice, query_int
-from budget_planner.web.paths import NEW_PATH, TABLE_PATH
+from budget_planner.web.paths import TABLE_PATH
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -36,7 +36,7 @@ def list_page() -> RedirectResponse:
     Redirects to the unified ledger with the ``actual`` view selected. Kept at
     ``302`` for one release per ADR-0023; a follow-up task flips to ``301``.
     The HTMX fragment alias ``/transactions/table`` and the CRUD sub-routes
-    (``/transactions/new``, ``/transactions/{id}/edit``, etc.) remain live.
+    (``/transactions/{id}/edit``, etc.) remain live; the new-entry dialog is ``/add``.
     """
     return RedirectResponse(url="/ledger?view=actual", status_code=302)
 
@@ -92,16 +92,6 @@ def table_fragment(
     )
 
 
-@router.get(NEW_PATH, response_class=HTMLResponse)
-def new_form(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    """The new-entry dialog on the happened tab (T-UR07b); the top bar links here."""
-    return form_responses.open_new_entry(request, conn, user_id, tab="happened")
-
-
 @router.post("")
 def create_txn(
     request: Request,
@@ -145,8 +135,8 @@ def create_txn(
                 dest_account_id=dest_account_id,
             ),
         )
-    new_txn = entry_forms.save_txn(conn, user_id, check, description)
-    return form_responses.created_txn_response(request, conn, user_id, new_txn)
+    entry_forms.save_txn(conn, user_id, check, description)
+    return form_responses.created_txn_response(request)
 
 
 @router.get("/{txn_id}/edit", response_class=HTMLResponse)

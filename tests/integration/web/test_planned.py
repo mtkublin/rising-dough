@@ -26,7 +26,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, edit_dialogs, entries, errors, ledger
+from tests.ui_map import _html, edit_dialogs, entries, errors, ledger, rd_shell as shell
 from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
@@ -91,14 +91,14 @@ def test_table_fragment(client: TestClient, ctx: dict[str, int]) -> None:
 
 
 def test_new_form(client: TestClient) -> None:
-    r = client.get("/planned/new", headers=_HTMX)
+    r = client.get("/add?when=planned&dialog=1", headers=_HTMX)
     assert r.status_code == 200
     assert _html.exists(r.text, entries.tab_planned)
     due = _html.resolve_one(r.text, entries.field_due)
     assert (due.get("name"), due.get("type")) == ("operation_date", "date")
 
 
-def test_create(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     r = client.post(
         "/planned",
         data={
@@ -110,7 +110,13 @@ def test_create(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 200
-    assert "forecast-stale" in r.headers["HX-Trigger"]
+    assert json.loads(r.headers["HX-Trigger"]) == {"forecast-stale": True, "ledger-stale": True}
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Planned entry saved"
+    row = db.execute(
+        "SELECT amount, description FROM planned_transactions ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert (row[0], row[1]) == (12345, "x")
 
 
 def test_create_bad_amount(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
@@ -530,7 +536,7 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[st
 
 
 def test_new_form_posts_into_the_modal_root_not_the_planned_table(client: TestClient) -> None:
-    r = client.get("/planned/new", headers=_HTMX)
+    r = client.get("/add?when=planned&dialog=1", headers=_HTMX)
     form = _html.resolve_one(r.text, entries.dialog).find("form")
     assert form is not None
     assert (form.get("hx-post"), form.get("hx-target")) == ("/planned", "#modal-root")
