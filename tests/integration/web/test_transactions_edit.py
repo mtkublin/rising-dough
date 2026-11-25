@@ -277,7 +277,7 @@ def test_save_updates_the_row_audits_it_and_closes_the_dialog(
     assert _html.text_of(r.text, rd_shell.modal_root) == ""
 
 
-def test_save_off_the_ledger_reloads_the_page(
+def test_save_off_the_ledger_keeps_the_flash_and_does_not_reload(
     client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
 ) -> None:
     txn_id = _txn(db, ids["pln"], ids["groc"], 3550)
@@ -285,7 +285,9 @@ def test_save_off_the_ledger_reloads_the_page(
     r = client.post(f"/transactions/{txn_id}", data=_form(ids), headers=ON_TODAY)
 
     assert r.status_code == 200
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert json.loads(r.headers["HX-Trigger"]) == STALE
+    assert _html.text_of(r.text, rd_shell.flash_saved) == "\u25cf transaction saved"
     assert _row(db, txn_id)[0] == 7725
 
 
@@ -356,7 +358,7 @@ def test_a_bad_amount_marks_the_hero_and_keeps_the_posted_values(
     assert r.status_code == 422
     hero_amount = _html.resolve_one(r.text, entries.edit_amount)
     assert hero_amount.get("aria-invalid") == "true"
-    assert hero_amount.get("value") == "0"
+    assert hero_amount.get("value") == "0.00"
     assert _html.resolve_one(r.text, entries.category_option("Groceries")).has_attr("checked")
     assert ledger.control(r.text, entries.field_note).get("value") == "typed"
     assert _html.count(r.text, entries.edit_hero_error) == 1

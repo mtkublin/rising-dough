@@ -20,7 +20,12 @@ from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
-from budget_planner.domain.money import format_major, format_money, sign_glyph
+from budget_planner.domain.money import (
+    format_major,
+    format_money,
+    parse_amount_minor,
+    sign_glyph,
+)
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedTransaction
 from budget_planner.domain.transactions import (
     NewTransaction,
@@ -407,9 +412,7 @@ def edit_context(
         parse_int(values.get("category", "")),
     )
     transit = category is not None and category.direction == Direction.TRANSIT
-    hero = context["hero"]
-    if transit and isinstance(hero, dict):
-        context["hero"] = {**hero, "sign": _TRANSIT_GLYPH}
+    context["hero"] = _edit_hero(context, values["amount"], transit=transit)
     account_id = context["selected_account_id"]
     preview = _edit_preview(
         conn, user_id, txn, category=category, account_id=account_id, amount=values["amount"]
@@ -423,6 +426,20 @@ def edit_context(
         "dest_visible": transit,
         "preview": preview,
     }
+
+
+def _edit_hero(context: Mapping[str, object], amount: str, *, transit: bool) -> object:
+    """The hero with the transit sign and a posted zero shown as ``0.00`` (the placeholder form)."""
+    hero = context["hero"]
+    currency = str(context["currency"])
+    if not isinstance(hero, dict):
+        return hero
+    shown = dict(hero)
+    if transit:
+        shown["sign"] = _TRANSIT_GLYPH
+    if parse_amount_minor(amount, currency) == 0:
+        shown["amount_value"] = format_major(0, currency)
+    return shown
 
 
 def _stored_values(

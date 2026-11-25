@@ -23,13 +23,12 @@
   <div class="rd-fields-row">
     {{ select_field("account_id", "account", accounts, selected_account_id, error=errors.account_id|default("")) }}
     {% if transit_when %}
-      <div data-show-when="{{ transit_when }}"
-           {% if not dest_visible and not errors.dest_account_id|default(none) %}hidden{% endif %}>
-        {{ select_field("dest_account_id", "destination", accounts, selected_dest_id, error=errors.dest_account_id|default(""), empty_label="choose an account") }}
-      </div>
+      {{ select_field("dest_account_id", "destination", accounts, selected_dest_id, error=errors.dest_account_id|default(""), empty_label="choose an account", show_when=transit_when, hidden=(not dest_visible and not errors.dest_account_id|default(none))) }}
     {% endif %}
   </div>
-  {% include "fragments/fields/credit-line.html" %}
+  {% if credit_when %}
+    {% include "fragments/fields/credit-line.html" %}
+  {% endif %}
   <div class="rd-fields-row">
     {{ text_field("operation_date", "date", values.operation_date|default(today_iso), type="date", error=errors.operation_date|default("")) }}
     {{ text_field("description", "note", values.description|default(""), error=errors.description|default("")) }}

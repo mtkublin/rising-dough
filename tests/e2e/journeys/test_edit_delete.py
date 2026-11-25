@@ -54,19 +54,12 @@ def test_a_bad_edit_keeps_the_dialog_open_with_the_error(world: World) -> None:
     assert world.audit_ops("transaction", txn) == ["create"]
 
 
-def test_limit_preview_does_not_close_edit_dialog_before_save(world: World) -> None:
+def test_typing_does_not_close_edit_dialog_before_save(world: World) -> None:
     txn = world.transaction(world.account(), world.category(), "12.34", "keep-open")
     _open_edit(world, txn)
     amount = world.find(entries.edit_amount)
-    # The dialog is visible at swap time, but htmx wires the fragment's hx-trigger
-    # listeners only after its settle step; keys typed earlier never fire the preview.
-    world.page.wait_for_function(
-        "el => el['htmx-internal-data'] !== undefined && !document.querySelector('.htmx-settling')",
-        arg=world.find(entries.credit_line).element_handle(),
-    )
     amount.fill("")
-    with world.page.expect_response(lambda r: "/transactions/_limit_preview" in r.url):
-        amount.press_sequentially("45.67")  # real keystrokes fire the keyup preview trigger
+    amount.press_sequentially("45.67")
     world.settle()
     expect(amount).to_have_value("45.67")
     expect(world.find(entries.edit_dialog)).to_be_visible()

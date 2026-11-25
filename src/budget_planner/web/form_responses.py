@@ -28,6 +28,7 @@ from budget_planner.web.dialogs import (
     saved_response,
 )
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
+from budget_planner.web.http_headers import HX_RESWAP
 from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TRANSACTIONS_PATH
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import is_hx_request, render, render_context
@@ -247,7 +248,7 @@ def edit_transaction_hero(
 
 
 def updated_txn_response(request: Request) -> Response:
-    """A saved edit: close the dialog, flash it, refresh the ledger (or reload another page)."""
+    """A saved edit: close the dialog and flash it; the stale events refetch the page."""
     html = saved_response(
         request,
         None,
@@ -255,7 +256,7 @@ def updated_txn_response(request: Request) -> Response:
         message="transaction saved",
         events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
     )
-    refresh_unless_on(request, html, LEDGER_PATH)
+    html.headers[HX_RESWAP] = "none"
     return html
 
 

@@ -547,17 +547,6 @@ def _update_data(seeded: dict[str, int], amount: str = "99.99") -> dict[str, str
     }
 
 
-def test_update_off_ledger_refreshes_page_without_swap(
-    client: TestClient, seeded: dict[str, int], _migrated: Settings
-) -> None:
-    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
-    r = client.post(f"/transactions/{txn_id}", data=_update_data(seeded), headers=_ON_TODAY)
-    assert r.status_code == 200
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
-    assert "ledger-stale" in r.headers["HX-Trigger"]
-
-
 def test_update_on_ledger_does_not_refresh_page(
     client: TestClient, seeded: dict[str, int], _migrated: Settings
 ) -> None:
