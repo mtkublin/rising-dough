@@ -96,6 +96,10 @@ class YearCell:
     state: str
     label: str
     url: str
+    editor_label: str  # the inline editor's field label: ``Nights Out, November budget``
+    amount_text: str  # the editor's start value (empty for an unset cell)
+    action: str  # where the editor posts (the override route, tier "one-off")
+    year: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +161,10 @@ def _cell(
         state=state,
         label=f"{row.category_name}, {month_name(target.month)}: {spoken}, {_STATE_LABEL[state]}",
         url=target.url(dialog_tier(state)),
+        editor_label=f"{row.category_name}, {month_name(target.month)} budget",
+        amount_text="" if state == "unset" else amount,
+        action=target.action,
+        year=target.year,
     )
 
 

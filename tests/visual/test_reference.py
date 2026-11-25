@@ -66,6 +66,8 @@ SURFACE_ROUTES: dict[str, str] = {
 # The invite link of the base seed (handoff_seed SeedData.invite_link).
 _INVITE = "/invite/handoff-invite-accountant"
 LEDGER_BOARD = "/ledger?date_from=2026-10-07&date_to=2026-10-31&page_size=11"
+# The long board: the handoff shows three rows and the "older" link (page size 3).
+LEDGER_LONG = "/ledger?date_from=2026-10-07&date_to=2026-10-31&page_size=3"
 _NO_MATCHES = LEDGER_BOARD + "&q=pizza"
 AFFORD_TYPED = "/today?amount=250.00"
 # Pages with their own app route (plan ?tab=, ledger ?view=, settings tabs, auth, errors).
@@ -74,7 +76,7 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/plan/forecast.html": "/plan?tab=forecast",
     "pages/plan/analytics.html": "/plan?tab=analytics",
     "pages/ledger/actual.html": LEDGER_BOARD,
-    "pages/ledger/actual--long.html": LEDGER_BOARD,
+    "pages/ledger/actual--long.html": LEDGER_LONG,
     "pages/ledger/planned.html": "/ledger?view=planned",
     "pages/ledger/planned--empty.html": "/ledger?view=planned",
     "pages/ledger/recurring.html": "/ledger?view=recurring",
@@ -155,11 +157,7 @@ OVERLAY_DIALOGS: dict[str, str] = {
 # Overlay pages with no way to open their state yet: the year-cell inline editor, which the
 # app does not have (compared against the plain base page, red). Every other overlay is
 # mapped: dialogs (OVERLAY_DIALOGS, OPENERS), clicks, new-entry and state recipes.
-UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
-    {
-        "override--year-cell",
-    }
-)
+UNMAPPED_OVERLAYS: frozenset[str] = frozenset()
 OPENER_PAGES: frozenset[str] = frozenset(f"pages/overlays/{n}.html" for n in OPENERS)
 # Pages that need the base seed plus named modifiers (handoff_seed.MODIFIER_NAMES).
 PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
@@ -171,6 +169,9 @@ PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
     "pages/ledger/recurring--empty.html": ("empty-recurring",),
     "pages/ledger/actual--long.html": ("long",),
     "pages/ledger/actual--no-matches.html": ("no-matches",),
+    # The handoff categories board lacks the 18th expense category of the base seed. Overlays over
+    # it (edit, archive, new category) take the same modifier through `base_page_of`.
+    "pages/settings/categories.html": ("settings-categories",),
     "pages/auth/invite--expired.html": ("invite-expired",),
     "pages/auth/invite--used.html": ("invite-used",),
     # Fresh DB per run: the wrong-password POST must not eat a shared rate limit.

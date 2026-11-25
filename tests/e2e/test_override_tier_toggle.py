@@ -55,7 +55,7 @@ def test_tier_toggle_on_plan_year_dialog(live_server: tuple[str, Path], page: Pa
     base_url, db_path = live_server
     _seed_budgeted(base_url, db_path, page)
     page.goto(f"{base_url}/plan?tab=year&year=2026")
-    to_playwright(page, plan_year.cell("Groceries", "March")).click()
+    to_playwright(page, plan_year.cell("Groceries", "March")).click(modifiers=["Shift"])
     dialog = plan_year.dialog("Groceries", "Mar 2026")
     expect(to_playwright(page, plan_year.amount(dialog))).to_be_visible()
     _assert_toggle(page, dialog)
@@ -65,7 +65,7 @@ def test_recurring_override_saved_from_plan_year(live_server: tuple[str, Path], 
     base_url, db_path = live_server
     category_id = _seed_budgeted(base_url, db_path, page)
     page.goto(f"{base_url}/plan?tab=year&year=2026")
-    to_playwright(page, plan_year.cell("Groceries", "March")).click()
+    to_playwright(page, plan_year.cell("Groceries", "March")).click(modifiers=["Shift"])
     dialog = plan_year.dialog("Groceries", "Mar 2026")
     to_playwright(page, plan_year.tier(dialog, "every march")).dispatch_event("click")
     to_playwright(page, plan_year.amount(dialog)).fill("321.00")
