@@ -97,7 +97,8 @@ def test_create_duplicate_name_is_422_under_the_name_field_and_writes_nothing(
     # The create form's name field is marked invalid and points at its error line (a
     # whitespace-trimmed ``required`` once glued ``requiredaria-invalid`` into one attribute).
     field = _html.resolve_one(r.text, by_id("field-name"))
-    assert (field.get("aria-invalid"), field.get("aria-describedby")) == ("true", "field-name-error")
+    assert field.get("aria-invalid") == "true"
+    assert field.get("aria-describedby") == "field-name-error"
     assert field.has_attr("required")
 
 
