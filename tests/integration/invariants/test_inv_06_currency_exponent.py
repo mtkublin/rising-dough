@@ -90,8 +90,6 @@ def test_6a_every_fx_reachable_code_has_the_right_exponent() -> None:
 
 
 def test_6b_today_shows_jpy_balance_without_decimals(seeded: sqlite3.Connection) -> None:
-    # The net-worth card lists only the first 7 accounts: archive 7 demo accounts (scratch DB only).
-    seeded.execute("UPDATE accounts SET deleted_at = '2026-11-01T00:00:00.000Z' WHERE id <= 7")
     accounts_repo.create(
         seeded, 1, NewAccount(name="Tokyo JPY", currency="JPY", opening_balance=12_345)
     )
@@ -103,7 +101,14 @@ def test_6b_today_shows_jpy_balance_without_decimals(seeded: sqlite3.Connection)
     settings = get_settings()
     name, value = login_cookie(settings)
     client = TestClient(create_app(settings), cookies={name: value})
-    html = client.get("/today").text
-    match = re.search(r"Tokyo JPY.*?<span class=\"num[^>]*>([^<]*)</span>", html, re.S)
+    # T-UR07: the Today net-worth panel is total-only (handoff pages/today.html); per-account
+    # balances show on /accounts, so the JPY no-decimals invariant is asserted there.
+    html = client.get("/accounts").text
+    match = re.search(
+        r'Tokyo JPY.*?<span class="rd-amount">([^<]*)<span class="rd-amount__cur">([^<]*)</span>',
+        html,
+        re.S,
+    )
     assert match is not None
     assert match.group(1).strip() == "12,345"
+    assert match.group(2) == "JPY"
