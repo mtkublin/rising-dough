@@ -85,8 +85,8 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/auth/login.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/base.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/budget/_yearly.html` | T-UR15 | delete | UR11b: kept. `GET /budget` (`budget/index.html`) includes it and `GET /budget/yearly` returns it; `tests/contract/test_plan_views.py` pins both routes and the yearly section, so it moves to the final sweep with `budget/index.html` |
-| `src/budget_planner/web/templates/budget/index.html` | T-UR15 | delete | UR11a: `GET /budget` still renders it; `tests/contract/test_plan_views.py::test_budget_page_renders_sections_in_order` pins its sections (hero, summary, rules, yearly, breakdown), so it moves to the final sweep |
+| `src/budget_planner/web/templates/budget/_yearly.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /budget`, `/budget/yearly`, `/forecast`, `/forecast/view` now redirect (307) to `/plan?tab=...` (operator decision Q13); contract pins ported to the Plan hub tests |
+| `src/budget_planner/web/templates/budget/index.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /budget`, `/budget/yearly`, `/forecast`, `/forecast/view` now redirect (307) to `/plan?tab=...` (operator decision Q13); contract pins ported to the Plan hub tests |
 | `src/budget_planner/web/templates/budget/manage.html` | T-UR11 | deleted | UR11a: no route or template used it |
 | `src/budget_planner/web/templates/categories/index.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/dev/components.html` | T-UR15 | delete |  |
@@ -95,7 +95,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/errors/422.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/errors/500.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/errors/_shell.html` | T-UR06 | deleted |  |
-| `src/budget_planner/web/templates/forecast/index.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
+| `src/budget_planner/web/templates/forecast/index.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /budget`, `/budget/yearly`, `/forecast`, `/forecast/view` now redirect (307) to `/plan?tab=...` (operator decision Q13); contract pins ported to the Plan hub tests |
 | `src/budget_planner/web/templates/ledger/_recently_deleted.html` | T-UR10 | deleted | UR10a: `GET /ledger/recently-deleted` renders `pages/ledger/recently-deleted.html` |
 | `src/budget_planner/web/templates/ledger/_table.html` | T-UR10 | deleted | UR10a: the planned and recurring views render `fragments/ledger/{planned,recurring}-table.html` (actual: T-UR09) |
 | `src/budget_planner/web/templates/ledger/index.html` | T-UR09 | deleted |  |
@@ -122,10 +122,10 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/budget/_override_form.html` | T-UR11 | deleted | UR11b: `GET /budget/rules/{id}/overrides/new` renders `fragments/dialogs/override-budget.html` |
 | `src/budget_planner/web/templates/partials/categories/_form.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/partials/categories/_row.html` | T-UR13 | deleted |  |
-| `src/budget_planner/web/templates/partials/forecast/_chart.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
-| `src/budget_planner/web/templates/partials/forecast/_table.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
-| `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
-| `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
+| `src/budget_planner/web/templates/partials/forecast/_chart.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
+| `src/budget_planner/web/templates/partials/forecast/_table.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
+| `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
+| `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell page `dev/components.html` (the budget and forecast pages went in UR15a): goes with it |
 | `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | deleted | UR24: the inline promote routes are gone; promote is the dialog only |
 | `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR24 | deleted | UR24: the legacy `?dialog=` branch is gone; `GET /planned/{id}/promote` always renders pages/entries/promote.html |
 | `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | deleted | UR15b: nothing renders it (dialog creates answer `saved_response`) |
@@ -177,12 +177,12 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `tests/visual/__snapshots__/accounts.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/accounts.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/accounts.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/budget.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/budget.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/budget.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/forecast.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/forecast.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/forecast.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/budget.1024.png` | T-UR15 | deleted | UR15a (2026-11-25): the pages redirect to /plan; the visual route entries are gone |
+| `tests/visual/__snapshots__/budget.1440.png` | T-UR15 | deleted | UR15a (2026-11-25): the pages redirect to /plan; the visual route entries are gone |
+| `tests/visual/__snapshots__/budget.375.png` | T-UR15 | deleted | UR15a (2026-11-25): the pages redirect to /plan; the visual route entries are gone |
+| `tests/visual/__snapshots__/forecast.1024.png` | T-UR15 | deleted | UR15a (2026-11-25): the pages redirect to /plan; the visual route entries are gone |
+| `tests/visual/__snapshots__/forecast.1440.png` | T-UR15 | deleted | UR15a (2026-11-25): the pages redirect to /plan; the visual route entries are gone |
+| `tests/visual/__snapshots__/forecast.375.png` | T-UR15 | deleted | UR15a (2026-11-25): the pages redirect to /plan; the visual route entries are gone |
 | `tests/visual/__snapshots__/ledger.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/ledger.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/ledger.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |

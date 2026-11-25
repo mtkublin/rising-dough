@@ -23,7 +23,6 @@ BAD_GETS = [
     "/budget/yearly?year=abc",
     "/plan?year=99999",
     "/plan?year=abc",
-    "/forecast?horizon_months=abc",
     "/ledger?account_id=99999999999999999999999",
     "/ledger?date_from=2026-02-30",
     "/today/afford?amount=nan",
@@ -43,6 +42,7 @@ def test_bad_query_is_422_with_message(client: TestClient, url: str) -> None:
 @pytest.mark.parametrize(
     "url",
     [
+        "/forecast?horizon_months=abc",
         "/forecast?horizon_months=100000",
         "/ledger?page_size=1000000",
         "/ledger?page=-1",

@@ -69,3 +69,7 @@ Table reuses `partials/forecast/_table.html`; both chart + table share the `#for
 - **Keep days as the input, add a separate "months" preset dropdown**: double-input UX, no gain.
 - **Push monthly aggregation into the template via Jinja grouping**: scattering domain math across layers, violates "fat services" (CLAUDE.md).
 - **Compute monthly series client-side from the Plotly payload**: duplicates signed-leg logic in JS, DRY violation (same reasoning that killed client-side recompute in ADR-0015).
+
+## Amendment 2026-11-25 (T-UR15a)
+
+Per ADR-0051 and operator decision Q13, the horizon on `/plan?tab=forecast` is one of 6, 12, 24 or 60 months; any other value on the tab is a 422 instead of being clamped to 1..60. The `/forecast?horizon_months=` redirect forwards only those four values and drops any other, so an old bookmark lands on the default horizon.
