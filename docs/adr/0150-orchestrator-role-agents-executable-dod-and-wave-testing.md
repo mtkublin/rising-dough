@@ -125,3 +125,9 @@ At the end of each run the scribe commits `docs/runs/<date>-<slug>.md`. It has o
 - **Keep the pytest hook in item agents and add the wave tester on top.** Rejected: it keeps the N-suites CPU cost the change exists to remove.
 - **Encode the wave loop as a `Workflow` script.** Deferred: it needs explicit opt-in per run, and worktree isolation for workflow agents has not been confirmed. Revisit once the run logs show the flow is stable.
 - **More prose rules in the skill.** Rejected: the incidents happened with the rule already written down. Enforcement moves to scripts, frontmatter and the conftest hook.
+
+## Amendment 2026-11-25: no idle turns
+
+Incident (`ui/sourdough` run): the orchestrator ended its turn with one agent in flight. The agent finished about 07:46, but the orchestrator resumed only at 09:17, when the operator wrote ("why did you stop in the meantime? you were supposed to keep running until PR ready").
+
+Rule, in the `orchestrator-mode` skill §5 and §6: in a run told to keep going, before ending any turn the orchestrator has (a) at least 2 agents in flight when load allows and unblocked work exists, and (b) a background heartbeat timer running (`sleep 1200; echo heartbeat`, Bash `run_in_background`, restarted on every heartbeat). A completion notification can fail to arrive; the heartbeat re-invokes the orchestrator to check worktrees, merge and dispatch. A turn whose only in-flight work is one agent waiting on its own background job is never ended. An operator question mid-run is answered and the run continues in the same turn. The single heartbeat is not a polling loop; "no polling" stays.
