@@ -543,8 +543,10 @@ def test_delete_override(client: TestClient, ctx: dict[str, int], db: sqlite3.Co
     assert len(recurring_repo.list_overrides_all(db, USER_ID, ctx["rule"])) == 1
     r = client.post(f"/recurring/{ctx['rule']}/overrides/2026-05-01/delete")
     assert r.status_code == 200
-    payload = json.loads(r.headers["HX-Trigger"])
-    assert payload["ledger-stale"] is not None and payload["forecast-stale"] is not None
+    assert json.loads(r.headers["HX-Trigger"]) == {"forecast-stale": True, "ledger-stale": True}
+    # No toast payload: the confirmation is the out-of-band flash, and the dialog root is emptied.
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Override removed")
+    assert _html.text_of(r.text, by_id("modal-root")) == ""
     assert recurring_repo.list_overrides_all(db, USER_ID, ctx["rule"]) == []
 
 

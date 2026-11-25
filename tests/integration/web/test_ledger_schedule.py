@@ -169,15 +169,55 @@ def test_recurring_row_menu_opens_the_dialogs(client: TestClient, ids: dict[str,
     )
 
 
+def _ops(db: sqlite3.Connection, entity: str, entity_id: int) -> list[str]:
+    return [
+        r[0]
+        for r in db.execute(
+            "SELECT operation FROM audit_log WHERE entity_type = ? AND entity_id = ? ORDER BY id",
+            (entity, entity_id),
+        )
+    ]
+
+
+def _other_users_deleted_rows(db: sqlite3.Connection) -> tuple[int, int]:
+    """A second user with a soft-deleted planned row and an archived category."""
+    other = 2
+    db.execute("INSERT INTO users(id, name) VALUES (?, 'other')", (other,))
+    acc = accounts_repo.create(db, other, NewAccount(name="Theirs", currency="PLN"))
+    cat = categories_repo.create(db, other, NewCategory(name="Secret", direction=Direction.EXPENSE))
+    planned = planned_repo.create(
+        db,
+        other,
+        NewPlannedTransaction(
+            operation_date=clock.today_local(Settings()),
+            category_id=cat.id,
+            account_id=acc.id,
+            amount=9999,
+            description="theirs-planned",
+        ),
+    )
+    planned_repo.soft_delete(db, other, planned.id)
+    gone = categories_repo.create(db, other, NewCategory(name="Gone", direction=Direction.INCOME))
+    categories_repo.soft_delete(db, other, gone.id)
+    return planned.id, gone.id
+
+
 def test_recently_deleted_restore_brings_the_row_back_with_its_audit(
     client: TestClient, ids: dict[str, int], db: sqlite3.Connection
 ) -> None:
+    other_planned, other_cat = _other_users_deleted_rows(db)
+    other_planned_ops = _ops(db, "planned_transaction", other_planned)
+    assert other_planned_ops == ["create", "delete"]
     pid = ids["later"]
     client.post(f"/planned/{pid}/delete", headers=_HTMX)
     listed = client.get("/ledger/recently-deleted").text
     row = _html.text_of(listed, ledger.deleted_row("planned", pid))
     assert "car" in row and "\N{MINUS SIGN}2,239.80 PLN" in row
     assert "deleted" in row
+    # The second user's deleted rows never show for user 1.
+    assert not _html.exists(listed, ledger.deleted_row("planned", other_planned))
+    assert not _html.exists(listed, ledger.deleted_row("category", other_cat))
+    assert "theirs-planned" not in listed and "Secret" not in listed
     assert not _html.exists(client.get("/ledger?view=planned").text, ledger.planned_row(pid))
     restore = _html.resolve_one(listed, ledger.restore("planned", pid))
     assert restore.get("hx-post") == f"/planned/{pid}/restore"
@@ -189,29 +229,35 @@ def test_recently_deleted_restore_brings_the_row_back_with_its_audit(
     assert not _html.exists(
         client.get("/ledger/recently-deleted").text, ledger.deleted_row("planned", pid)
     )
-    ops = [
-        r[0]
-        for r in db.execute(
-            "SELECT operation FROM audit_log WHERE entity_type = 'planned_transaction' "
-            "AND entity_id = ? ORDER BY id",
-            (pid,),
-        )
-    ]
-    assert ops == ["create", "delete", "undelete"]
+    assert _ops(db, "planned_transaction", pid) == ["create", "delete", "undelete"]
+    # The other user's row stays deleted and its audit trail is untouched; user 1 cannot restore it.
+    assert _ops(db, "planned_transaction", other_planned) == other_planned_ops
+    assert client.post(f"/planned/{other_planned}/restore", headers=_HTMX).status_code == 404
+    still = planned_repo.find_by_id(db, 2, other_planned, include_deleted=True)
+    assert still is not None and still.deleted_at is not None
+    assert _ops(db, "planned_transaction", other_planned) == other_planned_ops
 
 
 def test_recently_deleted_category_restore(
     client: TestClient, ids: dict[str, int], db: sqlite3.Connection
 ) -> None:
+    _, other_cat = _other_users_deleted_rows(db)
+    other_ops = _ops(db, "category", other_cat)
     cid = ids["inc"]
     assert client.post(f"/categories/{cid}/archive", headers=_HTMX).status_code == 204
-    row = _html.text_of(
-        client.get("/ledger/recently-deleted").text, ledger.deleted_row("category", cid)
-    )
+    listed = client.get("/ledger/recently-deleted").text
+    row = _html.text_of(listed, ledger.deleted_row("category", cid))
     assert "Refund" in row and "\N{UPWARDS ARROW} income" in row
+    assert not _html.exists(listed, ledger.deleted_row("category", other_cat))
+    assert "Gone" not in listed
     assert client.post(f"/categories/{cid}/restore", headers=_HTMX).status_code == 204
     assert not _html.exists(
         client.get("/ledger/recently-deleted").text, ledger.deleted_row("category", cid)
     )
     found = categories_repo.find_by_id(db, USER_ID, cid)
     assert found is not None and found.deleted_at is None
+    ops = _ops(db, "category", cid)
+    assert ops[-2:] == ["delete", "undelete"] and ops[0] == "create"
+    assert _ops(db, "category", other_cat) == other_ops
+    other = categories_repo.find_by_id(db, 2, other_cat, include_deleted=True)
+    assert other is not None and other.deleted_at is not None
