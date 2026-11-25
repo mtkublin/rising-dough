@@ -6,6 +6,7 @@ Exact values: signed amounts, the status text of ``planned_status``, the overrid
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from datetime import date, timedelta
@@ -28,6 +29,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
 )
 from tests.ui_map import _html, ledger
+from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
@@ -261,3 +263,83 @@ def test_recently_deleted_category_restore(
     assert _ops(db, "category", other_cat) == other_ops
     other = categories_repo.find_by_id(db, 2, other_cat, include_deleted=True)
     assert other is not None and other.deleted_at is not None
+
+
+_TABS = role("navigation", "Ledger view")
+_DELETED_PANEL = by_id("deleted-panel")
+
+
+def test_table_refetch_carries_hero_and_tab_counts_out_of_band(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    """After a rule delete the refetched table swaps the hero figure and the tab counts too."""
+    query = "view=recurring&date_from=2000-01-01&date_to=2099-12-31"
+    before = client.get(f"/ledger/table?{query}", headers=_HTMX).text
+    assert _html.text_of(before, ledger.schedule_hero).startswith(
+        "recurring \N{MIDDLE DOT} per month \N{MINUS SIGN}1,200.50 PLN out in 0.00"
+    )
+    assert "recurring 1" in _html.text_of(before, _TABS)
+    assert _html.resolve_one(before, ledger.schedule_hero).get("hx-swap-oob") == "true"
+    assert _html.resolve_one(before, _TABS).get("hx-swap-oob") == "true"
+
+    assert client.post(f"/recurring/{ids['rule']}/deactivate", headers=_HTMX).status_code == 200
+    after = client.get(f"/ledger/table?{query}", headers=_HTMX).text
+    hero = _html.text_of(after, ledger.schedule_hero)
+    assert "1,200.50" not in hero and "0.00 PLN out" in hero
+    assert "recurring 0" in _html.text_of(after, _TABS)
+    assert not _html.exists(after, ledger.recurring_row(ids["rule"]))
+
+
+def test_full_page_hero_is_not_out_of_band(client: TestClient, ids: dict[str, int]) -> None:
+    html = client.get("/ledger?view=planned").text
+    assert _html.resolve_one(html, ledger.schedule_hero).get("hx-swap-oob") is None
+    assert _html.resolve_one(html, _TABS).get("hx-swap-oob") is None
+
+
+def test_deleted_panel_refetch_updates_rows_counts_and_empty_state(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    pid = ids["later"]
+    client.post(f"/planned/{pid}/delete", headers=_HTMX)
+    page = client.get("/ledger/recently-deleted").text
+    panel = _html.resolve_one(page, _DELETED_PANEL)
+    assert panel.get("hx-get") == "/ledger/recently-deleted/panel"
+    assert "ledger-stale" in str(panel.get("hx-trigger"))
+    assert "settings-categories-stale" in str(panel.get("hx-trigger"))
+    assert _html.resolve_one(page, ledger.restore("planned", pid)).get("hx-swap") == "none"
+    assert "Planned \N{MIDDLE DOT} 1" in _html.text_of(page, _DELETED_PANEL)
+
+    restored = client.post(f"/planned/{pid}/restore", headers=_HTMX)
+    assert json.loads(restored.headers["HX-Trigger"]) == {
+        "forecast-stale": True,
+        "ledger-stale": True,
+        "toast": {"variant": "success", "message": "Planned entry restored"},
+    }
+    fragment = client.get("/ledger/recently-deleted/panel", headers=_HTMX).text
+    assert not _html.exists(fragment, ledger.deleted_row("planned", pid))
+    text = _html.text_of(fragment, _DELETED_PANEL)
+    assert "Planned \N{MIDDLE DOT} 0" in text and "Nothing deleted." in text
+
+
+def test_transaction_restore_toasts(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection
+) -> None:
+    created = client.post(
+        "/transactions",
+        data={
+            "operation_date": "2026-11-01",
+            "amount": "10",
+            "account_id": str(ids["acc"]),
+            "category_id": str(ids["exp"]),
+        },
+        headers=_HTMX,
+    )
+    assert created.status_code in (200, 201, 204)
+    tid = db.execute("SELECT id FROM transactions ORDER BY id DESC LIMIT 1").fetchone()[0]
+    assert client.post(f"/transactions/{tid}/delete", headers=_HTMX).status_code == 200
+    resp = client.post(f"/transactions/{tid}/restore", headers=_HTMX)
+    assert json.loads(resp.headers["HX-Trigger"])["toast"] == {
+        "variant": "success",
+        "message": "Transaction restored",
+    }
+    assert _ops(db, "transaction", tid) == ["create", "delete", "undelete"]

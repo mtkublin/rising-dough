@@ -85,7 +85,9 @@ def ctx(_migrated: Settings) -> dict[str, int]:
 def test_table_fragment(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.get("/planned/table")
     assert _html.exists(r.text, ledger.view_table("planned"))
-    assert not _html.exists(r.text, ledger.heading)  # fragment: no page chrome
+    # no page chrome: the only heading is the hero that refreshes out of band with the rows
+    assert _html.count(r.text, ledger.heading) == 1
+    assert _html.exists(r.text, ledger.heading.inside(ledger.schedule_hero))
 
 
 def test_new_form(client: TestClient) -> None:
@@ -422,6 +424,7 @@ def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
     assert r.status_code == 200
     hx = json.loads(r.headers["HX-Trigger"])
     assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Planned entry promoted")
 
 
 def test_promote_submit_invalid(

@@ -57,6 +57,10 @@
     </nav>
   </div>
 </div>
+{% if oob|default(none) %}
+  {% include "fragments/ledger/hero.html" %}
+  {% include "fragments/ledger/tabs.html" %}
+{% endif %}
 {% if oob_export|default(none) and export %}
   {% include "fragments/ledger/export-menu.html" %}
 {% endif %}

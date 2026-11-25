@@ -62,3 +62,7 @@
     </nav>
   </div>
 </div>
+{% if oob|default(none) %}
+  {% include "fragments/ledger/hero.html" %}
+  {% include "fragments/ledger/tabs.html" %}
+{% endif %}

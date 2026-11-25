@@ -194,7 +194,9 @@ def test_ledger_fragment_is_not_full_page(client: TestClient, seeded: dict[str, 
     r = client.get("/ledger/table?view=actual")
     assert r.status_code == 200
     assert _html.exists(r.text, ledger.table_container)
-    assert not _html.exists(r.text, ledger.heading)  # no page chrome
+    # no page chrome: the only heading is the hero that refreshes out of band with the rows
+    assert _html.count(r.text, ledger.heading) == 1
+    assert _html.exists(r.text, ledger.heading.inside(ledger.schedule_hero))
 
 
 def _headers(html: str) -> list[str]:

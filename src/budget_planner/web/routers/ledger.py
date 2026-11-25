@@ -67,3 +67,15 @@ def recently_deleted(
     """
     ctx = ledger_data.deleted_context(conn, user_id, settings)
     return render_context(request, "pages/ledger/recently-deleted.html", ctx)
+
+
+@router.get("/recently-deleted/panel", response_class=HTMLResponse)
+def recently_deleted_panel(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
+    """The deleted panel alone: it refetches itself after a restore (rows, counts, empty states)."""
+    ctx = ledger_data.deleted_context(conn, user_id, settings)
+    return render_context(request, "fragments/ledger/deleted-panel.html", ctx)

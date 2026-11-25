@@ -21,10 +21,9 @@ from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import recurring_forms as forms, recurring_views as views
 from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, today_for
 from budget_planner.web.dialogs import saved_response
-from budget_planner.web.htmx import Event, trigger
-from budget_planner.web.http_headers import HTML_MEDIA_TYPE
+from budget_planner.web.htmx import Event, refresh_unless_on
 from budget_planner.web.params import parse_date, parse_int, query_date
-from budget_planner.web.paths import NEW_PATH
+from budget_planner.web.paths import LEDGER_PATH, NEW_PATH
 from budget_planner.web.view_models import month_name
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
@@ -165,6 +164,7 @@ async def update_rule_handler(
 @router.post("/{rule_id}/deactivate")
 def deactivate_rule(
     rule_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
@@ -172,12 +172,15 @@ def deactivate_rule(
     if rule is None:
         return Response(status_code=404, content="not found")
     recurring_svc.deactivate_rule(conn, user_id, rule_id)
-    # Empty body + ledger-stale trigger removes the row from the Ledger
-    # Recurring tab (hx-swap="outerHTML") and re-fetches the table so
-    # inactive rules disappear from view. Mirrors transactions/delete.
-    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.LEDGER_STALE, Event.FORECAST_STALE)
-    return resp
+    # The menu item posts with swap "none": the ledger-stale event refetches the table, the flash
+    # confirms. removed_response would delete the menu button, so it is not used here.
+    return saved_response(
+        request,
+        None,
+        {},
+        message="Recurring rule deactivated",
+        events=(Event.LEDGER_STALE, Event.FORECAST_STALE),
+    )
 
 
 @router.get("/{rule_id}/overrides/new", response_class=HTMLResponse)
@@ -362,9 +365,15 @@ def promote_submit(
         return views.render_promote_modal(
             request, conn, user_id, rule_id, fx, errors=errors, posted=posted
         )
-    return views.stale_response(
-        request, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE
+    response = saved_response(
+        request,
+        None,
+        {},
+        message="Recurring occurrence promoted",
+        events=(Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE),
     )
+    refresh_unless_on(request, response, LEDGER_PATH)
+    return response
 
 
 @router.post("/{rule_id}/skip-next")
@@ -373,7 +382,6 @@ def skip_next(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -382,16 +390,10 @@ def skip_next(
         recurring_svc.skip_and_advance(conn, user_id, rule_id)
     except recurring_svc.InactiveRecurringError:
         return Response(status_code=422, content="rule is inactive")
-    updated = recurring_svc.find_rule(conn, user_id, rule_id, include_deleted=True)
-    if updated is None:
-        return Response(status_code=404, content="not found")
-    return views.render_rule_row(
+    return saved_response(
         request,
-        conn,
-        user_id,
-        updated,
-        fx,
-        Event.LEDGER_STALE,
-        Event.FORECAST_STALE,
-        Event.BUDGET_STALE,
+        None,
+        {},
+        message="Next occurrence skipped",
+        events=(Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE),
     )

@@ -1,6 +1,6 @@
 {# pages/ledger/recently-deleted.html: soft-deleted rows of the last 90 days (T-UR10a, handoff pages/ledger/recently-deleted.html).
    Context: txn_rows, planned_rows, category_rows (ledger_view.DeletedRowView tuples), color_rules.
-   Restore posts to the entity's restore route; the row leaves the list and the route's toast and events apply. #}
+   Restore posts to the entity's restore route; fragments/ledger/deleted-panel.html refetches itself on the route's events. #}
 {% extends "layouts/base.html" %}
 {% block title %}Recently deleted · Rising Dough{% endblock %}
 {% block main %}
@@ -10,117 +10,5 @@
       <p class="rd-hero__note rd-hero__note--band">last 90 days</p>
     </div>
   </section>
-  <section class="rd-panel rd-deleted" aria-label="Recently deleted items">
-    {% if color_rules %}
-      <style nonce="{{ csp_nonce }}">
-          {{ color_rules|safe }}
-      </style>
-    {% endif %}
-    <section class="rd-deleted__group" aria-labelledby="del-tx">
-      <h2 class="rd-deleted__title" id="del-tx">
-        Transactions <span class="rd-deleted__count">· {{ txn_rows|length }}</span>
-      </h2>
-      {% if txn_rows %}
-        <div class="rd-table-scroll rd-table-scroll--flush"
-             tabindex="0"
-             role="region"
-             aria-label="Deleted transactions (scrolls sideways)">
-          <table class="rd-ledger rd-ledger--deleted-planned">
-            <caption class="u-visually-hidden">Deleted transactions</caption>
-            <thead>
-              <tr class="rd-row rd-row--head rd-row--del-planned">
-                <th scope="col">DELETED</th>
-                <th scope="col">DATE</th>
-                <th scope="col">DESCRIPTION</th>
-                <th scope="col">CATEGORY</th>
-                <th scope="col" class="rd-row__amount">AMOUNT</th>
-                <th scope="col">
-                  <span class="u-visually-hidden">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in txn_rows %}
-                {% include "fragments/rows/deleted-transaction.html" %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        {% with message="Nothing deleted." %}
-          {% include "fragments/states/empty-inline.html" %}
-        {% endwith %}
-      {% endif %}
-    </section>
-    <section class="rd-deleted__group" aria-labelledby="del-pl">
-      <h2 class="rd-deleted__title" id="del-pl">
-        Planned <span class="rd-deleted__count">· {{ planned_rows|length }}</span>
-      </h2>
-      {% if planned_rows %}
-        <div class="rd-table-scroll rd-table-scroll--flush"
-             tabindex="0"
-             role="region"
-             aria-label="Deleted planned (scrolls sideways)">
-          <table class="rd-ledger rd-ledger--deleted-planned">
-            <caption class="u-visually-hidden">Deleted planned</caption>
-            <thead>
-              <tr class="rd-row rd-row--head rd-row--del-planned">
-                <th scope="col">DELETED</th>
-                <th scope="col">DUE</th>
-                <th scope="col">DESCRIPTION</th>
-                <th scope="col">CATEGORY</th>
-                <th scope="col" class="rd-row__amount">AMOUNT</th>
-                <th scope="col">
-                  <span class="u-visually-hidden">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in planned_rows %}
-                {% include "fragments/rows/deleted-planned.html" %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        {% with message="Nothing deleted." %}
-          {% include "fragments/states/empty-inline.html" %}
-        {% endwith %}
-      {% endif %}
-    </section>
-    <section class="rd-deleted__group" aria-labelledby="del-cat">
-      <h2 class="rd-deleted__title" id="del-cat">
-        Categories <span class="rd-deleted__count">· {{ category_rows|length }}</span>
-      </h2>
-      {% if category_rows %}
-        <div class="rd-table-scroll rd-table-scroll--flush"
-             tabindex="0"
-             role="region"
-             aria-label="Deleted categories (scrolls sideways)">
-          <table class="rd-ledger rd-ledger--deleted-cats">
-            <caption class="u-visually-hidden">Deleted categories</caption>
-            <thead>
-              <tr class="rd-row rd-row--head rd-row--del-cat">
-                <th scope="col">DELETED</th>
-                <th scope="col">NAME</th>
-                <th scope="col">DIRECTION</th>
-                <th scope="col">
-                  <span class="u-visually-hidden">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in category_rows %}
-                {% include "fragments/rows/deleted-category.html" %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        {% with message="Nothing deleted." %}
-          {% include "fragments/states/empty-inline.html" %}
-        {% endwith %}
-      {% endif %}
-    </section>
-  </section>
+  {% include "fragments/ledger/deleted-panel.html" %}
 {% endblock %}

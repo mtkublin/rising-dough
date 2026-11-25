@@ -548,13 +548,12 @@ def table_context(
         view_keys = _actual_keys(
             conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets
         )
+        hero = ledger_view.ledger_hero(
+            period_spent_minor(conn, user_id, settings, today), settings.base_currency
+        )
     else:
-        sched = (
-            _planned_rows(conn, user_id, filters, today)
-            if view == "planned"
-            else _recurring_rows(
-                conn, user_id, filters, fx_service.converter_for(conn, settings, today)
-            )
+        sched, hero = _sched_page(
+            conn, user_id, settings=settings, view=view, filters=filters, today=today
         )
         rows, view_keys = sched, _sched_keys(conn, user_id, view, filters, sched)
     cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
@@ -565,6 +564,11 @@ def table_context(
         "categories_by_id": cats,
         "export": export_links(view, filters),
         "oob_export": True,  # the menu sits outside the swapped region; refresh it with it
+        # hero and tab counts sit outside the swapped region too: they refresh with the rows
+        "title": ledger_view.VIEW_TITLES[view],
+        "hero": hero,
+        "tabs": ledger_view.ledger_tabs(view, _tab_counts(conn, user_id)),
+        "oob": True,
     }
 
 

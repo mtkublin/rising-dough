@@ -603,10 +603,11 @@ def test_promote_form_404(client: TestClient) -> None:
 def test_promote_submit_no_edits(
     client: TestClient, ctx: dict[str, int], _migrated: Settings
 ) -> None:
-    r = client.post(f"/recurring/{ctx['rule']}/promote", data={})
+    r = client.post(f"/recurring/{ctx['rule']}/promote", data={}, headers=_HTMX)
     assert r.status_code == 200
     payload = json.loads(r.headers["HX-Trigger"])
     assert payload == {"ledger-stale": True, "forecast-stale": True, "budget-stale": True}
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Recurring occurrence promoted")
 
     # DB side-effect: rule's next_due advanced + one new transaction exists.
     conn = get_connection(_migrated)
@@ -702,10 +703,12 @@ def test_promote_submit_cross_currency_transit_422(client: TestClient, _migrated
 
 def test_skip_next_advances(client: TestClient, ctx: dict[str, int], _migrated: Settings) -> None:
     before = _get_rule_next_due(_migrated, ctx["rule"])
-    r = client.post(f"/recurring/{ctx['rule']}/skip-next")
+    r = client.post(f"/recurring/{ctx['rule']}/skip-next", headers=_HTMX)
     assert r.status_code == 200
     payload = json.loads(r.headers["HX-Trigger"])
     assert payload == {"ledger-stale": True, "forecast-stale": True, "budget-stale": True}
+    assert "HX-Reswap" not in r.headers
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Next occurrence skipped")
     after = _get_rule_next_due(_migrated, ctx["rule"])
     assert after > before
 
@@ -832,17 +835,16 @@ def test_recurring_delete_soft_deactivates(
         conn.close()
 
 
-def test_recurring_delete_returns_empty_body_and_triggers_ledger_stale(
+def test_recurring_delete_flashes_and_triggers_ledger_stale(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
-    """Delete returns an empty body + HX-Trigger so the row vanishes from
-    the Ledger Recurring tab (hx-swap=outerHTML) and the table re-fetches."""
-    r = client.post(f"/recurring/{ctx['rule']}/deactivate")
+    """Delete swaps nothing (the menu item posts with swap none): the flash confirms, the stale
+    events refetch the table. HX-Reswap delete (removed_response) would delete the menu button."""
+    r = client.post(f"/recurring/{ctx['rule']}/deactivate", headers=_HTMX)
     assert r.status_code == 200
-    assert r.text == ""
-    triggers = json.loads(r.headers["HX-Trigger"])
-    assert "ledger-stale" in triggers
-    assert "forecast-stale" in triggers
+    assert json.loads(r.headers["HX-Trigger"]) == {"ledger-stale": True, "forecast-stale": True}
+    assert "HX-Reswap" not in r.headers
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Recurring rule deactivated")
 
 
 def test_recurring_delete_hides_from_ledger_view(client: TestClient, ctx: dict[str, int]) -> None:

@@ -23,7 +23,7 @@ from budget_planner.services import (
 from budget_planner.services.limit_preview import compute_limit_preview
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
-from budget_planner.web.htmx import Event, trigger
+from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice, query_int
 from budget_planner.web.paths import NEW_PATH, TABLE_PATH
@@ -262,7 +262,13 @@ def restore_txn(
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    trigger(
+        resp,
+        Event.BALANCE_STALE,
+        Event.FORECAST_STALE,
+        Event.LEDGER_STALE,
+        toast=toast_payload("success", "Transaction restored"),
+    )
     return resp
 
 
