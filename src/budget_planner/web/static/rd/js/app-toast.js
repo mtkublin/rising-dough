@@ -199,6 +199,15 @@
     detail.isError = false;
   });
 
+  /* A save wins over a hero refresh still in flight: the refresh request is aborted when the form
+     posts (the refresh element syncs only with itself, so it can never abort or delay the save). */
+  document.addEventListener('htmx:beforeRequest', (event) => {
+    const detail = event.detail || {};
+    if (!detail.elt || detail.elt.tagName !== 'FORM') return;
+    const refresh = detail.elt.querySelector('#hero-refresh');
+    if (refresh && window.htmx) window.htmx.trigger(refresh, 'htmx:abort');
+  });
+
   document.addEventListener('htmx:afterSwap', (event) => {
     const saved = typed;
     typed = null;

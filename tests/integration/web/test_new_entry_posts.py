@@ -441,7 +441,7 @@ def test_hero_placeholder_follows_the_currency_exponent(
     assert _html.resolve_one(r.text, entries.hero_amount).get("placeholder") == "0.00"
 
 
-def test_formula_slot_refreshes_the_hero_while_typing_and_never_drops_the_form(
+def test_formula_slot_refreshes_the_hero_while_typing_and_a_newer_refresh_replaces_the_older(
     client: TestClient, ids: dict[str, int]
 ) -> None:
     r = client.get("/add?when=repeats&dialog=1", headers=_HX)
@@ -449,7 +449,7 @@ def test_formula_slot_refreshes_the_hero_while_typing_and_never_drops_the_form(
     trigger = str(refresh.get("hx-trigger"))
     assert "keyup changed delay:400ms from:#formula-slot" in trigger
     assert "change from:#formula-slot" in trigger
-    assert refresh.get("hx-sync") == "closest form:drop"
+    assert refresh.get("hx-sync") == "this:replace"
 
 
 def test_repeats_formula_hero_shows_the_service_next_amount(
