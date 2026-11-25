@@ -23,6 +23,13 @@ from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS
 from tests.visual.handoff_openers import OPENERS, opener_url
+from tests.visual.handoff_recurring import (
+    STATE_PAGES,
+    STATE_RECIPES,
+    STATE_SOURCE,
+    state_opener_url,
+    state_recipe,
+)
 from tests.visual.test_reference import (
     ANONYMOUS_PAGES,
     FORM_SUBMITS,
@@ -52,12 +59,13 @@ def test_recurring_reference_uses_board_modifier() -> None:
 
 def test_every_overlay_page_is_mapped_or_listed_unmapped() -> None:
     overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
-    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES
+    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES | STATE_PAGES
     unmapped = {f"pages/overlays/{n}.html" for n in UNMAPPED_OVERLAYS}
     assert mapped | unmapped == overlays
     assert not mapped & unmapped
     assert not set(OVERLAY_DIALOGS) & OPENER_PAGES
     assert not CLICK_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES)
+    assert not STATE_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES)
     for page in overlays:
         assert base_page_of(page).startswith("pages/")
         assert handoff.surface_of(base_page_of(page)) != "overlays"
@@ -367,3 +375,73 @@ def test_used_email_posts_answer_422_with_the_typed_values(seeded: tuple[Setting
         text = " ".join(re.sub(r"<[^>]+>", " ", response.text).split())
         assert error in text, stem
         assert 'value="partner@example.test"' in response.text
+
+
+_STATES = {
+    "edit-recurring--empty": "Taxes",
+    "edit-recurring--incomplete": "Taxes",
+    "edit-recurring--picking": "Taxes",
+    "edit-transaction--error": "Takeaway",
+    "override--remove": "Big Purchases",
+}
+
+
+def test_state_overlays_are_mapped_with_their_base_pages() -> None:
+    assert {p.split("/")[-1][:-5] for p in STATE_PAGES} == set(_STATES) == set(STATE_SOURCE)
+    assert not {n for n in STATE_SOURCE if f"pages/overlays/{n}.html" in OPENER_PAGES}
+    assert set(STATE_RECIPES) == set(STATE_SOURCE) - {"override--remove"}
+    for stem in ("edit-recurring--empty", "edit-recurring--incomplete", "edit-recurring--picking"):
+        page = f"pages/overlays/{stem}.html"
+        assert route_for(page) == "/ledger?view=recurring"
+        assert modifiers_for(page) == ("recurring-board",)
+        assert state_recipe(page) is STATE_RECIPES[stem]
+    assert route_for("pages/overlays/edit-transaction--error.html") == LEDGER_BOARD
+    assert route_for("pages/overlays/override--remove.html") == "/ledger?view=recurring"
+    assert state_recipe("pages/overlays/override--remove.html") is None
+    assert state_recipe("pages/today.html") is None
+
+
+def test_state_openers_resolve_the_dialog_each_state_starts_from(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    path = tmp_path_factory.mktemp("states") / "seed.sqlite"
+    token = handoff_seed.build_seed(path, modifiers=("recurring-board",)).session_token
+    settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
+    conn = get_connection(settings)
+    try:
+        urls = {s: state_opener_url(f"pages/overlays/{s}.html", conn) for s in _STATES}
+        assert state_opener_url("pages/today.html", conn) is None
+        taxes = opener_url("pages/overlays/edit-recurring--formula.html", conn)
+        takeaway = opener_url("pages/overlays/edit-transaction.html", conn)
+        month = opener_url("pages/overlays/override--budget-month.html", conn)
+    finally:
+        conn.close()
+    assert urls["edit-recurring--empty"] == urls["edit-recurring--picking"] == taxes
+    assert urls["edit-recurring--incomplete"] == taxes
+    assert urls["edit-transaction--error"] == takeaway
+    assert urls["override--remove"] == f"{month}&remove=1"
+    for stem, text in _STATES.items():
+        url = urls[stem]
+        assert url is not None
+        status, body, retarget = _get(settings, token, url)
+        assert status == 200, stem
+        assert text in body, stem
+        assert retarget == "#modal-root"
+
+
+def test_remove_override_confirm_names_the_default_it_falls_back_to(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    path = tmp_path_factory.mktemp("remove") / "seed.sqlite"
+    token = handoff_seed.build_seed(path).session_token
+    settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
+    conn = get_connection(settings)
+    try:
+        url = state_opener_url("pages/overlays/override--remove.html", conn)
+    finally:
+        conn.close()
+    assert url is not None
+    _, body, _ = _get(settings, token, url)
+    text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
+    assert "Remove override?" in text
+    assert "Big Purchases \u00b7 Oct 2026 goes back to the default 604.35 PLN." in text

@@ -33,6 +33,7 @@ from tests.visual.conftest import serve_db
 from tests.visual.handoff_clicks import click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS, submit_dialog
 from tests.visual.handoff_openers import OPENERS, opener_url
+from tests.visual.handoff_recurring import STATE_PAGES, state_opener_url, state_recipe
 from tests.visual.handoff_seed import build_seed
 
 pytestmark = pytest.mark.visual
@@ -141,17 +142,13 @@ OVERLAY_DIALOGS: dict[str, str] = {
 # the seed): `handoff_openers.OPENERS`; the test loads the overlay's base page and fetches it
 # into #modal-root.
 # Overlay pages with no way to open their state yet (the year-cell inline editor, POST
-# error states, settings/users dialogs, formula editor states); click and key states are
+# error states); click and key states are
 # `handoff_clicks.CLICK_RECIPES`: compared against their plain
 # base page.
 UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
         "delete-account--blocked-planned",
         "delete-account",
-        "edit-recurring--empty",
-        "edit-recurring--incomplete",
-        "edit-recurring--picking",
-        "edit-transaction--error",
         "new-account--error",
         "new-account--filled",
         "new-category--error",
@@ -160,7 +157,6 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "new-entry--over-limit",
         "new-entry--phone-sheet",
         "new-entry--repeats-formula",
-        "override--remove",
         "override--year-cell",
     }
 )
@@ -300,7 +296,7 @@ def test_app_matches_handoff(
     route = route_for(handoff_page)
     modifiers = modifiers_for(handoff_page)
     with contextlib.ExitStack() as stack:
-        if modifiers or handoff_page in DIALOG_SUBMITS:
+        if modifiers or handoff_page in DIALOG_SUBMITS or handoff_page in STATE_PAGES:
             # Own seeded DB: the opener's ids are resolved from the DB being served (and a
             # submitted dialog, e.g. a password reset, must not change the shared one).
             tmp_path_factory = request.getfixturevalue("tmp_path_factory")
@@ -331,11 +327,11 @@ def _opener_for(handoff_page: str, db_path: Path) -> str | None:
     """Dialog route of an overlay page, ids resolved from the seeded scratch DB (read-only)."""
     if handoff_page in OVERLAY_DIALOGS:
         return OVERLAY_DIALOGS[handoff_page]
-    if handoff_page not in OPENER_PAGES:
+    if handoff_page not in OPENER_PAGES and handoff_page not in STATE_PAGES:
         return None
     conn = get_connection(Settings(_env_file=None, database_url=f"sqlite:///{db_path.as_posix()}"))
     try:
-        return opener_url(handoff_page, conn)
+        return state_opener_url(handoff_page, conn) or opener_url(handoff_page, conn)
     finally:
         conn.close()
 
@@ -377,6 +373,8 @@ def _compare_app(
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
             if handoff_page in DIALOG_SUBMITS:
                 submit_dialog(pg, handoff_page)
+            elif (state := state_recipe(handoff_page)) is not None:
+                state(pg)  # a dialog the user has worked on (handoff_recurring)
         elif (recipe := click_recipe(handoff_page)) is not None:
             recipe(pg)  # client-side overlay: the click or key a user makes (handoff_clicks)
         pg.add_style_tag(content=handoff.FREEZE_CSS)
