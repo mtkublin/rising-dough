@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import http.client
+import json
 import shutil
 import subprocess
+import tempfile
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -15,13 +18,33 @@ from pathlib import Path
 import pytest
 from bs4 import BeautifulSoup, Tag
 
+from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.services import (
+    analytics as analytics_service,
+    budget as budget_service,
+    categories as categories_service,
+    fx as fx_service,
+)
+from budget_planner.web import plan_views
+from tests.visual import handoff_seed
 from tests.visual.overlay import (
+    ABSENT_SETTABLE,
     ALLOWED_ATTRIBUTES,
+    ALLOWED_CLASS_CHANGES,
+    ALLOWED_CLASS_TOKENS,
+    ANALYTICS_PAGE,
+    APP_VALUES_SOURCE,
     GEOMETRY_ATTRIBUTES,
     GEOMETRY_SOURCES,
+    OVERLAY_FILE,
+    VALUE_SOURCES,
     OverlayError,
     Row,
     apply_rows,
+    class_change_violation,
+    delta_rows,
+    kind_violation,
     load_rows,
     overlay_handler,
     overlay_page,
@@ -41,19 +64,30 @@ def row_violations(row: Row) -> list[str]:
     found: list[str] = []
     if not row.reason.strip():
         found.append("no reason")
-    if row.field != "text" and row.field not in ALLOWED_ATTRIBUTES:
+    if row.field not in {"text", "class"} and row.field not in ALLOWED_ATTRIBUTES:
         if row.field in GEOMETRY_ATTRIBUTES:
             if row.source != "geometry" or row.source not in GEOMETRY_SOURCES:
                 found.append(f"geometry attribute {row.field!r} needs a generated geometry source")
         else:
             found.append(f"field {row.field!r} is not allowed")
-    if row.source and row.source not in GEOMETRY_SOURCES:
+    if row.source == APP_VALUES_SOURCE and row.field != "text":
+        found.append("an app-values row changes text only")
+    if row.source and row.source not in GEOMETRY_SOURCES | VALUE_SOURCES:
         found.append(f"source {row.source!r} has no generator yet")
     if not row.page.startswith("pages/") or not row.page.endswith(".html"):
         found.append("page must be a handoff HTML page glob")
+    if message := kind_violation(row):
+        found.append(message)
     if row.old == row.value:
         found.append("old equals value")
     return found
+
+
+def _plain(name: str, value: object) -> str:
+    """Attribute value for the skeleton: reviewed class tokens dropped, nothing else."""
+    if name == "class" and isinstance(value, list):
+        return str([t for t in value if t not in ALLOWED_CLASS_TOKENS])
+    return str(value)
 
 
 def skeleton(html: str) -> list[tuple[object, ...]]:
@@ -64,11 +98,11 @@ def skeleton(html: str) -> list[tuple[object, ...]]:
         assert isinstance(el, Tag)
         attrs = tuple(
             sorted(
-                (k, str(v))
+                (k, _plain(k, v))
                 for k, v in el.attrs.items()
                 if k not in ALLOWED_ATTRIBUTES and k not in GEOMETRY_ATTRIBUTES
             )
-        )  # geometry attributes change only through source = "geometry" rows (row_violations)
+        )  # geometry: generated rows only; reviewed class tokens ignored
         body = el.get_text() if el.name in ("script", "style") else ""
         out.append((el.name, attrs, body))
     return out
@@ -136,8 +170,62 @@ def test_vendored_handoff_is_untouched() -> None:
 # --- the guard bites -----------------------------------------------------------------
 
 
-def test_red_class_row_is_refused() -> None:
-    assert row_violations(replace(_BASE, field="class")) == ["field 'class' is not allowed"]
+_CLASS = replace(
+    _BASE,
+    select="p",
+    field="class",
+    old="a rd-fc__net--negative",
+    value="a",
+)
+_CLASS_HTML = '<p class="a rd-fc__net--negative">x</p>'
+_ABSENT = replace(_BASE, select="input", field="value", old="", value="pizza", absent=True)
+
+
+def test_red_class_row_with_a_disallowed_token_pair_is_refused() -> None:
+    assert row_violations(_CLASS) == []
+    assert row_violations(replace(_CLASS, old="a hidden", value="a"))
+    assert row_violations(replace(_CLASS, old="a", value="a rd-fc__net--negative"))
+    assert row_violations(replace(_CLASS, old="a b", value="c d"))
+    assert "not in ALLOWED_CLASS_CHANGES" in class_change_violation("a b", "a c")
+    assert "more than one token" in class_change_violation("a b c", "a")
+    with pytest.raises(OverlayError, match="ALLOWED_CLASS_CHANGES"):
+        apply_rows("pages/p.html", '<p class="a hidden">x</p>', [replace(_CLASS, old="a hidden")])
+
+
+def test_class_row_replaces_exactly_the_allowed_token() -> None:
+    assert apply_rows("pages/p.html", _CLASS_HTML, [_CLASS]) == '<p class="a">x</p>'
+    assert {("rd-fc__net--negative", "")} == ALLOWED_CLASS_CHANGES
+
+
+def test_stale_class_row_is_an_error() -> None:
+    with pytest.raises(OverlayError, match="class='a'"):
+        apply_rows("pages/p.html", '<p class="a">x</p>', [_CLASS])
+    with pytest.raises(OverlayError, match="matched 0"):
+        apply_rows("pages/p.html", "<i>x</i>", [_CLASS])
+
+
+def test_skeleton_ignores_only_the_allowed_class_token() -> None:
+    assert skeleton(_CLASS_HTML) == skeleton('<p class="a">x</p>')
+    assert skeleton(_CLASS_HTML) != skeleton('<p class="b">x</p>')
+
+
+def test_absent_row_sets_a_missing_text_attribute() -> None:
+    assert row_violations(_ABSENT) == []
+    out = apply_rows("pages/p.html", '<input id="q">', [_ABSENT])
+    assert out == '<input id="q" value="pizza"/>'
+    assert skeleton(out) == skeleton('<input id="q">')
+
+
+def test_absent_row_refuses_other_attributes_and_stale_state() -> None:
+    assert {"value", "placeholder"} == ABSENT_SETTABLE
+    assert row_violations(replace(_ABSENT, field="title"))
+    assert row_violations(replace(_ABSENT, field="id"))
+    assert row_violations(replace(_ABSENT, old="x"))
+    assert row_violations(replace(_CLASS, absent=True))
+    with pytest.raises(OverlayError, match="expected it absent"):
+        apply_rows("pages/p.html", '<input value="a">', [_ABSENT])
+    with pytest.raises(OverlayError, match="cannot be created"):
+        apply_rows("pages/p.html", "<input>", [replace(_ABSENT, field="id")])
 
 
 def test_red_style_and_id_rows_are_refused() -> None:
@@ -248,3 +336,102 @@ def test_serve_returns_the_overlaid_page_and_static_files_as_is() -> None:
     assert 'aria-keyshortcuts="g t"' in text
     assert css == (HANDOFF / "static/css/tokens.css").read_bytes()
     assert "114.20 over" in (HANDOFF / "pages/today--afford-over.html").read_text(encoding="utf-8")
+
+
+# --- generated app-value rows: Plan · analytics "vs 12-mo avg" (ADR-0147 amendment) -------
+
+DAY = dt.date(2026, 10, 31)
+VALUES_MARKER = "# --- generated app-value rows (do not edit; regenerate, see below) ---"
+VALUES_REASON = (
+    "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed "
+    "(its own chart implies different totals); the app computes the delta from the seed history"
+)
+REGENERATE = "uv run python -m tests.visual.test_handoff_overlay"
+ANALYTICS_HTML = (HANDOFF / ANALYTICS_PAGE).read_text(encoding="utf-8")
+
+
+def seed_deltas() -> tuple[tuple[str, bool], ...]:
+    """The app's ``(delta_text, delta_down)`` per spend row, run over the base seed."""
+    with tempfile.TemporaryDirectory() as tmp:
+        result = handoff_seed.build_seed(Path(tmp) / "base.sqlite")
+        settings = Settings(_env_file=None, database_url=f"sqlite:///{result.db_path.as_posix()}")
+        conn = get_connection(settings)
+        try:
+            user = handoff_seed.OWNER_ID
+            picked = budget_service.resolve_picker_month(
+                conn, user, DAY, year_raw=None, month_raw=None
+            )
+            bundle = analytics_service.bundle(
+                conn,
+                user,
+                fx_service.converter_for(conn, settings, DAY),
+                today=analytics_service.reference_today(DAY, picked.year, picked.month),
+                period=analytics_service.normalize_period(None),
+            )
+            colors = {
+                c.id: c.color for c in categories_service.list_all(conn, user, include_deleted=True)
+            }
+        finally:
+            conn.close()
+    view = plan_views.analytics_page(bundle, picked, colors, settings.base_currency)
+    return tuple((r.delta_text, r.delta_down) for r in view.rows)
+
+
+def seed_value_rows() -> tuple[Row, ...]:
+    return delta_rows(ANALYTICS_HTML, seed_deltas(), reason=VALUES_REASON)
+
+
+def _values_toml(rows: tuple[Row, ...]) -> str:
+    blocks = [VALUES_MARKER, ""]
+    for r in rows:
+        blocks += [
+            "[[row]]",
+            *(
+                f"{key} = {json.dumps(getattr(r, key), ensure_ascii=False)}"
+                for key in ("page", "select", "field", "old", "value", "reason", "source")
+            ),
+            "",
+        ]
+    return "\n".join(blocks)
+
+
+def test_committed_app_value_rows_equal_the_generated_rows() -> None:
+    committed = tuple(r for r in ROWS if r.source == APP_VALUES_SOURCE)
+    generated = seed_value_rows()
+    assert generated, "no app-value rows generated"
+    assert committed == generated, f"stale app-value rows; regenerate with: {REGENERATE}"
+
+
+def test_app_value_rows_make_the_handoff_deltas_equal_the_app() -> None:
+    applied = apply_rows(ANALYTICS_PAGE, ANALYTICS_HTML, ROWS)
+    cells = BeautifulSoup(applied, "html.parser").select("tr.rd-row--spend .rd-spend__delta")
+    assert [c.get_text() for c in cells] == [t for t, _ in seed_deltas()]
+    assert delta_rows(applied, seed_deltas(), reason="x") == ()
+
+
+def test_delta_rows_refuse_an_up_down_or_count_mismatch() -> None:
+    html = (
+        '<table><tr class="rd-row--spend"><td class="rd-spend__delta rd-num">▲ +1.00</td></tr>'
+        '<tr class="rd-row--spend"><td class="rd-spend__delta rd-num rd-spend__delta--down">'
+        "▼ \u22122.00</td></tr></table>"
+    )
+    rows = delta_rows(html, [("▲ +5.00", False), ("▼ \u22122.00", True)], reason="r")
+    assert [(r.select, r.old, r.value, r.source) for r in rows] == [
+        ("tr.rd-row--spend:nth-of-type(1) .rd-spend__delta", "▲ +1.00", "▲ +5.00", "app-values")
+    ]
+    with pytest.raises(OverlayError, match="up/down"):
+        delta_rows(html, [("▲ +5.00", False), ("▲ +1.00", False)], reason="r")
+    with pytest.raises(OverlayError, match="2 spend rows, the app has 1"):
+        delta_rows(html, [("▲ +5.00", False)], reason="r")
+
+
+def test_red_app_values_row_is_text_only() -> None:
+    row = replace(_BASE, source=APP_VALUES_SOURCE)
+    assert row_violations(row) == []
+    assert row_violations(replace(row, field="title"))
+
+
+if __name__ == "__main__":
+    text = OVERLAY_FILE.read_text(encoding="utf-8")
+    head = text.split(VALUES_MARKER)[0].rstrip("\n")
+    OVERLAY_FILE.write_text(f"{head}\n\n{_values_toml(seed_value_rows())}", encoding="utf-8")

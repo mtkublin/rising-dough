@@ -1,7 +1,8 @@
 """Year grid and budget override dialogs: tiers, remove and period navigation (T-UR11b).
 
-The year cell opens the override dialog; the scope radio picks the stored row (this month only,
-every <month>, new default). A saved or removed override closes the dialog and reloads the grid.
+A plain click on a year cell edits it in place (one-off); a Shift click opens the override dialog,
+whose scope radio picks the stored row (this month only, every <month>, new default). A saved or
+removed override closes the dialog and reloads the grid.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ def _budgeted(world: World) -> int:
 def _open_march(world: World) -> int:
     year = today().year
     world.goto("/plan?tab=year")
-    world.find(plan_year.cell("Groceries", "March")).click()
+    world.find(plan_year.cell("Groceries", "March")).click(modifiers=["Shift"])  # the dialog
     expect(world.find(plan_year.dialog("Groceries", f"Mar {year}"))).to_be_visible()
     return year
 
@@ -96,7 +97,7 @@ def test_removing_an_override_restores_the_default(world: World) -> None:
     # cell before it settles lands on the element about to be replaced and opens nothing.
     expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("• 321.00")
     quiesce(world.page)
-    world.find(plan_year.cell("Groceries", "March")).click()
+    world.find(plan_year.cell("Groceries", "March")).click(modifiers=["Shift"])  # the dialog
     dialog = plan_year.dialog("Groceries", f"Mar {year}")
     expect(world.find(dialog)).to_be_visible()
     world.find(plan_year.remove_override(dialog)).click()
@@ -138,3 +139,52 @@ def test_year_tab_navigation_steps_years(world: World) -> None:
     world.find(plan_year.period_next).click()
     world.find(plan_year.period_next).click()
     expect(world.find(plan_year.period_label)).to_contain_text("2027")
+
+
+def test_year_cell_edits_in_place_and_saves_a_one_off_on_enter(world: World) -> None:
+    category = _budgeted(world)
+    year = today().year
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    expect(editor).to_have_value("500.00")
+    editor.fill("321.00")
+    editor.press("Enter")
+
+    row = world.wait_rows(
+        "SELECT * FROM budget_one_off_overrides WHERE category_id = ? AND deleted_at IS NULL",
+        (category,),
+    )[0]
+    assert (row["year"], row["month"], row["amount"]) == (year, MARCH, 32100)
+    expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("• 321.00")
+    expect(world.find(plan_year.cell_editor("Groceries", "March"))).to_have_count(0)
+
+
+def test_year_cell_editor_escape_cancels_without_saving(world: World) -> None:
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    editor.fill("321.00")
+    editor.press("Escape")
+
+    expect(world.find(plan_year.cell_editor("Groceries", "March"))).to_have_count(0)
+    expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("500.00")
+    assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0
+
+
+def test_year_cell_editor_shows_the_error_of_a_failed_save(world: World) -> None:
+    _budgeted(world)
+    year = today().year
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    editor.fill("1.2.3")
+    editor.press("Enter")
+
+    dialog = plan_year.dialog("Groceries", f"Mar {year}")
+    expect(world.find(dialog)).to_be_visible()
+    expect(world.find(rd_dialogs.field_error(dialog, "amount"))).to_contain_text(
+        "enter an amount of 0 or more"
+    )
+    assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0

@@ -934,118 +934,6 @@ reason = "seed value via forecast.monthly_projection: Sep 2027 end balance"
 
 [[row]]
 page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(1) .rd-spend__delta"
-field = "text"
-old = "▲ +1,288.90"
-value = "▲ +7,894.17"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(2) .rd-spend__delta"
-field = "text"
-old = "▲ +295.71"
-value = "▲ +5,308.24"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(3) .rd-spend__delta"
-field = "text"
-old = "▲ +320.12"
-value = "▲ +1,467.01"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(4) .rd-spend__delta"
-field = "text"
-old = "▲ +166.64"
-value = "▲ +611.45"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(5) .rd-spend__delta"
-field = "text"
-old = "▲ +191.50"
-value = "▲ +488.59"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(6) .rd-spend__delta"
-field = "text"
-old = "▼ −277.96"
-value = "▼ −289.89"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(7) .rd-spend__delta"
-field = "text"
-old = "▼ −12.10"
-value = "▼ −301.84"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(8) .rd-spend__delta"
-field = "text"
-old = "▼ −571.48"
-value = "▼ −352.04"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(9) .rd-spend__delta"
-field = "text"
-old = "▼ −294.33"
-value = "▼ −438.22"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(10) .rd-spend__delta"
-field = "text"
-old = "▼ −158.70"
-value = "▼ −456.82"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(11) .rd-spend__delta"
-field = "text"
-old = "▼ −248.70"
-value = "▼ −466.19"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(12) .rd-spend__delta"
-field = "text"
-old = "▼ −33.90"
-value = "▼ −478.95"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(13) .rd-spend__delta"
-field = "text"
-old = "▼ −3,379.18"
-value = "▼ −653.97"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
-select = "tr.rd-row--spend:nth-of-type(14) .rd-spend__delta"
-field = "text"
-old = "▼ −591.11"
-value = "▼ −665.46"
-reason = "handoff data inconsistency: the board's twelve-month averages sum to a spend the board's own flow chart (about 24k a month) cannot produce; the seed history feeds the chart, so the app's averages are what the seed yields"
-
-[[row]]
-page = "pages/plan/analytics.html"
 select = "li.rd-largest__item:nth-of-type(2) .rd-largest__name"
 field = "text"
 old = "Fixed Costs "
@@ -3117,3 +3005,156 @@ old = "6"
 value = "7"
 optional = true
 reason = "handoff inconsistent, app right: the board repeats Today's budgeted-category spend while ADR-0151 section 2 defines the figure as every expense in the pay window (19,417.18, as the actual board's overlay row)"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = "#f-q"
+field = "value"
+absent = true
+old = ""
+value = "pizza"
+reason = "handoff inconsistent, app right: the board's summary names the search 'pizza' but the search input carries no value attribute; the app shows the active q in its box (ADR-0147 amendment: absent text attribute)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(4)"
+field = "class"
+old = "rd-fc__num rd-fc__net--negative"
+value = "rd-fc__num"
+reason = "handoff inconsistent, app right: the Dec 2026 net cell paints a positive figure (597.07 after the value row above, forecast.monthly_projection) in the loss colour with class rd-fc__net--negative; the app paints a positive net plain (ADR-0147 amendment: class token pair)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(4)"
+field = "class"
+old = "rd-fc__num rd-fc__net--negative"
+value = "rd-fc__num"
+reason = "handoff inconsistent, app right: the Sep 2027 net cell paints a positive figure (3,353.46 after the value row, forecast.monthly_projection) in the loss colour with class rd-fc__net--negative; the app paints a positive net plain (ADR-0147 amendment: class token pair)"
+
+# --- generated app-value rows (do not edit; regenerate, see below) ---
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(1) .rd-spend__delta"
+field = "text"
+old = "▲ +1,288.90"
+value = "▲ +7,894.17"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(2) .rd-spend__delta"
+field = "text"
+old = "▲ +295.71"
+value = "▲ +5,308.24"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(3) .rd-spend__delta"
+field = "text"
+old = "▲ +320.12"
+value = "▲ +1,467.01"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(4) .rd-spend__delta"
+field = "text"
+old = "▲ +166.64"
+value = "▲ +611.45"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(5) .rd-spend__delta"
+field = "text"
+old = "▲ +191.50"
+value = "▲ +488.59"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(6) .rd-spend__delta"
+field = "text"
+old = "▼ −277.96"
+value = "▼ −229.38"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(7) .rd-spend__delta"
+field = "text"
+old = "▼ −12.10"
+value = "▼ −241.35"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(8) .rd-spend__delta"
+field = "text"
+old = "▼ −571.48"
+value = "▼ −291.55"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(9) .rd-spend__delta"
+field = "text"
+old = "▼ −294.33"
+value = "▼ −456.83"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(10) .rd-spend__delta"
+field = "text"
+old = "▼ −158.70"
+value = "▼ −475.43"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(11) .rd-spend__delta"
+field = "text"
+old = "▼ −248.70"
+value = "▼ −484.80"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(12) .rd-spend__delta"
+field = "text"
+old = "▼ −33.90"
+value = "▼ −520.84"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(13) .rd-spend__delta"
+field = "text"
+old = "▼ −3,379.18"
+value = "▼ −695.86"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(14) .rd-spend__delta"
+field = "text"
+old = "▼ −591.11"
+value = "▼ −707.35"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"

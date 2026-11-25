@@ -51,6 +51,11 @@ def cell(category_name: str, month_name: str) -> Locator:
     return role("link", re.compile(rf"^{re.escape(category_name)}, {month_name}: ")).inside(table)
 
 
+def cell_editor(category_name: str, month_name: str) -> Locator:
+    """The inline editor of a cell (``<Category>, <Month> budget``), open after a plain click."""
+    return role("textbox", f"{category_name}, {month_name} budget", exact=True).inside(table)
+
+
 def unbudgeted(category_name: str) -> Locator:
     """A category in the "without a budget" disclosure (a link in the app)."""
     return role("link", category_name, exact=True)
