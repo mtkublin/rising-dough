@@ -307,6 +307,13 @@ def _compare_mismatched(
     )
 
 
+def passes(result: Comparison, *, ratio_limit: float, cluster_cap: int) -> bool:
+    """Verdict: a size mismatch always fails, whatever its ratio; else ratio and cluster limits."""
+    return (
+        not result.size_mismatch and result.ratio <= ratio_limit and result.cluster <= cluster_cap
+    )
+
+
 def largest_cluster(
     mask: bytes, width: int, height: int, cap: int | None = None
 ) -> tuple[int, Box | None]:

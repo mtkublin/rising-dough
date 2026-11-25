@@ -6,7 +6,7 @@ import struct
 import zlib
 from pathlib import Path
 
-from tests.visual.handoff import compare, write_diff_png
+from tests.visual.handoff import Comparison, compare, passes, write_diff_png
 
 
 def _write(
@@ -87,3 +87,23 @@ def test_size_mismatch_writes_a_diff_of_the_shared_window(tmp_path: Path) -> Non
     write_diff_png(compare(expected, actual), out)
     assert out.is_file()
     assert compare(out, out).ratio == 0.0
+
+
+def _result(ratio: float, cluster: int, *, mismatch: bool = False) -> Comparison:
+    return Comparison(ratio, cluster, None, 1, 1, b"", size_mismatch=mismatch)
+
+
+def test_passes_fails_a_size_mismatch_even_under_the_ratio_limit() -> None:
+    assert not passes(_result(0.0005, -1, mismatch=True), ratio_limit=0.001, cluster_cap=52)
+
+
+def test_passes_accepts_equal_sizes_under_both_limits() -> None:
+    assert passes(_result(0.0005, 10), ratio_limit=0.001, cluster_cap=52)
+
+
+def test_passes_fails_over_the_ratio() -> None:
+    assert not passes(_result(0.002, 10), ratio_limit=0.001, cluster_cap=52)
+
+
+def test_passes_fails_over_the_cluster() -> None:
+    assert not passes(_result(0.0005, 53), ratio_limit=0.001, cluster_cap=52)
