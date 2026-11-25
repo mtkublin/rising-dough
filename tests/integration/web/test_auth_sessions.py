@@ -193,7 +193,9 @@ def test_session_rows_print_the_device_label_and_only_others_ids(
     assert "Firefox · macOS" in sessions
     assert "83.24.117.9" in sessions
     assert "9.9.9.9" not in sessions  # the other user's session is absent
-    assert _html.count(html, ui.session_signout.inside(ui.sessions)) == 1  # the new one; the current device has no button (handoff)
+    assert (
+        _html.count(html, ui.session_signout.inside(ui.sessions)) == 1
+    )  # the new one; the current device has no button (handoff)
 
 
 def test_revoking_another_session_removes_its_row_and_keeps_the_current(

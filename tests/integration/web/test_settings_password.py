@@ -159,7 +159,9 @@ def test_post_wrong_current_audits_and_keeps_state(
         headers={"User-Agent": "audit-ua"},
     )
     assert r.status_code == 422
-    assert "Current password is wrong" in _html.text_of(r.text, ui.password_error("current_password"))
+    assert "Current password is wrong" in _html.text_of(
+        r.text, ui.password_error("current_password")
+    )
     assert _html.resolve_one(r.text, ui.current_password)["aria-invalid"] == "true"
     assert "definitely-wrong" not in _html.text_of(r.text, ui.password_form)
     row = _user(conn)

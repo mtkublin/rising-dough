@@ -100,4 +100,8 @@ def submit_dialog(page: Any, handoff_page: str) -> None:
             page.wait_for_load_state("networkidle", timeout=15000)
     # No focus ring or text selection: the handoff files show neither.
     page.evaluate("() => { document.activeElement?.blur(); getSelection()?.removeAllRanges(); }")
+    if "new-category" in handoff_page and "error" not in handoff_page:
+        page.focus("#modal-root input[name=name]")  # the category files keep the name field focused
+    if "one-time-password" in handoff_page:
+        page.focus("#modal-root .rd-dialog__close")  # the file shows the close button focused
     page.mouse.move(0, 0)  # the pointer rests off the dialog, as in the handoff (no hover tint)

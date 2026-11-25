@@ -179,7 +179,7 @@ def category_form_view(
         direction_text=direction_label(picked),
         expense_checked=picked is Direction.EXPENSE,
         income_checked=picked is Direction.INCOME,
-        default_checked=not picked_color,
+        default_checked=not valid,
         swatches=tuple(
             SwatchView(name=swatch, hex=_PRESET_HEX[swatch], checked=_PRESET_HEX[swatch] == lowered)
             for swatch in _FORM_SWATCH_NAMES
