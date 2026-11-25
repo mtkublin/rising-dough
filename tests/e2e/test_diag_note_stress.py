@@ -54,14 +54,14 @@ _RECORDER = """
 """
 
 
-@pytest.mark.parametrize("i", range(int(os.environ.get("DIAG_N", "60"))))
+@pytest.mark.parametrize("i", range(int(os.environ.get("DIAG_N", "100"))))
 def test_diag_planned_note_stress(live_server: tuple[str, Path], page: Page, i: int) -> None:
     base_url, db_path = live_server
     if page.context.browser is not None and page.context.browser.browser_type.name != "chromium":
         pytest.skip("CDP throttling is Chromium only")
     if True:
         cdp = page.context.new_cdp_session(page)
-        cdp.send("Emulation.setCPUThrottlingRate", {"rate": 6})
+        cdp.send("Emulation.setCPUThrottlingRate", {"rate": 8})
     steps: list[tuple[int, str]] = []
     t0 = time.monotonic()
 
@@ -130,7 +130,7 @@ def test_diag_planned_note_stress(live_server: tuple[str, Path], page: Page, i: 
             db_path, "SELECT id, description, deleted_at FROM planned_transactions"
         )
     finally:
-        trace = page.evaluate("() => window.__trace || []")
+        trace = []
     ok = value == "today-planned" and [r[1] for r in stored] == ["today-planned"]
     if not ok:
         raise AssertionError(
