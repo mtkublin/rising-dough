@@ -14,7 +14,9 @@
 {% endblock %}
 {% block form %}
   {% if pending %}
-    {% if invited_by %}<p class="rd-caption rd-caption--upper" id="invite-caption">invited by {{ invited_by }}</p>{% endif %}
+    {% if invited_by %}
+      <p class="rd-caption rd-caption--upper" id="invite-caption">invited by {{ invited_by }}</p>
+    {% endif %}
     <h1 class="rd-auth__title">Create your account</h1>
     {% if alert %}<div class="rd-alert" role="alert" id="form-alert">▲ {{ alert }}</div>{% endif %}
     <form class="rd-form" method="post" action="/invite/{{ token }}">
@@ -45,7 +47,9 @@
                  autofocus
                  required>
         </span>
-        {% if errors.get("name") %}<p class="rd-field__error" id="inv-name-error">▲ {{ errors.get("name") }}</p>{% endif %}
+        {% if errors.get("name") %}
+          <p class="rd-field__error" id="inv-name-error">▲ {{ errors.get("name") }}</p>
+        {% endif %}
       </div>
       <div class="rd-field">
         <label class="rd-field__label" for="inv-password">password</label>
