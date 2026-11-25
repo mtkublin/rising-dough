@@ -114,6 +114,18 @@
     document.querySelectorAll('dialog:not([open]) [data-flash-in-dialog]').forEach((el) => el.remove());
   }
 
+  /* A dialog that opens again (showModal() sets its `open` attribute) starts without the flash of
+     its last session. `open` fires no event, so one observer on the attribute does it; no event
+     name is involved, so the G12 listener/emitter check has nothing to match. */
+  new MutationObserver((records) => {
+    records.forEach((record) => {
+      const dialog = record.target;
+      if (dialog instanceof HTMLDialogElement && dialog.open) {
+        dialog.querySelectorAll('[data-flash-in-dialog]').forEach((el) => el.remove());
+      }
+    });
+  }).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['open'] });
+
   /* A modal <dialog> sits in the top layer, above #flash-region. While one is open the flash is
      shown in a live region inside the dialog instead (same role and aria-live as the page region),
      created empty first so assistive tech announces the content added next. Dialogs fetched into

@@ -139,3 +139,43 @@ def test_error_flash_shows_above_an_open_modal_dialog(journey: Journey) -> None:
     assert on_top is True
     journey.page.keyboard.press("Escape")
     _loc(journey, shell.dev_dialog).wait_for(state="hidden")
+
+
+def test_reopened_dialog_starts_without_the_old_flash(journey: Journey) -> None:
+    """The in-dialog flash is single, cleared on reopen, dropped when closed (T-UR02c)."""
+    if journey.target == "mockup":
+        pytest.skip("the handoff mockup has no server to answer an error")
+    page: Any = journey.page
+
+    def count() -> int:
+        return int(
+            page.evaluate("() => document.querySelectorAll('dialog [data-flash-in-dialog]').length")
+        )
+
+    def wait_flash() -> None:
+        page.wait_for_function(
+            "() => document.querySelector('dialog [data-flash-in-dialog] .rd-flash')"
+        )
+
+    journey.goto("/dev/shell")
+    _loc(journey, shell.dev_dialog_open).click()
+    _loc(journey, shell.dev_dialog).wait_for(state="visible")
+    fail = _loc(journey, role("button", "fail with 500").inside(shell.dev_dialog))
+    fail.click()
+    wait_flash()
+    assert count() == 1
+
+    # Close and reopen the same element (a static dialog is not replaced by #modal-root).
+    page.evaluate("() => { const d = document.querySelector('dialog'); d.close(); d.showModal(); }")
+    page.wait_for_function("() => !document.querySelector('dialog [data-flash-in-dialog]')")
+    assert count() == 0
+
+    fail.click()
+    wait_flash()
+    assert count() == 1
+
+    # A closed dialog's region goes with the next request of any kind.
+    page.evaluate("() => document.querySelector('dialog').close()")
+    page.evaluate("() => htmx.ajax('GET', '/healthz', {swap: 'none'})")
+    page.wait_for_function("() => !document.querySelector('dialog [data-flash-in-dialog]')")
+    assert count() == 0
