@@ -163,6 +163,21 @@ def test_parse_amount_str_rejects_malformed(raw: str, currency: str) -> None:
     assert parse_amount_str(raw, currency) is None
 
 
+@pytest.mark.parametrize(
+    ("raw", "currency", "expected"),
+    [
+        ("13,000.00", "PLN", Decimal("13000.00")),  # what the new-entry hero shows back
+        ("1,234,567.50", "PLN", Decimal("1234567.50")),
+        ("1,234,567", "PLN", Decimal("1234567")),  # two groups cannot be a decimal comma
+        ("13,000", "JPY", Decimal("13000")),  # zero decimals: a lone group is thousands
+    ],
+)
+def test_parse_amount_str_accepts_the_grouped_figure(
+    raw: str, currency: str, expected: Decimal
+) -> None:
+    assert parse_amount_str(raw, currency) == expected
+
+
 def test_parse_amount_str_round_trip_to_minor_units_matches_dot_input() -> None:
     """Comma and dot inputs must land on the same minor-unit integer."""
     comma = parse_amount_str("12,34", "PLN")

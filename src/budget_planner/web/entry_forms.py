@@ -352,7 +352,7 @@ def new_entry_context(
     """
     values = posted or {}
     cats = categories_service.list_all(conn, user_id)
-    accounts = accounts_service.list_all(conn, user_id)
+    accounts = accounts_service.list_by_last_use(conn, user_id)
     picker = categories_service.picker_summary(conn, user_id)
     account = _picked(accounts, parse_int(values.get("account_id", "")), accounts[:1])
     category_view = _category_view(
@@ -506,6 +506,15 @@ def _dependent_fields(
     }
 
 
+def _typed_amount(raw: str, currency: str) -> str:
+    """The amount the user typed, shown back grouped (``13,000.00``) when it is a plain figure.
+
+    Text that is not a non-negative amount of the currency stays as typed, so a 422 echoes it.
+    """
+    minor = parse_amount_minor(raw, currency)
+    return raw if minor is None or minor < 0 else format_figure(minor, currency)
+
+
 def _hero(
     tab: str,
     values: Mapping[str, str],
@@ -520,6 +529,7 @@ def _hero(
         figure, note = formula or ("\N{EM DASH}", "")
         return {
             "currency": currency,
+            "sign": sign,  # the handoff signs the computed amount like the typed one
             "amount_id": "seg-amount-source",
             "output": True,
             "amount_value": figure,
@@ -531,7 +541,7 @@ def _hero(
         "sign": sign,
         "amount_id": f"field-{name}",
         "amount_name": name,
-        "amount_value": values.get(name, ""),
+        "amount_value": _typed_amount(values.get(name, ""), currency),
         "placeholder": format_major(0, currency),
         "error": errors.get(name),
     }

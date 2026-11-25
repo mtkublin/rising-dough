@@ -159,6 +159,9 @@
      an em dash, because it may no longer match the account select. */
   const HERO = '.rd-dialog__hero';
   let typed = null;
+  /* The amount text the refresh request was sent with: when the user has not touched it since, the
+     server's grouped rendering (13,000.00, domain.money) replaces it; typing in flight is kept. */
+  let sent = null;
   /* The element whose request failed last: "retry" in the error flash re-issues it. */
   let failedElt = null;
 
@@ -188,7 +191,7 @@
     if (isHeroRefresh(detail) && !(detail.xhr && detail.xhr.status >= 400)) {
       const input = detail.target.querySelector('input.rd-dialog__amount');
       typed = input
-        ? { id: input.id, value: input.value, focus: document.activeElement === input, start: input.selectionStart, end: input.selectionEnd }
+        ? { id: input.id, value: input.value, edited: input.value !== sent, focus: document.activeElement === input, start: input.selectionStart, end: input.selectionEnd }
         : null;
     }
     const xhr = detail.xhr;
@@ -223,6 +226,10 @@
      posts (the refresh element syncs only with itself, so it can never abort or delay the save). */
   document.addEventListener('htmx:beforeRequest', (event) => {
     const detail = event.detail || {};
+    if (String((detail.pathInfo && detail.pathInfo.requestPath) || '').includes('hero=1')) {
+      const amount = document.querySelector('#modal-root input.rd-dialog__amount');
+      sent = amount ? amount.value : null;
+    }
     if (!detail.elt || detail.elt.tagName !== 'FORM') return;
     const refresh = detail.elt.querySelector('#hero-refresh');
     if (refresh && window.htmx) window.htmx.trigger(refresh, 'htmx:abort');
@@ -238,7 +245,11 @@
     if (!String(event.detail.pathInfo.requestPath || '').includes('hero=1')) return;
     const input = document.getElementById(saved.id);
     if (!input || !input.matches('input.rd-dialog__amount')) return;
-    input.value = saved.value;
+    if (saved.edited) input.value = saved.value;
+    else {
+      saved.start = input.value.length;
+      saved.end = input.value.length;
+    }
     if (saved.focus && saved.end !== null) {
       /* Refocusing the new input makes amount-input.js select its value a frame later; undo that,
          but only while the value is untouched and fully selected (the user has not acted since). */

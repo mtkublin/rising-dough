@@ -183,6 +183,19 @@ def list_all(
     return accounts_repo.list_all(conn, user_id, include_deleted=include_deleted)
 
 
+def list_by_last_use(conn: sqlite3.Connection, user_id: int) -> list[Account]:
+    """The caller's accounts, most recently used first (never-used last), then by name.
+
+    "Used" is a live transaction that is not a reconciliation; the first account is the
+    new-entry dialog's default (T-UR00b, handoff: Credit Card, the latest used, first).
+    """
+    last = transactions_repo.account_last_used(conn, user_id)
+    return sorted(
+        accounts_repo.list_all(conn, user_id),
+        key=lambda a: (-last[a.id].toordinal() if a.id in last else 0, a.name),
+    )
+
+
 def _raise_if_invalid(errors: dict[str, str]) -> None:
     if errors:
         raise ValidationError(fields=errors)
@@ -233,6 +246,7 @@ __all__ = [
     "find_by_name",
     "last_checked",
     "list_all",
+    "list_by_last_use",
     "list_snapshots_for_account",
     "list_snapshots_for_user",
     "update",

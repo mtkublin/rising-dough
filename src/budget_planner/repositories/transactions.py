@@ -360,6 +360,7 @@ def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id
 
 
 __all__ = [
+    "account_last_used",
     "category_usage",
     "count_filtered",
     "count_referencing_account",
@@ -408,3 +409,22 @@ def category_usage(conn: sqlite3.Connection, user_id: int) -> list[tuple[int, in
         (user_id,),
     ).fetchall()
     return [(row["category_id"], row["n"], date.fromisoformat(row["d"])) for row in rows]
+
+
+def account_last_used(conn: sqlite3.Connection, user_id: int) -> dict[int, date]:
+    """Return ``{account_id: latest operation_date}`` of live, non-adjustment transactions.
+
+    Reconciliation entries (direction ``adjustment``) are no use of the account: they are left
+    out. Accounts with no such transaction are absent (T-UR00b, the new-entry account order).
+    """
+    rows = conn.execute(
+        """
+        SELECT t.account_id AS account_id, MAX(t.operation_date) AS d
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id
+        WHERE t.user_id = ? AND t.deleted_at IS NULL AND c.direction != 'adjustment'
+        GROUP BY t.account_id
+        """,
+        (user_id,),
+    ).fetchall()
+    return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows}

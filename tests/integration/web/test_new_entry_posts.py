@@ -142,7 +142,7 @@ def test_bad_amount_marks_the_hero_and_keeps_the_picked_category(
     )
     assert r.status_code == 422
     hero = _html.resolve_one(r.text, entries.hero_amount)
-    assert (hero.get("aria-invalid"), hero.get("value")) == ("true", "0")
+    assert (hero.get("aria-invalid"), hero.get("value")) == ("true", "0.00")  # as the handoff
     # Groceries has no entry yet (not a recent radio): the picker carries it as the chosen one.
     chosen = _html.resolve_one(r.text, entries.category_chosen)
     assert chosen.get("value") == str(ids["groc"])
@@ -434,9 +434,13 @@ def test_hero_follows_the_account_currency_and_the_category_sign(
     assert r.status_code == 200
     assert "HX-Retarget" not in r.headers
     assert _hero_text(r.text) == "+ Amount EUR"
-    assert (
-        _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.5"
-    )  # typed amount kept
+    assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.50"  # typed, at the exponent
+    r = client.get(
+        f"{base}&account_id={ids['acc']}&category={ids['groc']}&amount=13000", headers=_HX
+    )
+    assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "13,000.00"  # grouped
+    r = client.get(f"{base}&account_id={ids['acc']}&amount=12x", headers=_HX)
+    assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12x"  # junk as typed
     r = client.get(f"{base}&account_id={jpy.id}&category={ids['groc']}", headers=_HX)
     assert _hero_text(r.text) == "\N{MINUS SIGN} Amount JPY"
     r = client.get(f"{base}&account_id={ids['acc']}", headers=_HX)
@@ -481,6 +485,9 @@ def test_repeats_formula_hero_shows_the_service_next_amount(
     r = client.get(query, headers=_HX)
     outputs = [o for o in _html.resolve(r.text, role("status")) if o.has_attr("for")]
     assert [o.get_text(strip=True) for o in outputs] == ["1,200.00"]
+    row = outputs[0].parent
+    assert row is not None
+    assert row.get_text(" ", strip=True) == "\N{MINUS SIGN} 1,200.00 PLN"  # signed like a typed one
     assert "\N{RIGHTWARDS ARROW} next amount 1,200.00 PLN" in _html.all_text(r.text, entries.dialog)
     # the figure is derived, never posted: the hero has no named amount input in formula mode
     assert not _html.exists(r.text, entries.hero_amount)
