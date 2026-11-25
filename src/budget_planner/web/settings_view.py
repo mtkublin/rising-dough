@@ -28,6 +28,7 @@ from budget_planner.services.users import (
     AuthUser,
 )
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
+from budget_planner.web.paths import DELETE_PATH
 from budget_planner.web.view_models import direction_label
 
 _FORM_SWATCH_NAMES: Final[tuple[str, ...]] = (
@@ -268,7 +269,9 @@ def _user_menu(user_id: int) -> tuple[Mapping[str, object], ...]:
     return (
         MappingProxyType({"label": "edit user", "hx_get": f"{base}/edit"}),
         MappingProxyType({"label": "reset password", "hx_get": f"{base}/reset-password"}),
-        MappingProxyType({"label": "delete user", "hx_get": f"{base}/delete", "danger": True}),
+        MappingProxyType(
+            {"label": "delete user", "hx_get": f"{base}{DELETE_PATH}", "danger": True}
+        ),
     )
 
 
