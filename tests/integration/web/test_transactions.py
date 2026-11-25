@@ -87,7 +87,9 @@ def test_table_fragment_is_not_full_page(client: TestClient, seeded: dict[str, i
     r = client.get("/transactions/table")
     assert r.status_code == 200
     assert _html.exists(r.text, ledger.table)
-    assert not _html.exists(r.text, ledger.heading)  # fragment: no page chrome
+    # No document or base layout; the hero (the page's one h1) refreshes with the rows.
+    assert _html.is_fragment(r.text)
+    assert _html.count(r.text, ledger.heading) == 1
 
 
 def test_new_form_fragment(client: TestClient, seeded: dict[str, int]) -> None:

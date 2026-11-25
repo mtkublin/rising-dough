@@ -177,8 +177,9 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
     ``hasAttribute``, ``querySelectorAll``, ``closest``, ``reset``,
     ``parentElement.innerHTML``).
     """
-    # Password settings is still on the old base, which loads app-init.js; moves with T-UR15.
-    full = client.get("/settings/password").text
+    # Password settings moved to layouts/base.html (UR14); the forecast page is still on the
+    # old base, which loads app-init.js until T-UR15.
+    full = client.get("/forecast").text
     # ADR-0113: the bootstrap script is external, so the page must reference it.
     assert "js/app-init.js" in full
     handler_js = _extract_after_request_handler(_load_app_init_source())

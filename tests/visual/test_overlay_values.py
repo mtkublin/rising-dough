@@ -33,12 +33,11 @@ from budget_planner.services import (
     forecast as forecast_service,
     fortune as fortune_service,
     fx as fx_service,
-    ledger_totals,
     recurring_formula,
     security_settings,
     today as today_service,
 )
-from budget_planner.web import ledger_data, view_models
+from budget_planner.web import ledger_data, ledger_view, view_models
 from budget_planner.web.ledger_types import LedgerFilters
 from tests.visual import handoff_seed as seed
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
@@ -85,9 +84,8 @@ class Vals:
     afford_over_over: int
     actual_count: int
     recurring_count: int
-    rec_in: int
-    rec_out: int
-    rec_next_due: dt.date
+    rec_figure: str
+    rec_note: str
     txns: dict[str, int]
     checked: dict[str, dt.datetime]
     session_created: dt.datetime
@@ -117,9 +115,9 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
     ctx = ledger_data.index_context(
         conn, USER, settings=settings, view="recurring", filters=LedgerFilters(), today=DAY
     )
-    recurring = ctx["recurring_summary"]
+    hero = ctx["hero"]
     counts = ctx["tab_counts"]
-    assert isinstance(recurring, ledger_totals.RecurringTotals)
+    assert isinstance(hero, ledger_view.LedgerHero)
     assert isinstance(counts, dict)
     accounts = accounts_repo.list_all(conn, USER)
     stats = balance_service.account_stats_many(conn, USER, accounts)
@@ -166,9 +164,8 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
         afford_over_over=over.over_minor,
         actual_count=counts["actual"],
         recurring_count=counts["recurring"],
-        rec_in=recurring.monthly_in_minor,
-        rec_out=recurring.monthly_out_minor,
-        rec_next_due=recurring.next_due or DAY,
+        rec_figure=hero.figure,
+        rec_note=hero.note,
         txns={a.name: stats[a.id].txn_count for a in accounts},
         checked=checked,
         session_created=current.session.created_at,
@@ -220,11 +217,6 @@ def _hero_note(v: Vals) -> str:
         f"{money(v.committed)} committed {DOT} {v.over_count} categories over {DOT} "
         f"{money(v.unbudgeted)} planned in unbudgeted categories"
     )
-
-
-def _rec_note(v: Vals) -> str:
-    due = f"{v.rec_next_due:%d %b}".lower()
-    return f"in {money(v.rec_in, signed=True)} {DOT} {v.recurring_count} rules {DOT} next due {due}"
 
 
 def _fc_note(v: Vals) -> str:
@@ -431,14 +423,14 @@ _LISTED_CASES: tuple[Case, ...] = (
         ALL,
         '.rd-hero__figure--wide:-soup-contains-own("13,755.41")',
         f"{MINUS}13,755.41",
-        lambda v: money(-v.rec_out),
+        lambda v: v.rec_figure,
         f"{_SEED} ledger_totals.recurring_monthly_totals: monthly out",
     ),
     Case(
         ALL,
         '.rd-hero__note:-soup-contains-own("27 rules")',
         "in +23,253.18 · 27 rules · next due 01 nov",
-        _rec_note,
+        lambda v: v.rec_note,
         f"{_SEED} ledger_totals.recurring_monthly_totals: monthly in, rule count, next due",
     ),
     Case(
