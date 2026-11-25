@@ -2,8 +2,8 @@
 
 The shared ``live_server`` runs ``env=dev``, where a dev bootstrap admin keeps
 setup closed, and seeds a login user. This module starts its own server on a
-migrated DB with zero users, ``env=test`` and a configured token hash, never
-``data/budget.sqlite``.
+migrated DB with zero users, ``env=test`` and a configured token hash. Never
+the production DB.
 """
 
 from __future__ import annotations
