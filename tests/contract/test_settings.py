@@ -195,7 +195,7 @@ def test_security_page_marks_current_session_and_lists_others(
     assert "THIS DEVICE" in before
     issue_session(db)
     after = client.get("/settings/security").text
-    assert _html.count(after, ui.session_signout.inside(ui.sessions)) == 2
+    assert _html.count(after, ui.session_signout.inside(ui.sessions)) == 1  # not the current device
 
 
 @covers("GET /settings/security")

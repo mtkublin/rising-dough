@@ -146,7 +146,7 @@ def test_list_shows_live_users_only_and_marks_me(
     assert r.status_code == 200
     assert _html.exists(r.text, ui.users_heading)
     assert _html.exists(r.text, ui.user_row(1))
-    assert "You" in _html.text_of(r.text, ui.user_row(1))
+    assert "you" in _html.text_of(r.text, ui.user_row(1))
     assert "gone@x.test" not in _html.text_of(r.text, ui.users_table)
     assert _html.resolve_one(r.text, ui.tab("Users"))["aria-selected"] == "true"
     # Q22 (ADR-0134 §11): your own row has no row menu at all

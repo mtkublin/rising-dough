@@ -1,16 +1,16 @@
-{# Settings · create invite dialog (T-UR20a, ADR-0107, ADR-0134 section 1). Handoff: overlays/invite-user.html (and --error).
+{# Settings · invite by email dialog (T-UR20a, ADR-0107, ADR-0134 section 1). Handoff: overlays/invite-user.html (and --error).
    Context: email, is_admin (submitted values), errors (field -> message), field_count / field_errors (invalid_dialog_response).
    No email is sent while the invite email switch is off (Q9): the dialog that follows shows the link. Role radios post `role`. #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
 {% call dialog(
   "dlg-create-invite",
-  "create invite",
+  "invite by email",
   size="md",
   action="/settings/users/invites",
   hx_post="/settings/users/invites",
   field_count=field_count|default(0),
   field_errors=field_errors|default(()),
-  actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ create invite ]"}]
+  actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ send invite ]"}]
 ) %}
   <div class="rd-field">
     <label class="rd-field__label" for="iu-email">email</label>

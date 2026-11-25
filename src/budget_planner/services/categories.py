@@ -311,10 +311,25 @@ def list_recently_deleted(
     return categories_repo.list_recently_deleted(conn, user_id, days=days, limit=limit)
 
 
+DUPLICATE_NAME_MESSAGE = "A category with this name already exists"
+
+
+def _reject_duplicate_name(
+    conn: sqlite3.Connection, user_id: int, name: str | None, *, own_id: int | None
+) -> None:
+    """:class:`ValidationError` when another live category of the user already has ``name``."""
+    if name is None:
+        return
+    other = categories_repo.find_by_name(conn, user_id, name)
+    if other is not None and other.id != own_id:
+        raise ValidationError(fields={"name": DUPLICATE_NAME_MESSAGE})
+
+
 def create(conn: sqlite3.Connection, user_id: int, data: NewCategory) -> Category:
     """Create a category; :class:`ValidationError` (nothing written) for a bad field."""
     if errors := new_category_errors(data):
         raise ValidationError(fields=errors)
+    _reject_duplicate_name(conn, user_id, data.name, own_id=None)
     return categories_repo.create(conn, user_id, data)
 
 
@@ -324,6 +339,7 @@ def update(
     """Patch a category; :class:`ValidationError` (nothing written) for a bad field."""
     if errors := patch_category_errors(data):
         raise ValidationError(fields=errors)
+    _reject_duplicate_name(conn, user_id, data.name, own_id=category_id)
     return categories_repo.update(conn, user_id, category_id, data)
 
 
@@ -333,6 +349,7 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, category_id: int) -> Non
 
 
 __all__ = [
+    "DUPLICATE_NAME_MESSAGE",
     "RECENT_CATEGORY_LIMIT",
     "CategoryHasLiveRulesError",
     "CategoryNotFoundError",

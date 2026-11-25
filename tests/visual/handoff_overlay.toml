@@ -229,6 +229,63 @@ optional = true  # only the Today board and the overlays over it list this chip
 reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages (the rule description too); the seed has one such category"
 
 [[row]]
+page = "pages/settings/categories.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
+page = "pages/overlays/*category*.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+optional = true  # only the category dialogs sit over the categories board
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
+page = "pages/overlays/archive-category.html"
+select = "p:-soup-contains-own(\"Its 41 entries\")"
+field = "text"
+old = "It disappears from pickers. Its 41 entries and budget history stay, and you can restore it from recently deleted."
+value = "It disappears from pickers. Its 3 entries and budget history stay, and you can restore it from recently deleted."
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+
+[[row]]
+page = "pages/overlays/edit-category.html"
+select = "p:-soup-contains-own(\"locked by 41 entries\")"
+field = "text"
+old = "↓ expense · locked by 41 entries"
+value = "↓ expense · locked by 3 entries"
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+
+[[row]]
+page = "pages/overlays/reset-password.html"
+select = "p:-soup-contains-own(\"stops working now\")"
+field = "text"
+old = "Her current password stops working now. You get a one-time password to hand over, and she sets a new one at her next sign-in."
+value = "Their current password stops working now. You get a one-time password to hand over, and they set a new one at their next sign-in."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they (operator decision 2026-11-25, F3 answer a)"
+
+[[row]]
+page = "pages/overlays/one-time-password.html"
+select = "p.rd-dialog__lede"
+field = "text"
+old = "Shown once. Hand it to Ola; she sets her own at her next sign-in."
+value = "Shown once. Hand it to Ola; they set their own at their next sign-in. Their existing sessions have been signed out."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they; the app adds the signed-out note after a reset (F3 answer a)"
+
+[[row]]
+page = "pages/overlays/delete-user.html"
+select = "p:-soup-contains-own(\"loses access\")"
+field = "text"
+old = "partner@example.test loses access straight away and is signed out everywhere. Entries she made stay in the ledger."
+value = "partner@example.test loses access straight away and is signed out everywhere. Entries they made stay in the ledger."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they (F3 answer a)"
+
+[[row]]
 page = "pages/*.html"
 exclude = ["pages/ledger/actual--empty.html", "pages/ledger/actual--long.html"]
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"

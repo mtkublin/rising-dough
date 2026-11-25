@@ -89,6 +89,7 @@ def page_context(
     tz = request.app.state.settings.display_timezone
     at = reauth_now(request) if now is None else now
     return {
+        "nav_current": "settings",
         "active_tab": "users",
         "rows": user_rows(users_service.list_live_users(conn), me_id=admin.id, tz=tz),
         "invite_rows": invite_rows(invites_service.list_invites(conn), now=at, tz=tz),
