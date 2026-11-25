@@ -1,4 +1,4 @@
-# ruff: noqa: E501 - throwaway diagnostic with an inline JS recorder, never merged
+# ruff: noqa: E501, PLR0915 - throwaway diagnostic with an inline JS recorder, never merged
 """QFIX11 DIAGNOSTIC (throwaway): planned-from-Today note stress with an event trace."""
 
 from __future__ import annotations
@@ -54,9 +54,11 @@ _RECORDER = """
 """
 
 
-@pytest.mark.parametrize("i", range(int(os.environ.get("DIAG_N", "40"))))
+@pytest.mark.parametrize("i", range(int(os.environ.get("DIAG_N", "60"))))
 def test_diag_planned_note_stress(live_server: tuple[str, Path], page: Page, i: int) -> None:
     base_url, db_path = live_server
+    if page.context.browser is not None and page.context.browser.browser_type.name != "chromium":
+        pytest.skip("CDP throttling is Chromium only")
     if True:
         cdp = page.context.new_cdp_session(page)
         cdp.send("Emulation.setCPUThrottlingRate", {"rate": 6})
@@ -96,7 +98,25 @@ def test_diag_planned_note_stress(live_server: tuple[str, Path], page: Page, i: 
     note = to_playwright(page, entries.field_note)
     note.fill("today-planned")
     mark("note filled")
-    expect(note).to_have_value("today-planned")
+    try:
+        expect(note).to_have_value("today-planned", timeout=1500)
+    except AssertionError as exc:
+        mark("note LOST")
+        raise AssertionError(
+            "DIAG LOST "
+            + json.dumps(
+                {
+                    "iter": i,
+                    "steps": steps,
+                    "trace": page.evaluate("() => window.__trace || []"),
+                    "console": consoles,
+                    "dialog_html": to_playwright(page, entries.dialog).evaluate(
+                        "el => el.outerHTML"
+                    ),
+                },
+                default=str,
+            )
+        ) from exc
     mark("note asserted")
     value = note.input_value()
     mark(f"note read before save: {value!r}")
