@@ -12,7 +12,7 @@
         <span class="rd-hero__figure rd-hero__figure--wide"
               data-digits="{{ (forecast.hero_balance_minor|hero_fit(base_ccy)).digits }}"
               data-marks="{{ (forecast.hero_balance_minor|hero_fit(base_ccy)).marks }}"
-              data-signs="{{ (forecast.hero_balance_minor|hero_fit(base_ccy)).signs }}">{{ forecast.hero_balance_minor|money_num(base_ccy) }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
+              data-signs="{{ (forecast.hero_balance_minor|hero_fit(base_ccy)).signs }}">{{ forecast.hero_text }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
       </p>
       {% if forecast.hero_note %}<p class="rd-hero__note">{{ forecast.hero_note }}</p>{% endif %}
     </div>

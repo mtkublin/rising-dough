@@ -63,6 +63,7 @@ class ForecastPageView:
 
     hero_label: str
     hero_balance_minor: int
+    hero_text: str
     hero_note: str
     horizon: int
     options: tuple[HorizonOption, ...]
@@ -121,6 +122,7 @@ def forecast_page(
             else "projected balance"
         ),
         hero_balance_minor=summary.end_point.end_balance_minor if summary else 0,
+        hero_text=format_figure(summary.end_point.end_balance_minor if summary else 0, currency),
         hero_note=forecast_hero_note(summary, currency) if summary else "",
         horizon=horizon,
         options=tuple(HorizonOption(h, h == horizon, f"{base_url}{h}") for h in choices),
@@ -235,6 +237,7 @@ class AnalyticsPageView:
     """Hero, range buttons, spend table, flow chart and largest items of Plan · analytics."""
 
     hero_total_minor: int
+    hero_text: str
     ranges: tuple[RangeOption, ...]
     rows: tuple[SpendRowView, ...]
     flow: chart_geometry.FlowChart
@@ -271,6 +274,7 @@ def analytics_page(
     query = f"&year={picked.year}&month={picked.month}"
     return AnalyticsPageView(
         hero_total_minor=analytics_service.spend_total_minor(bundle),
+        hero_text=format_figure(analytics_service.spend_total_minor(bundle), currency),
         ranges=tuple(
             RangeOption(label, value == bundle.period, f"/plan?tab=analytics&period={value}{query}")
             for value, label in _RANGE_LABELS

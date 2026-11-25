@@ -138,3 +138,19 @@ def test_negative_balance_text_uses_the_minus_sign() -> None:
     )
 
     assert [r.balance_text for r in page.rows] == [f"{MINUS}18,830.45", "5.00"]
+
+
+def test_negative_hero_uses_the_minus_sign() -> None:
+    points = (_point(10, -2_100_00),)
+    summary = projection_summary(points, now_value=0)
+
+    page = forecast_page(
+        points,
+        summary,
+        horizon=6,
+        choices=(6,),
+        currency="PLN",
+        base_url="/plan?tab=forecast&horizon=",
+    )
+
+    assert page.hero_text == f"{MINUS}2,100.00"

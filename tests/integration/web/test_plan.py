@@ -315,7 +315,7 @@ def test_forecast_hero_delta_is_measured_from_todays_net_worth(
     text = _html.text_of(r.text, plan_forecast.hero)
     assert text.startswith(f"projected balance \u00b7 end of {last.month.strftime('%b').lower()} ")
     # net worth today 1,000.00; end -2,100.00; the strip says "-3,100.00 over 12 months"
-    assert "-2,100.00 PLN \u22123,100.00 PLN over 12 months" in text, text
+    assert "\u22122,100.00 PLN \u22123,100.00 PLN over 12 months" in text, text
     assert " \u00b7 peak 900.00 in " in text, text
 
 
