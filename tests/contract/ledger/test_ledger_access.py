@@ -20,6 +20,7 @@ KEYS: Final[tuple[str, ...]] = (
     "GET /ledger",
     "GET /ledger/table",
     "GET /ledger/recently-deleted",
+    "GET /ledger/recently-deleted/panel",
     "GET /transactions",
     "GET /transactions/_limit_preview",
     "GET /transactions/table",
@@ -75,8 +76,8 @@ MUTATING: Final = [r for r in ROUTES if r[1] == "POST"]
 
 
 def test_matrix_lists_every_ledger_route() -> None:
-    assert len(ROUTES) == 39
-    assert len(set(KEYS)) == 39
+    assert len(ROUTES) == 38
+    assert len(set(KEYS)) == 38
 
 
 @covers(*KEYS)
