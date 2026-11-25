@@ -363,6 +363,11 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
 - Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 
+### ◻ T-UR43a [S] Stored formula cycle: 0.00 with a warning, saves must remove it (Q25)
+- Operator decision Q25 ([operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md)); rule and exact wording in the [ADR-0047](../../adr/0047-recurring-formula-linear-combination-and-chaining.md) amendment 2026-11-25.
+- `live_rule_amount` (services/recurring_formula.py) returns `(0, True)` for a stored cycle, replacing the web `live_amount` fallback to the saved snapshot, so the expansion (`rt_expand`), the ledger recurring row and the promote prefill agree (handover follow-up "live_amount vs rt_expand"). The ledger recurring view no longer 500s on a stored cycle and marks it `formula cycle`.
+- Saves that keep or create a cycle are 422 with the cycle error and write nothing; an edit that removes it succeeds.
+
 ### ◻ T-UR40a [S] Operator decisions 2026-11-25: docs and CI checkout
 - Applies four operator decisions from [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md), docs first, no code logic:
   - Q1: `csrf.js` and vendored `htmx-2.0.11.min.js` are KEEP: rows in [removal.md](removal.md) and an ADR-0107 §2 amendment.

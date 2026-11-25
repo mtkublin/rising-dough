@@ -270,7 +270,7 @@ def _recurring_row(
     # T-122: the override (if any) on the current `next_due` bolds / italicises its cells.
     override = next((ov for ov in overrides if ov.occurrence_date == rule.next_due), None)
     # Formula-aware default (ADR-0045); overrides win per ADR-0038 precedence.
-    effective = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=formula_fx)
+    effective, cyclic = formula_svc.live_rule_amount(conn, user_id, rule, rule.next_due, formula_fx)
     amount_overridden = override is not None and override.amount_override is not None
     if override is not None and override.amount_override is not None:
         effective = override.amount_override
@@ -288,9 +288,9 @@ def _recurring_row(
         "overrides": overrides,
         "override_deltas": {
             ov.occurrence_date: ledger_totals.override_delta(
-                formula_svc.resolve_rule_amount(
-                    conn, user_id, rule, ov.occurrence_date, fx=formula_fx
-                ),
+                formula_svc.live_rule_amount(conn, user_id, rule, ov.occurrence_date, formula_fx)[
+                    0
+                ],
                 ov.amount_override,
             )
             for ov in overrides
@@ -302,6 +302,7 @@ def _recurring_row(
         "effective_amount_minor": effective,
         "amount_formula": rule.amount_formula,
         "is_formula": rule.amount_formula is not None,
+        "formula_cycle": cyclic,
         "currency": acc.currency if acc else "",
     }
 

@@ -131,3 +131,11 @@ The `ƒ` chip retains its tooltip but now summarises multi-term: `"+12% Salary A
 - **Keep ADR-0045 single-term and introduce "compute two rules into one" external chaining.** Rejected: users would stack synthetic recurring rules to simulate multi-term semantics, polluting the Ledger with scaffolding rows.
 - **Jump straight to tier B (nested AST).** Rejected now; readdressable later. The UI delta is multi-week and the 90% real-world case is already expressible with linear combination. Shipping A first validates demand for arbitrary nesting before committing to the tree-editor UI.
 - **Materialise formula result into `transactions` on promote and skip chained-formula compute at runtime.** Rejected: breaks ADR-0045's "formula is live" invariant and ADR-0046's historical correctness guarantee for A's view of B's past overrides.
+
+## Amendment 2026-11-25: stored formula cycles (operator decision Q25, T-UR43a)
+
+Source: `docs/plans/ui-redesign/operator-decisions-2026-11-25.md` Q25. A rule saved before the create-time cycle check can still hold a cyclic formula. The rule is:
+
+1. **Display.** A rule whose stored formula is cyclic posts **0.00**, on every surface alike: the occurrence expansion (`rt_expand`), the ledger recurring row and the promote dialog prefill (`live_rule_amount`, which replaces the old fallback to the saved `default_amount` snapshot). Its dates are kept and nothing raises.
+2. **Warning wording.** The visible warning is the text `formula cycle`: appended to the description as `<description> · formula cycle` (just `formula cycle` when the description is empty) on the Today and ledger rows, and as the promote dialog note `formula cycle: the amount shows 0.00 until the formula is edited to remove the cycle.`
+3. **Save.** Any save that would keep or create a cycle is rejected (422, nothing written, no audit row) with the existing cycle error: `a formula cannot reference its own category` or `formula would create a cycle via rule <id>`. The only edit that succeeds is one that removes the cycle (a formula over non-cyclic sources, or a fixed amount). Promoting a cyclic rule stays a 422 naming the `formula cycle`.
