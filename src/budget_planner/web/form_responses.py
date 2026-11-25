@@ -34,6 +34,7 @@ from budget_planner.web.params import parse_int
 from budget_planner.web.paths import (
     LEDGER_PATH,
     PLANNED_PATH,
+    PROMOTE_PATH,
     RESTORE_SEGMENT,
     TRANSACTIONS_PATH,
 )
@@ -391,7 +392,7 @@ def promote_planned_dialog(
     context = entry_forms.promote_context(
         conn,
         user_id,
-        action=f"{PLANNED_PATH}/{planned.id}/promote",
+        action=f"{PLANNED_PATH}/{planned.id}{PROMOTE_PATH}",
         category_id=planned.category_id,
         account=account,
         amount_minor=planned.amount,

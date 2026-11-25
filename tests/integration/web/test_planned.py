@@ -579,7 +579,7 @@ def test_update_invalid_amount_rerenders_the_dialog_in_place(
 def test_promote_dialog_prefills_the_planned_values(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
-    r = client.get(f"/planned/{ctx['pl']}/promote?dialog=1", headers=_HTMX)
+    r = client.get(f"/planned/{ctx['pl']}/promote", headers=_HTMX)
     assert r.headers["HX-Retarget"] == "#modal-root"
     dialog = _html.resolve_one(r.text, role("dialog", re.compile("^promote to actual")))
     form = dialog.find("form")

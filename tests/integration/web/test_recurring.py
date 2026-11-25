@@ -580,7 +580,7 @@ def _get_rule_next_due(_migrated: Settings, rule_id: int) -> date:
 
 
 def test_promote_form_renders(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get(f"/recurring/{ctx['rule']}/promote?dialog=1", headers=_HTMX)
+    r = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
     assert r.status_code == 200
     assert r.headers["HX-Retarget"] == "#modal-root"
     dialog = _html.resolve_one(r.text, role("dialog", re.compile("^promote ·")))
@@ -751,7 +751,7 @@ def test_recurring_row_renders_next_due_column(
     # Five action buttons (promote / override-next / skip-next / edit / delete).
     rid = ctx["rule"]
     assert {label: (b.get("hx-get") or b.get("hx-post")) for label, b in actions.items()} == {
-        "promote": f"/recurring/{rid}/promote?dialog=1",
+        "promote": f"/recurring/{rid}/promote",
         "override": f"/recurring/{rid}/overrides/new",
         "skip next": f"/recurring/{rid}/skip-next",
         "edit": f"/recurring/{rid}/edit",

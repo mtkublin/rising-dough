@@ -36,7 +36,7 @@ from budget_planner.web.form_responses import (
 )
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_int
-from budget_planner.web.paths import LEDGER_PATH
+from budget_planner.web.paths import LEDGER_PATH, PROMOTE_PATH
 from budget_planner.web.recurring_forms import (
     EMPTY_TERM_INPUT,
     OverrideError,
@@ -186,7 +186,7 @@ def render_promote_modal(
     context = promote_context(
         conn,
         user_id,
-        action=f"{CREATE_ACTION}/{rule.id}/promote",
+        action=f"{CREATE_ACTION}/{rule.id}{PROMOTE_PATH}",
         category_id=rule.category_id,
         account=account,
         amount_minor=prefill[1],
