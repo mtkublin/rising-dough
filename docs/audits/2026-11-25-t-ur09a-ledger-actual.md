@@ -104,3 +104,37 @@ shell/filter-bar sizing, not blocking (diagnostics 0), noted for the owner of th
    menu sits outside `#ledger-table` and is not refetched. Needs a fix by the implementer (or an amendment of the derived row).
 3. Edit opens the old slide-over until UR09b (expected, recorded).
 4. Delete shows no undo toast, only the removed row (accepted by the brief).
+
+---
+
+# Re-audit (2026-11-25, head dc13b047)
+
+Skill re-run on a copy of the previous scratch DB (626 live actual rows, EUR account, rate 4.0). `data/budget.sqlite` untouched; own server on a free
+port; lock `/tmp/ui-redesign-heavy.lock` taken and released. Screenshots in the session scratchpad `ur09a-re/shots/` (viewed: `back-state__1440.png`).
+
+## Standard sweep (10 states x 1440/1024/375 x light/dark = 60 captures)
+
+| Group | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|
+| all `/ledger` states | 0 | 0 (raw 24: last `.rd-tabs__tab` at 375, scroller content; `/ledger/recently-deleted` sr-only skip link, old shell; both as in the first run) | 0 | 0 | 0 |
+
+## Previous findings
+
+1. Export links carry the live filters: fixed. 1440, 1024, 375: no filter `/transactions/export?format=csv`; direction=expense
+   `...?direction=expense&format=csv`; plus `q=Cafe` `...?direction=expense&q=Cafe&format=csv` (and parquet). `#ledger-export` is swapped out of band.
+2. URL round trip: filter changes push `/ledger?view=actual&direction=expense` then `...&q=Cafe`. Reload keeps both fields, the table and the export
+   links, at all three widths. Fixed.
+3. Browser Back: URL, table rows and export links return to the previous state (direction=income 34 rows, expense 50 rows with no `+` rows, bare
+   `/ledger` 50 rows). NEW FINDING: the filter controls do not follow. After Back the URL is `...&direction=expense` and the table shows only
+   expenses, but the direction select reads `any direction` and the search box is empty (1440, 1024, 375 alike; the DOM snapshot htmx restores
+   does not carry user-set form values). The form disagrees with the table and URL; the next filter change would drop the hidden filter.
+   Fix: re-sync the fields from the query string on `htmx:historyRestore` (or disable the history snapshot cache), in the filters script.
+
+## Step 3b
+
+- Templates `rg` (`style=`, `{% set`, `float`, `/ 100`, `* 100`, `round`): no new hits in the diff e0198c67..dc13b047.
+- Swap targets `#ledger-table`, `#ledger-export`, `#modal-root`, `#ledger-filters` each match exactly 1 element after filter swaps; duplicate ids 0.
+- Forced 500 on `/ledger/table` (all widths): an alert region appears (2 matches), one expected console 500 line for that forced request only.
+- Numbers unchanged from the first run (day NETs equal `actual_day_nets`).
+
+Result: FINDINGS (1: form controls not restored on browser Back).
