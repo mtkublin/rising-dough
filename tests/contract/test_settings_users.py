@@ -226,7 +226,9 @@ def test_create_duplicate_email_is_422_case_insensitive(
     _add(admin_client, "dup@example.test")
     r = admin_client.post("/settings/users", data={"email": "DUP@Example.test"}, headers=HX)
     assert r.status_code == 422
-    assert "A user with this email already exists" in _html.text_of(r.text, ui.add_errors)
+    assert _html.error_lines(r.text) == {
+        "au-email-error": f"▲ {DUPLICATE_EMAIL_MESSAGE}",
+    }
     assert not _html.exists(r.text, ui.new_password_value)
     n = db.execute("SELECT count(*) FROM users WHERE lower(email) = 'dup@example.test'").fetchone()
     assert n[0] == 1
@@ -319,7 +321,9 @@ def test_save_email_change_refused_retargets_form(
     assert r.status_code == 422
     assert r.headers["hx-retarget"] == "#modal-root"
     assert r.headers["hx-reswap"] == "innerHTML"
-    assert EMAIL_LOCKED_MESSAGE in _html.text_of(r.text, ui.add_errors)
+    assert _html.error_lines(r.text) == {
+        "eu-email-error": f"▲ {EMAIL_LOCKED_MESSAGE}",
+    }
     assert db.execute("SELECT email FROM users WHERE id = 1").fetchone()[0] == "owner@example.test"
 
 
@@ -573,6 +577,8 @@ def test_add_dialog_duplicate_email_reopens_dialog_with_field_error(
     assert r.status_code == 422
     assert r.headers["hx-retarget"] == "#modal-root"
     assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(r.text, ui.add_user_email_error)
-    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(r.text, ui.add_errors)
+    assert _html.error_lines(r.text) == {
+        "au-email-error": f"▲ {DUPLICATE_EMAIL_MESSAGE}",
+    }
     assert not _html.exists(r.text, ui.new_password_value)
     assert db.execute("SELECT count(*) FROM users").fetchone()[0] == before

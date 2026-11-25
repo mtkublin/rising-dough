@@ -250,7 +250,9 @@ def test_create_duplicate_email_case_insensitive(
     _add(admin_client, "dup@example.test")
     resp = admin_client.post("/settings/users", data={"email": "DUP@Example.test"}, headers=HX)
     assert resp.status_code == 422
-    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(resp.text, ui.add_errors)
+    assert _html.error_lines(resp.text) == {
+        "au-email-error": f"▲ {DUPLICATE_EMAIL_MESSAGE}",
+    }
     assert not _html.exists(resp.text, ui.new_password_value)
     n = db.execute("SELECT count(*) FROM users WHERE lower(email) = 'dup@example.test'").fetchone()
     assert n[0] == 1
@@ -351,7 +353,9 @@ def test_edit_email_change_refused_htmx_retargets_form(
     )
     assert resp.status_code == 422
     assert resp.headers["hx-retarget"] == "#modal-root"
-    assert EMAIL_LOCKED_MESSAGE in _html.text_of(resp.text, ui.add_errors)
+    assert _html.error_lines(resp.text) == {
+        "eu-email-error": f"▲ {EMAIL_LOCKED_MESSAGE}",
+    }
     assert _html.resolve_one(resp.text, ui.user_name)["value"] == "Changed"
     row = db.execute("SELECT email, name FROM users WHERE id = ?", (uid,)).fetchone()
     assert (row["email"], row["name"]) == ("carol@example.test", "Alice")
