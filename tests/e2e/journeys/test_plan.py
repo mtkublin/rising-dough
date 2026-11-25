@@ -114,7 +114,7 @@ def test_invalid_amount_keeps_the_dialog_open_with_the_summary(world: World) -> 
     _budgeted(world)
     year = _open_march(world)
     dialog = plan_year.dialog("Groceries", f"Mar {year}")
-    world.find(plan_year.amount(dialog)).fill("12x")
+    world.find(plan_year.amount(dialog)).fill("1.2.3")
     world.find(plan_year.save(dialog)).click()
 
     expect(world.find(dialog)).to_contain_text("1 field needs attention")
