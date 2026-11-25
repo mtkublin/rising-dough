@@ -1,5 +1,29 @@
 # Changelog
 
+2026-11-25 T-UR07, T-UR08: wave 5 tests follow Today and Accounts onto the new shell.
+
+2026-11-25 T-UR02: shell live regions, toast renderer, visible error flashes, topbar email (ADR-0107).
+
+2026-11-25 T-UR07: today page on the new shell (ADR-0107).
+
+2026-11-25 T-UR08: accounts page on the new shell (ADR-0107).
+
+2026-11-25 T-UR11: plan budget tab on the new shell (ADR-0107).
+
+2026-11-25 T-UR03: canonical signed figure formatter (ADR-0130 §7).
+
+2026-11-25 T-UR05: auth pages on the new markup (ADR-0107).
+
+2026-11-25 T-UR00b: calibrated cluster cap 52 px (ADR-0147).
+
+2026-11-25 T-UR06: reject backslash paths in the 422 back link (ADR-0107).
+
+2026-11-25 T-UR00b: strict tolerance with cluster cap; errors pages mapped (ADR-0147).
+
+2026-11-25 T-UR06: errors pages on the new shell (ADR-0107).
+
+2026-11-25 T-UR00b: shard the handoff reference job by width and theme (ADR-0147).
+
 2026-11-24 T-UR00b: handoff reference job sharded by width and theme (ADR-0147).
 
 2026-11-24 T-UR04: dialog responses wrapped so the vendored dialog.js opens them (ADR-0107).
