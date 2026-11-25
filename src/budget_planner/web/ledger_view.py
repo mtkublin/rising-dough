@@ -133,7 +133,8 @@ def filter_bar(
     categories: Sequence[Category],
     accounts: Sequence[Account],
 ) -> FilterBar:
-    """Select options with the active filter marked; the bar opens when a filter is active."""
+    """Select options with the active filter marked; the bar opens for a category or account filter
+    (the date window is the pay-period default, as the handoff's collapsed bar)."""
     return FilterBar(
         date_from=filters.date_from.isoformat() if filters.date_from else "",
         date_to=filters.date_to.isoformat() if filters.date_to else "",
@@ -148,9 +149,7 @@ def filter_bar(
             FilterOption(value, label, filters.direction == value)
             for value, label in _DIRECTION_LABELS.items()
         ),
-        expanded=bool(
-            filters.date_from or filters.date_to or filters.category_ids or filters.account_ids
-        ),
+        expanded=bool(filters.category_ids or filters.account_ids),
     )
 
 
