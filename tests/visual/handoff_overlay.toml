@@ -1026,7 +1026,26 @@ select = "p.rd-field__hint--ink"
 field = "text"
 old = "\u25b2 2 transactions: this balance will count against net worth."
 value = "\u25b2 0 transactions: this balance will count against net worth."
-reason = "seed value via accounts.account_references: Investments A has no transactions (the accounts page rows carry the seed's 0 too)"
+reason = "seed value via accounts.account_references: Investments A has no transactions"
+
+# Accounts delete-account--blocked: the counts are the seed's (Checking: 33 transactions after the
+# ledger rows of F1, 3 planned items and 7 recurring rules, 10 planned or recurring items).
+
+[[row]]
+page = "pages/overlays/delete-account--blocked.html"
+select = ".rd-dialog__confirm > p"
+field = "text"
+old = "It still has 84 transactions and 3 planned or recurring items. Move or delete them first."
+value = "It still has 33 transactions and 10 planned or recurring items. Move or delete them first."
+reason = "seed value via accounts.account_references: Checking transactions, planned items and rules"
+
+[[row]]
+page = "pages/overlays/delete-account--blocked.html"
+select = ".rd-dialog__actions > a.rd-btn"
+field = "text"
+old = "view 84 transactions"
+value = "view 33 transactions"
+reason = "seed value via accounts.account_references: Checking transactions"
 
 # --- generated geometry rows (do not edit; regenerate, see below) ---
 

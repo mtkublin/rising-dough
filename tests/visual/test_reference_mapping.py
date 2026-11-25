@@ -282,7 +282,7 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
     assert "Can\u2019t delete Checking It still has" in text
     # F1 grew the seed's Checking transactions 23 -> 33 (overlay row "Checking txns 23 -> 33",
     # tests/visual/handoff_overlay.toml); planned items and recurring rules are unchanged.
-    assert "33 transactions and 3 planned items and 7 recurring rules." in text
+    assert "33 transactions and 10 planned or recurring items." in text
 
 
 def _non_overlay_pages() -> set[str]:
@@ -478,6 +478,7 @@ def test_post_state_recipes_type_what_the_handoff_shows() -> None:
         "pages/overlays/add-user--error.html",
         "pages/overlays/invite-user--error.html",
         "pages/overlays/one-time-password.html",
+        "pages/overlays/new-account.html",
         "pages/overlays/new-account--filled.html",
         "pages/overlays/new-account--error.html",
         "pages/overlays/new-category--filled.html",
@@ -529,7 +530,10 @@ _STATES = {
 def test_state_overlays_are_mapped_with_their_base_pages() -> None:
     assert {p.split("/")[-1][:-5] for p in STATE_PAGES} == set(_STATES) == set(STATE_SOURCE)
     assert not {n for n in STATE_SOURCE if f"pages/overlays/{n}.html" in OPENER_PAGES}
-    assert set(STATE_RECIPES) == set(STATE_SOURCE) - {"override--remove"}
+    # edit-account--liability is a recipe on the routed edit dialog (no source of its own)
+    assert set(STATE_RECIPES) == (set(STATE_SOURCE) - {"override--remove"}) | {
+        "edit-account--liability"
+    }
     for stem in ("edit-recurring--empty", "edit-recurring--incomplete", "edit-recurring--picking"):
         page = f"pages/overlays/{stem}.html"
         assert route_for(page) == "/ledger?view=recurring"

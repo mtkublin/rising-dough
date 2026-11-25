@@ -46,7 +46,7 @@ def test_transactions_and_planned_items_block_with_both_counts() -> None:
     assert dlg.blocked
     assert dlg.title == "Can\u2019t delete Checking"
     assert dlg.text == (
-        "It still has 84 transactions and 2 planned items and 1 recurring rule. "
+        "It still has 84 transactions and 3 planned or recurring items. "
         "Move or delete them first."
     )
     assert (dlg.link_label, dlg.link_href) == (

@@ -330,7 +330,9 @@ def _new_dialog(
     )
 
 
-def _edit_dialog(acc: Account, entered: Mapping[str, str], txn_count: int) -> AccountDialog:
+def _edit_dialog(
+    acc: Account, entered: Mapping[str, str], txn_count: int, *, rejected: bool
+) -> AccountDialog:
     limit = format_major(acc.credit_limit_minor, acc.currency) if acc.credit_limit_minor else ""
     plural = "" if txn_count == 1 else "s"
     hint = f"\u25b2 {txn_count} transaction{plural}: this balance will count against net worth."
@@ -348,7 +350,7 @@ def _edit_dialog(acc: Account, entered: Mapping[str, str], txn_count: int) -> Ac
         type_options=_type_options(entered.get("type", acc.type or "")),
         is_liability=entered.get("is_liability", "on" if acc.is_liability else "") == "on",
         credit_limit=entered.get("credit_limit", limit),
-        liability_hint=hint,
+        liability_hint="" if rejected else hint,  # a 422 shows its errors, not the note
         as_of="",
     )
 
@@ -366,7 +368,7 @@ def account_dialog(
     entered = values or {}
     if acc is None:
         return _new_dialog(entered, errors or {}, base_currency, today)
-    return _edit_dialog(acc, entered, txn_count)
+    return _edit_dialog(acc, entered, txn_count, rejected=bool(errors))
 
 
 @dataclass(frozen=True, slots=True)
@@ -390,9 +392,11 @@ def _blocked(acc: Account, refs: AccountReferences, balance_minor: int) -> Delet
     ledger = f"/ledger?account_id={acc.id}"
     title = f"Can\u2019t delete {acc.name}"
     items = []
-    if refs.planned:
+    if refs.planned and refs.recurring:
+        items.append(f"{refs.planned + refs.recurring} planned or recurring items")
+    elif refs.planned:
         items.append(_count(refs.planned, "planned item"))
-    if refs.recurring:
+    elif refs.recurring:
         items.append(_count(refs.recurring, "recurring rule"))
     if refs.transactions:
         extra = f" and {' and '.join(items)}" if items else ""

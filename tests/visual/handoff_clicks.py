@@ -49,6 +49,14 @@ def _row_menu(page: Page) -> None:
     page.mouse.move(0, 0)
 
 
+def _row_menu_by_keyboard(page: Page) -> None:
+    """The first row menu opened with Enter: the handoff file shows the first item's focus ring."""
+    page.locator(_ROW_MENU).first.focus()
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".rd-menu:popover-open", timeout=_TIMEOUT_MS)
+    page.mouse.move(0, 0)
+
+
 def _category_picker(page: Page, query: str = "") -> None:
     """The new-entry dialog (happened, 35.50) with its category picker open."""
     page.evaluate(
@@ -81,7 +89,7 @@ CLICK_RECIPES: Final[dict[str, Recipe]] = {
     "period-picker--year": _period_picker,
     "row-menu--upcoming": _row_menu,
     "row-menu--budget": _row_menu,
-    "row-menu--account": _row_menu,
+    "row-menu--account": _row_menu_by_keyboard,
     "row-menu--planned": _row_menu,
     "row-menu--recurring": _row_menu,
     "row-menu--transaction": _row_menu,
