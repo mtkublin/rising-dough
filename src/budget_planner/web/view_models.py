@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Final, Literal
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_money, percent_of
+from budget_planner.domain.money import format_figure, format_money, percent_of
 from budget_planner.services import (
     budget as budget_service,
     ledger_totals,
@@ -279,6 +279,7 @@ class BudgetView:
     period_end: date
     period_day: int
     period_total_days: int
+    left_text: str = ""
 
 
 def _delta_kind(delta_minor: int) -> DeltaKind:
@@ -315,8 +316,14 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
     )
 
 
-def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView:
-    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker)."""
+def budget_view(
+    summary: budget_service.MonthSummary, today: date, base_currency: str | None = None
+) -> BudgetView:
+    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker).
+
+    With ``base_currency`` the hero text ``left_text`` is the signed remaining figure
+    (U+2212 when over).
+    """
     totals = summary.totals
     lines = tuple(_line_view(line) for line in summary.lines)
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
@@ -336,6 +343,7 @@ def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView
         period_end=summary.next_income_date,
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
+        left_text=(format_figure(totals.remaining_minor, base_currency) if base_currency else ""),
     )
 
 

@@ -431,6 +431,27 @@ def test_repeats_hero_is_the_fixed_amount_field(client: TestClient, ids: dict[st
     assert (hero.get("name"), hero.get("id")) == ("default_amount", "field-default_amount")
 
 
+def test_hero_placeholder_follows_the_currency_exponent(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    jpy = accounts_repo.create(db, USER_ID, NewAccount(name="Yen", currency="JPY"))
+    r = client.get(f"/add?when=happened&dialog=1&hero=1&account_id={jpy.id}", headers=_HX)
+    assert _html.resolve_one(r.text, entries.hero_amount).get("placeholder") == "0"
+    r = client.get(f"/add?when=happened&dialog=1&hero=1&account_id={ids['acc']}", headers=_HX)
+    assert _html.resolve_one(r.text, entries.hero_amount).get("placeholder") == "0.00"
+
+
+def test_formula_slot_refreshes_the_hero_while_typing_and_a_newer_refresh_is_queued_last(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    r = client.get("/add?when=repeats&dialog=1", headers=_HX)
+    refresh = _html.resolve_one(r.text, entries.hero_refresh)
+    trigger = str(refresh.get("hx-trigger"))
+    assert "keyup changed delay:400ms from:#formula-slot" in trigger
+    assert "change from:#formula-slot" in trigger
+    assert refresh.get("hx-sync") == "this:queue last"
+
+
 def test_repeats_formula_hero_shows_the_service_next_amount(
     client: TestClient, ids: dict[str, int]
 ) -> None:

@@ -3,6 +3,7 @@
    Context: category (domain Category or none), form (view_models.CategoryFormView), action (POST url), target (row to swap),
    errors (field -> message), field_count / field_errors (invalid_dialog_response). #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
+{% from "fragments/fields/field-error.html" import field_error %}
 {% call dialog(
   "dlg-category",
   form.title,
@@ -26,7 +27,7 @@
              {% if not category %}placeholder="e.g. Pets" required{% endif %}
              {% if "name" in errors %}aria-invalid="true" aria-describedby="field-name-error"{% endif %}>
     </span>
-    {% if "name" in errors %}<p class="rd-field__error" id="field-name-error">▲ {{ errors.name }}</p>{% endif %}
+    {{ field_error("name", errors) }}
   </div>
   {% if category %}
     <div class="rd-field">
@@ -57,7 +58,7 @@
         </div>
       </div>
       {% if "direction" in errors %}
-        <p class="rd-field__error" id="field-direction-error">▲ {{ errors.direction }}</p>
+        {{ field_error("direction", errors) }}
       {% else %}
         <p class="rd-field__hint">direction is fixed after creation</p>
       {% endif %}
@@ -86,7 +87,7 @@
         </label>
       {% endfor %}
     </div>
-    {% if "color" in errors %}<p class="rd-field__error" id="field-color-error">▲ {{ errors.color }}</p>{% endif %}
+    {{ field_error("color", errors) }}
   </div>
   <div class="rd-preview" aria-live="polite">
     <span class="rd-caption">PREVIEW</span><span class="rd-chip"

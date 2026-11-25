@@ -65,11 +65,13 @@ NO_HANDOFF_TWIN = frozenset(
         "category_chosen",
         "category_query",  # the handoff search panel is hidden until opened
         "field_dest",
+        "hero_refresh",
     }
 )
 opener = role("region", "New entry", exact=True)
 credit_line = by_id("credit-line")
 summary = by_id("error-summary")
+hero_refresh = by_id("hero-refresh")
 
 # Formula components: same markup as the app; the e2e journeys drive the app, not the handoff.
 formula_percent = role("textbox", "Percentage", exact=True).inside(formula_group)

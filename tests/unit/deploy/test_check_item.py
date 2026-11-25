@@ -136,3 +136,43 @@ def test_new_src_definitions_flag_canonical_concepts() -> None:
         "WARN new-def: src/budget_planner/services/x.py: load_rows",
         "WARN new-def: src/budget_planner/services/x.py: Row",
     ]
+
+
+def test_work_branch_is_never_double_prefixed() -> None:
+    assert check_item.resolve_work("wi/ui/sourdough/QCI1", "QCI1") == "ui/sourdough"
+    assert check_item.resolve_work("ui/sourdough", "QCI1") == "ui/sourdough"
+    assert check_item.resolve_work("main", "QCI1", "wi/main/QCI1") == "main"
+    assert check_item.resolve_work("wi/x/OTHER", "QCI1") == "wi/x/OTHER"
+
+
+def test_hotspots_flag_allows_listed_scribe_files_and_reports_them() -> None:
+    changed = ["docs/CHANGELOG.md", "docs/plans/v3/tasks.md"]
+    only = check_item.check_hotspots(changed, [], ["docs/CHANGELOG.md"])
+    assert only.line() == (
+        "FAIL hotspots: scribe-owned, not listed literally in --owned: docs/plans/v3/tasks.md"
+    )
+    both = check_item.check_hotspots(changed, [], ["docs/CHANGELOG.md", "docs/plans/*/tasks.md"])
+    assert both.line() == (
+        "PASS hotspots: allowed via --hotspots: docs/CHANGELOG.md, docs/plans/v3/tasks.md"
+    )
+
+
+def test_allowlist_total_can_skip_the_framework_section() -> None:
+    text = '[[entry]]\npath = "a"\n\n[[framework]]\npath = "b"\ncount = 2\n'
+    assert check_item.allowlist_total(text) == 3
+    assert check_item.allowlist_total(text, skip="framework") == 1
+
+
+def test_framework_row_growth_fails_unless_allowed() -> None:
+    path = "tests/architecture/allowlists/functional_first.toml"
+    totals, framework = {path: (4, 6)}, {path: (1, 3)}
+    failing = check_item.check_allowlists(totals, framework)
+    assert failing.line() == f"FAIL allowlists: rose: {path} 4->6"
+    warned = check_item.check_allowlists(totals, framework, allow_framework=True)
+    assert warned.line() == f"WARN allowlists: framework rows added: {path} 1->3"
+
+
+def test_allowed_framework_flag_does_not_hide_other_growth() -> None:
+    path = "tests/architecture/allowlists/functional_first.toml"
+    finding = check_item.check_allowlists({path: (4, 7)}, {path: (1, 3)}, allow_framework=True)
+    assert finding.line() == f"FAIL allowlists: rose: {path} 3->4"
