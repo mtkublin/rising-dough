@@ -288,8 +288,10 @@ def test_add_planned_from_today_submits_under_csp(
     to_playwright(page, entries.field_due).fill(soon.isoformat())
     to_playwright(page, entries.hero_amount).fill("25.00")
     to_playwright(page, entries.field_note).fill("today-planned")
-    save_entry(page, "planned")
+    posted = save_entry(page, "planned")
     expect(to_playwright(page, entries.dialog)).to_have_count(0)  # saved: Today reloaded
+    stored = db_probe.rows(db_path, "SELECT id, description, deleted_at FROM planned_transactions")
+    assert [row[1] for row in stored] == ["today-planned"], f"posted {posted!r}, stored {stored!r}"
     planned_row = today.upcoming_planned(db_probe.planned_id(db_path, "today-planned"))
     expect(to_playwright(page, planned_row)).to_be_visible()
     page.goto(f"{base_url}/ledger?view=planned")

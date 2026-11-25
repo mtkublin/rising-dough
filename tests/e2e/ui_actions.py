@@ -31,7 +31,7 @@ def open_new_entry(page: Any) -> None:
     expect(to_playwright(page, entries.dialog)).to_be_visible()
 
 
-def submit_ok(page: Any, button: Locator, *, path: str) -> None:
+def submit_ok(page: Any, button: Locator, *, path: str) -> str:
     """Click ``button`` and wait for the server's answer to the post to ``path``, which must be 2xx.
 
     The dialog going away is not a barrier for the database (a reload or a swap can remove it
@@ -51,18 +51,19 @@ def submit_ok(page: Any, button: Locator, *, path: str) -> None:
     assert answer.value.ok, (
         f"{answer.value.url} answered {answer.value.status}: {answer.value.text()}"
     )
+    return str(answer.value.request.post_data)
 
 
 ENTRY_PATHS = {"happened": "/transactions", "planned": "/planned", "repeats": "/recurring"}
 
 
-def save_entry(page: Any, tab: str = "happened") -> None:
+def save_entry(page: Any, tab: str = "happened") -> str:
     """Save the new-entry dialog's ``tab`` (happened, planned, repeats) and wait for its commit.
 
     Only the entry's own post (``/transactions``, ``/planned`` or ``/recurring``) releases the
-    barrier (see :func:`submit_ok`).
+    barrier (see :func:`submit_ok`). Returns the posted form body.
     """
-    submit_ok(page, entries.save, path=ENTRY_PATHS[tab])
+    return submit_ok(page, entries.save, path=ENTRY_PATHS[tab])
 
 
 def choose_category(page: Any, name: str) -> None:
