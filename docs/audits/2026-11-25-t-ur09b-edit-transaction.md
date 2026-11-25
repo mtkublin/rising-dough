@@ -74,3 +74,27 @@ Findings:
 - Swap targets: every `hx-target` on the open dialog matches exactly one element.
 
 Captures: `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/ur09b-audit/shots/<state>__<1440|1024|375>__<light|dark>.png` (viewed: pln 1440 light, transit 375 light, transit 1440 dark, picker 375 dark, error 375 light, no-match 1440 light), handoff renders in `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/ur09b-audit/ref/`; data in `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/ur09b-audit/rows.json`.
+
+## Re-audit after fixes (head 468e7051, visual-auditor)
+
+Scratch DB with Checking, Savings, Euro, Yen and a liability account Card (credit limit 5000.00); 1440, 1024, 375, light and dark; states: /today, transit, expense without liability, expense on the liability account, 422; then a save on /today at 1440 light. Captures `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/ur09b-audit/shots/re-<state>__<vp>__<scheme>.png`, data `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/ur09b-audit/re.log`.
+
+### Diagnostics
+
+| Route (state) | Viewport | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|---|
+| /today | 1440, 1024 | false | 0 | 0 | 0 | 0 |
+| /today | 375 | false | 1 (pre-existing, see below) | 0 | 0 | 0 |
+| edit: transit, no liability, liability, 422 | 1440, 1024, 375 | false | 0 | 0 | 0 | 0 |
+
+Light and dark are identical. The one overflowing element at /today 375 is the decorative `pre.rd-hero__loaf` (aria-hidden, right edge 399 against 375, clipped by the hero, no horizontal scroll). Its template and the CSS are byte-identical on `ui/sourdough` (`git diff ui/sourdough 468e7051 -- src/budget_planner/web/static` is empty; the `<pre>` is in the hero on both), so it is pre-existing on MAIN, not caused by the refresher.
+
+### Re-check of the findings
+
+1. F1 fixed. Transit row: account and destination are 230 px each at 1440 and 1024 and 160 px each at 375; the account select reads `Checking` in full and is not clipped (scrollWidth equals clientWidth); matches the handoff's two equal columns (`re-transit__375__light.png`).
+2. F2 fixed. Account select bottom to date input top: 63 px with no credit line at every width (the previous build showed an empty placeholder). With the liability account the credit line renders ("Card · 4,800.00 of 5,000.00 left → 4,790.00 after this") and the gap is 81 px at 1440 and 1024, 99 px at 375 (the line wraps), as in the handoff where the line takes its own room.
+3. F3 fixed. Save on /today: `transaction saved` flash visible and stays visible (#flash-region polled 4 x 250 ms), no page navigation (`beforeunload` 0), dialog closed, `#modal-root` empty. Network after the POST: exactly one `GET /today` (the hidden refresher) plus the upcoming list refetches, which is accepted. Net worth refreshed from 7,390.00 to 7,370.00 after the amount went 50.00 to 70.00 (assets 7,600.00 to 7,580.00). No duplicate ids after the out-of-band swap; focus falls to `body` (the dialog was removed) and scrollY stays 0, no jump. Stored amount is exact (5000 after saving 50.00). The hidden refresher measures 0 x 0 with `display: none`, no margin: no layout gap.
+4. F4 fixed. The 422 hero input shows `0.00` (hero `−`, "amount must be positive" summary unchanged; copy difference remains triaged).
+5. Today regression: see the table; no layout gap, no new overflow.
+
+Template re-grep (edit-transaction.html, field.html, hero.html, today/index.html): no new arithmetic, `float`, `{% set` or `style=` introduced by the fixes (the diff shows only id attributes, the hidden refresher and conditional blocks).
