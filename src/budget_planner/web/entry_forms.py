@@ -21,7 +21,11 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
 from budget_planner.domain.money import format_major, format_money, sign_glyph
-from budget_planner.domain.planned import NewPlannedTransaction, PlannedTransaction
+from budget_planner.domain.planned import (
+    NewPlannedTransaction,
+    PatchPlannedTransaction,
+    PlannedTransaction,
+)
 from budget_planner.domain.transactions import NewTransaction, Transaction, signed_legs
 from budget_planner.services import (
     accounts as accounts_service,
@@ -424,12 +428,30 @@ def formula_hero(
     currency: str,
     today: date,
     fx: FormulaFx,
+    rule_id: int | None = None,
 ) -> tuple[str, str]:
-    """(figure, note) of the formula hero: the service's next amount, or why there is none."""
+    """(figure, note) of the formula hero: the service's next amount, or why there is none.
+
+    ``rule_id`` is the rule being edited, left out of its own sources (the edit dialog).
+    """
     drafts = parse_draft_terms(form)
     if drafts is None:
         return "\N{EM DASH}", "invalid source category"
-    result = formula_svc.preview(conn, user_id, today, None, drafts, fx=fx, target_ccy=currency)
+    return draft_hero(conn, user_id, drafts, currency=currency, today=today, fx=fx, rule_id=rule_id)
+
+
+def draft_hero(
+    conn: sqlite3.Connection,
+    user_id: int,
+    drafts: Sequence[formula_svc.DraftTerm],
+    *,
+    currency: str,
+    today: date,
+    fx: FormulaFx,
+    rule_id: int | None = None,
+) -> tuple[str, str]:
+    """(figure, note) of the formula hero for already parsed terms."""
+    result = formula_svc.preview(conn, user_id, today, rule_id, drafts, fx=fx, target_ccy=currency)
     if isinstance(result, formula_svc.PreviewOk):
         figure = format_major(result.amount_minor, currency)
         return (
@@ -565,6 +587,29 @@ def save_txn(
             amount=minor,
             description=description,
             dest_account_id=check.dest_id,
+        ),
+    )
+
+
+def save_planned_update(
+    conn: sqlite3.Connection,
+    user_id: int,
+    planned_id: int,
+    check: EntryCheck,
+    description: str,
+) -> None:
+    """Store the edit a valid update check describes."""
+    op_date, minor = check.valid_values()
+    planned_service.update(
+        conn,
+        user_id,
+        planned_id,
+        PatchPlannedTransaction(
+            operation_date=op_date,
+            category_id=require_present(check.category, "validated category").id,
+            account_id=require_present(check.account, "validated account").id,
+            amount=minor,
+            description=description,
         ),
     )
 

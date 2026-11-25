@@ -26,8 +26,8 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, entries, errors, ledger
-from tests.ui_map.locator import role
+from tests.ui_map import _html, edit_dialogs, entries, errors, ledger
+from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
@@ -363,21 +363,34 @@ def test_edit_transit_form_prefills_dest(
         conn.close()
     r = client.get(f"/recurring/{rule.id}/edit", headers=_HTMX)
     assert r.status_code == 200
-    # The combobox's hidden value input carries the dest account id.
-    form = _html.resolve_one(r.text, ledger.recurring_form)
-    assert ledger.named_input(form, "dest_account_id").get("value") == str(dest.id)
+    scope = edit_dialogs.recurring_dialog("Transit")
+    picked = _html.resolve_one(r.text, edit_dialogs.field_dest(scope)).find("option", selected=True)
+    assert picked is not None
+    assert picked.get("value") == str(dest.id)
 
 
 def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.get(f"/recurring/{ctx['rule']}/edit", headers=_HTMX)
     assert r.status_code == 200
-    assert ledger.control(r.text, ledger.field_amount).get("value") == "500.00"
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    scope = edit_dialogs.recurring_dialog("Rent")
+    amount = _html.resolve_one(r.text, edit_dialogs.hero_amount(scope))
+    assert (amount.get("name"), amount.get("value")) == ("default_amount", "500.00")
+    start = _html.resolve_one(r.text, edit_dialogs.field_start(scope))
+    assert (start.get("name"), start.get("value")) == ("start_date", "2026-01-01")
+    assert _html.resolve_one(r.text, edit_dialogs.amount_fixed(scope)).has_attr("checked")
+    assert not _html.resolve_one(r.text, edit_dialogs.amount_formula(scope)).has_attr("checked")
+    monthly = _html.resolve_one(r.text, edit_dialogs.cadence_group(scope)).find(
+        "input", attrs={"value": "monthly"}
+    )
+    assert monthly is not None
+    assert monthly.has_attr("checked")
 
 
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/edit")
     assert r.status_code == 404
-    assert "rule: not found" in _html.all_text(r.text, errors.alert)
+    assert r.text == "rule: not found"
 
 
 def test_update(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
@@ -428,9 +441,10 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
         },
     )
     assert r.status_code == 422
-    assert "cadence: invalid" in _html.all_text(r.text, errors.alert)
-    assert "start_date: invalid date" in _html.all_text(r.text, errors.alert)
-    assert "default_amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _html.all_text(r.text, edit_dialogs.summary) == (
+        "3 fields need attention Repeats : invalid Start date : invalid date "
+        "Default Amount : amount must be positive"
+    )
     assert _state(db) == before
 
 
@@ -480,7 +494,7 @@ def test_override_invalid_month(
         data={"year": 2026, "month": 13, "amount": "9.99"},
     )
     assert r.status_code == 422
-    assert "month: invalid year or month" in _html.all_text(r.text, errors.alert)
+    assert "invalid year or month" in _html.all_text(r.text, edit_dialogs.summary)
     assert _state(db) == before
 
 
@@ -493,8 +507,8 @@ def test_override_invalid_amount(
         data={"year": 2026, "month": 5, "amount": "nope"},
     )
     assert r.status_code == 422
-    assert "amount: amount must be a decimal number within range" in _html.all_text(
-        r.text, errors.alert
+    assert "amount must be a decimal number within range" in _html.all_text(
+        r.text, edit_dialogs.summary
     )
     assert _state(db) == before
 
@@ -508,7 +522,7 @@ def test_override_non_positive_amount(
         data={"year": 2026, "month": 5, "amount": "0"},
     )
     assert r.status_code == 422
-    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert "amount must be positive" in _html.all_text(r.text, edit_dialogs.summary)
     assert _state(db) == before
 
 
@@ -848,16 +862,23 @@ def test_recurring_overrides_new_form_renders(
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
     r = client.get(f"/recurring/{ctx['rule']}/overrides/new", headers=_HTMX)
     assert r.status_code == 200
-    assert _html.exists(r.text, ledger.override_dialog)
-    form = ledger.form_in(r.text, ledger.override_dialog)
-    assert form.get("hx-post") == f"/recurring/{ctx['rule']}/overrides"
-    assert ledger.named_input(form, "year").get("value") == str(next_due.year)
+    scope = edit_dialogs.occurrence_dialog("Rent")
+    form = _html.resolve_one(r.text, scope).find("form")
+    assert form is not None
+    assert (form.get("hx-post"), form.get("hx-target")) == (
+        f"/recurring/{ctx['rule']}/overrides",
+        "#modal-root",
+    )
+    month = _html.resolve_one(r.text, edit_dialogs.month_group(scope))
+    year_input = month.find("input", attrs={"name": "year"})
+    assert year_input is not None
+    assert year_input.get("value") == str(next_due.year)
 
 
 def test_recurring_overrides_new_form_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/overrides/new")
     assert r.status_code == 404
-    assert "rule: not found" in _html.all_text(r.text, errors.alert)
+    assert r.text == "not found"
 
 
 def test_recurring_overrides_new_form_defaults_to_next_due(
@@ -867,8 +888,16 @@ def test_recurring_overrides_new_form_defaults_to_next_due(
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
     r = client.get(f"/recurring/{ctx['rule']}/overrides/new", headers=_HTMX)
     assert r.status_code == 200
-    form = ledger.form_in(r.text, ledger.override_dialog)
-    assert ledger.named_input(form, "year").get("value") == str(next_due.year)
+    scope = edit_dialogs.occurrence_dialog("Rent")
+    month = _html.resolve_one(r.text, edit_dialogs.month_group(scope))
+    year_input = month.find("input", attrs={"name": "year"})
+    month_input = month.find("input", attrs={"name": "month"})
+    assert year_input is not None
+    assert month_input is not None
+    assert (year_input.get("value"), month_input.get("value")) == (
+        str(next_due.year),
+        str(next_due.month),
+    )
 
 
 def test_recurring_row_amount_italic_when_override_amount_set(
@@ -1146,33 +1175,29 @@ _ON_TODAY = {"HX-Request": "true", "HX-Current-URL": "http://testserver/today"}
 _ON_LEDGER = {"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=recurring"}
 
 
-def test_edit_form_targets_itself_and_closes_on_success(
-    client: TestClient, ctx: dict[str, int]
-) -> None:
+def test_edit_dialog_posts_into_the_modal_root(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.get(f"/recurring/{ctx['rule']}/edit", headers=_HTMX)
-    form = _html.resolve_one(r.text, ledger.recurring_form)
-    assert form.get("hx-target") == "#recurring-form"
-    assert form.has_attr("data-close-overlay-on-success")
+    form = _html.resolve_one(r.text, edit_dialogs.recurring_dialog("Rent")).find("form")
+    assert form is not None
+    assert (form.get("hx-post"), form.get("hx-target")) == (
+        f"/recurring/{ctx['rule']}",
+        "#modal-root",
+    )
 
 
-def test_update_off_ledger_refreshes_and_on_ledger_does_not(
-    client: TestClient, ctx: dict[str, int]
-) -> None:
+def test_update_closes_the_dialog_from_any_page(client: TestClient, ctx: dict[str, int]) -> None:
+    """Today and the ledger listen for the stale events; the dialog empties out of band."""
     url = f"/recurring/{ctx['rule']}"
-    off = client.post(url, data=_rule_data(ctx), headers=_ON_TODAY)
-    assert off.status_code == 200
-    assert off.headers["HX-Reswap"] == "none"
-    assert off.headers["HX-Refresh"] == "true"
-    on = client.post(url, data=_rule_data(ctx), headers=_ON_LEDGER)
-    assert on.headers["HX-Reswap"] == "none"
-    assert "HX-Refresh" not in on.headers
-
-
-def test_override_form_targets_its_own_panel(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get(f"/recurring/{ctx['rule']}/overrides/new", headers=_HTMX)
-    form = ledger.form_in(r.text, ledger.override_dialog)
-    assert form.get("hx-target") == "closest .slide-over-root"
-    assert form.has_attr("data-close-overlay-on-success")
+    for headers in (_ON_TODAY, _ON_LEDGER):
+        r = client.post(url, data=_rule_data(ctx), headers=headers)
+        assert r.status_code == 200
+        assert "HX-Refresh" not in r.headers
+        assert json.loads(r.headers["HX-Trigger"]) == {
+            "forecast-stale": True,
+            "ledger-stale": True,
+        }
+        assert _html.resolve_one(r.text, by_id("modal-root")).get_text(strip=True) == ""
+        assert "Recurring rule saved" in _html.all_text(r.text, errors.status)
 
 
 def test_promote_off_ledger_refreshes_and_on_ledger_does_not(
@@ -1187,21 +1212,22 @@ def test_promote_off_ledger_refreshes_and_on_ledger_does_not(
     assert "HX-Refresh" not in on.headers
 
 
-def test_override_success_off_ledger_refreshes_and_on_ledger_does_not(
+def test_override_success_closes_the_dialog_from_any_page(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
     form = {"year": "2026", "month": "5", "amount": "12.00"}
-    off = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_TODAY)
-    assert off.status_code == 200
-    assert off.headers["HX-Reswap"] == "none"
-    assert off.headers["HX-Refresh"] == "true"
-    assert "ledger-stale" in off.headers["HX-Trigger"]
-    on = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_LEDGER)
-    assert on.headers["HX-Reswap"] == "none"
-    assert "HX-Refresh" not in on.headers
+    for headers in (_ON_TODAY, _ON_LEDGER):
+        r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=headers)
+        assert r.status_code == 200
+        assert "HX-Refresh" not in r.headers
+        assert json.loads(r.headers["HX-Trigger"]) == {
+            "forecast-stale": True,
+            "ledger-stale": True,
+        }
+        assert _html.resolve_one(r.text, by_id("modal-root")).get_text(strip=True) == ""
 
 
-def test_override_errors_rerender_form_with_message(
+def test_override_errors_rerender_the_dialog_with_the_message(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
     for form, text in (
@@ -1209,10 +1235,11 @@ def test_override_errors_rerender_form_with_message(
         ({"year": "2026", "month": "5", "amount": "abc"}, "decimal number within range"),
         ({"year": "2026", "month": "5", "amount": "-1"}, "must be positive"),
     ):
-        r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_LEDGER)
+        r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_FROM_DIALOG)
         assert r.status_code == 422
-        assert _html.exists(r.text, ledger.override_dialog)
-        assert text in _html.text_of(r.text, ledger.form_errors)
+        assert r.headers["HX-Retarget"] == "#modal-root"
+        assert _html.exists(r.text, edit_dialogs.occurrence_dialog("Rent"))
+        assert text in _html.all_text(r.text, edit_dialogs.summary)
 
 
 def test_promote_on_the_old_shell_is_still_the_slide_over(
