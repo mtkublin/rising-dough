@@ -13,7 +13,7 @@ The redesign plan says: "Behaviour is pinned by the harness. If a contract test 
 - `tests/contract/test_categories.py::test_new_form_targets_itself_and_resets` asserts `hx-target="#category-form"` and `data-reset-on-submit`. The shell targets `#modal-root` through `HX-Retarget` in `dialog_response`, and the macro emits no free form attributes.
 - `tests/contract/test_settings.py::test_htmx_request_gets_drawer_fragment` asserts that an HX GET `/settings` returns the old slide-over drawer (`role=dialog` "Settings", `aria-modal`). The shell has no drawer, and `removal.md` deletes `settings/_drawer.html`.
 
-Other contract tests pin real behaviour and must not move, for example `test_archive_204_with_undo_toast_and_audit` (status 204, undo toast in `HX-Trigger`, audit row) and `test_delete_unknown_or_foreign_is_a_noop` in `tests/contract/test_accounts.py` (200 no-op for an unknown or foreign id). Without a rule, each surface item stops and asks, or edits tests ad hoc.
+Other contract tests pin real behaviour and must not move, for example `test_archive_204_with_undo_toast_and_audit` (status 204, undo toast in `HX-Trigger`, audit row) and `test_delete_unknown_or_foreign_is_a_noop` in `tests/contract/test_accounts.py` (200 no-op for an unknown or foreign id; superseded by operator decision Q15, 2026-11-25: 404, no toast, now `test_delete_unknown_or_foreign_is_404`, T-UR08c). Without a rule, each surface item stops and asks, or edits tests ad hoc.
 
 ## Decision
 
@@ -29,7 +29,7 @@ Other contract tests pin real behaviour and must not move, for example `test_arc
    - The commit body lists each old -> new assertion.
    - The reviewer checks that no item from rule 1 changed.
 4. **A behaviour pin that conflicts with the new UI** (for example a 204 that cannot close a dialog) keeps the behaviour. The dialog closes client-side through an `HX-Trigger` event handled by the shell's non-vendored script (`static/rd/js/app-toast.js`, ADR-0143). Changing the status is not the fix.
-5. **Out of scope**: anything in rule 1. Example: the unknown or foreign account delete no-op (audit finding F5) stays as it is until the operator decides.
+5. **Out of scope**: anything in rule 1. Example: the unknown or foreign account delete no-op (audit finding F5) stays as it is until the operator decides. Amendment 2026-11-25: the operator decided (Q15, `docs/plans/ui-redesign/operator-decisions-2026-11-25.md`): 404, no toast, identical for unknown and foreign accounts (T-UR08c).
 
 ## Consequences
 
