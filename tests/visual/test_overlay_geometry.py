@@ -19,12 +19,12 @@ from typing import cast
 import pytest
 from bs4 import BeautifulSoup
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.services import analytics as analytics_service, fx as fx_service
 from budget_planner.services.analytics import MonthlyFlow
 from budget_planner.services.forecast import MonthlyProjectionPoint
-from budget_planner import clock
 from budget_planner.web import accounts_data, chart_geometry, plan_data
 from budget_planner.web.accounts_view import AccountRow
 from budget_planner.web.templating import build_jinja_env
@@ -306,7 +306,11 @@ def seed_charts() -> tuple[tuple[str, str, str, str], ...]:
 def seed_rows() -> tuple[Row, ...]:
     """Geometry rows for the forecast and flow charts, from the app run over the base seed."""
     return tuple(
-        dataclasses.replace(row, page=ACCOUNTS_GLOB, optional=True) if page == ACCOUNTS_PAGE else row
+        (
+            dataclasses.replace(row, page=ACCOUNTS_GLOB, optional=True)
+            if page == ACCOUNTS_PAGE
+            else row
+        )
         for page, html, root, app_html in seed_charts()
         for row in geometry_rows(page, html, root=root, app_html=app_html, reason=GEOMETRY_REASON)
     )

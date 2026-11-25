@@ -387,17 +387,22 @@ def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
+def _blocking_phrases(refs: AccountReferences) -> list[str]:
+    """The planned and recurring part of a blocked delete: one phrase for both kinds together."""
+    if refs.planned and refs.recurring:
+        return [f"{refs.planned + refs.recurring} planned or recurring items"]
+    if refs.planned:
+        return [_count(refs.planned, "planned item")]
+    if refs.recurring:
+        return [_count(refs.recurring, "recurring rule")]
+    return []
+
+
 def _blocked(acc: Account, refs: AccountReferences, balance_minor: int) -> DeleteDialog:
     action = f"/accounts/{acc.id}{DELETE_PATH}"
     ledger = f"/ledger?account_id={acc.id}"
     title = f"Can\u2019t delete {acc.name}"
-    items = []
-    if refs.planned and refs.recurring:
-        items.append(f"{refs.planned + refs.recurring} planned or recurring items")
-    elif refs.planned:
-        items.append(_count(refs.planned, "planned item"))
-    elif refs.recurring:
-        items.append(_count(refs.recurring, "recurring rule"))
+    items = _blocking_phrases(refs)
     if refs.transactions:
         extra = f" and {' and '.join(items)}" if items else ""
         text = f"It still has {_count(refs.transactions, 'transaction')}{extra}."
