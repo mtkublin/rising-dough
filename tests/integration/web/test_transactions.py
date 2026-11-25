@@ -124,7 +124,7 @@ def test_create_valid_persists_and_triggers(
     assert r.status_code == 200
     # the dialog closes (modal-root emptied out of band) and the flash says what happened
     assert _html.text_of(r.text, shell.modal_root) == ""
-    assert "Transaction saved" in _html.all_text(r.text, errors.status)
+    assert _html.all_text(r.text, errors.status) == "● Transaction saved"
     hx = json.loads(r.headers["HX-Trigger"])
     assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
     conn = get_connection(_migrated)

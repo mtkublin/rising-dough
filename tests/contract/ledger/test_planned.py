@@ -16,7 +16,7 @@ from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.repositories import planned as planned_repo
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import USER_ID, audit_ops, hx_events, query, scalar
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, ledger, rd_shell as shell
 from tests.ui_map.locator import by_id, role
 
 Ids = dict[str, int]
@@ -71,6 +71,8 @@ def test_create_persists_audits_and_signals(
     assert hx_events(r) == FORECAST_LEDGER
     assert r.headers["HX-Reswap"] == "none"
     assert r.headers["HX-Refresh"] == "true"
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Planned entry saved"
     new_id = scalar(_migrated, "SELECT MAX(id) FROM planned_transactions")
     assert new_id != seeded["pl"]
     assert (

@@ -13,7 +13,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.repositories._unaudited import set_next_due
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import audit_ops, hx_events, query, rule_form, scalar
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, ledger, rd_shell as shell
 from tests.ui_map.locator import by_id, role
 
 Ids = dict[str, int]
@@ -49,6 +49,8 @@ def test_create_persists_audits_and_signals(
     assert hx_events(r) == FORECAST_LEDGER
     assert r.headers["HX-Reswap"] == "none"
     assert r.headers["HX-Refresh"] == "true"
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Recurring rule saved"
     new_id = scalar(_migrated, "SELECT MAX(id) FROM recurring_rules")
     assert new_id != seeded["rule"]
     assert (

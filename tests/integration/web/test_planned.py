@@ -26,7 +26,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, edit_dialogs, entries, errors, ledger
+from tests.ui_map import _html, edit_dialogs, entries, errors, ledger, rd_shell as shell
 from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
@@ -98,7 +98,7 @@ def test_new_form(client: TestClient) -> None:
     assert (due.get("name"), due.get("type")) == ("operation_date", "date")
 
 
-def test_create(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     r = client.post(
         "/planned",
         data={
@@ -110,7 +110,13 @@ def test_create(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 200
-    assert "forecast-stale" in r.headers["HX-Trigger"]
+    assert json.loads(r.headers["HX-Trigger"]) == {"forecast-stale": True, "ledger-stale": True}
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Planned entry saved"
+    row = db.execute(
+        "SELECT amount, description FROM planned_transactions ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert (row[0], row[1]) == (12345, "x")
 
 
 def test_create_bad_amount(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
