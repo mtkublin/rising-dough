@@ -1564,7 +1564,7 @@
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "promote \u00b7 Groceries \u2212 Amount PLN date note cancel [ promote ...",
+      "name": "promote \u00b7 subscription \u2212 Amount PLN date note cancel [ promo...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/recurring/{id}/promote",
       "via": "promote"

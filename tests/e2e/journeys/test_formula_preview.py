@@ -95,7 +95,7 @@ def test_formula_cycle_shows_the_error_and_keeps_the_edit_dialog_open(world: Wor
         "(url) => window.htmx.ajax('GET', url, {target: '#modal-root', swap: 'innerHTML'})",
         f"/recurring/{rule_a}/edit",
     )
-    dialog = edit_dialogs.recurring_dialog("Salary")
+    dialog = edit_dialogs.recurring_dialog("savings-rule")
     expect(world.find(dialog)).to_be_visible()
     world.find(edit_dialogs.amount_formula(dialog)).dispatch_event("click")
     world.find(edit_dialogs.formula_pick(dialog)).click()
