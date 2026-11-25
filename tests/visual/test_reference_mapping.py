@@ -280,7 +280,9 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
     assert status == 200
     text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
     assert "Can\u2019t delete Checking It still has" in text
-    assert "23 transactions and 3 planned items and 7 recurring rules." in text
+    # F1 grew the seed's Checking transactions 23 -> 33 (overlay row "Checking txns 23 -> 33",
+    # tests/visual/handoff_overlay.toml); planned items and recurring rules are unchanged.
+    assert "33 transactions and 3 planned items and 7 recurring rules." in text
 
 
 def _non_overlay_pages() -> set[str]:
