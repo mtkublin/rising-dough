@@ -156,7 +156,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
   - a red run showing every surface (today, accounts, ledger, plan, settings, auth, errors, overlays) failing against its reference with the old app, recorded in the handoff note;
   - ratio (0.1%) and calibrated cluster cap recorded in `tests/visual/README.md`.
 - **Depends**: T-UR00, T-UR34, T-UR36. References: ADR-0147, ADR-0106 amendment 2026-11-22, ADR-0027 amendment 2026-11-22 (T-Q251), `.github/workflows/visual.yml`.
-- Progress (2026-11-24): seed `tests/visual/handoff_seed.py` (`build_seed`, 10 modifiers; `test_reference.py` uses it, `test_snapshots.py` keeps demo.sqlite; fixture choice keys on the module name, harden later) and overlay `tests/visual/handoff_overlay.toml` + `overlay.py` + guard `test_handoff_overlay.py` (12 rows) merged. The overlay rewrites the handoff to what seed + app produce (ADR-0147 §4): the handoff is internally inconsistent on Today (overdue "Annual insurance" 412.00 shown while left is 1,399.93); the app gives left 987.93 and afford -116.01 per day / 812.07 over, so the afford row 9 value moves from the ADR-0151 board figure to the seed figure in the follow-up. Remaining: seed-dependent overlay rows (Today/Plan headline, tab counts 616/27, checked dates, future session times, formula next amount, EUR-named PLN accounts, invite `used` modifier), CI-rendered references (`visual.yml`, remove the 156 committed PNGs), tolerance + cluster cap. Open decisions: `placeholder` attribute in the overlay allow-list (ADR-0147 §4), budget-row bar labels (row 8), empty/future values (rows 2-4, 13), 22nd picker entry (needs an element).
+- Progress (2026-11-24): seed `tests/visual/handoff_seed.py` (`build_seed`, 10 modifiers; `test_reference.py` uses it, `test_snapshots.py` keeps demo.sqlite; fixture choice keys on the module name, harden later) and overlay `tests/visual/handoff_overlay.toml` + `overlay.py` + guard `test_handoff_overlay.py` (12 rows) merged. The overlay rewrites the handoff to what seed + app produce (ADR-0147 §4): the handoff is internally inconsistent on Today (overdue "Annual insurance" 412.00 shown while left is 1,399.93); the app gives left 987.93 and afford -116.01 per day / 812.07 over, so the afford row 9 value moves from the ADR-0151 board figure to the seed figure in the follow-up. Remaining: seed-dependent overlay rows (Today/Plan headline, tab counts (seed: 32 actual rows, 15 recurring rules, per `test_ledger_rows` and `test_handoff_seed.py`; the handoff's 616 and 27 are overlaid, not seed values), checked dates, future session times, formula next amount, EUR-named PLN accounts, invite `used` modifier), CI-rendered references (`visual.yml`, remove the 156 committed PNGs), tolerance + cluster cap. Open decisions: `placeholder` attribute in the overlay allow-list (ADR-0147 §4), budget-row bar labels (row 8), empty/future values (rows 2-4, 13), 22nd picker entry (needs an element).
 - Progress (2026-11-24, wave 3): references rendered in CI (`visual.yml` advisory job `handoff reference comparison`, `continue-on-error`, not in `visual-gate`; 106 pages x 3 widths x 2 themes from the overlaid handoff; `SURFACE_ROUTES` + `PAGE_ROUTES` map pages to app routes); 156 committed reference PNGs removed, guard `tests/architecture/test_no_committed_reference_png.py`; `just visual-reference` / `test-visual` run in the pinned container. Overlay now 40 rows; 31 seed-value rows checked against services by `tests/visual/test_overlay_values.py`; `invite-used` modifier. Remaining: tolerance + cluster cap (calibrated from CI self-comparison), seed parity follow-ups (owner Safari session, forecast per-month rows, recurring rule rows vs the board), the red-run record. Gate the reference job (add to `visual-gate` needs, drop `continue-on-error`) as surfaces migrate.
 - Progress (2026-11-24, wave 4): seed parity: owner `Safari · iPhone` session in the base seed (board times after the frozen day overlaid to seed times), 57 of 60 forecast per-month cells overlaid with service-checked CASES (overlay 100 rows), modifier `recurring-board` (drops the 3 Today-only rules so ledger/recurring shows the board's 12; to be wired per page with page-specific tab-count and hero rows). Reference job sharded into 6 jobs (`REFERENCE_SHARD=<viewport>:<theme>`, 212 tests each; the unsharded job hit the 45-minute timeout, run 45480373605). Known: forecast net cells Dec 2026 and Sep 2027 keep the board's loss class while the seed projects positive (overlay is text-only). Harness gaps for the tolerance item: `SURFACE_ROUTES["auth"]` points at `/login` (route is `/auth/login`); every overlay page compares against plain `/today` (no dialog opened); `SURFACE_TOLERANCE` still per surface.
 - Progress (2026-11-25): reference job sharded 6 ways (UR00bE, 9a4c4c61); strict tolerance, max diff pixel ratio 0.001 plus cluster cap (UR00bD, 93471206); cap calibrated to 52 px = 2 × 26 px, the largest handoff-vs-itself cluster over visual.yml runs 45496302019, 45496318944, 45498452834 (UR00bF, 5fd4c3af); red run 45493474608: 106 failed / 106 passed per shard on the old app. Open: dialog overlay pages open their dialog, 409/500 page routes, recurring-board modifier wiring.
@@ -183,7 +183,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - Done (2026-11-24): `templates/layouts/{base,_palette,_shortcuts}.html` per the handoff shell (top bar `rd-mainnav` >= 768 px, `rd-tabbar` below; the handoff has no side rail), `fragments/flash/{success,error}`, `fragments/toast/undo`, nine `fragments/states/*`; dev-gated placeholder `GET /dev/shell` (`routers/dev_components.py`, contract-covered, 404 in production); new-shell UI map `tests/ui_map/rd_shell.py` (old `tests/ui_map/shell.py` kept for unmigrated pages), journeys `tests/e2e/test_rd_shell.py` on mockup and app targets. Palette has the handoff's 7 entries (not 15); Today is `g t` in app, `g o` on the mockup (ADR-0147 §5). Icons use the external sprite path `/static/rd/icons/sprite.svg#icon-…`. Old `csrf.js` / `htmx-csrf.js` still load from `static/` until T-UR04. Pages pass `nav_current`. Fragment link defaults are placeholders; wiring items pass real URLs. Audit: `docs/audits/2026-11-24-t-ur02-base-layout.md` (clean).
 - Follow-up done 2026-11-25 (UR02b, 98366386; audit docs/audits/2026-11-25-t-ur02b-shell-flash-toast.md): assertive live region, toast renderer (static/rd/js/app-toast.js), visible 4xx/5xx flashes, signed-in email in the topbar (designer to confirm placement).
 - Done (2026-11-25): UR02c rd-styled error flash, shown above an open dialog (faff04b2, ADR-0107, ADR-0143).
-- T-UR02e (operator Q29, `operator-decisions-2026-11-25.md`; ADR-0107, ADR-0143, ADR-0134 §4): outside forms, when a request gets no response the offline banner (`offline.js`, in `#flash-region`) shows alone; `app-toast.js` raises the assertive "Could not reach the server" flash only if no banner appeared. Inside forms unchanged (offline state in the form, no flash). Test: `tests/e2e/test_htmx_error_flash.py::test_network_failure_shows_offline_banner_alone` (approved edit of the flash test).
+- ✅ T-UR02e (operator Q29, `operator-decisions-2026-11-25.md`; ADR-0107, ADR-0143, ADR-0134 §4): outside forms, when a request gets no response the offline banner (`offline.js`, in `#flash-region`) shows alone; `app-toast.js` raises the assertive "Could not reach the server" flash only if no banner appeared. Inside forms unchanged (offline state in the form, no flash). Test: `tests/e2e/test_htmx_error_flash.py::test_network_failure_shows_offline_banner_alone` (approved edit of the flash test).
 
 ### ✅ T-UR03 [P] Server-side value helpers → T-UR01
 - **Deliverables** (pure functions + Jinja filters, unit-tested, ADR-0107 §5): category colour to `data-color` preset or nonce'd rule with the `--cat-edge` 3:1 contrast computation; block-character bar spans (20 / 10 cells, `--over`, `--none`); hero figure fit counts (`data-digits`, `data-marks`, `data-signs`); year-cell `data-state`; bar `aria-label` text.
@@ -224,23 +224,23 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Page part done 2026-11-25 (UR07a, 10cf35bb; audit docs/audits/2026-11-24-t-ur07a-today.md). Open (UR07b): new-entry dialog /add, promote and override dialogs; re-enable the T-UR07b skips.
 - Remaining: upcoming-row override links do not open (UR07b audit F6, routed to T-UR10).
 
-### ◻ T-UR08 [P] Accounts
+### ✅ T-UR08 [P] Accounts
 - Handoff: `pages/accounts`, `accounts--empty`; overlays `new-account*`, `edit-account*`, `delete-account*`, `reconcile*`, `row-menu--account`.
 - Fragments: `rows/account-row` (including the credit-limit line), `rows/reconcile-snapshot`, sparkline chart.
 - Page part done 2026-11-25 (UR08a, 40f1ff1f; audit docs/audits/2026-11-24-t-ur08a-accounts.md). Open (UR08b): new/edit/delete/reconcile dialogs, ISO currency combobox in the new-account form (currently dead in the new shell), unknown-id POST /accounts/<id>/delete reports success (audit F5); re-enable the T-UR08b skips and the /accounts KNOWN_BUGS xfail.
 - Remaining: UR08b (awaiting operator contract-test decision).
 
-#### T-UR08c Account delete of an unknown or foreign id returns 404 (operator decision Q15, audit F5)
+#### ✅ T-UR08c Account delete of an unknown or foreign id returns 404 (operator decision Q15, audit F5)
 - `POST /accounts/{id}/delete` for an unknown, foreign or archived id: 404, no `HX-Trigger` toast, no DB or audit change, same response for every case. Contract test renamed `test_delete_unknown_or_foreign_is_404`. ADR-0152 §5 amended; no new ADR; no template change. Files: `web/routers/accounts.py`, `tests/contract/test_accounts.py`.
 
-#### T-UR41a Unknown routes: HTML 404 page for browsers, JSON 404 for API clients (operator decision Q12)
+#### ✅ T-UR41a Unknown routes: HTML 404 page for browsers, JSON 404 for API clients (operator decision Q12)
 - A request to an unknown route with `Accept: text/html` and no `HX-Request` gets the existing `pages/errors/404.html` page (status 404, heading "Not found", `X-Request-Id`). Every other caller (JSON, `*/*`, HTMX) keeps `{"detail": "Not Found"}`. Handler in `web/errors.py`; contract test `test_unknown_route_is_404_html_for_browsers_json_for_api_clients` replaces the JSON-for-every-caller pin. ADR-0106 §1 amended; no new ADR. Template item (reuses the T-UR06 404 template; the orchestrator dispatches the visual-auditor). Files: `web/errors.py`, `tests/contract/test_errors.py`, `docs/adr/0106-ui-behaviour-test-harness.md`.
 
-### ◻ T-UR09 [P] Ledger · actual → T-UR07
+### ✅ T-UR09 [P] Ledger · actual → T-UR07
 - Handoff: `pages/ledger/actual` (+ `--empty`, `--no-matches`, `--long`); overlays `edit-transaction*`, `row-menu--transaction`, `category-picker*`.
 - Fragments: `ledger/filter-bar`, `ledger/bulk-bar`, `rows/transaction-row`, `rows/transaction-day`.
 
-### ◻ T-UR10 [P] Ledger · planned, recurring, recently deleted → T-UR07
+### ✅ T-UR10 [P] Ledger · planned, recurring, recently deleted → T-UR07
 - Handoff: `pages/ledger/planned` (+ `--empty`), `recurring` (+ `--empty`), `recently-deleted`; overlays `edit-planned`, `edit-recurring*`, `override--occurrence`, `override--remove`, `row-menu--planned`, `row-menu--recurring`.
 - Fragments: `rows/planned-row`, `rows/recurring-row`, `rows/deleted-planned`, `rows/deleted-category`.
 
@@ -258,7 +258,7 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Handoff: `pages/settings/categories`, `currency-fx`, `preferences`; overlays `new-category*`, `edit-category`, `archive-category`.
 - Fragments: `rows/category-row`. Theme switch (`theme-switch.js`) on Preferences.
 
-### ◻ T-UR14 [P] Settings · security and users
+### ✅ T-UR14 [P] Settings · security and users
 - Handoff: `pages/settings/security` (+ `--error`), `users`; overlay `edit-user`.
 - Fragments: `rows/session-row`, `rows/user-row`. Passkey add / remove keeps `passkeys.js` behaviour.
 
@@ -297,7 +297,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR23 [P] Account delete rule (blocked dialog) → T-UR08, T-UR33
 - Service rule shipped in Phase P (T-UR33, ADR-0148); this task builds the blocked and confirm dialogs on the returned counts. Original scope: service refuses delete while any transaction, planned or recurring item references the account; dialog links to them; state blocked by recurring only; final confirm otherwise. Tests assert DB state and audit. Requirement F2.8. ADR-0134 §3.
 
-### ◻ T-UR24 [P] Remove inline promote routes → T-UR07, T-UR10
+### ✅ T-UR24 [P] Remove inline promote routes → T-UR07, T-UR10
 - Delete `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline`, their templates, UI-map names and route allowlist entries. ADR-0134 §5.
 - UR24 scope (2026-11-25): also drops the legacy non-dialog branch of `GET .../promote` (`form_responses.promote_planned_dialog`, `recurring_views.render_promote_modal`, templates `_promote_modal.html`); the dialog (`pages/entries/promote.html`, UR10a) is the only promote UI and its flash toasts stay. The removed routes return 404.
 
@@ -315,7 +315,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR28 [P] Ledger export menu and credit-limit line → T-UR09
 - `export` menu beside the Ledger Actual and Planned tabs (csv, parquet, current tab and filters, kept on phone, none on Recurring); credit-limit line under the account in new entry, edit and phone sheet (pink with `role=alert` over limit, saving allowed). ADR-0134 §2, §6.
 
-### ◻ T-UR28b [P] Hero figures through `format_figure` → T-UR09
+### ✅ T-UR28b [P] Hero figures through `format_figure` → T-UR09
 - The static hero figure (the formula's next amount, shown in the new-entry repeats tab and the edit-recurring dialog) is formatted by `domain.money.format_figure` (thousands separator), like the edit-transaction hero. The amount inputs of the new-entry, edit-planned and edit-recurring heroes keep `format_major` (a bare decimal the parser reads back; `parse_amount_str` takes no grouping).
 
 ---
@@ -355,7 +355,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Re-run `frontend-visual-audit` for the flows audited in `docs/audits/2026-11-23-t-q316-t-q317.md`: Undo reload waiting on in-flight htmx requests (T-Q316) and the passkey journey (T-Q317), on the migrated templates at 1440 / 1024 / 375. Step 3b (behaviour contract) included.
 - Commit the result as `docs/audits/<date>-t-ur41.md`. Quality-audit follow-up (h); deferred because the redesign replaces the templates the original audit covered.
 
-### ◻ T-UR42a [S] Visual compare decode speed: Pillow dev dependency (operator Q14, 2026-11-25)
+### ✅ T-UR42a [S] Visual compare decode speed: Pillow dev dependency (operator Q14, 2026-11-25)
 - Operator decision Q14: add a dev-only dependency for the screenshot decode, with an ADR. See [ADR-0153](../../adr/0153-pillow-dev-dependency-for-visual-compare-decode.md) and [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 - **Change**: `pillow` in the `dev` group (`pyproject.toml`, `uv.lock`); `tests/visual/handoff.py` `_decode` uses it; diff mask, ratio and cluster semantics unchanged.
 - **Acceptance**: `tests/visual/test_compare.py` and `tests/visual/test_reference_mapping.py` green with unchanged expectations; before/after timings in the commit.
@@ -363,14 +363,23 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
 - Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 
-### ◻ T-UR43a [S] Stored formula cycle: 0.00 with a warning, saves must remove it (Q25)
+### ✅ T-UR43a [S] Stored formula cycle: 0.00 with a warning, saves must remove it (Q25)
 - Operator decision Q25 ([operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md)); rule and exact wording in the [ADR-0047](../../adr/0047-recurring-formula-linear-combination-and-chaining.md) amendment 2026-11-25.
 - `live_rule_amount` (services/recurring_formula.py) returns `(0, True)` for a stored cycle, replacing the web `live_amount` fallback to the saved snapshot, so the expansion (`rt_expand`), the ledger recurring row and the promote prefill agree (handover follow-up "live_amount vs rt_expand"). The ledger recurring view no longer 500s on a stored cycle and marks it `formula cycle`.
 - Saves that keep or create a cycle are 422 with the cycle error and write nothing; an edit that removes it succeeds.
 
-### ◻ T-UR40a [S] Operator decisions 2026-11-25: docs and CI checkout
+### ✅ T-UR40a [S] Operator decisions 2026-11-25: docs and CI checkout
 - Applies four operator decisions from [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md), docs first, no code logic:
   - Q1: `csrf.js` and vendored `htmx-2.0.11.min.js` are KEEP: rows in [removal.md](removal.md) and an ADR-0107 §2 amendment.
   - Q2: blocked: needs a push with workflow scope; operator applies [q2-ci-checkout.md](q2-ci-checkout.md): `.github/workflows/ci.yml` `ci` job (the job that runs the guards) checkout gets `fetch-depth: 0` and `filter: blob:none`.
   - Q16: ADR-0152 confirmed by the operator (Status line).
   - Q9: ADR-0134 amendment: invite email NO-GO for v1 (T-UR18 and requirements wording aligned).
+
+## Follow-ups logged 2026-11-25
+
+- /today promote success sends `HX-Refresh`, so the success toast is lost.
+- At 1024 px the actions column of the planned and recurring tables is clipped.
+- Double `role=alert` (the wrapper in `layouts/base.html` line 89 and `fragments/flash/error.html` line 8): accessibility.
+- WebKit e2e (advisory) failures: `test_crawl[ledger]` (export as parquet, frame load interrupted), `test_crawl[today]` (cancelled GET `/today/upcoming`), `test_csp_buttons` (x2), `test_setup_page` (timeout).
+- Amount inputs stay ungrouped (`parse_amount_str` accepts no grouping). Operator question: are grouped digits wanted in amount inputs?
+- `merge-item` remote-branch deletion returns 403 (token). Stale `wi/**` branches on origin to be pruned by the operator.
