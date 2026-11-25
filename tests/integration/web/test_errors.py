@@ -157,7 +157,7 @@ def test_failed_htmx_write_flashes_the_handoff_copy_with_retry(error_client: Tes
     flash = _html.text_of(r.text, by_id("flash-region-assertive"))
     assert "\u25b2 Couldn\u2019t save. Your changes are still in the form." in flash
     assert _html.exists(r.text, role("button", "retry").inside(by_id("flash-region-assertive")))
-    assert rid not in flash  # the reference sits in the tooltip, not in the visible text
+    assert f"Reference: {rid}" in flash  # also a visually hidden text for keyboard and touch users
 
 
 def test_unhandled_exception_falls_back_to_500(
