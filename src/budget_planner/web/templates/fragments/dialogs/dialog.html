@@ -20,7 +20,11 @@
                        hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=()) %}body{% endcall %}
      variant: "standard" | "confirm" | "blocked".  size: "" | "sm" | "md" (confirm and blocked default to "sm").
      hero (standard): dict with currency, amount_value, note, sign, amount_label, amount_id (hero-amount), amount_name (amount),
-                      error (message; sets aria-invalid + aria-describedby).
+                      error (message; sets aria-invalid + aria-describedby),
+                      output (true: a static <output class="rd-dialog__amount rd-dialog__amount--static" for=amount_id> showing
+                      amount_value instead of the editable input; no label, no name, never submitted; currency holds the unit
+                      text, e.g. "PLN difference"; amount_id names the body field the figure is derived from; sign and note
+                      still render. Handoff: overlays/reconcile.html, reconcile--liability.html).
      actions: list of dicts {tone, label, id, name, value, href, hx_get, hx_post, hx_target, hx_swap, formaction};
                       tone: cancel | primary (name/value) | secondary (type=button, does not close) | danger (name/value) | link | ok.
                       Any action may carry an id; secondary takes the hx_* and formaction keys.
@@ -47,18 +51,23 @@
               <div class="rd-dialog__hero-row">
                 {% if hero.sign|default(none) %}<span class="rd-dialog__sign"
       aria-hidden="true">{{ hero.sign }}</span>{% endif %}
-                <label class="u-visually-hidden"
-                       for="{{ hero.amount_id|default('hero-amount') }}">{{ hero.amount_label|default("Amount") }}</label>
-                <input class="rd-dialog__amount"
-                       id="{{ hero.amount_id|default('hero-amount') }}"
-                       name="{{ hero.amount_name|default('amount') }}"
-                       inputmode="decimal"
-                       autocomplete="off"
-                       value="{{ hero.amount_value|default('') }}"
-                       placeholder="0.00"
-                       {% if hero.error|default(none) %}aria-invalid="true" aria-describedby="{{ hero.amount_id|default('hero-amount') }}-error"{% endif %}
-                       data-js="amount-input"
-                       required>
+                {% if hero.output|default(false) %}
+                  <output class="rd-dialog__amount rd-dialog__amount--static"
+                          for="{{ hero.amount_id|default('hero-amount') }}">{{ hero.amount_value|default("") }}</output>
+                {% else %}
+                  <label class="u-visually-hidden"
+                         for="{{ hero.amount_id|default('hero-amount') }}">{{ hero.amount_label|default("Amount") }}</label>
+                  <input class="rd-dialog__amount"
+                         id="{{ hero.amount_id|default('hero-amount') }}"
+                         name="{{ hero.amount_name|default('amount') }}"
+                         inputmode="decimal"
+                         autocomplete="off"
+                         value="{{ hero.amount_value|default('') }}"
+                         placeholder="0.00"
+                         {% if hero.error|default(none) %}aria-invalid="true" aria-describedby="{{ hero.amount_id|default('hero-amount') }}-error"{% endif %}
+                         data-js="amount-input"
+                         required>
+                {% endif %}
                 <span class="rd-dialog__cur">{{ hero.currency }}</span>
               </div>
               {% if hero.error|default(none) %}
