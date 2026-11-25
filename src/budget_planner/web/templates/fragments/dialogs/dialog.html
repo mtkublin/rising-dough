@@ -44,7 +44,7 @@
             method="post"
             action="{{ action }}"
             {% if hx_post %}hx-post="{{ hx_post }}" hx-target="{{ hx_target }}" hx-swap="{{ hx_swap }}"{% endif %}>
-        <header class="rd-dialog__band">
+        <header class="rd-dialog__band{% if not hero %} rd-dialog__band--slim{% endif %}">
           <div class="rd-dialog__band-head">
             <h2 class="rd-dialog__title" id="{{ dialog_id }}-title">{{ title }}</h2>
             {{ _close() }}
