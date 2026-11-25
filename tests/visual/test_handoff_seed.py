@@ -417,3 +417,32 @@ def test_owner_has_the_firefox_and_the_safari_session(base: Built) -> None:
     assert phone.session.created_at == dt.datetime(2026, 10, 26, 17, 40, tzinfo=dt.UTC)
     assert phone.session.last_seen_at == dt.datetime(2026, 10, 30, 21, 3, tzinfo=dt.UTC)
     assert phone.absolute_expires_at == dt.datetime(2026, 11, 25, 17, 40, tzinfo=dt.UTC)
+
+
+def _account(conn: sqlite3.Connection, name: str) -> int:
+    return next(a.id for a in accounts_repo.list_all(conn, USER) if a.name == name)
+
+
+def _net(conn: sqlite3.Connection) -> tuple[int, int, int]:
+    totals = fortune_service.compute_fortune(
+        conn, USER, fx_service.converter_for(conn, Settings(_env_file=None), DAY)
+    )
+    return totals.net_base, totals.assets_base, totals.liabilities_base
+
+
+def test_unreferenced_account_modifier(tmp_path: Path) -> None:
+    """delete-account: Investments E exists with nothing pointing at it; figures unchanged."""
+    conn = _built(tmp_path, "unreferenced-account")
+    acc_id = _account(conn, "Investments E")
+    refs = accounts_service.account_references(conn, USER, acc_id)
+    assert (refs.transactions, refs.planned, refs.recurring) == (0, 0, 0)
+    assert balance_service.derive_balance(conn, USER, acc_id) == 0
+    assert _net(conn) == (3_443_969, 3_689_543, 245_574)
+
+
+def test_account_with_rules_modifier(tmp_path: Path) -> None:
+    """delete-account--blocked-planned: 2 recurring rules, no transactions, on Investments D."""
+    conn = _built(tmp_path, "account-with-rules")
+    refs = accounts_service.account_references(conn, USER, _account(conn, "Investments D"))
+    assert (refs.transactions, refs.planned, refs.recurring) == (0, 0, 2)
+    assert _net(conn) == (3_443_969, 3_689_543, 245_574)

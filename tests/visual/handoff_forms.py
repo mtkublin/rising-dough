@@ -23,8 +23,10 @@ class DialogSubmit:
     """Fields to fill (selector, value), the control to press, the element showing the answer."""
 
     fills: tuple[tuple[str, str], ...]
-    press: str
-    answer: str
+    press: str  # "" = the overlay shows the filled form, nothing is submitted
+    answer: str  # "" = wait for the server's response only (it may carry no error element)
+    checks: tuple[str, ...] = ()  # radio inputs to check (CSS selector)
+    skip_validation: bool = False  # submit past the browser's ``required`` check
 
 
 # overlay page -> recipe; the values are what the handoff shows typed in the form.
@@ -47,13 +49,54 @@ DIALOG_SUBMITS: Final[dict[str, DialogSubmit]] = {
         press="#modal-root dialog[open] button[name=reset]",
         answer="#modal-root .rd-secret__value",
     ),
+    # T-UR00b W3. The app's dialogs differ from the handoff's (no "as of" field, the currency
+    # chip stays the base currency, a duplicate category name answers 500): the comparison shows
+    # those, the recipes only type what the handoff file shows.
+    "pages/overlays/new-account--filled.html": DialogSubmit(
+        fills=(
+            ("#modal-root input[name=opening_balance]", "1,250.00"),
+            ("#modal-root input[name=name]", "Revolut EUR"),
+            ("#modal-root input[name=currency]", "EUR"),
+        ),
+        press="",
+        answer="",
+    ),
+    "pages/overlays/new-account--error.html": DialogSubmit(
+        fills=(("#modal-root input[name=currency]", "XYZ"),),
+        press=_SUBMIT,
+        answer="",
+        skip_validation=True,
+    ),
+    "pages/overlays/new-category--filled.html": DialogSubmit(
+        fills=(("#modal-root input[name=name]", "Pets"),),
+        press="",
+        answer="",
+        checks=("#modal-root .rd-swatch[data-color=sky] input",),
+    ),
+    "pages/overlays/new-category--error.html": DialogSubmit(
+        fills=(("#modal-root input[name=name]", "Takeaway"),),
+        press=_SUBMIT,
+        answer="",
+        skip_validation=True,
+    ),
 }
 
 
 def submit_dialog(page: Any, handoff_page: str) -> None:
-    """Fill and submit the open dialog of ``handoff_page``; wait for the server's answer."""
+    """Fill (and submit) the open dialog of ``handoff_page``; wait for the server's answer."""
     recipe = DIALOG_SUBMITS[handoff_page]
     for selector, value in recipe.fills:
         page.fill(selector, value)
-    page.click(recipe.press)
-    page.wait_for_selector(recipe.answer, timeout=15000)
+    for selector in recipe.checks:
+        page.check(selector, force=True)
+    if recipe.press:
+        if recipe.skip_validation:
+            page.evaluate("() => { document.querySelector('#modal-root form').noValidate = true; }")
+        with page.expect_response(lambda r: r.request.method == "POST", timeout=15000):
+            page.click(recipe.press)
+        if recipe.answer:
+            page.wait_for_selector(recipe.answer, timeout=15000)
+        else:
+            page.wait_for_load_state("networkidle", timeout=15000)
+    # No focus ring or text selection: the handoff files show neither.
+    page.evaluate("() => { document.activeElement?.blur(); getSelection()?.removeAllRanges(); }")
