@@ -597,9 +597,7 @@ class TestFormulaRouter:
         assert row[0]["default_amount"] == 1_200_00  # 12% of the 10_000_00 source
         assert json.loads(row[0]["amount_formula"]) == {
             "schema_version": 2,
-            "terms": [
-                {"sign": "+", "coefficient_bps": 1200, "source_category_ids": [income_a]}
-            ],
+            "terms": [{"sign": "+", "coefficient_bps": 1200, "source_category_ids": [income_a]}],
         }
 
     def test_create_multi_term_formula(  # noqa: PLR0917

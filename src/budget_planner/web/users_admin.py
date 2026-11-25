@@ -55,9 +55,7 @@ def checkbox(value: str | None) -> bool:
     return value is not None and value.lower() in _CHECKBOX_TRUE
 
 
-def add_context(
-    *, email: str = "", name: str = "", is_admin: bool = False
-) -> dict[str, object]:
+def add_context(*, email: str = "", name: str = "", is_admin: bool = False) -> dict[str, object]:
     """Values of the add user dialog (submitted values come back on a 422)."""
     return {"email": email, "name": name, "is_admin": is_admin, "errors": {}}
 
