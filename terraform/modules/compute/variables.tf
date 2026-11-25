@@ -129,6 +129,13 @@ variable "admin_email" {
   type        = string
 }
 
+variable "setup_token_hash" {
+  description = "sha256 hex of the first-run setup token (ADR-0134 section 9); empty = unset."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "admin_password" {
   description = "Bootstrap admin initial password."
   type        = string

@@ -76,6 +76,18 @@ variable "admin_email" {
   }
 }
 
+variable "setup_token_hash" {
+  description = "sha256 hex of the one-time first-run setup token (ADR-0134 section 9, T-UR21a). Empty = unset, /setup stays closed. Never the token itself."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.setup_token_hash == "" || can(regex("^[0-9a-f]{64}$", var.setup_token_hash))
+    error_message = "setup_token_hash must be empty or a lowercase sha256 hex digest."
+  }
+}
+
 variable "scaleway_project_id" {
   description = "Scaleway project id that owns the resources."
   type        = string

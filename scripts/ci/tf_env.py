@@ -91,6 +91,8 @@ ENTRIES: tuple[Entry, ...] = (
     Entry("app_application_id", "secret", "APP_APPLICATION_ID"),
     Entry("app_scw_access_key", "secret", "APP_SCW_ACCESS_KEY"),
     Entry("app_scw_secret_key", "secret", "APP_SCW_SECRET_KEY"),
+    # T-UR21a / ADR-0134 section 9: prod environment secret; empty leaves /setup closed.
+    Entry("setup_token_hash", "secret", "SETUP_TOKEN_HASH", default="", only_env="prod"),
     Entry("restore_reader_application_id", "secret", "RESTORE_READER_APPLICATION_ID", "", "prod"),
     # T-D67 / ADR-0094: Tailscale provider (auth key minting).
     # T-Q309: `prod-plan` holds no OAuth client (ADR-0132 §22); a prod plan runs

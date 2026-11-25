@@ -18,7 +18,7 @@
 
 [environment.prod]
 gated = true
-secrets = ["APP_SCW_ACCESS_KEY", "APP_SCW_SECRET_KEY", "SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET"]
+secrets = ["APP_SCW_ACCESS_KEY", "APP_SCW_SECRET_KEY", "SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "SETUP_TOKEN_HASH", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET"]
 
 [environment.prod-restore-read]
 # ADR-0132: prod replica read key + PROD age identity, used only by the restore drill's apply (terraform.yml, called by
