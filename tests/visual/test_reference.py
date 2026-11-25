@@ -67,6 +67,7 @@ SURFACE_ROUTES: dict[str, str] = {
 _INVITE = "/invite/handoff-invite-accountant"
 LEDGER_BOARD = "/ledger?date_from=2026-10-07&date_to=2026-10-31&page_size=11"
 _NO_MATCHES = LEDGER_BOARD + "&q=pizza"
+AFFORD_TYPED = "/today?amount=250.00"
 # Pages with their own app route (plan ?tab=, ledger ?view=, settings tabs, auth, errors).
 PAGE_ROUTES: dict[str, str] = {
     "pages/plan/year.html": "/plan?tab=year",
@@ -93,6 +94,9 @@ PAGE_ROUTES: dict[str, str] = {
     # GET /today?amount= answers the afford check (an unparsable text; 1,800.00 over the limit).
     "pages/today--afford-invalid.html": "/today?amount=abc",
     "pages/today--afford-over.html": "/today?amount=1800",
+    # The handoff Today (and each overlay over it) shows 250.00 typed in the afford field.
+    "pages/today.html": AFFORD_TYPED,
+    "pages/today--empty.html": AFFORD_TYPED,
     "pages/auth/register.html": SETUP_ROUTE,
     "pages/auth/register--error.html": SETUP_ROUTE,
     "pages/auth/force-password.html": "/settings/password",
