@@ -75,7 +75,7 @@ def _built(tmp_path: Path, *modifiers: str) -> sqlite3.Connection:
 
 def test_entity_counts() -> None:
     assert (len(seed.ACCOUNTS), len(seed.CATEGORIES)) == (10, 23)
-    assert len(seed.TRANSACTIONS) == 32
+    assert len(seed.TRANSACTIONS) == 42
     assert (len(seed.PLANNED), len(seed.RULES), len(seed.BUDGETS)) == (13, 15, 13)
 
 
@@ -221,8 +221,8 @@ def test_ledger_rows(base: Built) -> None:
     conn, _ = base
     rows = transactions_repo.list_filtered(conn, USER, TransactionFilter())
     assert (
-        len(rows) == 32
-    )  # 26 + 6 Jul-Sep history entries; tab count 616 is a handoff-only figure: overlay
+        len(rows) == 42
+    )  # 26 + 4 split Oct + 12 Jul-Sep history entries; tab count 616 is handoff-only: overlay
     newest = max(rows, key=lambda t: (t.operation_date, t.id))
     assert (newest.operation_date, newest.amount, newest.description) == (
         dt.date(2026, 10, 31),

@@ -15,6 +15,7 @@ from typing import Final
 
 from budget_planner.domain.money import format_figure, format_major
 from budget_planner.services import budget as budget_service
+from budget_planner.services.categories import CategoryUsage
 from budget_planner.web.view_models import (
     MONTH_SHORT,
     BudgetPeriod,
@@ -199,14 +200,21 @@ def year_page(
     *,
     current: tuple[int, int],
     currency: str,
+    usage: Mapping[int, CategoryUsage],
 ) -> YearPage:
     """Grid rows for categories with a budget, the rest as links in the disclosure.
 
-    ``current`` is today's ``(year, month)``: it marks the column heading and picks the month a
-    "set budget" link opens on.
+    A category without a budget is a grid row of unset cells when only a planned item or rule
+    uses it, a disclosure link when it has entries, and hidden when nothing uses it (handoff
+    ``pages/plan/year``; ``derived.md``). ``current`` is today's ``(year, month)``: it marks the
+    column heading and picks the month a "set budget" link opens on.
     """
     current_year, current_month = current
-    budgeted = tuple(_row(r, selected, currency) for r in rows if r.total_minor)
+    used = {cid: u.entry_count for cid, u in usage.items()}
+    with_budget = tuple(r for r in rows if r.total_minor)
+    unset_rows = tuple(r for r in rows if not r.total_minor and used.get(r.category_id) == 0)
+    on_grid = (*with_budget, *unset_rows)
+    budgeted = tuple(_row(r, selected, currency) for r in on_grid)
     unset = tuple(
         Unbudgeted(
             r.category_id,
@@ -217,7 +225,7 @@ def year_page(
             ),
         )
         for r in rows
-        if not r.total_minor
+        if r not in on_grid and used.get(r.category_id)
     )
     noun = "category" if len(unset) == 1 else "categories"
     return YearPage(
