@@ -30,6 +30,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.visual import handoff
 from tests.visual.conftest import serve_db
+from tests.visual.handoff_forms import DIALOG_SUBMITS, submit_dialog
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.handoff_seed import build_seed
 
@@ -55,6 +56,7 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/ledger/recurring.html": "/ledger?view=recurring",
     "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
     "pages/errors/422.html": "/budget?month=zz",
+    "pages/settings/users.html": "/settings/users",
 }
 # Overlay pages whose dialog the app opens from a plain GET (the new-entry dialog,
 # `/add?when=<tab>`, T-UR07b). Like every opener it is fetched into #modal-root over the
@@ -72,8 +74,6 @@ OVERLAY_DIALOGS: dict[str, str] = {
 # base page.
 UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
-        "add-user--error",
-        "add-user",
         "category-picker--no-match",
         "category-picker",
         "command-palette--filtered",
@@ -81,14 +81,10 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "command-palette",
         "delete-account--blocked-planned",
         "delete-account",
-        "delete-user",
         "edit-recurring--empty",
         "edit-recurring--incomplete",
         "edit-recurring--picking",
         "edit-transaction--error",
-        "edit-user",
-        "invite-user--error",
-        "invite-user",
         "new-account--error",
         "new-account--filled",
         "new-category--error",
@@ -97,13 +93,10 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "new-entry--over-limit",
         "new-entry--phone-sheet",
         "new-entry--repeats-formula",
-        "one-time-password",
         "override--remove",
         "override--year-cell",
         "period-picker--year",
         "period-picker",
-        "reset-password",
-        "revoke-invite",
         "row-menu--account",
         "row-menu--budget",
         "row-menu--planned",
@@ -232,8 +225,9 @@ def test_app_matches_handoff(
     route = route_for(handoff_page)
     modifiers = modifiers_for(handoff_page)
     with contextlib.ExitStack() as stack:
-        if modifiers:
-            # Own seeded DB: the opener's ids are resolved from the DB being served.
+        if modifiers or handoff_page in DIALOG_SUBMITS:
+            # Own seeded DB: the opener's ids are resolved from the DB being served (and a
+            # submitted dialog, e.g. a password reset, must not change the shared one).
             tmp_path_factory = request.getfixturevalue("tmp_path_factory")
             db_path = tmp_path_factory.mktemp("handoff-state") / "handoff.sqlite"
             token = build_seed(db_path, modifiers=modifiers).session_token
@@ -298,6 +292,8 @@ def _compare_app(
                 opener,
             )
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
+            if handoff_page in DIALOG_SUBMITS:
+                submit_dialog(pg, handoff_page)
         pg.add_style_tag(content=handoff.FREEZE_CSS)
         pg.evaluate("document.fonts.ready.then(() => undefined)")
         with tempfile.TemporaryDirectory() as tmp:
