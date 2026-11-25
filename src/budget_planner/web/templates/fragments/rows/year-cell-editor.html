@@ -1,9 +1,17 @@
 {# fragment: rows/year-cell-editor
-   Inputs: cell (plan_year_view.YearCell). One month cell of the year grid: a link that opens the
-   override dialog in #modal-root (the href is the no-script fallback). data-state is the tier. #}
+   Inputs: cell (plan_year_view.YearCell). One month cell of the year grid: a link that edits the
+   cell in place (app-year-cell.js swaps in the handoff's rd-year-editor form built from the
+   data-* values; the href stays the no-script fallback and opens the override dialog, as does a
+   modified click). data-state is the tier. #}
 <td class="rd-year__cell-wrap">
   <a class="rd-year-cell"
      data-state="{{ cell.state }}"
+     data-js="year-cell"
+     data-action="{{ cell.action }}"
+     data-year="{{ cell.year }}"
+     data-month="{{ cell.month }}"
+     data-amount="{{ cell.amount_text }}"
+     data-editor-label="{{ cell.editor_label }}"
      href="{{ cell.url }}"
      hx-get="{{ cell.url }}"
      hx-target="#modal-root"

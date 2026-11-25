@@ -1,9 +1,15 @@
 {# Plan · year (T-UR11, ADR-0107, ADR-0136). Handoff: pages/plan/year.html.
    Context: year_page (plan_year_view.YearPage), tab, base_ccy. Rendered by GET /plan?tab=year.
-   Each cell opens the override dialog (fragments/dialogs/override-budget.html); a saved or removed
-   override sends budget-stale and the hidden listener reloads #main. #}
+   Each cell edits in place (handoff overlay override--year-cell: the rd-year-editor form below,
+   cloned by app-year-cell.js and posted to the override route as "this month only"); a modified
+   click or no script opens the override dialog (fragments/dialogs/override-budget.html). A saved
+   or removed override sends budget-stale and the hidden listener reloads #main. #}
 {% extends "layouts/base.html" %}
 {% block title %}Plan · year · Rising Dough{% endblock %}
+{% block scripts %}
+  <script type="module"
+          src="{{ url_for('static', path='rd/js/app-year-cell.js') }}"></script>
+{% endblock %}
 {% block main %}
   <span hidden
         hx-get="{{ year_page.reload_url }}"
@@ -54,6 +60,24 @@
         </tbody>
       </table>
     </div>
+    <template data-js="year-cell-form">
+      <form class="rd-year-editor"
+            method="post"
+            hx-target="#modal-root"
+            hx-swap="innerHTML"
+            data-js="year-cell-editor">
+        <label class="u-visually-hidden" data-js="year-cell-label"></label>
+        <input class="rd-year-editor__input"
+               name="amount"
+               inputmode="decimal"
+               autocomplete="off"
+               data-js="amount-input">
+        <input type="hidden" name="tier" value="one-off">
+        <input type="hidden" name="year">
+        <input type="hidden" name="month">
+        <button type="submit" class="u-visually-hidden">save</button>
+      </form>
+    </template>
     {% if year_page.unbudgeted %}
       <details class="rd-disclosure">
         <summary class="rd-disclosure__summary">{{ year_page.unbudgeted_heading }}</summary>
