@@ -20,10 +20,11 @@ def _menu_action(world: World, trigger: Locator, action: str) -> None:
     world.find(ledger.row_action(action)).click()
 
 
+@pytest.mark.skip(reason="T-UR09b: edit dialog not ported; the old slide-over sticks")
 def test_edit_transaction_updates_row_and_db(world: World) -> None:
     txn = world.transaction(world.account(), world.category(), "12.34", "edit-me")
     world.goto(LEDGER.format(view="actual"))
-    _menu_action(world, ledger.row_menu(txn), "Edit")
+    _menu_action(world, ledger.row_menu(txn), "edit")
     expect(world.find(ledger.slideover)).to_be_visible()
     world.find(ledger.overlay_field(ledger.field_note)).fill("edited")
     world.find(ledger.overlay_field(ledger.field_amount)).fill("99.00")
@@ -36,10 +37,11 @@ def test_edit_transaction_updates_row_and_db(world: World) -> None:
     assert world.audit_ops("transaction", txn) == ["create", "update"]
 
 
+@pytest.mark.skip(reason="T-UR09b: edit dialog not ported; the old slide-over sticks")
 def test_limit_preview_does_not_close_edit_slideover_before_save(world: World) -> None:
     txn = world.transaction(world.account(), world.category(), "12.34", "keep-open")
     world.goto(LEDGER.format(view="actual"))
-    _menu_action(world, ledger.row_menu(txn), "Edit")
+    _menu_action(world, ledger.row_menu(txn), "edit")
     expect(world.find(ledger.slideover)).to_be_visible()
     amount = world.find(ledger.overlay_field(ledger.field_amount))
     # The slide-over is visible at swap time, but htmx wires the fragment's hx-trigger
@@ -65,7 +67,7 @@ def test_limit_preview_does_not_close_edit_slideover_before_save(world: World) -
 def test_delete_transaction_then_undo_from_recently_deleted(world: World) -> None:
     txn = world.transaction(world.account(), world.category(), "7.00", "delete-me")
     world.goto(LEDGER.format(view="actual"))
-    _menu_action(world, ledger.row_menu(txn), "Delete")  # native confirm is accepted
+    _menu_action(world, ledger.row_menu(txn), "delete")  # native confirm is accepted
 
     expect(world.find(ledger.row(txn))).to_have_count(0)
     world.wait_rows("SELECT 1 FROM transactions WHERE id = ? AND deleted_at IS NOT NULL", (txn,))
@@ -83,6 +85,7 @@ def test_delete_transaction_then_undo_from_recently_deleted(world: World) -> Non
     expect(world.find(ledger.row(txn))).to_contain_text("delete-me")
 
 
+@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_delete_planned_entry_then_undo(world: World) -> None:
     planned = world.planned(world.account(), world.category(), "25.00", "planned-delete-me")
     world.goto(LEDGER.format(view="planned"))

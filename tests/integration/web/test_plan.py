@@ -28,6 +28,8 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import budget as budget_service, forecast as forecast_service
+from budget_planner.web import view_models
+from budget_planner.web.templating import build_jinja_env
 from tests.ui_map import _html, plan_budget, plan_forecast, plan_year, rd_fragments
 from tests.ui_map.locator import role
 
@@ -326,3 +328,30 @@ def test_forecast_chart_scrolls_sideways_as_a_keyboard_reachable_region(
     region = _html.resolve_one(r.text, plan_forecast.chart_scroll)
     assert region["tabindex"] == "0"
     assert _html.count(r.text, plan_forecast.chart) == 1
+
+
+def test_budget_hero_prints_a_negative_left_with_the_display_minus() -> None:
+    """T-UR04g: the hero text comes from the view model (format_figure), U+2212 not a hyphen."""
+    summary = budget_service.MonthSummary(
+        year=2026,
+        month=10,
+        lines=(),
+        totals=budget_service.MonthTotals(
+            budgeted_minor=100_000,
+            spent_minor=667_822,
+            committed_minor=0,
+            remaining_minor=-567_822,
+        ),
+        left_daily_spend_minor=None,
+        next_income_date=date(2026, 11, 7),
+        days_until_next_income=7,
+        anchor_category_name=None,
+        period_start=date(2026, 10, 7),
+    )
+    view = view_models.budget_view(summary, date(2026, 10, 31), "PLN")
+    assert view.left_text == "\N{MINUS SIGN}5,678.22"
+    env = build_jinja_env(Settings(_env_file=None))
+    html = env.get_template("fragments/plan/budget-hero.html").render(budget=view, base_ccy="PLN")
+    assert _html.text_of(html, plan_budget.hero).startswith(
+        "budget left \N{MINUS SIGN}5,678.22 PLN"
+    )

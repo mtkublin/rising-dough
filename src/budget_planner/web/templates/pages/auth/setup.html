@@ -1,0 +1,90 @@
+{#
+  pages/auth/setup.html: first-run admin setup (T-UR21, ADR-0134 section 9).
+  No handoff page exists; derived from auth/force-password.html (title, lede,
+  password pair with 12+ hint and field errors) and auth/invite.html (name and
+  email fields). See docs/plans/ui-redesign/derived.md.
+  Context: token, name, email, errors (field -> message), alert.
+#}
+{% extends "layouts/auth.html" %}
+{% block title %}Set up · Rising Dough{% endblock %}
+{% block bake %}
+  <a class="rd-auth__brand" href="/auth/login">Rising Dough</a>
+  <p class="rd-auth__headline">
+    Let's get the <i>first loaf</i> in.
+  </p>
+  <span class="rd-auth__spacer"></span>
+{% endblock %}
+{% block form %}
+  <h1 class="rd-auth__title">Set up Rising Dough</h1>
+  <p class="rd-auth__lede">Create the first admin account. This page closes as soon as you are done.</p>
+  {% if alert %}<div class="rd-alert" role="alert" id="form-alert">▲ {{ alert }}</div>{% endif %}
+  <form class="rd-form" method="post" action="/setup">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" id="setup-token" name="token" value="{{ token }}">
+    <div class="rd-field">
+      <label class="rd-field__label" for="setup-name">name</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="setup-name"
+               name="name"
+               type="text"
+               value="{{ name }}"
+               autocomplete="name"
+               {% if errors.get('name') %}aria-describedby="setup-name-error" aria-invalid="true"{% endif %}
+               autofocus>
+      </span>
+      {% if errors.get("name") %}<p class="rd-field__error"
+   id="setup-name-error">▲ {{ errors.get("name") }}</p>{% endif %}
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label" for="setup-email">email</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="setup-email"
+               name="email"
+               type="email"
+               value="{{ email }}"
+               autocomplete="username"
+               {% if errors.get('email') %}aria-describedby="setup-email-error" aria-invalid="true"{% endif %}
+               required>
+      </span>
+      {% if errors.get("email") %}<p class="rd-field__error"
+   id="setup-email-error">▲ {{ errors.get("email") }}</p>{% endif %}
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label" for="setup-password">password</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="setup-password"
+               name="password"
+               type="password"
+               autocomplete="new-password"
+               minlength="12"
+               aria-describedby="{% if errors.get('password') %}setup-password-error{% else %}setup-password-hint{% endif %}"
+               {% if errors.get('password') %}aria-invalid="true"{% endif %}
+               required>
+      </span>
+      {% if errors.get("password") %}
+        <p class="rd-field__error" id="setup-password-error">▲ {{ errors.get("password") }}</p>
+      {% else %}
+        <p class="rd-field__hint" id="setup-password-hint">12+ characters</p>
+      {% endif %}
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label" for="setup-confirm">confirm password</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="setup-confirm"
+               name="password_confirm"
+               type="password"
+               autocomplete="new-password"
+               {% if errors.get('password_confirm') %}aria-describedby="setup-confirm-error" aria-invalid="true"{% endif %}
+               required>
+      </span>
+      {% if errors.get("password_confirm") %}
+        <p class="rd-field__error" id="setup-confirm-error">▲ {{ errors.get("password_confirm") }}</p>
+      {% endif %}
+    </div>
+    <button type="submit" class="rd-btn rd-btn--primary rd-btn--block">[ create account ]</button>
+  </form>
+{% endblock %}

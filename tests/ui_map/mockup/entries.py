@@ -55,13 +55,27 @@ promote_submit = role("button", "[ promote ]", exact=True)
 NO_HANDOFF_TWIN = frozenset(
     {
         "credit_line",
+        "formula_percent",
+        "formula_subtract",
+        "formula_add_component",
+        "formula_pick",
+        "formula_result",
         "summary",
         "opener",
         "category_chosen",
         "category_query",  # the handoff search panel is hidden until opened
         "field_dest",
+        "hero_refresh",
     }
 )
 opener = role("region", "New entry", exact=True)
 credit_line = by_id("credit-line")
 summary = by_id("error-summary")
+hero_refresh = by_id("hero-refresh")
+
+# Formula components: same markup as the app; the e2e journeys drive the app, not the handoff.
+formula_percent = role("textbox", "Percentage", exact=True).inside(formula_group)
+formula_subtract = role("radio", "subtract", exact=True).inside(formula_group)
+formula_add_component = role("button", "+ add component", exact=True).inside(formula_group)
+formula_pick = role("button", "pick categories", exact=True).inside(formula_group)
+formula_result = role("status").inside(formula_group)

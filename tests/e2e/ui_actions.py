@@ -41,7 +41,7 @@ def choose_category(page: Any, name: str) -> None:
 
 
 def choose_account(page: Any, name: str) -> None:
-    field = to_playwright(page, entries.field_account)
+    field = to_playwright(page, entries.field_account.inside(entries.dialog))  # not the filter bar
     if field.evaluate("el => el.selectedOptions[0].label") == name:
         return  # no change event, no refresh
     with page.expect_response(_is_hero_refresh):  # the hero follows the account (currency)
