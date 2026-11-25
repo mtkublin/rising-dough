@@ -3028,3 +3028,28 @@ old = "6"
 value = "7"
 optional = true
 reason = "handoff inconsistent, app right: the board repeats Today's budgeted-category spend while ADR-0151 section 2 defines the figure as every expense in the pay window (19,417.18, as the actual board's overlay row)"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = "#f-q"
+field = "value"
+absent = true
+old = ""
+value = "pizza"
+reason = "handoff inconsistent, app right: the board's summary names the search 'pizza' but the search input carries no value attribute; the app shows the active q in its box (ADR-0147 amendment: absent text attribute)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(4)"
+field = "class"
+old = "rd-fc__num rd-fc__net--negative"
+value = "rd-fc__num"
+reason = "handoff inconsistent, app right: the Dec 2026 net cell paints a positive figure (597.07 after the value row above, forecast.monthly_projection) in the loss colour with class rd-fc__net--negative; the app paints a positive net plain (ADR-0147 amendment: class token pair)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(4)"
+field = "class"
+old = "rd-fc__num rd-fc__net--negative"
+value = "rd-fc__num"
+reason = "handoff inconsistent, app right: the Sep 2027 net cell paints a positive figure (3,353.46 after the value row, forecast.monthly_projection) in the loss colour with class rd-fc__net--negative; the app paints a positive net plain (ADR-0147 amendment: class token pair)"

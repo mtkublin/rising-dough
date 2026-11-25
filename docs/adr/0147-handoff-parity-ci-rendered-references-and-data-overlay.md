@@ -40,8 +40,14 @@ The ADR-0106 amendment of 2026-11-22 made the handoff screenshots the visual bas
 
 - **Allowed:** text nodes; and attributes that carry the same displayed value: `aria-label`, `title`, `value`, `datetime`, `aria-keyshortcuts`, `data-digits`, `data-marks`, `data-signs`.
 - **Charts:** SVG geometry attributes (`d`, `points`, `x`, `y`, `width`, `height`, `cx`, `cy`, `r`) may change only in rows generated from the new values by the same geometry function the app uses (T-UR12), marked `source = "geometry"`. Hand-edited geometry is refused.
-- **Never:** element names, element order or nesting, classes, ids, any other attribute, inline `<style>` or `<script>`, and any CSS, JS, font, icon or image file. The overlay applies to HTML pages only.
+- **Never:** element names, element order or nesting, classes (except the reviewed token pair of the 2026-11-25 O1 amendment below), ids, any other attribute, inline `<style>` or `<script>`, and any CSS, JS, font, icon or image file. The overlay applies to HTML pages only.
 - **Guard** (`tests/visual/test_handoff_overlay.py`): every row's `old` value matches the pristine page exactly once per targeted element (no stale or ambiguous rows); the overlaid DOM equals the pristine DOM after stripping text nodes and the allowed attributes; geometry rows carry `source = "geometry"`; no row targets a non-HTML file.
+
+Amendment 2026-11-25 (T-UR00b, O1): class tokens and absent attributes. Two row kinds join the allowed set of section 4; the never-list otherwise stands (no element added or removed, no `style`, no tolerance, no mask).
+
+- **Absent text attribute** (`absent = true`, `old = ""`). A row may SET `value` or `placeholder` on an element that has none (`ABSENT_SETTABLE` in `tests/visual/overlay.py`). Reason it exists: a handoff board whose summary names a search (`ledger/actual--no-matches`, "pizza") draws the search box without a `value` attribute, while the app correctly shows the active `q`. A row on any other attribute, or on one that already exists, is an error.
+- **Class token pair** (`field = "class"`; `old` and `value` are the whole class string). A row may remove or add exactly one token, and only as a pair listed in `ALLOWED_CLASS_CHANGES` with its reason beside it. The one pair: `rd-fc__net--negative` -> none, for forecast net cells where the handoff prints a positive figure in the loss colour (Dec 2026 and Sep 2027 once the value rows apply) and the app paints a positive net plain. Any other pair, or more than one token, is refused at apply time and by the guard.
+- **Guard.** `test_handoff_overlay.py` keeps the stale rule (a row matching nothing, or whose `old` differs from the page, fails), and its skeleton comparison now ignores only the tokens of `ALLOWED_CLASS_CHANGES`; a class edit outside them still fails. New cases cover a refused token pair, a stale class row, an absent row on a forbidden attribute and an absent row on an existing attribute.
 
 Amendment 2026-11-25 (T-UR12, UR12b): how geometry rows are produced.
 

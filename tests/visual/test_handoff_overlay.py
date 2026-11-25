@@ -16,12 +16,17 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 
 from tests.visual.overlay import (
+    ABSENT_SETTABLE,
     ALLOWED_ATTRIBUTES,
+    ALLOWED_CLASS_CHANGES,
+    ALLOWED_CLASS_TOKENS,
     GEOMETRY_ATTRIBUTES,
     GEOMETRY_SOURCES,
     OverlayError,
     Row,
     apply_rows,
+    class_change_violation,
+    kind_violation,
     load_rows,
     overlay_handler,
     overlay_page,
@@ -41,7 +46,7 @@ def row_violations(row: Row) -> list[str]:
     found: list[str] = []
     if not row.reason.strip():
         found.append("no reason")
-    if row.field != "text" and row.field not in ALLOWED_ATTRIBUTES:
+    if row.field not in {"text", "class"} and row.field not in ALLOWED_ATTRIBUTES:
         if row.field in GEOMETRY_ATTRIBUTES:
             if row.source != "geometry" or row.source not in GEOMETRY_SOURCES:
                 found.append(f"geometry attribute {row.field!r} needs a generated geometry source")
@@ -51,9 +56,18 @@ def row_violations(row: Row) -> list[str]:
         found.append(f"source {row.source!r} has no generator yet")
     if not row.page.startswith("pages/") or not row.page.endswith(".html"):
         found.append("page must be a handoff HTML page glob")
+    if message := kind_violation(row):
+        found.append(message)
     if row.old == row.value:
         found.append("old equals value")
     return found
+
+
+def _plain(name: str, value: object) -> str:
+    """Attribute value for the skeleton: reviewed class tokens dropped, nothing else."""
+    if name == "class" and isinstance(value, list):
+        return str([t for t in value if t not in ALLOWED_CLASS_TOKENS])
+    return str(value)
 
 
 def skeleton(html: str) -> list[tuple[object, ...]]:
@@ -64,11 +78,11 @@ def skeleton(html: str) -> list[tuple[object, ...]]:
         assert isinstance(el, Tag)
         attrs = tuple(
             sorted(
-                (k, str(v))
+                (k, _plain(k, v))
                 for k, v in el.attrs.items()
                 if k not in ALLOWED_ATTRIBUTES and k not in GEOMETRY_ATTRIBUTES
             )
-        )  # geometry attributes change only through source = "geometry" rows (row_violations)
+        )  # geometry: generated rows only; reviewed class tokens ignored
         body = el.get_text() if el.name in ("script", "style") else ""
         out.append((el.name, attrs, body))
     return out
@@ -136,8 +150,62 @@ def test_vendored_handoff_is_untouched() -> None:
 # --- the guard bites -----------------------------------------------------------------
 
 
-def test_red_class_row_is_refused() -> None:
-    assert row_violations(replace(_BASE, field="class")) == ["field 'class' is not allowed"]
+_CLASS = replace(
+    _BASE,
+    select="p",
+    field="class",
+    old="a rd-fc__net--negative",
+    value="a",
+)
+_CLASS_HTML = '<p class="a rd-fc__net--negative">x</p>'
+_ABSENT = replace(_BASE, select="input", field="value", old="", value="pizza", absent=True)
+
+
+def test_red_class_row_with_a_disallowed_token_pair_is_refused() -> None:
+    assert row_violations(_CLASS) == []
+    assert row_violations(replace(_CLASS, old="a hidden", value="a"))
+    assert row_violations(replace(_CLASS, old="a", value="a rd-fc__net--negative"))
+    assert row_violations(replace(_CLASS, old="a b", value="c d"))
+    assert "not in ALLOWED_CLASS_CHANGES" in class_change_violation("a b", "a c")
+    assert "more than one token" in class_change_violation("a b c", "a")
+    with pytest.raises(OverlayError, match="ALLOWED_CLASS_CHANGES"):
+        apply_rows("pages/p.html", '<p class="a hidden">x</p>', [replace(_CLASS, old="a hidden")])
+
+
+def test_class_row_replaces_exactly_the_allowed_token() -> None:
+    assert apply_rows("pages/p.html", _CLASS_HTML, [_CLASS]) == '<p class="a">x</p>'
+    assert {("rd-fc__net--negative", "")} == ALLOWED_CLASS_CHANGES
+
+
+def test_stale_class_row_is_an_error() -> None:
+    with pytest.raises(OverlayError, match="class='a'"):
+        apply_rows("pages/p.html", '<p class="a">x</p>', [_CLASS])
+    with pytest.raises(OverlayError, match="matched 0"):
+        apply_rows("pages/p.html", "<i>x</i>", [_CLASS])
+
+
+def test_skeleton_ignores_only_the_allowed_class_token() -> None:
+    assert skeleton(_CLASS_HTML) == skeleton('<p class="a">x</p>')
+    assert skeleton(_CLASS_HTML) != skeleton('<p class="b">x</p>')
+
+
+def test_absent_row_sets_a_missing_text_attribute() -> None:
+    assert row_violations(_ABSENT) == []
+    out = apply_rows("pages/p.html", '<input id="q">', [_ABSENT])
+    assert out == '<input id="q" value="pizza"/>'
+    assert skeleton(out) == skeleton('<input id="q">')
+
+
+def test_absent_row_refuses_other_attributes_and_stale_state() -> None:
+    assert {"value", "placeholder"} == ABSENT_SETTABLE
+    assert row_violations(replace(_ABSENT, field="title"))
+    assert row_violations(replace(_ABSENT, field="id"))
+    assert row_violations(replace(_ABSENT, old="x"))
+    assert row_violations(replace(_CLASS, absent=True))
+    with pytest.raises(OverlayError, match="expected it absent"):
+        apply_rows("pages/p.html", '<input value="a">', [_ABSENT])
+    with pytest.raises(OverlayError, match="cannot be created"):
+        apply_rows("pages/p.html", "<input>", [replace(_ABSENT, field="id")])
 
 
 def test_red_style_and_id_rows_are_refused() -> None:
