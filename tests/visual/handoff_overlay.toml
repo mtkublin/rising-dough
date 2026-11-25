@@ -214,6 +214,31 @@ value = "default colour"
 reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
 
 [[row]]
+page = "pages/overlays/*category*.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+optional = true  # only the category dialogs sit over the categories board
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
+page = "pages/overlays/archive-category.html"
+select = "p:-soup-contains-own(\"Its 41 entries\")"
+field = "text"
+old = "It disappears from pickers. Its 41 entries and budget history stay, and you can restore it from recently deleted."
+value = "It disappears from pickers. Its 3 entries and budget history stay, and you can restore it from recently deleted."
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+
+[[row]]
+page = "pages/overlays/edit-category.html"
+select = "p:-soup-contains-own(\"locked by 41 entries\")"
+field = "text"
+old = "↓ expense · locked by 41 entries"
+value = "↓ expense · locked by 3 entries"
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+
+[[row]]
 page = "pages/*.html"
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
