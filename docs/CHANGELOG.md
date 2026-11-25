@@ -1,5 +1,31 @@
 # Changelog
 
+2026-11-25 QCI1: check-item no longer double-prefixes `wi/wi`; adds `--hotspots` and `--allow-framework-rows` (ca6768e2, T-Q326, ADR-0150).
+
+2026-11-25 QOR1: orchestrator skill no idle turns and heartbeat timer (82344851, ADR-0150 amendment 2026-11-25).
+
+2026-11-25 T-UR04: UR04g dialog shell gaps: placeholder, hero race, action attrs, field_error, formula refresh, stale unit, budget hero sign (4d4bd510, ADR-0107).
+
+2026-11-25 T-UR21: first-run `/setup` page with one-time token (ef3458b2, ADR-0134 §9).
+
+2026-11-25 T-UR27: theme switch e2e, ui_map entries and audit (427f6c17, ADR-0134 §8).
+
+2026-11-25 T-UR02: UR02c rd-styled error flash shown above an open dialog (faff04b2, ADR-0107, ADR-0143).
+
+2026-11-25 T-UR11: Plan year tab, budget override dialogs, year-cell editor (dd99961c, ADR-0107, ADR-0136, ADR-0152).
+
+2026-11-25 T-UR07: Today new-entry and promote dialogs on the shared shell (2540995c, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR13: settings categories, currency+FX, preferences on the new shell (15aa38f6, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR12: plan forecast and analytics tabs on the new shell (8de349c3, ADR-0107, ADR-0123).
+
+2026-11-25 T-UR04: static output hero in the dialog shell (5be4c7c1, ADR-0107).
+
+2026-11-25 T-UR00: ADR-0152 contract tests pin behaviour, not dialog transport (59d19398, ADR-0152).
+
+2026-11-25 T-UR04: shared dialog shell macro and row-menu item kinds (8f958ecd, ADR-0107, ADR-0130 §7).
+
 2026-11-25 T-UR07, T-UR08: wave 5 tests follow Today and Accounts onto the new shell.
 
 2026-11-25 T-UR02: shell live regions, toast renderer, visible error flashes, topbar email (ADR-0107).
