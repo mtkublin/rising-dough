@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Final, Literal
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_figure, format_money, percent_of
+from budget_planner.domain.money import format_figure, format_money, percent_of, round_div
 from budget_planner.services import (
     budget as budget_service,
     ledger_totals,
@@ -120,7 +120,7 @@ def bar_cells_exact(
     if is_over or total_minor <= 0:
         return bar_cells(floored, cells, is_over=is_over, min_one=min_one)
     share = max(0, min(part_minor, total_minor))
-    filled = (2 * share * cells + total_minor) // (2 * total_minor)
+    filled = round_div(share * cells, total_minor)
     if min_one and share > 0:
         filled = max(filled, 1)
     return BarCells(filled=filled, empty=cells - filled, left_pct=_MAX_PCT - floored)

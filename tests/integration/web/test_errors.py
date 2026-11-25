@@ -154,12 +154,10 @@ def test_failed_htmx_write_flashes_the_handoff_copy_with_retry(error_client: Tes
     r = error_client.post("/_boom/unhandled-write", headers={"HX-Request": "true"})
     assert r.status_code == 500
     rid = r.headers["X-Request-Id"]
-    flash = _html.resolve_one(r.text, by_id("flash-region-assertive"))
-    message = flash.select_one(".rd-flash--error > span")
-    assert message is not None
-    assert message.get_text() == "\u25b2 Couldn\u2019t save. Your changes are still in the form."
-    assert message["title"] == f"Reference: {rid}"
-    assert [b.get_text() for b in flash.select("button.rd-flash__action")] == ["retry"]
+    flash = _html.text_of(r.text, by_id("flash-region-assertive"))
+    assert "\u25b2 Couldn\u2019t save. Your changes are still in the form." in flash
+    assert _html.exists(r.text, role("button", "retry").inside(by_id("flash-region-assertive")))
+    assert rid not in flash  # the reference sits in the tooltip, not in the visible text
 
 
 def test_unhandled_exception_falls_back_to_500(
