@@ -1,9 +1,0 @@
-{# direction_badge(direction, label=None) — ADR-0053 §1. #}
-{%- macro direction_badge(direction, label=None) -%}
-  {%- set glyphs = {"expense": "↓", "income": "↑", "transit": "↔", "adjustment": "↕"} -%}
-  {%- set labels = {"expense": "EXPENSE", "income": "INCOME", "transit": "TRANSIT", "adjustment": "ADJUST"} -%}
-  <span class="rd-dir rd-dir--{{ direction }}">
-    <span>{{ glyphs.get(direction, '•') }}</span>
-    <span>{{ label or labels.get(direction, direction|upper) }}</span>
-  </span>
-{%- endmacro -%}

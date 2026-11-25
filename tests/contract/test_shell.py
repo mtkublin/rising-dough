@@ -23,7 +23,8 @@ from budget_planner.web.app import create_app
 from budget_planner.web.deps import get_settings_dep
 from tests.contract._audit import audit_count
 from tests.contract.conftest import covers
-from tests.ui_map import _html, errors, rd_shell
+from tests.ui_map import _html, rd_shell
+from tests.ui_map.locator import by_id
 
 pytest_plugins = ["tests.contract._support"]
 
@@ -185,7 +186,7 @@ def test_add_overlay_renders_for_each_tab_without_writing(
 def test_add_overlay_unknown_tab_is_422_naming_the_param(client: TestClient) -> None:
     r = client.get("/add?when=unknown-tab", headers=HX)
     assert r.status_code == 422
-    assert "when" in _html.text_of(r.text, errors.alert)
+    assert "when" in _html.text_of(r.text, by_id("flash-region-assertive"))
 
 
 @covers("GET /add")
@@ -466,4 +467,6 @@ def test_dev_fail_409_goes_through_the_conflict_handler(client: TestClient) -> N
     assert r.status_code == 409
     flash = _html.resolve_one(r.text, rd_shell.flash_region)
     assert flash.get("hx-swap-oob") == "true"
-    assert flash.get_text(" ", strip=True).startswith("Dev conflict: that row is protected")
+    assert flash.get_text(" ", strip=True) == (
+        "\N{BLACK UP-POINTING TRIANGLE} Dev conflict: that row is protected"
+    )

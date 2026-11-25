@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping, Sequence
-from types import MappingProxyType
 
 from fastapi import Request
 from fastapi.responses import Response
@@ -38,11 +37,8 @@ from budget_planner.web.paths import (
     RESTORE_SEGMENT,
     TRANSACTIONS_PATH,
 )
-from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import is_hx_request, render, render_context
 
-_TXN_FORM = "partials/transactions/_form.html"
-_PLANNED_FORM = "partials/planned/_form.html"
 PROMOTE_TEMPLATE = "pages/entries/promote.html"
 EDIT_PLANNED_TEMPLATE = "fragments/dialogs/edit-planned.html"
 _RECONCILE_DIALOG = "pages/accounts/dialog-reconcile.html"
@@ -59,37 +55,6 @@ _MODAL_ROOT_ID = "modal-root"
 def from_dialog(request: Request) -> bool:
     """True when the post came from a dialog form (it targets ``#modal-root``, ADR-0107)."""
     return request.headers.get(_HX_TARGET, "") == _MODAL_ROOT_ID
-
-
-_LEGACY_OVERLAY = "partials/_add_entry_overlay.html"
-_LEGACY_TABS = MappingProxyType(
-    {
-        "happened": ("partials/transactions/_form.html", "txn"),
-        "planned": ("partials/planned/_form.html", "planned"),
-        "repeats": ("partials/recurring/_form.html", "rule"),
-    }
-)
-
-
-def open_legacy_overlay(
-    request: Request, conn: sqlite3.Connection, user_id: int, *, tab: str
-) -> Response:
-    """The old shell's "+ Add" slide-over (ledger, forecast, settings) until T-UR09 / T-UR10."""
-    form_include, entity = _LEGACY_TABS[tab]
-    context: dict[str, object] = {
-        "active_tab": tab,
-        "form_include": form_include,
-        "action": entry_forms.TAB_ACTIONS[tab],
-        "categories": categories_service.list_all(conn, user_id),
-        "accounts": accounts_service.list_all(conn, user_id),
-        "errors": {},
-        entity: None,
-    }
-    if tab == "repeats":
-        context["source_categories"] = formula_source_candidates(conn, user_id)
-        context["amount_source"] = "fixed"
-        context["terms"] = [dict(EMPTY_TERM_INPUT)]
-    return render_context(request, _LEGACY_OVERLAY, context)
 
 
 def open_new_entry(
@@ -118,13 +83,9 @@ def entry_create_errors(
     errors: dict[str, str],
     posted: Mapping[str, str],
 ) -> Response:
-    """422 of a happened or planned create: the dialog it was posted from, else the old form."""
+    """422 of a happened or planned create: the new-entry dialog again."""
     shown = entry_forms.pick_category_error(errors, chosen)
-    if from_dialog(request):
-        return new_entry_errors(request, conn, user_id, tab=tab, posted=posted, errors=shown)
-    if tab == "happened":
-        return txn_form_errors(request, conn, user_id, errors=shown)
-    return planned_form_errors(request, conn, user_id, planned=None, errors=shown)
+    return new_entry_errors(request, conn, user_id, tab=tab, posted=posted, errors=shown)
 
 
 def new_entry_errors(
@@ -183,23 +144,6 @@ def new_entry_hero(
 def txn_not_found() -> Response:
     """An unknown or foreign transaction id: a plain 404 (the htmx error flash reads it)."""
     return Response(status_code=_NOT_FOUND, content="not found")
-
-
-def txn_form_errors(
-    request: Request, conn: sqlite3.Connection, user_id: int, *, errors: dict[str, str]
-) -> Response:
-    """Re-render the old create form (the old shell's "+ Add" slide-over) with errors."""
-    return render(
-        request,
-        _TXN_FORM,
-        action=TRANSACTIONS_PATH,
-        method="post",
-        txn=None,
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        errors=errors,
-        status_code=_UNPROCESSABLE,
-    )
 
 
 def open_edit_transaction(
@@ -275,27 +219,6 @@ def deleted_txn_response(request: Request, txn_id: int) -> Response:
         message="transaction deleted",
         undo_url=f"{TRANSACTIONS_PATH}/{txn_id}/{RESTORE_SEGMENT}",
         events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
-    )
-
-
-def planned_form_errors(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    *,
-    planned: PlannedTransaction | None,
-    errors: dict[str, str],
-) -> Response:
-    """Re-render the form; a ``None`` planned is the create form."""
-    return render(
-        request,
-        _PLANNED_FORM,
-        planned=planned,
-        action=f"{PLANNED_PATH}/{planned.id}" if planned else PLANNED_PATH,
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        errors=errors,
-        status_code=_UNPROCESSABLE,
     )
 
 

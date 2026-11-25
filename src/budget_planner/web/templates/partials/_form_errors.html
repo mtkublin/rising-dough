@@ -1,7 +1,0 @@
-{% if errors %}
-  <ul role="alert" class="form-errors text-sm text-red-700">
-    {% for field, msg in errors.items() %}
-      <li><strong>{{ field }}:</strong> {{ msg }}</li>
-    {% endfor %}
-  </ul>
-{% endif %}

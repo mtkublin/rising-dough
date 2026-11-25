@@ -29,7 +29,7 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.web.app import create_app
 from tests.auth_support import login_cookie
-from tests.ui_map import _html, errors
+from tests.ui_map import _html, entries, errors
 from tests.ui_map.locator import by_id, role
 
 
@@ -85,10 +85,10 @@ def test_not_found_browser_renders_404_page(error_client: TestClient) -> None:
 def test_not_found_htmx_renders_flash_fragment(error_client: TestClient) -> None:
     r = error_client.get("/_boom/not-found", headers={"HX-Request": "true"})
     assert r.status_code == 404
-    region = _html.resolve_one(r.text, errors.alert)
+    region = _html.resolve_one(r.text, by_id("flash-region-assertive"))
     assert region["aria-live"] == "assertive"
     assert region["hx-swap-oob"] == "true"
-    assert "Transaction not found" in region.get_text()
+    assert "\N{BLACK UP-POINTING TRIANGLE} Transaction not found" in region.get_text()
 
 
 def test_conflict_browser_renders_409_page(error_client: TestClient) -> None:
@@ -99,11 +99,11 @@ def test_conflict_browser_renders_409_page(error_client: TestClient) -> None:
     assert "protected row" in _html.text_of(r.text, errors.main)
 
 
-def test_conflict_htmx_renders_warning_flash(error_client: TestClient) -> None:
+def test_conflict_htmx_renders_polite_flash(error_client: TestClient) -> None:
     r = error_client.get("/_boom/conflict", headers={"HX-Request": "true"})
     assert r.status_code == 409
-    region = _html.resolve_one(r.text, errors.status)
-    assert any(el.get("data-flash-kind") == "warning" for el in region.find_all(True))
+    region = _html.resolve_one(r.text, by_id("flash-region"))
+    assert region["aria-live"] == "polite"
     assert "protected row" in region.get_text()
 
 
@@ -117,7 +117,7 @@ def test_validation_browser_renders_422_page(error_client: TestClient) -> None:
 def test_validation_htmx_renders_error_flash(error_client: TestClient) -> None:
     r = error_client.get("/_boom/validation", headers={"HX-Request": "true"})
     assert r.status_code == 422
-    assert "amount must be positive" in _html.text_of(r.text, errors.alert)
+    assert "amount must be positive" in _html.text_of(r.text, by_id("flash-region-assertive"))
 
 
 def test_service_error_browser_renders_500_with_request_id(
@@ -139,7 +139,7 @@ def test_service_error_browser_renders_500_with_request_id(
 def test_service_error_htmx_renders_flash_with_reference(error_client: TestClient) -> None:
     r = error_client.get("/_boom/service", headers={"HX-Request": "true"})
     assert r.status_code == 500
-    flash = _html.text_of(r.text, errors.alert)
+    flash = _html.text_of(r.text, by_id("flash-region-assertive"))
     assert "Reference:" in flash
     rid = r.headers["X-Request-Id"]
     assert rid in flash
@@ -187,24 +187,8 @@ def test_validation_inline_form_render_on_transactions_post(client: TestClient) 
     # Form partial re-renders inline (no Location redirect).
     assert "Location" not in r.headers
     # Server-side error listing is present.
-    listed = _html.text_of(r.text, errors.alert)
+    listed = _html.text_of(r.text, entries.summary)
     assert "unknown account" in listed or "unknown category" in listed
-
-
-def test_flash_inline_render_does_not_emit_oob_attribute(client: TestClient) -> None:
-    """The `_flash.html` partial supports an `oob=false` branch for inline
-    (non-HTMX) use. Smoke-test by rendering the template directly."""
-    env = client.app.state.jinja_env  # type: ignore[attr-defined]
-    html = env.get_template("partials/_flash.html").render(
-        level="success", message="Saved", oob=False
-    )
-    assert "hx-swap-oob" not in html
-    assert 'role="status"' in html
-    assert "Saved" in html
-
-
-_RD = {"HX-Request": "true", "X-Shell": "rd"}
-_OLD = {"HX-Request": "true"}
 
 
 @pytest.mark.parametrize(
@@ -215,11 +199,11 @@ _OLD = {"HX-Request": "true"}
         ("/_boom/service", 500, ("flash-region-assertive", "assertive", "downstream unavailable")),
     ],
 )
-def test_new_shell_htmx_error_uses_the_rd_flash_fragment(
+def test_htmx_error_uses_the_rd_flash_fragment(
     error_client: TestClient, path: str, status: int, expected: tuple[str, str, str]
 ) -> None:
     region, live, text = expected
-    r = error_client.get(path, headers=_RD)
+    r = error_client.get(path, headers={"HX-Request": "true"})
     assert r.status_code == status
     live_region = _html.resolve_one(r.text, by_id(region))
     assert live_region["aria-live"] == live
@@ -229,12 +213,3 @@ def test_new_shell_htmx_error_uses_the_rd_flash_fragment(
     assert f"▲ {text}" in flash.get_text()
     close = _html.resolve_one(r.text, role("button", "Dismiss").inside(by_id(region)))
     assert close["data-js"] == "flash-close"
-
-
-def test_old_shell_htmx_error_keeps_the_legacy_flash(error_client: TestClient) -> None:
-    r = error_client.get("/_boom/conflict", headers=_OLD)
-    assert r.status_code == 409
-    region = _html.resolve_one(r.text, by_id("flash-region"))
-    box = region.find("div")
-    assert box is not None
-    assert box["class"] == ["flash", "flash-warning"]

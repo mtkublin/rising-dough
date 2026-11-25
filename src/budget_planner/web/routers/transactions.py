@@ -67,10 +67,7 @@ def limit_preview(
             amount_raw=amount,
             exclude_txn_id=edited_id,
         )
-    # The dialog line refetches itself (HX-Target credit-line); the old form keeps its partial.
-    if request.headers.get("HX-Target") == "credit-line":
-        return render(request, "fragments/fields/credit-line.html", preview=preview)
-    return render(request, "partials/transactions/_limit_preview.html", preview=preview)
+    return render(request, "fragments/fields/credit-line.html", preview=preview)
 
 
 @router.get(TABLE_PATH, response_class=HTMLResponse)

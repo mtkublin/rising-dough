@@ -315,7 +315,7 @@ def test_create_rejects_bad_date(client: TestClient, seeded: dict[str, int]) -> 
         },
     )
     assert r.status_code == 422
-    assert "operation_date" in _html.text_of(r.text, ledger.form_errors)
+    assert "Date : invalid date" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_create_rejects_bad_amount_string(client: TestClient, seeded: dict[str, int]) -> None:
@@ -430,8 +430,8 @@ def test_preview_hidden_for_asset_account(client: TestClient, visa_setup: dict[s
         },
     )
     assert r.status_code == 200
-    assert _html.exists(r.text, ledger.limit_preview)
-    assert _html.text_of(r.text, ledger.limit_preview) == ""
+    assert _html.exists(r.text, entries.credit_line)
+    assert _html.text_of(r.text, entries.credit_line) == ""
 
 
 def test_preview_shows_available_for_within_limit_expense(
@@ -446,8 +446,9 @@ def test_preview_shows_available_for_within_limit_expense(
         },
     )
     assert r.status_code == 200
-    text = _html.text_of(r.text, ledger.limit_preview)
-    assert "After this transaction" in text
+    text = _html.text_of(r.text, entries.credit_line)
+    assert "Visa \N{MIDDLE DOT} 10,000.00 of 10,000.00 left" in text
+    assert "after this" in text
     assert "9,500.00" in text
 
 
@@ -463,9 +464,11 @@ def test_preview_shows_over_limit_for_overshoot_expense(
         },
     )
     assert r.status_code == 200
-    text = _html.text_of(r.text, ledger.limit_preview)
-    assert "Over limit" in text
-    assert "5,000.00" in text
+    text = _html.text_of(r.text, entries.credit_line)
+    assert text == (
+        "\N{BLACK UP-POINTING TRIANGLE} Visa \N{MIDDLE DOT} 5,000.00 over the credit limit"
+        " (10,000.00 left)"
+    )
 
 
 def test_preview_handles_adjustment_signed_amount(
@@ -505,8 +508,8 @@ def test_preview_updates_on_amount_change(client: TestClient, visa_setup: dict[s
             "amount": "500.00",
         },
     )
-    assert "9,900.00" in _html.text_of(r1.text, ledger.limit_preview)
-    assert "9,500.00" in _html.text_of(r2.text, ledger.limit_preview)
+    assert "9,900.00" in _html.text_of(r1.text, entries.credit_line)
+    assert "9,500.00" in _html.text_of(r2.text, entries.credit_line)
 
 
 def test_preview_bad_amount_returns_blank_fragment(
@@ -521,7 +524,7 @@ def test_preview_bad_amount_returns_blank_fragment(
         },
     )
     assert r.status_code == 200
-    assert _html.text_of(r.text, ledger.limit_preview) == ""
+    assert _html.text_of(r.text, entries.credit_line) == ""
 
 
 def test_form_submits_even_when_over_limit(client: TestClient, visa_setup: dict[str, int]) -> None:

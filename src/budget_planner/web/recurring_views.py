@@ -29,7 +29,6 @@ from budget_planner.web.dialogs import dialog_response, invalid_dialog_response,
 from budget_planner.web.entry_forms import promote_context
 from budget_planner.web.form_responses import (
     PROMOTE_TEMPLATE,
-    from_dialog,
     new_entry_errors,
 )
 from budget_planner.web.htmx import Event, refresh_unless_on
@@ -39,46 +38,17 @@ from budget_planner.web.recurring_forms import (
     EMPTY_TERM_INPUT,
     OverrideError,
     RuleFields,
-    TermInput,
-    formula_source_candidates,
     parse_terms_from_form,
 )
 from budget_planner.web.rendering import render, render_context
 from budget_planner.web.view_models import month_name
 
-_FORM_TEMPLATE = "partials/recurring/_form.html"
 EDIT_TEMPLATE = "fragments/dialogs/edit-recurring.html"
 FORMULA_RESULT_TEMPLATE = "fragments/dialogs/formula-result.html"
 OCCURRENCE_TEMPLATE = "fragments/dialogs/override-occurrence.html"
 OCCURRENCE_REMOVE_TEMPLATE = "fragments/dialogs/override-remove-occurrence.html"
 CREATE_ACTION = "/recurring"
 CYCLE_NOTE = "formula cycle: the amount shows 0.00 until the formula is edited to remove the cycle."
-
-
-def render_form_errors(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    *,
-    rule: RecurringRule | None,
-    action: str,
-    errors: Mapping[str, str],
-    amount_source: str,
-    terms: list[TermInput],
-) -> Response:
-    return render(
-        request,
-        _FORM_TEMPLATE,
-        rule=rule,
-        action=action,
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        source_categories=formula_source_candidates(conn, user_id),
-        amount_source=amount_source,
-        terms=terms,
-        errors=errors,
-        status_code=422,
-    )
 
 
 def effective_amount_for_render(
@@ -210,41 +180,28 @@ def render_rule_form_errors(
     conn: sqlite3.Connection,
     user_id: int,
     *,
-    rule: RecurringRule | None,
-    action: str,
     fields: RuleFields,
     errors: Mapping[str, str],
 ) -> Response:
-    """Re-render the rule form (422) with the posted terms and the per-field errors."""
-    if rule is None and from_dialog(request):
-        return new_entry_errors(
-            request,
-            conn,
-            user_id,
-            tab="repeats",
-            posted={
-                "category": fields.category_id,
-                "account_id": fields.account_id,
-                "dest_account_id": fields.dest_account_id,
-                "default_amount": fields.default_amount,
-                "start_date": fields.start_date,
-                "end_date": fields.end_date,
-                "day_of_month": fields.day_of_month,
-                "cadence": fields.cadence,
-                "amount_source": fields.amount_source,
-                "default_description": fields.default_description,
-            },
-            errors=errors,
-            terms=fields.form_terms,
-        )
-    return render_form_errors(
+    """Re-render the new-entry dialog (422) with the posted terms and the per-field errors."""
+    return new_entry_errors(
         request,
         conn,
         user_id,
-        rule=rule,
-        action=action,
+        tab="repeats",
+        posted={
+            "category": fields.category_id,
+            "account_id": fields.account_id,
+            "dest_account_id": fields.dest_account_id,
+            "default_amount": fields.default_amount,
+            "start_date": fields.start_date,
+            "end_date": fields.end_date,
+            "day_of_month": fields.day_of_month,
+            "cadence": fields.cadence,
+            "amount_source": fields.amount_source,
+            "default_description": fields.default_description,
+        },
         errors=errors,
-        amount_source=fields.amount_source,
         terms=fields.form_terms,
     )
 

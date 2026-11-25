@@ -267,15 +267,16 @@ def test_credit_line_fragment_answers_the_dialog_with_the_service_values(
     )
 
 
-def test_add_serves_the_dialog_to_the_new_shell_and_the_slide_over_to_the_old_one(
+def test_add_serves_the_dialog_with_or_without_the_dialog_flag(
     client: TestClient, ids: dict[str, int]
 ) -> None:
     new = client.get("/add?when=planned&dialog=1", headers={"HX-Request": "true"})
     assert _html.resolve_one(new.text, entries.tab_planned).get("aria-current") == "page"
     assert _html.exists(new.text, entries.dialog)
-    old = client.get("/add?when=planned", headers={"HX-Request": "true"})
-    assert old.status_code == 200
-    assert not _html.exists(old.text, entries.dialog)
+    plain = client.get("/add?when=planned", headers={"HX-Request": "true"})
+    assert plain.status_code == 200
+    assert _html.resolve_one(plain.text, entries.tab_planned).get("aria-current") == "page"
+    assert _html.exists(plain.text, entries.dialog)
 
 
 def _count(db: sqlite3.Connection, table: str) -> int:

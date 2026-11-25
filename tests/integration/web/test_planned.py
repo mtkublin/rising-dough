@@ -131,7 +131,7 @@ def test_create_bad_amount(client: TestClient, ctx: dict[str, int], db: sqlite3.
         },
     )
     assert r.status_code == 422
-    assert "amount: Enter an amount above 0.00" in _html.all_text(r.text, errors.alert)
+    assert "Amount : Enter an amount above 0.00" in _html.text_of(r.text, entries.summary)
     assert _planned_state(db) == before
 
 
@@ -147,7 +147,7 @@ def test_create_bad_date(client: TestClient, ctx: dict[str, int], db: sqlite3.Co
         },
     )
     assert r.status_code == 422
-    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "Date : invalid date" in _html.text_of(r.text, entries.summary)
     assert _planned_state(db) == before
 
 
@@ -165,7 +165,7 @@ def test_create_unknown_account(
         },
     )
     assert r.status_code == 422
-    assert "account_id: unknown account" in _html.all_text(r.text, errors.alert)
+    assert "Account : unknown account" in _html.text_of(r.text, entries.summary)
     assert _planned_state(db) == before
 
 

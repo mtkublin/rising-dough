@@ -15,7 +15,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.ui_map import ledger, shell, today
+from tests.ui_map import entries, ledger, rd_shell, shell, today
 from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -25,27 +25,26 @@ DESC = "due-palette-item"
 
 def _open_palette(page: Page) -> None:
     page.keyboard.press("Control+k")
-    expect(to_playwright(page, shell.palette)).to_be_visible()
+    expect(to_playwright(page, rd_shell.palette_dialog)).to_be_visible()
 
 
-@pytest.mark.parametrize("route", ["/dev/components"])  # old shell until T-UR15
-def test_palette_new_transaction_opens_add_slide_over(
-    live_server: tuple[str, Path], page: Page, route: str
+def test_palette_new_entry_opens_the_new_entry_dialog(
+    live_server: tuple[str, Path], page: Page
 ) -> None:
     base_url, _ = live_server
-    page.goto(f"{base_url}{route}")
+    page.goto(f"{base_url}/dev/components")
     _open_palette(page)
-    to_playwright(page, shell.palette_option("New transaction")).click()
-    expect(to_playwright(page, shell.palette)).not_to_be_visible()
-    expect(to_playwright(page, shell.slideover)).to_be_visible()
+    to_playwright(page, rd_shell.palette_option("New entry")).click()
+    expect(to_playwright(page, rd_shell.palette_dialog)).not_to_be_visible()
+    expect(to_playwright(page, entries.dialog)).to_be_visible()
 
 
 def test_palette_shortcuts_opens_dialog(live_server: tuple[str, Path], page: Page) -> None:
     base_url, _ = live_server
-    page.goto(f"{base_url}/dev/components")  # old shell page (palette: test_rd_shell)
+    page.goto(f"{base_url}/dev/components")
     _open_palette(page)
-    to_playwright(page, shell.palette_option("Shortcuts")).click()
-    expect(to_playwright(page, shell.shortcuts_dialog)).to_be_visible()
+    to_playwright(page, rd_shell.palette_option("Shortcuts")).click()
+    expect(to_playwright(page, rd_shell.shortcuts_dialog)).to_be_visible()
 
 
 def test_promote_all_due_toast_offers_undo(live_server: tuple[str, Path], page: Page) -> None:
