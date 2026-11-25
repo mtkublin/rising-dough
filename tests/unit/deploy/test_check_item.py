@@ -80,7 +80,7 @@ def test_risen_allowlist_fails_and_shrunk_one_passes() -> None:
 def test_template_change_without_audit_record_fails() -> None:
     template, css = (
         "src/budget_planner/web/templates/home.html",
-        "src/budget_planner/web/static/app.css",
+        "src/budget_planner/web/static/rd/css/app.bundle.css",
     )
     changed = [template, css]
     missing = check_item.check_audit(changed, [])

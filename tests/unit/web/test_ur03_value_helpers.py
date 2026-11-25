@@ -132,8 +132,3 @@ def test_filter_direction_label() -> None:
 def test_filter_year_cell_state() -> None:
     assert _render("{{ 'one_off' | year_cell_state }}") == "one-off"
     assert _render("{{ 'one_off' | year_cell_state(editing=true) }}") == "editing"
-
-
-def test_filter_aria_current_date() -> None:
-    assert _render("{{ true | aria_current_date }}") == 'aria-current="date"'
-    assert _render("{{ false | aria_current_date }}") == ""

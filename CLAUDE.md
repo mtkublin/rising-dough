@@ -30,7 +30,7 @@ Always read the relevant ADR before changing an area it covers.
 
 ## Stack
 
-- Python 3.12, FastAPI, Jinja2, HTMX, Tailwind (local build, `just css`), server-rendered SVG charts (no CDN, no Plotly, no SPA framework: ADR-0123).
+- Python 3.12, FastAPI, Jinja2, HTMX, plain `@layer` CSS bundled by `just css` (Python, no Tailwind: ADR-0107 §4), server-rendered SVG charts (no CDN, no Plotly, no SPA framework: ADR-0123).
 - SQLite only in v1 (DuckDB deferred).
 - `uv` for deps, `just` for recipes.
 - Pre-commit: `ruff`, `ruff-format`, `mypy --strict`, `import-linter`, `pytest` (testmon-selected), `sqlfluff`, `djlint`, `stylelint`, `bandit`, `detect-secrets`. CI runs the same hooks (`SKIP=pytest-fast`) plus the full suite (ADR-0130 §8).
@@ -143,7 +143,7 @@ Any change that touches templates (`src/budget_planner/web/templates/**`), CSS (
 
 Agents working on frontend tasks must invoke this skill rather than inferring visual correctness from code.
 
-The toolchain the skill validates against (local Tailwind build, `stylelint`, Jinja partials, Playwright visual regression) is defined in [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md).
+The toolchain the skill validates against (`stylelint` on the rd CSS, Jinja partials, Playwright visual regression; the Tailwind parts of ADR-0027 are superseded by ADR-0107 §4) is defined in [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md).
 
 ## Releases & environments (MANDATORY)
 

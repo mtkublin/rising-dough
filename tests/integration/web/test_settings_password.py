@@ -252,7 +252,9 @@ def test_forced_post_elsewhere_is_blocked(forced: TestClient) -> None:
     assert r.headers["location"].startswith("/settings/password")
 
 
-@pytest.mark.parametrize("path", ["/health", "/healthz", "/static/auth.css", "/settings/password"])
+@pytest.mark.parametrize(
+    "path", ["/health", "/healthz", "/static/rd/css/pages/auth.css", "/settings/password"]
+)
 def test_forced_exempt_paths(forced: TestClient, path: str) -> None:
     r = forced.get(path, follow_redirects=False)
     assert r.status_code != 302

@@ -159,7 +159,7 @@ def test_static_asset_never_touches_the_csrf_cookie(
 ) -> None:
     seed_login_user(conn)
     token = _signed_in(app_client, issue_session(conn))
-    r = app_client.get("/static/csrf.js")
+    r = app_client.get("/static/rd/js/csrf.js")
     assert r.status_code == 200
     assert CSRF_COOKIE_NAME not in r.headers.get("set-cookie", "")
     assert app_client.cookies[CSRF_COOKIE_NAME] == token
