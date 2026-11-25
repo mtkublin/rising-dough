@@ -47,6 +47,9 @@ REDIRECTS = (
     ("GET /budget/yearly", "/budget/yearly?year=2026", "/plan?tab=year&year=2026"),
     ("GET /forecast", "/forecast", "/plan?tab=forecast"),
     ("GET /forecast", "/forecast?horizon_months=24", "/plan?tab=forecast&horizon=24"),
+    ("GET /forecast", "/forecast?horizon_months=100000", "/plan?tab=forecast"),
+    ("GET /forecast", "/forecast?horizon_months=abc", "/plan?tab=forecast"),
+    ("GET /forecast", "/forecast?horizon_months=7", "/plan?tab=forecast"),
     ("GET /forecast/view", "/forecast/view?horizon_months=6", "/plan?tab=forecast&horizon=6"),
 )
 

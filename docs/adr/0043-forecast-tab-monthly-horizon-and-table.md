@@ -72,4 +72,4 @@ Table reuses `partials/forecast/_table.html`; both chart + table share the `#for
 
 ## Amendment 2026-11-25 (T-UR15a)
 
-Per ADR-0051 and operator decision Q13, the horizon on `/plan?tab=forecast` is one of 6, 12, 24 or 60 months; any other value (including the former clamp values arriving through the `/forecast?horizon_months=` redirect) is a 422 instead of being clamped to 1..60.
+Per ADR-0051 and operator decision Q13, the horizon on `/plan?tab=forecast` is one of 6, 12, 24 or 60 months; any other value on the tab is a 422 instead of being clamped to 1..60. The `/forecast?horizon_months=` redirect forwards only those four values and drops any other, so an old bookmark lands on the default horizon.

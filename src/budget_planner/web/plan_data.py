@@ -28,6 +28,8 @@ BUDGET_TAB_URL = "/plan?tab=budget"
 """Base of the budget tab's period links (``&year=&month=`` follow)."""
 FORECAST_TAB_URL = "/plan?tab=forecast&horizon="
 """Base of the forecast tab's horizon links (the months follow)."""
+FORECAST_HORIZON_CHOICES: tuple[int, ...] = (6, 12, 24, 60)
+"""The horizons (months) the forecast tab accepts; any other value is a 422."""
 
 
 def forecast_summary(

@@ -26,8 +26,6 @@ router = APIRouter(tags=["plan"])
 PlanTab = Literal["budget", "year", "forecast", "analytics"]
 _VALID: tuple[PlanTab, ...] = ("budget", "year", "forecast", "analytics")
 
-_FORECAST_HORIZON_CHOICES: tuple[int, ...] = (6, 12, 24, 60)
-
 
 @router.get("/plan", response_class=HTMLResponse)
 def plan(
@@ -58,13 +56,20 @@ def plan(
         return render(request, "pages/plan/year.html", nav_current="plan", **ctx)
     if tab_norm == "forecast":
         requested = query_int(
-            "horizon", request.query_params.get("horizon"), choices=_FORECAST_HORIZON_CHOICES
+            "horizon",
+            request.query_params.get("horizon"),
+            choices=plan_data.FORECAST_HORIZON_CHOICES,
         )
         horizon = forecast_service.normalize_horizon(
-            None if requested is None else str(requested), _FORECAST_HORIZON_CHOICES
+            None if requested is None else str(requested), plan_data.FORECAST_HORIZON_CHOICES
         )
         ctx["forecast"] = plan_data.forecast_page_for(
-            conn, user_id, settings, today_d, horizon=horizon, choices=_FORECAST_HORIZON_CHOICES
+            conn,
+            user_id,
+            settings,
+            today_d,
+            horizon=horizon,
+            choices=plan_data.FORECAST_HORIZON_CHOICES,
         )
         return render(request, "pages/plan/forecast.html", nav_current="plan", **ctx)
     ctx["analytics"] = plan_data.analytics_page_for(
