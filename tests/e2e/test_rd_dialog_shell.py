@@ -13,8 +13,8 @@ from typing import Any
 import pytest
 
 from tests.e2e.mockup_target import Journey
-from tests.ui_map import rd_dialogs as d, rd_fragments as f
-from tests.ui_map.locator import Locator, to_playwright
+from tests.ui_map import rd_dialogs as d, rd_fragments as f, rd_shell as shell
+from tests.ui_map.locator import Locator, role, to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -113,3 +113,54 @@ def test_phone_only_item_is_hidden_on_desktop(journey: Journey) -> None:
     _loc(journey, d.dev_menu_button).click()
     _loc(journey, f.row_menu_item("standard")).wait_for(state="visible")
     assert _loc(journey, f.row_menu_item("sheet")).is_visible() is False
+
+
+def test_error_flash_shows_above_an_open_modal_dialog(journey: Journey) -> None:
+    """A 500 from inside a modal dialog flashes above the backdrop (T-UR02c, ADR-0143)."""
+    if journey.target == "mockup":
+        pytest.skip("the handoff mockup has no server to answer an error")
+    journey.goto("/dev/shell")
+    _loc(journey, shell.dev_dialog_open).click()
+    _loc(journey, shell.dev_dialog).wait_for(state="visible")
+    _loc(journey, role("button", "fail with 500").inside(shell.dev_dialog)).click()
+
+    flash = _loc(journey, role("alert").inside(shell.dev_dialog)).get_by_text(
+        "Something went wrong on our side."
+    )
+    flash.wait_for(state="visible")
+    assert "▲" in flash.inner_text()
+    on_top = flash.evaluate(
+        """el => {
+            const r = el.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return !!hit && el.closest('.rd-flash').contains(hit);
+        }"""
+    )
+    assert on_top is True
+    journey.page.keyboard.press("Escape")
+    _loc(journey, shell.dev_dialog).wait_for(state="hidden")
+
+
+def test_reopened_dialog_starts_without_the_old_flash(journey: Journey) -> None:
+    """The in-dialog flash is single, cleared on reopen, dropped when closed (T-UR02c)."""
+    if journey.target == "mockup":
+        pytest.skip("the handoff mockup has no server to answer an error")
+    journey.goto("/dev/shell")
+    _loc(journey, shell.dev_dialog_open).click()
+    _loc(journey, shell.dev_dialog).wait_for(state="visible")
+    fail = _loc(journey, role("button", "fail with 500").inside(shell.dev_dialog))
+    fail.click()
+    _loc(journey, shell.in_dialog_flash_box).wait_for(state="visible")
+    assert _loc(journey, shell.in_dialog_flash).count() == 1
+
+    # Close and reopen the same element (a static dialog is not replaced by #modal-root).
+    _loc(journey, shell.dev_dialog).evaluate("d => { d.close(); d.showModal(); }")
+    _loc(journey, shell.in_dialog_flash).wait_for(state="detached")
+
+    fail.click()
+    _loc(journey, shell.in_dialog_flash_box).wait_for(state="visible")
+    assert _loc(journey, shell.in_dialog_flash).count() == 1
+
+    # A closed dialog's region goes with the next request of any kind.
+    _loc(journey, shell.dev_dialog).evaluate("d => { d.close(); htmx.ajax('GET', '/healthz'); }")
+    _loc(journey, shell.in_dialog_flash).wait_for(state="detached")
