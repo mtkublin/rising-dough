@@ -377,7 +377,7 @@ def _missing_id_errors(fields: RuleFields) -> dict[str, str]:
     """Per-field messages for a category or account that is blank or not a number."""
     errors: dict[str, str] = {}
     if parse_int(fields.category_id) is None:
-        errors["category_id"] = "pick a category" if not fields.category_id else "unknown category"
+        errors["category_id"] = "Pick a category" if not fields.category_id else "unknown category"
     if parse_int(fields.account_id) is None:
         errors["account_id"] = "unknown account"
     return errors

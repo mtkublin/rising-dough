@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Final, Literal
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_figure, format_money, percent_of
+from budget_planner.domain.money import format_figure, format_money, percent_of, round_div
 from budget_planner.services import (
     budget as budget_service,
     ledger_totals,
@@ -106,6 +106,24 @@ def bar_cells(
     if min_one and used > 0:
         filled = max(filled, 1)
     return BarCells(filled=filled, empty=cells - filled, left_pct=_MAX_PCT - used)
+
+
+def bar_cells_exact(
+    part_minor: int, total_minor: int, cells: int, *, is_over: bool = False, min_one: bool = False
+) -> BarCells:
+    """Like ``bar_cells`` but rounds the exact share, not the floored percent.
+
+    The handoff hero bar fills ``round(share * cells)`` cells (77.76 % of 20 -> 16, where the
+    floored 77 % gives 15). ``left_pct`` stays ``100 - floored used_pct`` (the bar's label).
+    """
+    floored = clamped_percent(part_minor, total_minor)
+    if is_over or total_minor <= 0:
+        return bar_cells(floored, cells, is_over=is_over, min_one=min_one)
+    share = max(0, min(part_minor, total_minor))
+    filled = round_div(share * cells, total_minor)
+    if min_one and share > 0:
+        filled = max(filled, 1)
+    return BarCells(filled=filled, empty=cells - filled, left_pct=_MAX_PCT - floored)
 
 
 @dataclass(frozen=True, slots=True)
@@ -309,7 +327,9 @@ def budget_view(
     lines = tuple(_line_view(line) for line in summary.lines)
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
     is_over = totals.budgeted_minor > 0 and totals.spent_minor > totals.budgeted_minor
-    cells = bar_cells(spent_pct, HERO_BAR_CELLS, is_over=is_over, min_one=True)
+    cells = bar_cells_exact(
+        totals.spent_minor, totals.budgeted_minor, HERO_BAR_CELLS, is_over=is_over, min_one=True
+    )
     return BudgetView(
         summary=summary,
         lines=lines,

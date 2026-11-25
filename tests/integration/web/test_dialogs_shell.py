@@ -137,7 +137,7 @@ def test_form_variants_post_back_422_and_confirm_posts_back_a_flash(client: Test
     }
     ok = client.post("/dev/shell/dialog/confirm", headers=HX)
     assert ok.status_code == 200
-    assert "Dev account deleted" in _html.page_text(ok.text)
+    assert "Saved \N{MIDDLE DOT} Takeaway \N{MINUS SIGN}35.50 PLN" in _html.page_text(ok.text)
     modal_root = _html.resolve_one(ok.text, by_id("modal-root"))
     assert (modal_root.get("hx-swap-oob"), modal_root.get_text()) == ("innerHTML", "")
 

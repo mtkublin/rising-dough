@@ -113,6 +113,9 @@
     <template id="rd-offline-template">
       {% include "fragments/states/offline.html" %}
     </template>
+    <template id="rd-skeleton-template">
+      {% include "fragments/states/loading.html" %}
+    </template>
     <template id="rd-offline-page-template">
       {% include "fragments/states/offline-page.html" %}
     </template>
@@ -140,6 +143,7 @@
     <script type="module"
             src="{{ url_for('static', path='rd/js/theme-switch.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='rd/js/offline.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/skeleton.js') }}"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

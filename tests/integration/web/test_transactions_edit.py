@@ -337,7 +337,7 @@ def test_missing_fields_give_a_human_422_and_write_nothing(
     assert r.headers["content-type"].startswith("text/html")
     assert r.headers["HX-Retarget"] == "#modal-root"
     assert _html.error_lines(r.text) == {
-        "catpick-edit-transaction-error": "▲ pick a category",
+        "catpick-edit-transaction-error": "▲ Pick a category",
         "field-account_id-error": "▲ unknown account",
         "field-operation_date-error": "▲ invalid date",
     }

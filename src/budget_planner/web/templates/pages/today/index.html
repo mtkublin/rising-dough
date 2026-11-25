@@ -67,6 +67,7 @@
   </section>
   <section class="rd-panel-section rd-upcoming"
            id="upcoming"
+           data-skeleton-busy
            aria-labelledby="upcoming-title">
     <div class="rd-section-head">
       <div class="rd-section-head__start">
@@ -78,21 +79,24 @@
                   hx-get="/today/upcoming?window=7"
                   hx-target="#upcoming-list"
                   hx-swap="outerHTML"
-                  hx-indicator="#upcoming">7 days</button>
+                  hx-indicator="#upcoming"
+                  data-skeleton="#upcoming-list">7 days</button>
           <button type="button"
                   class="rd-segmented__option"
                   aria-pressed="{{ 'true' if window_label == '30' else 'false' }}"
                   hx-get="/today/upcoming?window=30"
                   hx-target="#upcoming-list"
                   hx-swap="outerHTML"
-                  hx-indicator="#upcoming">30 days</button>
+                  hx-indicator="#upcoming"
+                  data-skeleton="#upcoming-list">30 days</button>
           <button type="button"
                   class="rd-segmented__option"
                   aria-pressed="{{ 'true' if window_label == 'all' else 'false' }}"
                   hx-get="/today/upcoming?window=all"
                   hx-target="#upcoming-list"
                   hx-swap="outerHTML"
-                  hx-indicator="#upcoming">all</button>
+                  hx-indicator="#upcoming"
+                  data-skeleton="#upcoming-list">all</button>
         </div>
       </div>
       {% if upcoming.has_due %}
