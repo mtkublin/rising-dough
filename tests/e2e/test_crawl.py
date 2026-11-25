@@ -95,7 +95,9 @@ NOT_PAGES: dict[str, str] = {
     "/recurring/{rule_id}/promote": "dialog fragment",
     "/recurring/{rule_id}/promote/inline": "fragment",
     "/settings/close": "fragment",
+    "/settings/users/{user_id}/delete": "dialog fragment",
     "/settings/users/{user_id}/edit": "dialog fragment",
+    "/settings/users/{user_id}/reset-password": "dialog fragment",
     # one-time token in the query; closed → 303 /auth/login (T-UR21, ADR-0134 §9)
     "/setup": "one-time token in the query; closed → 303 /auth/login (T-UR21, ADR-0134 §9)",
     "/today/afford": "fragment",

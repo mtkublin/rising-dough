@@ -10,9 +10,10 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from types import MappingProxyType
-from typing import Final
+from typing import Final, Protocol
+from zoneinfo import ZoneInfo
 
 from fastapi import Response
 
@@ -20,7 +21,14 @@ from budget_planner.domain import category_colors
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.fx import FxRate
+from budget_planner.services.security_settings import SessionRow
+from budget_planner.services.users import (
+    LAST_ADMIN_DELETE_MESSAGE,
+    SELF_DELETE_MESSAGE,
+    AuthUser,
+)
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
+from budget_planner.web.paths import DELETE_PATH
 from budget_planner.web.view_models import direction_label
 
 _FORM_SWATCH_NAMES: Final[tuple[str, ...]] = (
@@ -213,3 +221,201 @@ def settings_page_context(raw: Mapping[str, object]) -> dict[str, object]:
     if isinstance(rates, list):
         context["fx_rows"] = fx_rate_rows([r for r in rates if isinstance(r, FxRate)])
     return context
+
+
+# --- security and users (T-UR14) ----------------------------------------------------------------
+
+USERS_PATH: Final = "/settings/users"
+ACTIVE_TEXT: Final = "● active"
+ROTATION_PENDING_TEXT: Final = "◐ new password required at next sign-in"
+
+
+class UserListing(Protocol):
+    """What the roster rows read from a listed user (``services.users.list_live_users``)."""
+
+    @property
+    def id(self) -> int: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def email(self) -> str | None: ...
+    @property
+    def is_admin(self) -> bool: ...
+    @property
+    def must_change_password(self) -> bool: ...
+    @property
+    def last_seen_at(self) -> datetime | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class UserRowView:
+    """One row of the Users page (handoff ``rows/user-row``)."""
+
+    id: int
+    email_text: str
+    sub_text: str
+    role_text: str
+    name: str
+    last_seen: str
+    status_text: str
+    is_me: bool
+    menu_id: str
+    menu_sub: str
+    menu_items: tuple[Mapping[str, object], ...]
+
+
+def _user_menu(user_id: int) -> tuple[Mapping[str, object], ...]:
+    base = f"{USERS_PATH}/{user_id}"
+    return (
+        MappingProxyType({"label": "edit user", "hx_get": f"{base}/edit"}),
+        MappingProxyType({"label": "reset password", "hx_get": f"{base}/reset-password"}),
+        MappingProxyType(
+            {"label": "delete user", "hx_get": f"{base}{DELETE_PATH}", "danger": True}
+        ),
+    )
+
+
+def user_row_view(user: UserListing, *, me_id: int, tz: str) -> UserRowView:
+    """Row values; the admin's own row carries no menu (``is_me``), ADR-0134 section 11."""
+    role = "admin" if user.is_admin else "member"
+    is_me = user.id == me_id
+    return UserRowView(
+        id=user.id,
+        email_text=user.email or user.name,
+        sub_text="You" if is_me else user.name,
+        role_text=role,
+        name=user.name,
+        last_seen=_local(user.last_seen_at, tz, "%d %b %H:%M") if user.last_seen_at else "never",
+        status_text=ROTATION_PENDING_TEXT if user.must_change_password else ACTIVE_TEXT,
+        is_me=is_me,
+        menu_id=f"user-menu-{user.id}",
+        menu_sub=f"{user.name} · {role}",
+        menu_items=_user_menu(user.id),
+    )
+
+
+def user_rows(users: Sequence[UserListing], *, me_id: int, tz: str) -> tuple[UserRowView, ...]:
+    """Roster rows in service order."""
+    return tuple(user_row_view(u, me_id=me_id, tz=tz) for u in users)
+
+
+@dataclass(frozen=True, slots=True)
+class UserDialogView:
+    """Values of the edit, reset and delete user dialogs."""
+
+    id: int
+    email: str
+    name: str
+    is_admin: bool
+    label: str
+    is_me: bool
+    blocked_reason: str | None
+
+
+def delete_blocked_reason(target: AuthUser, *, me_id: int, live_admins: int) -> str | None:
+    """Why this admin cannot delete ``target`` (the service guards, shown before the POST)."""
+    if target.id == me_id:
+        return SELF_DELETE_MESSAGE
+    if target.is_admin and live_admins <= 1:
+        return LAST_ADMIN_DELETE_MESSAGE
+    return None
+
+
+def user_dialog_view(
+    target: AuthUser,
+    *,
+    me_id: int,
+    live_admins: int,
+    name: str | None = None,
+    is_admin: bool | None = None,
+) -> UserDialogView:
+    """Dialog values: stored user first, submitted values (422 re-render) over them."""
+    return UserDialogView(
+        id=target.id,
+        email=target.email or "",
+        name=target.name if name is None else name,
+        is_admin=target.is_admin if is_admin is None else is_admin,
+        label=target.name or target.email or "",
+        is_me=target.id == me_id,
+        blocked_reason=delete_blocked_reason(target, me_id=me_id, live_admins=live_admins),
+    )
+
+
+def live_admin_count(users: Sequence[UserListing]) -> int:
+    """Live admins in a roster listing."""
+    return sum(1 for u in users if u.is_admin)
+
+
+_STAMP: Final = "%d %b %H:%M"
+_DAY: Final = "%d %b"
+NEVER_TEXT: Final = "never"
+
+
+def _local(value: datetime, tz: str, pattern: str) -> str:
+    """``value`` in the display timezone as the handoff's upper-case stamp (``12 NOV 09:14``)."""
+    stamp = value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+    return stamp.astimezone(ZoneInfo(tz)).strftime(pattern).upper()
+
+
+@dataclass(frozen=True, slots=True)
+class SessionRowView:
+    """One active session (handoff ``rows/session-row``): printed values, the revoke handle."""
+
+    handle: str
+    device: str
+    ip_text: str
+    title: str
+    signed_in: str
+    last_seen: str
+    expires: str
+    is_current: bool
+    button_label: str
+
+
+def session_row_view(row: SessionRow, tz: str) -> SessionRowView:
+    """Values of a session row; the current device keeps its sign-out button (contract pin)."""
+    session = row.session
+    return SessionRowView(
+        handle=session.handle,
+        device=row.device_label,
+        ip_text=session.ip or "—",
+        title=session.user_agent or "Unknown device",
+        signed_in=_local(session.created_at, tz, _STAMP),
+        last_seen=_local(session.last_seen_at, tz, _STAMP),
+        expires=_local(row.absolute_expires_at, tz, _DAY),
+        is_current=row.is_current,
+        button_label="Sign out this device" if row.is_current else f"Sign out {row.device_label}",
+    )
+
+
+class PasskeyListing(Protocol):
+    """What a passkey row reads from a stored credential (``services.auth.list_passkeys``)."""
+
+    @property
+    def id(self) -> int: ...
+    @property
+    def label(self) -> str | None: ...
+    @property
+    def created_at(self) -> datetime: ...
+    @property
+    def last_used_at(self) -> datetime | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class PasskeyRowView:
+    """One passkey: label, added and last-used stamps."""
+
+    id: int
+    label: str
+    added: str
+    last_used: str
+
+
+def passkey_row_view(passkey: PasskeyListing, tz: str) -> PasskeyRowView:
+    """Values of a passkey row (derived from the session row)."""
+    return PasskeyRowView(
+        id=passkey.id,
+        label=passkey.label or "Passkey",
+        added=_local(passkey.created_at, tz, _STAMP),
+        last_used=_local(passkey.last_used_at, tz, _STAMP) if passkey.last_used_at else NEVER_TEXT,
+    )

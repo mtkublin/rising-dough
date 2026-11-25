@@ -34,6 +34,7 @@ from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import auth as auth_service, reauth as reauth_service
 from budget_planner.services.rate_limit import RateDecision
+from budget_planner.web import revoke_flow
 from budget_planner.web.auth_cookies import (
     DEFAULT_LANDING,
     LOGIN_PATH,
@@ -334,18 +335,20 @@ def revoke_session(
     # Signing out *this* device is logout; revoking another one needs a fresh login (ADR-0076 §2).
     if not is_current and not is_recently_authenticated(request, conn):
         return reauth_required_response(request)
+    device = revoke_flow.session_device(conn, user.id, handle)
     if not auth_service.revoke_user_session(conn, user.id, handle, request_ctx=ctx):
-        raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
+        return revoke_flow.stale("not_found")
     if is_current:
         response = redirect(LOGIN_PATH)
         clear_session_cookie(response, settings)
         response.headers["Clear-Site-Data"] = _CLEAR_SITE_DATA
-        return response
-    return redirect(SECURITY_SESSIONS_URL)
+        return revoke_flow.signed_out_here(request, response)
+    return revoke_flow.revoked(request, f"Signed out {device}", redirect(SECURITY_SESSIONS_URL))
 
 
 @router.post("/passkeys/{credential_id}/revoke", dependencies=[Depends(require_recent_auth)])
 def revoke_passkey(
+    request: Request,
     credential_id: int,
     conn: sqlite3.Connection = Depends(get_db),
     ctx: RequestCtx = Depends(get_request_ctx),
@@ -353,8 +356,8 @@ def revoke_passkey(
 ) -> Response:
     """Soft-delete one of the caller's own passkeys."""
     if not auth_service.revoke_passkey(conn, user.id, credential_id, request_ctx=ctx):
-        raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
-    return redirect(SECURITY_PASSKEYS_URL)
+        return revoke_flow.stale("not_found")
+    return revoke_flow.revoked(request, "Passkey removed", redirect(SECURITY_PASSKEYS_URL))
 
 
 # ---------------------------------------------------------------------------

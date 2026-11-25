@@ -1,0 +1,63 @@
+{# Settings · edit user dialog (T-UR14, ADR-0107, ADR-0134 section 11). Handoff: overlays/edit-user.html.
+   Context: view (settings_view.UserDialogView), errors (field -> message), field_count / field_errors (invalid_dialog_response).
+   The email is read-only. The role radios post is_admin ("on" admin, "0" member), the field the route has always read (derived.md). #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog(
+  "dlg-edit-user",
+  "edit user · " ~ view.email,
+  size="md",
+  action="/settings/users/" ~ view.id,
+  hx_post="/settings/users/" ~ view.id,
+  hx_target="#user-row-" ~ view.id,
+  hx_swap="outerHTML",
+  field_count=field_count|default(0),
+  field_errors=field_errors|default(()),
+  actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}]
+) %}
+  <div class="rd-field rd-field--readonly">
+    <label class="rd-field__label" for="eu-email">email</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="eu-email"
+             name="email"
+             type="email"
+             value="{{ view.email }}"
+             readonly
+             autocomplete="off"
+             {% if "email" in errors %}aria-invalid="true" aria-describedby="eu-email-error"{% endif %}>
+    </span>
+    {% if "email" in errors %}<p class="rd-field__error" id="eu-email-error">▲ {{ errors.email }}</p>{% endif %}
+  </div>
+  <div class="rd-field">
+    <label class="rd-field__label" for="eu-name">name</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="eu-name"
+             name="name"
+             type="text"
+             value="{{ view.name }}"
+             maxlength="100"
+             autocomplete="off"
+             required
+             {% if "name" in errors %}aria-invalid="true" aria-describedby="eu-name-error"{% endif %}>
+    </span>
+    {% if "name" in errors %}<p class="rd-field__error" id="eu-name-error">▲ {{ errors.name }}</p>{% endif %}
+  </div>
+  <div class="rd-field rd-field--seg"
+       role="radiogroup"
+       aria-labelledby="eu-role-label">
+    <span class="rd-field__label" id="eu-role-label">role</span>
+    <div class="rd-segmented">
+      <label class="rd-segmented__option">
+      <input type="radio"
+             name="is_admin"
+             value="0"
+             {% if not view.is_admin %}checked{% endif %}>member</label>
+      <label class="rd-segmented__option">
+      <input type="radio"
+             name="is_admin"
+             value="on"
+             {% if view.is_admin %}checked{% endif %}>admin</label>
+    </div>
+  </div>
+{% endcall %}

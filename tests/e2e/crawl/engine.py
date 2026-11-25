@@ -38,7 +38,11 @@ SKIP_TARGETS: tuple[tuple[str, str], ...] = (
 )
 
 
-SKIP_NAMES: tuple[tuple[str, str], ...] = (("Add passkey", "needs a WebAuthn authenticator"),)
+SKIP_NAMES: tuple[tuple[str, str], ...] = (
+    ("Add passkey", "needs a WebAuthn authenticator"),
+    # The server clears the browser's session cookie; a DB restore cannot bring it back (T-UR14).
+    ("Sign out this device", "ends the crawler's own session"),
+)
 
 
 def skip_reason(control: Control) -> str | None:  # noqa: PLR0911
@@ -51,7 +55,7 @@ def skip_reason(control: Control) -> str | None:  # noqa: PLR0911
     # Before the disabled check: passkeys.js disables the button where the engine has no
     # WebAuthn (Playwright WebKit on Linux, T-Q316), so the reason must not depend on the browser.
     for name, why in SKIP_NAMES:
-        if control.name == name:
+        if control.name.lower() == name.lower():  # the new shell prints lower-case names
             return why
     if control.disabled:
         return "disabled"
