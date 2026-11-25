@@ -150,6 +150,9 @@ def test_edit_saved_from_today_keeps_the_flash(live_server: tuple[str, Path], pa
     expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("transaction saved")
     # No reload: the page is the same document, so the flash survived the save.
     assert page.evaluate("document.querySelector('#flash-region .rd-flash') !== null")
+    # Net worth refetched on ledger-stale: 500.00 opening minus the edited 45.67.
+    expect(to_playwright(page, rd_shell.main)).to_contain_text("454.33")
+    expect(to_playwright(page, rd_shell.main)).not_to_contain_text("487.66")
     assert db_probe.txn_amounts(db_path, "today-edit") == [4567]
 
 
