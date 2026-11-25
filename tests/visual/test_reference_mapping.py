@@ -15,8 +15,12 @@ from fastapi.testclient import TestClient
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.repositories import users as users_repo
-from budget_planner.services import invites as invites_service, setup as setup_service
+from budget_planner.repositories import accounts as accounts_repo, users as users_repo
+from budget_planner.services import (
+    accounts as accounts_service,
+    invites as invites_service,
+    setup as setup_service,
+)
 from budget_planner.web.app import create_app
 from budget_planner.web.auth_cookies import session_cookie_name
 from budget_planner.web.middleware.csrf import csrf_cookie_name
@@ -280,9 +284,21 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
     assert status == 200
     text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
     assert "Can\u2019t delete Checking It still has" in text
-    # F1 grew the seed's Checking transactions 23 -> 33 (overlay row "Checking txns 23 -> 33",
-    # tests/visual/handoff_overlay.toml); planned items and recurring rules are unchanged.
-    assert "33 transactions and 10 planned or recurring items." in text
+    # The counts follow the seed: derived through the service that renders the dialog.
+    conn = get_connection(settings)
+    try:
+        (checking,) = (
+            a for a in accounts_repo.list_all(conn, handoff_seed.OWNER_ID) if a.name == "Checking"
+        )
+        refs = accounts_service.account_references(conn, handoff_seed.OWNER_ID, checking.id)
+    finally:
+        conn.close()
+    assert (refs.transactions, refs.planned, refs.recurring) == (33, 2, 8)
+    expected = (
+        f"{refs.transactions} transactions and {refs.planned + refs.recurring} "
+        "planned or recurring items."
+    )
+    assert expected in text
 
 
 def _non_overlay_pages() -> set[str]:
@@ -390,8 +406,13 @@ def test_state_recipes_name_handoff_pages_reached_by_a_request() -> None:
         "pages/auth/register--error.html",
         "pages/auth/force-password--error.html",
         "pages/settings/security--error.html",
+        "pages/settings/preferences.html",  # F3: the theme click is its request
     }
-    assert set(RECIPES) <= set(_STATE_PAGES)
+    # The preferences click recipe belongs to a regular page, not a state page.
+    preferences = "pages/settings/preferences.html"
+    assert set(RECIPES) - {preferences} <= set(_STATE_PAGES)
+    assert preferences not in _STATE_PAGES
+    assert route_for(preferences) == "/settings?tab=prefs"
     assert not set(RECIPES) & set(FORM_SUBMITS)
     assert state_recipe("pages/errors/409.html") is RECIPES["pages/errors/409.html"]
     # The afford states and the plain register / force pages are reached by their route alone.
@@ -496,9 +517,8 @@ def test_used_email_posts_answer_422_with_the_typed_values(seeded: tuple[Setting
     settings, token = seeded
     for stem, path, error in (
         ("add-user--error", "/settings/users", "A user with this email already exists"),
-        # The app words the invite error like the add-user one; the handoff reads "This person
-        # already has an account" (a copy difference reported for the migration, not mapped).
-        ("invite-user--error", "/settings/users/invites", "A user with this email already exists"),
+        # The invite error reads like the handoff: "This person already has an account" (F3).
+        ("invite-user--error", "/settings/users/invites", "This person already has an account"),
     ):
         recipe = DIALOG_SUBMITS[f"pages/overlays/{stem}.html"]
         data = {sel.rsplit("name=", 1)[1].rstrip("]"): value for sel, value in recipe.fills}

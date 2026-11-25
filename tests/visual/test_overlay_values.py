@@ -23,6 +23,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.money import format_money
 from budget_planner.repositories import (
     accounts as accounts_repo,
+    categories as categories_repo,
     recurring as recurring_repo,
     users as users_repo,
 )
@@ -30,6 +31,7 @@ from budget_planner.services import (
     accounts as accounts_service,
     balance as balance_service,
     budget as budget_service,
+    categories as categories_service,
     forecast as forecast_service,
     fortune as fortune_service,
     fx as fx_service,
@@ -101,6 +103,7 @@ class Vals:
     fc_peak: int
     fc_peak_label: str
     formula_next_all: frozenset[int]
+    takeaway_entries: int
 
 
 def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
@@ -150,6 +153,7 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
         for rule in recurring_repo.list_rules(conn, USER)
         if rule.amount_formula is not None
     )
+    (takeaway,) = (c for c in categories_repo.list_all(conn, USER) if c.name == "Takeaway")
     return Vals(
         per_day=summary.left_daily_spend_minor,
         committed=summary.totals.committed_minor,
@@ -186,6 +190,7 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
         fc_peak=fc.peak_point.end_balance_minor,
         fc_peak_label=fc.peak_point.label,
         formula_next_all=nexts,
+        takeaway_entries=categories_service.entry_count(conn, USER, takeaway.id),
     )
 
 
@@ -331,7 +336,32 @@ def _forecast_cases() -> tuple[Case, ...]:
     )
 
 
+_CATEGORY_USAGE = (
+    f"{_SEED} categories.usage_for / category_usage_text: "
+    "Takeaway has 3 live entries in the seed, the board says 41"
+)
+
 _LISTED_CASES: tuple[Case, ...] = (
+    Case(
+        "pages/overlays/archive-category.html",
+        'p:-soup-contains-own("Its 41 entries")',
+        "It disappears from pickers. Its 41 entries and budget history stay, "
+        "and you can restore it from recently deleted.",
+        lambda v: (
+            f"It disappears from pickers. Its {v.takeaway_entries} entries and budget history "
+            "stay, and you can restore it from recently deleted."
+        ),
+        _CATEGORY_USAGE,
+        optional=False,
+    ),
+    Case(
+        "pages/overlays/edit-category.html",
+        'p:-soup-contains-own("locked by 41 entries")',
+        "\u2193 expense \u00b7 locked by 41 entries",
+        lambda v: f"\u2193 expense \u00b7 locked by {v.takeaway_entries} entries",
+        _CATEGORY_USAGE,
+        optional=False,
+    ),
     # Today and Plan headline: committed includes the overdue "Annual insurance".
     Case(
         ALL,

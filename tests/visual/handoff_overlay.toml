@@ -102,6 +102,7 @@ field = "text"
 old = "34.60"
 value = "446.60"
 optional = true
+exclude = ["pages/today--empty.html"]  # its own row 4 rows below set these figures
 reason = "seed value via budget.month_summary: committed (overdue Annual insurance 412.00 included)"
 
 [[row]]
@@ -111,6 +112,7 @@ field = "text"
 old = "1,399.93"
 value = "987.93"
 optional = true
+exclude = ["pages/today--empty.html"]  # its own row 4 rows below set these figures
 reason = "seed value via budget.month_summary: left (budgeted - spent - committed)"
 
 [[row]]
@@ -1149,17 +1151,17 @@ reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps th
 
 [[row]]
 page = "pages/today--empty.html"
-select = ".rd-stats__value:-soup-contains-own(\"446.60\")"
+select = ".rd-stats__value:-soup-contains-own(\"34.60\")"
 field = "text"
-old = "446.60"
+old = "34.60"
 value = "0.00"
 reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
 
 [[row]]
 page = "pages/today--empty.html"
-select = ".rd-stats__value:-soup-contains-own(\"987.93\")"
+select = ".rd-stats__value:-soup-contains-own(\"1,399.93\")"
 field = "text"
-old = "987.93"
+old = "1,399.93"
 value = "1,434.53"
 reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
 

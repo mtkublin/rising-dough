@@ -63,7 +63,11 @@ def test_bar_cells(
 @pytest.mark.parametrize(
     ("spent", "budget", "expected"),
     [
-        (501_455, 644_908, (16, 4, 22)),  # 77.76 % of 20 cells: 16 (handoff Today bar), not 15
+        (
+            501_455,
+            644_908,
+            (16, 4, 23),
+        ),  # 77.76 % of 20 cells: 16 (handoff Today bar), not 15; left_pct = 100 - floored 77
         (0, 100, (0, 20, 100)),
         (1, 1_000, (1, 19, 100)),  # min_one
         (644_908, 644_908, (20, 0, 0)),
