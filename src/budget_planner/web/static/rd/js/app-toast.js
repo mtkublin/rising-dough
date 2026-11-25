@@ -265,6 +265,13 @@
   /* A hero refresh that never got a response (network down) is stale too. */
   document.addEventListener('htmx:sendError', (event) => {
     const path = (event.detail && event.detail.pathInfo && event.detail.pathInfo.requestPath) || '';
-    if (path.includes('hero=1')) markHeroStale();
+    if (path.includes('hero=1')) {
+      markHeroStale();
+      return;
+    }
+    /* Inside a form offline.js already shows the offline state (T-UR25); elsewhere also raise the flash. */
+    const elt = event.detail && event.detail.elt;
+    if (elt instanceof Element && elt.closest('form')) return;
+    show('flash-region-assertive', [flashBox('Could not reach the server. Check your connection and try again.')]);
   });
 })();
