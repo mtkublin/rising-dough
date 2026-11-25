@@ -15,14 +15,16 @@ from fastapi import Request
 from fastapi.responses import Response
 
 from budget_planner.domain.accounts import Account
+from budget_planner.domain.money import format_major
 from budget_planner.domain.planned import PlannedTransaction
 from budget_planner.domain.transactions import Transaction
 from budget_planner.services import accounts as accounts_service, categories as categories_service
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import accounts_data, entry_forms, ledger_data
 from budget_planner.web.deps import today_for
-from budget_planner.web.dialogs import dialog_response, invalid_dialog_response
+from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
+from budget_planner.web.params import parse_int
 from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TRANSACTIONS_PATH
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import is_hx_request, render, render_context
@@ -31,6 +33,7 @@ _TXN_FORM = "partials/transactions/_form.html"
 _PLANNED_FORM = "partials/planned/_form.html"
 PROMOTE_TEMPLATE = "pages/entries/promote.html"
 _LEGACY_PROMOTE = "partials/planned/_promote_modal.html"
+EDIT_PLANNED_TEMPLATE = "fragments/dialogs/edit-planned.html"
 _RECONCILE_MODAL = "partials/accounts/_reconcile_modal.html"
 _UNPROCESSABLE = 422
 NEW_ENTRY_TEMPLATE = "pages/entries/new-entry.html"
@@ -217,6 +220,85 @@ def planned_form_errors(
         accounts=accounts_service.list_all(conn, user_id),
         errors=errors,
         status_code=_UNPROCESSABLE,
+    )
+
+
+def _planned_values(planned: PlannedTransaction, account: Account | None) -> dict[str, str]:
+    """The stored planned item as the dialog's posted text (amount in its account currency)."""
+    return {
+        "category": str(planned.category_id),
+        "account_id": str(planned.account_id),
+        "amount": format_major(planned.amount, account.currency) if account else "",
+        "operation_date": planned.operation_date.isoformat(),
+        "description": planned.description,
+        "dest_account_id": str(planned.dest_account_id or ""),
+    }
+
+
+def edit_planned_context(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    planned: PlannedTransaction,
+    *,
+    posted: Mapping[str, str] | None = None,
+    errors: Mapping[str, str] | None = None,
+) -> dict[str, object]:
+    """What ``fragments/dialogs/edit-planned.html`` renders: the stored item or the posted text."""
+    account = accounts_service.find_by_id(conn, user_id, planned.account_id, include_deleted=True)
+    values = dict(posted) if posted is not None else _planned_values(planned, account)
+    category = categories_service.find_by_id(
+        conn, user_id, planned.category_id, include_deleted=True
+    )
+    context = entry_forms.new_entry_context(
+        conn,
+        user_id,
+        tab="planned",
+        today=today_for(request),
+        base_currency=request.app.state.settings.base_currency,
+        posted=values,
+        errors=errors,
+    )
+    return {
+        **context,
+        "title": f"edit planned \N{MIDDLE DOT} {category.name if category else ''}",
+        "action": f"{PLANNED_PATH}/{planned.id}",
+        "hero_url": f"{PLANNED_PATH}/{planned.id}/edit?hero=1",
+        "selected_dest_id": parse_int(values.get("dest_account_id", "")),
+    }
+
+
+def edit_planned_dialog(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    planned: PlannedTransaction,
+    *,
+    posted: Mapping[str, str] | None = None,
+    errors: Mapping[str, str] | None = None,
+    hero_only: bool = False,
+) -> Response:
+    """The edit-planned dialog: stored values (200), posted values with errors (422), or its hero.
+
+    ``hero_only`` renders the dialog from the form's current values for the hero refresh (account
+    currency, category sign); the page swaps only ``.rd-dialog__hero`` and it is not a dialog open.
+    """
+    context = edit_planned_context(request, conn, user_id, planned, posted=posted, errors=errors)
+    if hero_only:
+        return render_context(request, EDIT_PLANNED_TEMPLATE, context)
+    if errors:
+        return invalid_dialog_response(request, EDIT_PLANNED_TEMPLATE, context, errors)
+    return dialog_response(request, EDIT_PLANNED_TEMPLATE, context)
+
+
+def planned_saved(request: Request) -> Response:
+    """A saved planned edit: the dialog empties, the lists refetch on the stale events."""
+    return saved_response(
+        request,
+        None,
+        {},
+        message="Planned entry saved",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
     )
 
 

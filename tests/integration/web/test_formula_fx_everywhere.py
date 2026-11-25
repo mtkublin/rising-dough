@@ -28,7 +28,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, edit_dialogs, ledger
 
 USER_ID = 1
 START = date(2026, 1, 1)
@@ -111,7 +111,7 @@ def test_preview_converts_into_the_posted_account_currency(
         },
     )
     assert r.status_code == 200
-    assert _html.text_of(r.text, ledger.formula_preview) == "= 430.00"
+    assert _html.text_of(r.text, edit_dialogs.formula_result) == "→ next amount 430.00 PLN"
 
 
 def test_promotion_stores_converted_amount_in_account_currency(
