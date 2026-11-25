@@ -23,7 +23,7 @@ from pathlib import Path
 from tests.architecture._ratchet import ALLOWLIST_DIR, REPO_ROOT
 
 CARVE_OUT_FILE = "template_logic.toml"
-CARVE_OUT_MAX = 76
+CARVE_OUT_MAX = 69
 ADR_FILE = (
     REPO_ROOT / "docs" / "adr" / "0130-prevention-regime-and-full-architectural-compliance.md"
 )

@@ -1,7 +1,7 @@
 {# pages/accounts/index (T-UR08, handoff pages/accounts and accounts--empty).
    Context: hero (accounts_view.AccountsHero), rows (AccountRow list), base_ccy.
-   The dialogs (new, edit, delete, reconcile) are T-UR08b: their triggers point at the
-   existing accounts routes and swap into #modal-root. #}
+   The dialogs (dialog-account, dialog-delete, dialog-reconcile) open in #modal-root (T-UR08b);
+   the panel refetches itself on balance-stale so a deleted account's row drops out. #}
 {% extends "layouts/base.html" %}
 {% block title %}Accounts · Rising Dough{% endblock %}
 {% block main %}
@@ -28,7 +28,14 @@
       </p>
     </div>
   </section>
-  <section class="rd-panel rd-accounts" aria-label="Accounts">
+  <section class="rd-panel rd-accounts"
+           id="accounts-panel"
+           aria-label="Accounts"
+           hx-get="/accounts"
+           hx-trigger="balance-stale from:body"
+           hx-select="#accounts-panel"
+           hx-swap="outerHTML"
+           hx-disinherit="hx-select hx-swap">
     <div class="rd-accounts__head">
       <p class="rd-caption u-hide-from-md">{{ hero.count }} ACCOUNTS</p>
       <a class="rd-btn"

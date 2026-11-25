@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import cast
 
-from budget_planner.domain.accounts import Account, AccountStats
-from budget_planner.domain.money import format_figure, percent_of
+from budget_planner.domain.accounts import Account, AccountReferences, AccountStats
+from budget_planner.domain.money import format_figure, format_major, percent_of
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services.account_planned import AccountPlanned
 from budget_planner.services.balance import sparkline_points
@@ -145,6 +145,7 @@ class AccountRow:
     after_text: str | None
     menu_id: str
     menu_sub: str
+    menu_items: tuple[dict[str, object], ...]
 
 
 def type_label(account_type: str | None) -> str:
@@ -172,7 +173,9 @@ def account_row(card: Mapping[str, object]) -> AccountRow:
         id=acc.id,
         name=acc.name,
         kind=kind,
-        subtitle=f"{type_label(acc.type) or 'credit'} · liability" if acc.is_liability else kind,
+        subtitle=f"{type_label(acc.type) or 'credit card'} · liability"
+        if acc.is_liability
+        else kind,
         currency=acc.currency,
         balance_minor=balance,
         balance_text=format_figure(balance, acc.currency),
@@ -188,6 +191,15 @@ def account_row(card: Mapping[str, object]) -> AccountRow:
         ),
         menu_id=f"account-menu-{acc.id}",
         menu_sub=f"{kind} · {format_figure(balance, acc.currency, with_currency=True)}",
+        menu_items=(
+            {"label": "reconcile", "hx_get": f"/accounts/{acc.id}/reconcile", "phone": True},
+            {"label": "edit", "hx_get": f"/accounts/{acc.id}/edit"},
+            {
+                "label": "delete",
+                "hx_get": f"/accounts/{acc.id}/edit?intent=delete",
+                "danger": True,
+            },
+        ),
     )
 
 
@@ -235,3 +247,177 @@ def snapshot_line(snapshot: AccountSnapshot) -> SnapshotLine:
     return SnapshotLine(
         taken=snapshot.taken_at.strftime("%d %b").upper(), amount_minor=snapshot.balance
     )
+
+
+# --- T-UR08b: account dialogs (new, edit, delete) ------------------------------
+ACCOUNT_TYPES = ("bank", "cash", "savings", "investment", "credit card")
+
+
+@dataclass(frozen=True, slots=True)
+class TypeOption:
+    value: str
+    label: str
+    selected: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AccountDialog:
+    """Everything ``dialog-account`` prints for the new and edit dialogs (no template logic)."""
+
+    editing: bool
+    dialog_id: str
+    title: str
+    action: str
+    target: str
+    swap: str
+    submit_label: str
+    hero: dict[str, object] | None
+    name: str
+    currency: str
+    type_options: tuple[TypeOption, ...]
+    is_liability: bool
+    credit_limit: str
+    liability_hint: str
+
+
+def _type_options(selected: str) -> tuple[TypeOption, ...]:
+    values = list(ACCOUNT_TYPES)
+    if selected and selected not in values:
+        values.append(selected)
+    options = [TypeOption(v, type_label(v), v == selected) for v in values]
+    if not selected:
+        options.insert(0, TypeOption("", "none", True))
+    return tuple(options)
+
+
+def account_dialog(
+    acc: Account | None,
+    *,
+    values: Mapping[str, str] | None = None,
+    base_currency: str,
+    txn_count: int = 0,
+    errors: Mapping[str, str] | None = None,
+) -> AccountDialog:
+    """New (``acc`` is ``None``) or edit dialog values; ``values`` refill a rejected submit."""
+    entered = values or {}
+    problems = errors or {}
+    if acc is None:
+        currency = entered.get("currency", "")
+        opening = entered.get("opening_balance", "0.00")
+        return AccountDialog(
+            editing=False,
+            dialog_id="new-account",
+            title="new account",
+            action="/accounts",
+            target="#account-form",
+            swap="outerHTML",
+            submit_label="[ create account ]",
+            hero={
+                "currency": currency.upper() or base_currency,
+                "amount_value": opening,
+                "amount_label": "Opening balance",
+                "amount_id": "field-opening_balance",
+                "amount_name": "opening_balance",
+                "note": "opening balance",
+                "error": problems.get("opening_balance"),
+            },
+            name=entered.get("name", ""),
+            currency=currency,
+            type_options=_type_options(entered.get("type", "bank")),
+            is_liability=entered.get("is_liability", "") == "on",
+            credit_limit=entered.get("credit_limit", ""),
+            liability_hint="",
+        )
+    limit = format_major(acc.credit_limit_minor, acc.currency) if acc.credit_limit_minor else ""
+    return AccountDialog(
+        editing=True,
+        dialog_id="edit-account",
+        title=f"edit account · {acc.name}",
+        action=f"/accounts/{acc.id}",
+        target=f"#account-{acc.id}",
+        swap="outerHTML",
+        submit_label="[ save ]",
+        hero=None,
+        name=entered.get("name", acc.name),
+        currency=acc.currency,
+        type_options=_type_options(entered.get("type", acc.type or "")),
+        is_liability=entered.get("is_liability", "on" if acc.is_liability else "") == "on",
+        credit_limit=entered.get("credit_limit", limit),
+        liability_hint=(
+            f"\u25b2 {txn_count} transaction{'' if txn_count == 1 else 's'}: "
+            "this balance will count against net worth."
+            if txn_count
+            else ""
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteDialog:
+    """The delete confirm or one of its blocked variants (handoff ``delete-account*``)."""
+
+    blocked: bool
+    title: str
+    text: str
+    action: str
+    link_label: str
+    link_href: str
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
+def delete_dialog(acc: Account, refs: AccountReferences, balance_minor: int) -> DeleteDialog:
+    """Confirm when nothing points at the account, else the blocked variant with counts.
+
+    Mirrors ``services.accounts.archive_account``: a non-zero balance or any live
+    transaction, planned or recurring row blocks the delete.
+    """
+    action = f"/accounts/{acc.id}/delete"
+    ledger = f"/ledger?account_id={acc.id}"
+    if not (refs.transactions or refs.planned or refs.recurring or balance_minor):
+        return DeleteDialog(
+            blocked=False,
+            title=f"Delete {acc.name}?",
+            text="Nothing points at it: no transactions, planned or recurring items. "
+            "This can\u2019t be undone.",
+            action=action,
+            link_label="",
+            link_href="",
+        )
+    title = f"Can\u2019t delete {acc.name}"
+    items = []
+    if refs.planned:
+        items.append(_count(refs.planned, "planned item"))
+    if refs.recurring:
+        items.append(_count(refs.recurring, "recurring rule"))
+    if refs.transactions:
+        extra = f" and {' and '.join(items)}" if items else ""
+        text = f"It still has {_count(refs.transactions, 'transaction')}{extra}."
+        text += " Move or delete them first."
+        return DeleteDialog(
+            True,
+            title,
+            text,
+            action,
+            f"view {_count(refs.transactions, 'transaction')}",
+            f"{ledger}&view=actual",
+        )
+    if items:
+        verb = "uses" if refs.planned + refs.recurring == 1 else "use"
+        text = (
+            f"It has no transactions, but {' and '.join(items)} still {verb} it. "
+            "Move or delete them first."
+        )
+        view, label = (
+            ("recurring", "view recurring rules")
+            if refs.recurring and not refs.planned
+            else ("planned", "view planned items")
+        )
+        return DeleteDialog(True, title, text, action, label, f"{ledger}&view={view}")
+    text = (
+        f"Its balance is {format_figure(balance_minor, acc.currency, with_currency=True)}. "
+        "Bring it to zero first."
+    )
+    return DeleteDialog(True, title, text, action, "", "")

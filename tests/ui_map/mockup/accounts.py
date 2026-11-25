@@ -6,6 +6,7 @@ no row ids, so the id-parameterised builders return a sample row.
 
 from __future__ import annotations
 
+from tests.ui_map import accounts as _app
 from tests.ui_map.locator import Locator, by_id, label, role
 
 heading = role("heading", "net worth", level=1)
@@ -39,12 +40,26 @@ NO_HANDOFF_TWIN = frozenset(
     {
         "planned_total",
         "snapshot_button",
-        "create_account",
+        "new_dialog",
         "account_form",
+        "create_account",
+        "save_account",
         "form_name",
         "form_currency",
+        "form_type",
         "form_credit_limit",
+        "form_opening_balance",
+        "form_counts_as",
+        "form_liability",
         "form_errors",
+        "currency_options",
+        "edit_dialog",
+        "delete_dialog",
+        "blocked_dialog",
+        "delete_confirm",
+        "blocked_ok",
+        "blocked_link",
+        "menu_item",
         "reconcile_dialog",
         "reconcile_actual",
         "reconcile_available",
@@ -62,12 +77,44 @@ def snapshot_button(account_id: int) -> Locator:
     return role("button", f"Snapshot account {account_id}")
 
 
-create_account = role("button", "Create account")
-account_form = by_id("account-form")
-form_name = label("Name")
-form_currency = label("Currency")
-form_credit_limit = label("Credit limit")
-form_errors = role("alert")
+# The dialogs are the same markup in the app and the handoff (the overlay pages), so the
+# twins are the app locators; ``test_mockup_account_dialogs`` resolves each on its overlay page.
+new_dialog = _app.new_dialog
+account_form = _app.account_form
+create_account = _app.create_account
+save_account = _app.save_account
+form_name = _app.form_name
+form_currency = _app.form_currency
+form_type = _app.form_type
+form_credit_limit = _app.form_credit_limit
+form_opening_balance = _app.form_opening_balance
+form_counts_as = _app.form_counts_as
+form_liability = _app.form_liability
+form_errors = _app.form_errors
+currency_options = _app.currency_options
+
+
+def edit_dialog(name: str) -> Locator:
+    return _app.edit_dialog(name)
+
+
+def delete_dialog(name: str) -> Locator:
+    return _app.delete_dialog(name)
+
+
+def blocked_dialog(name: str) -> Locator:
+    return _app.blocked_dialog(name)
+
+
+delete_confirm = _app.delete_confirm
+blocked_ok = _app.blocked_ok
+blocked_link = _app.blocked_link
+
+
+def menu_item(label_text: str) -> Locator:
+    return _app.menu_item(label_text)
+
+
 reconcile_dialog = role("dialog")
 reconcile_actual = label("Your bank says")
 reconcile_available = label("Available")
