@@ -29,6 +29,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from tests.ui_map import _html, errors
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 MISSING = 99_999
@@ -309,7 +310,7 @@ def test_override_default_tier_sets_default_and_emits_trigger(
         data={"tier": "default", "amount": "250.00"},
     )
     assert r.status_code == 200
-    assert r.text == "ok"
+    assert "Rent budget saved" in _html.all_text(r.text, by_id("flash-region"))
     assert "budget-stale" in r.headers["HX-Trigger"]
     conn = get_connection(_migrated)
     try:
@@ -326,4 +327,4 @@ def test_override_non_numeric_month_is_422(client: TestClient, ctx: dict[str, in
         data={"tier": "one-off", "month": "x", "year": "2026", "amount": "1.00"},
     )
     assert r.status_code == 422
-    assert r.text == "invalid month"
+    assert "Month : pick a month from 1 to 12" in _html.all_text(r.text, by_id("error-summary"))
