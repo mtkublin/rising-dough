@@ -374,11 +374,11 @@ def test_update_with_nothing_posted_names_every_missing_field(
     r = client.post(f"/planned/{ctx['pl']}", data={}, headers=_FROM_DIALOG)
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "catpick-edit-planned-error": "▲ pick a category",
+        "catpick-edit-planned-error": "▲ Pick a category",
         "field-account_id-error": "▲ unknown account",
         "field-operation_date-error": "▲ invalid date",
     }
-    assert "pick a category" in _html.all_text(r.text, edit_dialogs.planned_dialog("Rent"))
+    assert "Pick a category" in _html.all_text(r.text, edit_dialogs.planned_dialog("Rent"))
     assert _planned_state(db) == before
 
 

@@ -119,7 +119,7 @@ def test_transaction_without_a_category_reopens_the_dialog_with_the_values(
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
     assert _html.error_lines(r.text) == {
-        "catpick-new-entry-error": "▲ pick a category",
+        "catpick-new-entry-error": "▲ Pick a category",
     }
     assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.34"
     assert _html.resolve_one(r.text, entries.field_note).get("value") == "milk"
@@ -338,7 +338,7 @@ def test_empty_post_lists_every_missing_field_in_the_dialog(
     r = client.post("/transactions", data={}, headers=FROM_DIALOG)
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "catpick-new-entry-error": "▲ pick a category",
+        "catpick-new-entry-error": "▲ Pick a category",
         "field-account_id-error": "▲ unknown account",
         "field-operation_date-error": "▲ invalid date",
     }
