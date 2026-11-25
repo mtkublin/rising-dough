@@ -94,7 +94,7 @@ def test_removing_an_override_restores_the_default(world: World) -> None:
 
     # The save closed the dialog and the grid reload may still be in flight: a click on the
     # cell before it settles lands on the element about to be replaced and opens nothing.
-    expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("321.00")
+    expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("• 321.00")
     quiesce(world.page)
     world.find(plan_year.cell("Groceries", "March")).click()
     dialog = plan_year.dialog("Groceries", f"Mar {year}")
