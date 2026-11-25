@@ -94,6 +94,7 @@ NOT_PAGES: dict[str, str] = {
     "/settings/close": "fragment",
     "/invite/{token}": "public page behind an invite token (T-UR20a)",
     "/settings/users/invites/new": "dialog fragment",
+    "/settings/users/new": "dialog fragment",
     "/settings/users/invites/{invite_id}/revoke": "dialog fragment",
     "/settings/users/{user_id}/delete": "dialog fragment",
     "/settings/users/{user_id}/edit": "dialog fragment",

@@ -1464,6 +1464,11 @@
     },
     {
       "kind": "hx-get",
+      "name": "+ add user",
+      "target": "/settings/users/new"
+    },
+    {
+      "kind": "hx-get",
       "name": "+ create invite",
       "target": "/settings/users/invites/new"
     },
@@ -1544,6 +1549,33 @@
       "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "+ add user"
+    },
+    {
+      "kind": "button",
+      "name": "cancel",
+      "target": "",
+      "via": "+ add user"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "add user email name role member admin cancel [ add user ]",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users",
+      "via": "+ add user"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "[ add user ]",
+      "target": "/settings/users",
+      "via": "+ add user"
     },
     {
       "kind": "button",
