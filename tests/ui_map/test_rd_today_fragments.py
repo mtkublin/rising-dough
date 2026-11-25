@@ -159,3 +159,25 @@ def test_upcoming_list_groups_rows_with_flag_sign_and_menu_text() -> None:
     assert "+1,120.45 PLN" in _html.text_of(html, refund)
     assert _html.resolve_one(html, refund)["data-status"] == "due"
     assert view.has_due is True
+
+
+def test_upcoming_cap_applies_to_next_days_rows_not_to_flagged_rows() -> None:
+    """Overdue and due-today rows are always listed; only the next-N-days rows stop at 6."""
+    rows = (
+        _upcoming_row(1, date(2026, 10, 28), "Annual insurance", 41_200, 1),
+        _upcoming_row(2, _TODAY, "Tax refund", 112_045, 2),
+        *(_upcoming_row(10 + n, date(2026, 11, n), f"Later {n}", 1_000, 1) for n in range(1, 9)),
+    )
+    categories = {
+        1: _cat(1, "Other", Direction.EXPENSE, None),
+        2: _cat(2, "VAT Refund", Direction.INCOME, None),
+    }
+    view = today_data.today_upcoming(
+        rows, _TODAY, categories, {}, base_currency=_CCY, window_label="30"
+    )
+    assert [(g.key, len(g.rows)) for g in view.groups] == [
+        ("overdue", 1),
+        ("due", 1),
+        ("upcoming", 6),
+    ]
+    assert (view.shown_count, view.total_count, view.has_more) == (6, 10, True)

@@ -349,7 +349,8 @@ _HISTORY: Final = tuple(
     )
 )
 
-TRANSACTIONS: Final = (*_LISTED, *_lumps(), *_HISTORY)
+# The ledger lists a day newest-first (id descending), so the listed rows are written in reverse.
+TRANSACTIONS: Final = (*reversed(_LISTED), *_lumps(), *_HISTORY)
 
 # Today's upcoming list reads "showing 6 of 23" (handoff today.html; operator decision
 # 2026-11-25, PAR-D): one row per recurring rule (12 due in the 30-day window) plus 3 listed
@@ -385,15 +386,21 @@ PLANNED: Final[tuple[PlannedSeed, ...]] = (
 )
 
 M, Q, Y = Cadence.MONTHLY, Cadence.QUARTERLY, Cadence.YEARLY
+# Rules list by (start, id) and Today keeps that order within one date: the three 7 Nov expense
+# rules start with Salary (7 Jul) and are created before it, so the board's upcoming rows match.
 RULES: Final[tuple[RuleSeed, ...]] = (
     RuleSeed(M, "2026-11-01", "Fixed costs", "Credit Card", 27_794, "Fixed Costs"),
     RuleSeed(M, "2026-11-01", "Subscriptions", "Credit Card", 1_131, "Subscriptions"),
     RuleSeed(M, "2026-11-05", "Subscriptions", "Checking", 2_329, "Subscriptions"),
+    RuleSeed(M, "2026-11-07", "Fixed costs", "Checking", 52_218, "Fixed Costs", start="2026-07-07"),
+    RuleSeed(
+        M, "2026-11-07", "Fixed costs", "Checking", 229_687, "Fixed Costs", start="2026-07-07"
+    ),
+    RuleSeed(
+        M, "2026-11-07", "Bank Fees #18", "Checking EUR", 1_556, "Bank Fees #18", start="2026-07-07"
+    ),
     RuleSeed(M, "2026-11-07", "VAT Refund", "Checking EUR", 372_921, "VAT Refund", formula=True),
     RuleSeed(M, "2026-11-07", "Salary", "Checking EUR", 1_621_397, "Salary", start="2026-07-07"),
-    RuleSeed(M, "2026-11-07", "Fixed costs", "Checking", 52_218, "Fixed Costs"),
-    RuleSeed(M, "2026-11-07", "Fixed costs", "Checking", 229_687, "Fixed Costs"),
-    RuleSeed(M, "2026-11-07", "Bank Fees #18", "Checking EUR", 1_556, "Bank Fees #18"),
     RuleSeed(
         M,
         "2026-11-12",

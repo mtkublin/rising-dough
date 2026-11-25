@@ -32,7 +32,7 @@ pytestmark = pytest.mark.integration
 USER_ID = 1
 OTHER_ID = 2
 MINUS = "\N{MINUS SIGN}"
-TRANSIT = "\N{LEFT RIGHT ARROW}"
+TRANSIT = "\N{RIGHTWARDS ARROW OVER LEFTWARDS ARROW}"
 DAY = date(2026, 11, 2)  # a Monday
 
 
