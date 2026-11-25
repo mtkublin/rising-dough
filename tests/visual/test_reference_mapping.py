@@ -22,6 +22,11 @@ from budget_planner.web.middleware.csrf import csrf_cookie_name
 from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS
+from tests.visual.handoff_newentry import (
+    NEWENTRY_RECIPES,
+    PHONE_SHEET_DIALOGS,
+    newentry_recipe,
+)
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.test_reference import (
     ANONYMOUS_PAGES,
@@ -41,6 +46,7 @@ from tests.visual.test_reference import (
 )
 
 CLICK_PAGES = {f"pages/overlays/{n}.html" for n in CLICK_RECIPES}
+NEWENTRY_PAGES = set(NEWENTRY_RECIPES)
 
 
 def test_recurring_reference_uses_board_modifier() -> None:
@@ -52,12 +58,13 @@ def test_recurring_reference_uses_board_modifier() -> None:
 
 def test_every_overlay_page_is_mapped_or_listed_unmapped() -> None:
     overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
-    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES
+    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES | NEWENTRY_PAGES
     unmapped = {f"pages/overlays/{n}.html" for n in UNMAPPED_OVERLAYS}
     assert mapped | unmapped == overlays
     assert not mapped & unmapped
     assert not set(OVERLAY_DIALOGS) & OPENER_PAGES
     assert not CLICK_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES)
+    assert not NEWENTRY_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES)
     for page in overlays:
         assert base_page_of(page).startswith("pages/")
         assert handoff.surface_of(base_page_of(page)) != "overlays"
@@ -76,6 +83,19 @@ def test_click_recipes_name_handoff_overlays_and_leave_the_unmapped_set() -> Non
     assert click_recipe("pages/today.html") is None
     # The year-cell inline editor does not exist in the app: it stays unmapped.
     assert "override--year-cell" in UNMAPPED_OVERLAYS
+
+
+def test_new_entry_input_states_are_mapped() -> None:
+    names = ("error", "over-limit", "phone-sheet", "repeats-formula")
+    assert not {f"new-entry--{n}" for n in names} & UNMAPPED_OVERLAYS
+    pages = {f"pages/overlays/new-entry--{n}.html" for n in names}
+    assert pages == NEWENTRY_PAGES | set(PHONE_SHEET_DIALOGS)
+    # The phone sheet is the happened dialog (identical handoff markup), fetched from its route.
+    assert OVERLAY_DIALOGS["pages/overlays/new-entry--phone-sheet.html"] == "/add?when=happened"
+    for page in NEWENTRY_PAGES:
+        assert newentry_recipe(page) is NEWENTRY_RECIPES[page]
+        assert click_recipe(page) is None
+    assert newentry_recipe("pages/overlays/new-entry--happened.html") is None
 
 
 # Overlay page -> (route of its own base page, seed modifiers), derived from the handoff file.
@@ -99,6 +119,10 @@ _BASES = {
     "new-entry--happened": ("/today", ()),
     "new-entry--planned": ("/today", ()),
     "new-entry--repeats-fixed": ("/today", ()),
+    "new-entry--error": ("/today", ()),
+    "new-entry--over-limit": ("/today", ()),
+    "new-entry--phone-sheet": ("/today", ()),
+    "new-entry--repeats-formula": ("/today", ()),
     "add-user": ("/settings/users", ()),
     "add-user--error": ("/settings/users", ()),
     "edit-user": ("/settings/users", ()),
@@ -145,8 +169,8 @@ _DIALOG_TEXT = {
     "add-user--error": "add user",
     "edit-user": "partner@example.test",
     "delete-user": "Delete Ola?",
-    "reset-password": "Reset Ola",
-    "one-time-password": "Reset Ola",
+    "reset-password": "Reset Ola",  # pragma: allowlist secret (overlay stem, not a credential)
+    "one-time-password": "Reset Ola",  # pragma: allowlist secret (overlay stem, not a credential)
     "invite-user": "create invite",
     "invite-user--error": "create invite",
     "revoke-invite": "accountant@example.test",

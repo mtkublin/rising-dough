@@ -32,6 +32,7 @@ from tests.visual import handoff
 from tests.visual.conftest import serve_db
 from tests.visual.handoff_clicks import click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS, submit_dialog
+from tests.visual.handoff_newentry import PHONE_SHEET_DIALOGS, newentry_recipe
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.handoff_seed import build_seed
 
@@ -136,6 +137,8 @@ OVERLAY_DIALOGS: dict[str, str] = {
     "pages/overlays/new-entry--happened.html": "/add?when=happened",
     "pages/overlays/new-entry--planned.html": "/add?when=planned",
     "pages/overlays/new-entry--repeats-fixed.html": "/add?when=repeats",
+    # The phone sheet is the happened dialog (the handoff file has the same markup).
+    **PHONE_SHEET_DIALOGS,
 }
 # Overlay pages whose dialog the app opens from a dialog route (id-bound ones resolved from
 # the seed): `handoff_openers.OPENERS`; the test loads the overlay's base page and fetches it
@@ -156,10 +159,6 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "new-account--filled",
         "new-category--error",
         "new-category--filled",
-        "new-entry--error",
-        "new-entry--over-limit",
-        "new-entry--phone-sheet",
-        "new-entry--repeats-formula",
         "override--remove",
         "override--year-cell",
     }
@@ -377,7 +376,7 @@ def _compare_app(
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
             if handoff_page in DIALOG_SUBMITS:
                 submit_dialog(pg, handoff_page)
-        elif (recipe := click_recipe(handoff_page)) is not None:
+        elif (recipe := click_recipe(handoff_page) or newentry_recipe(handoff_page)) is not None:
             recipe(pg)  # client-side overlay: the click or key a user makes (handoff_clicks)
         pg.add_style_tag(content=handoff.FREEZE_CSS)
         pg.evaluate("document.fonts.ready.then(() => undefined)")
