@@ -51,6 +51,10 @@ def _txn_count(db: sqlite3.Connection) -> int:
     return int(db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
 
 
+def _count(db: sqlite3.Connection, table: str) -> int:
+    return int(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])  # noqa: S608 - test-only fixed table names
+
+
 def test_asset_dialog_starts_at_zero_difference(client: TestClient, db: sqlite3.Connection) -> None:
     acc = _asset(db)
     r = client.get(f"/accounts/{acc}/reconcile")
@@ -66,12 +70,28 @@ def test_preview_shows_the_signed_difference_and_writes_nothing(
     client: TestClient, db: sqlite3.Connection
 ) -> None:
     acc = _asset(db)
-    before = _txn_count(db)
+    before = (_txn_count(db), _count(db, "audit_log"), _count(db, "account_snapshots"))
     r = client.post(f"/accounts/{acc}/reconcile?preview=1", data={"actual_balance": "70.00"})
     assert r.status_code == 200
     assert _hero(r.text) == "\N{MINUS SIGN}30.00"
     assert _html.resolve_one(r.text, accounts.reconcile_actual)["value"] == "70.00"
-    assert _txn_count(db) == before
+    after = (_txn_count(db), _count(db, "audit_log"), _count(db, "account_snapshots"))
+    assert after == before
+
+
+def test_preview_with_save_snapshot_checked_writes_no_snapshot(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    before = (_txn_count(db), _count(db, "audit_log"), _count(db, "account_snapshots"))
+    r = client.post(
+        f"/accounts/{acc}/reconcile?preview=1",
+        data={"actual_balance": "70.00", "save_snapshot": "on"},
+    )
+    assert r.status_code == 200
+    assert _html.resolve_one(r.text, accounts.reconcile_snapshot_option).has_attr("checked")
+    after = (_txn_count(db), _count(db, "audit_log"), _count(db, "account_snapshots"))
+    assert after == before
 
 
 def test_limited_liability_is_asked_for_available_credit(

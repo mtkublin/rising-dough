@@ -77,6 +77,7 @@ reconcile_actual = label("balance in your bank", exact=True)
 reconcile_available = label("remaining balance in your bank", exact=True)
 reconcile_available_help = by_id("rec-available-help")
 reconcile_difference = role("status").inside(reconcile_dialog)  # the hero <output>
+reconcile_snapshot_option = label("also save a balance snapshot")
 reconcile_preview = role("button", "preview", exact=True).inside(reconcile_dialog)
 reconcile_record = role("button", "[ reconcile ]", exact=True).inside(reconcile_dialog)
 
