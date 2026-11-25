@@ -199,7 +199,7 @@ def test_create_refuses_bad_duplicate_and_pending_emails(
     assert user.status_code == 422
     assert (
         _html.text_of(user.text, ui.invite_email_error).strip()
-        == "\u25b2 A user with this email already exists"
+        == "\u25b2 This person already has an account"
     )
 
     _create(admin_client)

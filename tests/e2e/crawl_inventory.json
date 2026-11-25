@@ -1301,7 +1301,7 @@
     },
     {
       "kind": "hx-get",
-      "name": "+ create invite",
+      "name": "+ invite by email",
       "target": "/settings/users/invites/new"
     },
     {
@@ -1413,28 +1413,28 @@
       "kind": "button",
       "name": "Close",
       "target": "",
-      "via": "+ create invite"
+      "via": "+ invite by email"
     },
     {
       "kind": "button",
       "name": "cancel",
       "target": "",
-      "via": "+ create invite"
+      "via": "+ invite by email"
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "create invite email role member admin cancel [ create invite...",
+      "name": "invite by email email role member admin cancel [ send invite...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/users/invites",
-      "via": "+ create invite"
+      "via": "+ invite by email"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "[ create invite ]",
+      "name": "[ send invite ]",
       "target": "/settings/users/invites",
-      "via": "+ create invite"
+      "via": "+ invite by email"
     },
     {
       "kind": "hx-get",

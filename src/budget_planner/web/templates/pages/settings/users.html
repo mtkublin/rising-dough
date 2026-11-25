@@ -2,8 +2,9 @@
    Context: active_tab, rows (settings_view.UserRowView), toast (one-time password payload | none, the no-script fallback of the dialog),
    form_summary ((name, label, message) rows of a refused create).
    invite_rows (settings_view.InviteRowView): pending and expired invites under the users; invite_link + invite + resent: the
-   no-script fallback of the invite link dialog. "+ add user" (T-UR20b) and "+ create invite" (T-UR20a), derived.md. #}
+   no-script fallback of the invite link dialog. "+ add user" (T-UR20b) and "+ invite by email" (T-UR20a), derived.md. #}
 {% extends "layouts/base.html" %}
+{% set nav_current = "settings" %}
 {% block title %}Settings · users · Rising Dough{% endblock %}
 {% block main %}
   <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
@@ -25,7 +26,7 @@
              href="/settings/users/invites/new"
              hx-get="/settings/users/invites/new"
              hx-target="#modal-root"
-             hx-swap="innerHTML">+ create invite</a>
+             hx-swap="innerHTML">+ invite by email</a>
         </span>
       </div>
       {% if form_summary %}

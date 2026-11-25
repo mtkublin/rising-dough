@@ -68,7 +68,8 @@
                   data-js="shortcuts-open">?</button>
           <a class="rd-topbar__link rd-topbar__link--muted"
              href="/settings"
-             aria-keyshortcuts="g s">settings</a>
+             aria-keyshortcuts="g s"
+             {% if nav_current | default("") == "settings" %}aria-current="page"{% endif %}>settings</a>
           <form class="rd-topbar__form" method="post" action="/auth/logout">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit"

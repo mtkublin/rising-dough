@@ -1,6 +1,7 @@
 {# Settings · preferences (T-UR13, ADR-0107). Handoff: pages/settings/preferences.html.
    Context: active_tab, settings (base_currency, display_timezone). The theme switch is client-only (localStorage `rd-theme`, ADR-0134 §8): rd/js/theme.js applies it in <head>, rd/js/theme-switch.js drives the buttons (T-UR27). #}
 {% extends "layouts/base.html" %}
+{% set nav_current = "settings" %}
 {% block title %}Settings · preferences · Rising Dough{% endblock %}
 {% block main %}
   <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
