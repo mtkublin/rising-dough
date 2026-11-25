@@ -208,19 +208,59 @@
     if (refresh && window.htmx) window.htmx.trigger(refresh, 'htmx:abort');
   });
 
+  let caret = null;
+
   document.addEventListener('htmx:afterSwap', (event) => {
     const saved = typed;
     typed = null;
+    caret = null;
     if (!saved || !event.detail || !event.detail.pathInfo) return;
     if (!String(event.detail.pathInfo.requestPath || '').includes('hero=1')) return;
     const input = document.getElementById(saved.id);
     if (!input || !input.matches('input.rd-dialog__amount')) return;
     input.value = saved.value;
-    if (saved.focus) {
-      input.focus();
-      if (saved.start !== null) input.setSelectionRange(saved.start, saved.end);
+    if (saved.focus && saved.end !== null) {
+      /* Refocusing the new input makes amount-input.js select its value a frame later; undo that,
+         but only while the value is untouched and fully selected (the user has not acted since). */
+      const collapse = () => {
+        const whole = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+        if (input.value === saved.value && whole && saved.start === saved.end) {
+          input.setSelectionRange(saved.end, saved.end);
+        }
+      };
+      input.setSelectionRange(saved.end, saved.end);
+      const timer = window.setInterval(collapse, 20);
+      window.setTimeout(() => window.clearInterval(timer), 400);
     }
+    caret = saved;
   });
+
+  /* htmx restores focus and the old selection while it settles, which can leave the whole amount
+     selected (the next keystroke would replace it). Collapse the caret to where it was, after that. */
+  document.addEventListener('htmx:afterSettle', () => {
+    const saved = caret;
+    caret = null;
+    if (!saved || !saved.focus) return;
+    const place = () => {
+      const input = document.getElementById(saved.id);
+      if (!input) return;
+      input.focus();
+      if (saved.end !== null) input.setSelectionRange(saved.end, saved.end);
+    };
+    place();
+    /* amount-input.js selects the value in a frame after every focus: collapse after that frame. */
+    window.requestAnimationFrame(() => window.requestAnimationFrame(place));
+  });
+
+  /* The category search box is not a form value, but its native change (on blur after a pick) bubbles to
+     the picker field and would fire the hero refresh a second time. The picker dispatches its own change. */
+  document.addEventListener(
+    'change',
+    (event) => {
+      if (event.target instanceof Element && event.target.matches('[data-js="combobox-input"]')) event.stopPropagation();
+    },
+    true,
+  );
 
   /* A hero refresh that never got a response (network down) is stale too. */
   document.addEventListener('htmx:sendError', (event) => {

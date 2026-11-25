@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 from pathlib import Path
 from typing import Any
 
@@ -110,10 +109,10 @@ def test_newer_hero_refresh_supersedes_the_older_one(
     query = to_playwright(page, entries.category_query)
     query.fill("Salary")
     query.press("Enter")
+    # Queue last: the first refresh completes, then only the latest one runs. Nothing is aborted.
+    held[0].continue_()
     _wait_for(page, held, 2)
-    for route in reversed(held):  # the older response arrives last: it must not win
-        with contextlib.suppress(Exception):  # the superseded request was aborted by htmx
-            route.continue_()
+    held[1].continue_()
     dialog = to_playwright(page, entries.dialog)
     expect(dialog).to_contain_text("JPY")
     expect(dialog).to_contain_text("+")
@@ -135,3 +134,48 @@ def test_save_wins_over_a_hero_refresh_in_flight(live_server: tuple[str, Path], 
     to_playwright(page, entries.save).click()
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()
     assert db_probe.txn_amounts(db_path, "save-wins") == [777]
+
+
+def test_picking_a_category_with_search_and_enter_requests_one_hero_refresh(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    _seed(base_url, page)
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    seen: list[str] = []
+    problems: list[str] = []
+    page.on("console", lambda m: problems.append(m.text) if m.type == "error" else None)
+    page.on("requestfailed", lambda req: problems.append(req.url))
+    page.on("request", lambda req: seen.append(req.url) if "hero=1" in req.url else None)
+    to_playwright(page, entries.category_search).click()
+    query = to_playwright(page, entries.category_query)
+    query.fill("Salary")
+    query.press("Enter")
+    expect(to_playwright(page, entries.dialog)).to_contain_text("+")
+    page.wait_for_timeout(600)  # a second (blur) change would have requested by now
+    assert len(seen) == 1, seen
+    assert problems == []  # no aborted request, no htmx:sendAbort console error
+
+
+def test_caret_stays_after_the_restored_amount_so_typing_continues(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    _seed(base_url, page)
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    choose_category(page, "Groceries")
+    held = _hold_hero(page)
+    to_playwright(page, entries.field_account).select_option(label="Yen")
+    _wait_for(page, held, 1)
+    amount = to_playwright(page, entries.hero_amount)
+    amount.click()
+    page.wait_for_timeout(200)  # the focus-select frame passes before the user types
+    amount.press_sequentially("1234")
+    held[0].continue_()
+    expect(to_playwright(page, entries.dialog)).to_contain_text("JPY")
+    expect(amount).to_have_value("1234")
+    page.wait_for_timeout(600)  # htmx settles and the focus-select frame passes
+    amount.press_sequentially("5")  # a selected amount would be replaced by this key
+    expect(amount).to_have_value("12345")

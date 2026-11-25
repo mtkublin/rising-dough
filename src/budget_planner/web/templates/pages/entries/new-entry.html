@@ -25,7 +25,7 @@
        id="hero-refresh"
        hx-get="/add?when={{ tab }}&dialog=1&hero=1"
        hx-trigger="change from:#field-account_id, change from:#field-category_id{% if tab == "repeats" %}, change from:#field-amount_source, change from:#formula-slot, keyup changed delay:400ms from:#formula-slot{% endif %}"
-       hx-sync="this:replace"
+       hx-sync="this:queue last"
        hx-include="closest form"
        hx-target="#modal-root .rd-dialog__hero"
        hx-select=".rd-dialog__hero"
