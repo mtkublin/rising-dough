@@ -116,7 +116,9 @@ def test_preview_of_an_impossible_available_is_422(
     r = client.post(f"/accounts/{card}/reconcile?preview=1", data={"actual_balance": "5000.01"})
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert _html.exists(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-actual_balance-error": "▲ available credit cannot exceed the credit limit",
+    }
 
 
 def test_submit_swaps_the_row_closes_the_dialog_and_flashes(

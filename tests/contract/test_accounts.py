@@ -23,7 +23,6 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from budget_planner.web.field_labels import field_label
 from tests.contract.conftest import covers
 from tests.contract.web_helpers_t_ut04b import (
     OTHER_USER_ID,
@@ -199,27 +198,33 @@ def test_create_credit_card_stores_limit_and_shows_it(
 
 @covers("POST /accounts")
 @pytest.mark.parametrize(
-    ("data", "field"),
+    ("data", "field", "message"),
     [
-        ({"name": "X", "currency": "EURO"}, "currency"),
-        ({"name": "   ", "currency": "PLN"}, "name"),
-        ({"name": "A", "currency": "PLN", "opening_balance": "nan!"}, "opening_balance"),
+        ({"name": "X", "currency": "EURO"}, "currency", "ISO 4217 code required"),
+        ({"name": "   ", "currency": "PLN"}, "name", "name required"),
+        (
+            {"name": "A", "currency": "PLN", "opening_balance": "nan!"},
+            "opening_balance",
+            "invalid number",
+        ),
         (
             {"name": "V", "currency": "PLN", "is_liability": "on", "credit_limit": ""},
             "credit_limit",
+            "positive credit limit required",
         ),
         (
             {"name": "V", "currency": "PLN", "is_liability": "on", "credit_limit": "0"},
             "credit_limit",
+            "positive credit limit required",
         ),
     ],
 )
 def test_create_validation_errors_are_422_and_write_nothing(
-    client: TestClient, _migrated: Settings, data: dict[str, str], field: str
+    client: TestClient, _migrated: Settings, data: dict[str, str], field: str, message: str
 ) -> None:
     r = client.post("/accounts", data=data)
     assert r.status_code == 422
-    assert field_label(field) in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {f"field-{field}-error": f"▲ {message}"}
     assert _account_rows(_migrated) == []
     assert audit_ops(_migrated, "account") == []
     assert "HX-Refresh" not in r.headers
@@ -335,7 +340,9 @@ def test_update_validation_errors_are_422_and_change_nothing(
         f"/accounts/{acc_id}", data={"name": "V", "is_liability": "on", "credit_limit": ""}
     )
     assert no_limit.status_code == 422
-    assert field_label("credit_limit") in _html.text_of(no_limit.text, accounts.form_errors)
+    assert _html.error_lines(no_limit.text) == {
+        "field-credit_limit-error": "▲ positive credit limit required",
+    }
     assert _account_rows(_migrated)[0]["name"] == "Main"
     assert audit_ops(_migrated, "account") == [("create", acc_id)]
 
@@ -570,14 +577,21 @@ def test_reconcile_liability_by_available_credit(client: TestClient, _migrated: 
 
 
 @covers("POST /accounts/{account_id}/reconcile")
-@pytest.mark.parametrize("value", ["-1", "5000.01", "abc"])
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("-1", "available credit cannot be negative"),
+        ("5000.01", "available credit cannot exceed the credit limit"),
+        ("abc", "invalid number"),
+    ],
+)
 def test_reconcile_rejects_bad_available(
-    client: TestClient, _migrated: Settings, value: str
+    client: TestClient, _migrated: Settings, value: str, message: str
 ) -> None:
     card = _make_account(_migrated, liability=True, limit=500_000, opening=-123_456, name="Visa")
     r = client.post(f"/accounts/{card}/reconcile", data={"actual_balance": value})
     assert r.status_code == 422
-    assert _html.exists(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {"field-actual_balance-error": f"▲ {message}"}
     assert _adjustments(_migrated, card) == []
 
 

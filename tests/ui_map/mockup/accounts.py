@@ -51,7 +51,7 @@ NO_HANDOFF_TWIN = frozenset(
         "form_opening_balance",
         "form_counts_as",
         "form_liability",
-        "form_errors",
+        "form_name_error",
         "currency_options",
         "edit_dialog",
         "delete_dialog",
@@ -93,7 +93,7 @@ form_credit_limit = _app.form_credit_limit
 form_opening_balance = _app.form_opening_balance
 form_counts_as = _app.form_counts_as
 form_liability = _app.form_liability
-form_errors = _app.form_errors
+form_name_error = _app.form_name_error
 currency_options = _app.currency_options
 
 

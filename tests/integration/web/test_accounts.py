@@ -76,7 +76,9 @@ def test_create_rejects_bad_currency(client: TestClient) -> None:
         data={"name": "X", "currency": "EURO", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "Currency : ISO 4217 code required" in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-currency-error": "▲ ISO 4217 code required",
+    }
     assert r.headers["HX-Retarget"] == "#modal-root"
 
 
@@ -87,7 +89,9 @@ def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -
         data={"name": "   ", "currency": "PLN", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "Name : name required" in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ name required",
+    }
     assert _count(db, "accounts") == before
 
 
@@ -98,7 +102,9 @@ def test_create_rejects_bad_opening(client: TestClient, db: sqlite3.Connection) 
         data={"name": "A", "currency": "PLN", "opening_balance": "nan!"},
     )
     assert r.status_code == 422
-    assert "Opening Balance : invalid number" in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-opening_balance-error": "▲ invalid number",
+    }
     assert _count(db, "accounts") == before
 
 
@@ -127,7 +133,9 @@ def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
 def test_update_blank_name(client: TestClient, acc_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/accounts/{acc_id}", data={"name": "   "})
     assert r.status_code == 422
-    assert "Name : name required" in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ name required",
+    }
     stored = accounts_repo.find_by_id(db, USER_ID, acc_id)
     assert stored is not None
     assert stored.name == "Main"
@@ -201,7 +209,9 @@ def test_reconcile_submit_bad_number(
     before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "notnum"})
     assert r.status_code == 422
-    assert "Actual balance : invalid number" in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-actual_balance-error": "▲ invalid number",
+    }
     assert _count(db, "transactions") == before
 
 
@@ -272,9 +282,9 @@ def test_create_liability_without_limit_returns_422(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
-    assert "Credit Limit : positive credit limit required" in _html.text_of(
-        r.text, accounts.form_errors
-    )
+    assert _html.error_lines(r.text) == {
+        "field-credit_limit-error": "▲ positive credit limit required",
+    }
 
 
 def test_create_liability_with_zero_limit_rejected(
@@ -292,9 +302,9 @@ def test_create_liability_with_zero_limit_rejected(
         },
     )
     assert r.status_code == 422
-    assert "Credit Limit : positive credit limit required" in _html.text_of(
-        r.text, accounts.form_errors
-    )
+    assert _html.error_lines(r.text) == {
+        "field-credit_limit-error": "▲ positive credit limit required",
+    }
     assert _count(db, "accounts") == before
 
 

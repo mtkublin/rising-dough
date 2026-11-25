@@ -371,7 +371,7 @@ def test_create_account_invalid_rerenders_form(live_server: tuple[str, Path], pa
     _fill(page, accounts.form_currency, "EUR", accounts.account_form)
     _submit(page, accounts.create_account, accounts.new_dialog)
     expect(to_playwright(page, accounts.new_dialog)).to_have_count(1)
-    expect(to_playwright(page, accounts.form_errors)).to_contain_text("name required")
+    expect(to_playwright(page, accounts.form_name_error)).to_contain_text("name required")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM accounts") == 0
 
 

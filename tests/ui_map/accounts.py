@@ -45,7 +45,7 @@ form_credit_limit = label("credit limit", exact=True)
 form_opening_balance = label("Opening balance")
 form_counts_as = role("radiogroup", "counts as")
 form_liability = role("radio", "liability")
-form_errors = by_id("error-summary")  # the 422 summary (the hero error is a second alert)
+form_name_error = by_id("field-name-error")  # the ▲ line under name of a failed save (Q18)
 currency_options = by_id("iso-codes")
 
 

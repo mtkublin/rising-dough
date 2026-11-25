@@ -79,7 +79,9 @@ def test_create_bad_direction(client: TestClient, db: sqlite3.Connection) -> Non
     before = _names(db)
     r = client.post("/categories", data={"name": "X", "direction": "bogus"})
     assert r.status_code == 422
-    assert "Direction : invalid direction" in _html.all_text(r.text, ui.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-direction-error": "▲ invalid direction",
+    }
     assert _names(db) == before
 
 
@@ -89,7 +91,9 @@ def test_create_rejects_transit_direction(client: TestClient, db: sqlite3.Connec
     for direction in ("transit", "adjustment"):
         r = client.post("/categories", data={"name": "Nope", "direction": direction})
         assert r.status_code == 422, direction
-        assert "Direction : invalid direction" in _html.all_text(r.text, ui.form_errors), direction
+        assert _html.error_lines(r.text) == {
+            "field-direction-error": "▲ invalid direction",
+        }
     assert _names(db) == before
 
 
@@ -97,7 +101,9 @@ def test_create_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories", data={"name": "   ", "direction": "expense"})
     assert r.status_code == 422
-    assert "Name : name required" in _html.all_text(r.text, ui.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ name required",
+    }
     assert _names(db) == before
 
 
@@ -158,7 +164,9 @@ def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
 def test_update_blank(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/categories/{cat_id}", data={"name": "  "})
     assert r.status_code == 422
-    assert "Name : name required" in _html.all_text(r.text, ui.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ name required",
+    }
     stored = categories_repo.find_by_id(db, USER_ID, cat_id)
     assert stored is not None
     assert stored.name == "Groceries"
@@ -242,9 +250,9 @@ def test_create_invalid_hex_422(client: TestClient, db: sqlite3.Connection) -> N
         data={"name": "Bad", "direction": "expense", "color": "not-hex"},
     )
     assert r.status_code == 422
-    assert "Colour : invalid color 'not-hex'; expected 6-digit hex" in _html.all_text(
-        r.text, ui.form_errors
-    )
+    assert _html.error_lines(r.text) == {
+        "field-color-error": "▲ invalid color 'not-hex'; expected 6-digit hex like #a3c2ff",
+    }
     assert _names(db) == before
 
 
