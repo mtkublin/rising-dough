@@ -33,7 +33,7 @@ from budget_planner.services.ledger_totals import (
 )
 from budget_planner.web.ledger_export import filter_query
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
-from budget_planner.web.paths import EDIT_PATH
+from budget_planner.web.paths import EDIT_PATH, PROMOTE_PATH
 from budget_planner.web.view_models import MONTH_SHORT, HeroFit, hero_fit
 
 if TYPE_CHECKING:
@@ -487,7 +487,7 @@ def _planned_row_view(row: Mapping[str, object]) -> SchedRowView:
     key = _str_of(row, "key")
     persisted = row.get("persisted_id")
     status_text, status_kind = _status_cell(row)
-    promote = f"/planned/{persisted}/promote?dialog=1"
+    promote = f"/planned/{persisted}{PROMOTE_PATH}"
     promotable = isinstance(persisted, int) and not row.get("is_promoted")
     return SchedRowView(
         dom_id=f"planned-{key}",
@@ -633,7 +633,7 @@ def _recurring_menu(rule_id: int, due: date) -> tuple[MenuItem, ...]:
     """Menu of a rule: promote and override open dialogs; skip next and delete post and refetch."""
     base = f"/recurring/{rule_id}"
     return (
-        _menu_item("promote", get=f"{base}/promote?dialog=1"),
+        _menu_item("promote", get=f"{base}{PROMOTE_PATH}"),
         _menu_item("override", get=f"{base}/overrides/new"),
         _menu_item(
             "skip next", post=f"{base}/skip-next", swap="none", confirm=f"Skip {due.isoformat()}?"

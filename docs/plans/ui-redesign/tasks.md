@@ -296,6 +296,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR24 [P] Remove inline promote routes → T-UR07, T-UR10
 - Delete `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline`, their templates, UI-map names and route allowlist entries. ADR-0134 §5.
+- UR24 scope (2026-11-25): also drops the legacy non-dialog branch of `GET .../promote` (`form_responses.promote_planned_dialog`, `recurring_views.render_promote_modal`, templates `_promote_modal.html`); the dialog (`pages/entries/promote.html`, UR10a) is the only promote UI and its flash toasts stay. The removed routes return 404.
 
 ### ✅ T-UR25 [P] Offline save-failure handling → T-UR04
 - HTMX request failure (no response) keeps an open dialog's typed input and shows the offline state (`errors/offline` markup); no service worker. ADR-0134 §4, ADR-0113.

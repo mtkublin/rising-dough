@@ -2413,62 +2413,6 @@ kbd.rd-kbd {
 .rd-upcoming__more { padding: 0.75rem 1.25rem; font-size: 0.85rem; margin: 0; }
 .rd-upcoming__empty { padding: 1.25rem; }
 
-/* Inline promote card (per overlay in desktop-01-today.html:19). */
-.rd-promote-inline {
-  border: 1.5px solid var(--accent);
-  border-radius: 8px;
-  background: var(--accent-soft);
-  padding: 0.75rem 0.9rem;
-  margin: 0.25rem 1.25rem;
-}
-
-.rd-promote-inline__grid {
-  display: grid;
-  grid-template-columns: 52px 1.3fr 130px 150px auto;
-  gap: 0.75rem;
-  align-items: end;
-}
-.rd-promote-inline__meta { font-size: 0.72rem; margin-bottom: 0.25rem; }
-
-.rd-promote-inline__chip {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 6px;
-  padding: 0.35rem 0.6rem;
-}
-.rd-promote-inline__label { font-size: 0.7rem; margin-bottom: 0.2rem; }
-
-.rd-promote-inline__input {
-  width: 100%;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 6px;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.9rem;
-}
-
-.rd-promote-inline__amount {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: 0 0 0 3px #fff;
-}
-
-.rd-promote-inline__input--amount {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  text-align: right;
-  width: 5.5rem;
-}
-.rd-promote-inline__input--amount:focus { outline: none; }
-.rd-promote-inline__actions { display: inline-flex; gap: 0.4rem; justify-content: flex-end; }
-.rd-promote-inline__note { font-size: 0.75rem; margin: 0.6rem 0 0; }
-
 @media (width <= 640px) {
   .rd-upcoming__row {
     grid-template-columns: 44px minmax(0, 1fr) auto;
@@ -2482,7 +2426,6 @@ kbd.rd-kbd {
   .rd-upcoming__cat { grid-area: cat; }
   .rd-upcoming__amt { grid-area: amt; }
   .rd-upcoming__actions { grid-area: actions; flex-wrap: wrap; justify-content: flex-start; }
-  .rd-promote-inline__grid { grid-template-columns: 1fr; }
 }
 
 /* ─── Recurring amount source + formula builder ───────────────────── */

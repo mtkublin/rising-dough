@@ -580,7 +580,7 @@ def _get_rule_next_due(_migrated: Settings, rule_id: int) -> date:
 
 
 def test_promote_form_renders(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get(f"/recurring/{ctx['rule']}/promote?dialog=1", headers=_HTMX)
+    r = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
     assert r.status_code == 200
     assert r.headers["HX-Retarget"] == "#modal-root"
     dialog = _html.resolve_one(r.text, role("dialog", re.compile("^promote ·")))
@@ -751,7 +751,7 @@ def test_recurring_row_renders_next_due_column(
     # Five action buttons (promote / override-next / skip-next / edit / delete).
     rid = ctx["rule"]
     assert {label: (b.get("hx-get") or b.get("hx-post")) for label, b in actions.items()} == {
-        "promote": f"/recurring/{rid}/promote?dialog=1",
+        "promote": f"/recurring/{rid}/promote",
         "override": f"/recurring/{rid}/overrides/new",
         "skip next": f"/recurring/{rid}/skip-next",
         "edit": f"/recurring/{rid}/edit",
@@ -1248,13 +1248,13 @@ def test_override_errors_rerender_the_dialog_with_the_message(
         assert text in _html.all_text(r.text, edit_dialogs.summary)
 
 
-def test_promote_on_the_old_shell_is_still_the_slide_over(
-    client: TestClient, ctx: dict[str, int]
-) -> None:
-    """Without ``dialog=1`` (the ledger, until T-UR09 / T-UR10) the old modal and its 422 stay."""
+def test_promote_get_is_always_the_dialog(client: TestClient, ctx: dict[str, int]) -> None:
+    """T-UR24: no ``?dialog=`` switch, no slide-over; the inline form route is gone."""
     r = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
-    assert _html.exists(r.text, ledger.slideover)
-    assert "HX-Retarget" not in r.headers
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert _html.exists(r.text, role("dialog", re.compile("^promote")))
+    assert client.get(f"/recurring/{ctx['rule']}/promote/inline", headers=_HTMX).status_code == 404
     bad = client.post(f"/recurring/{ctx['rule']}/promote", data={"amount": "0"}, headers=_HTMX)
     assert bad.status_code == 422
-    assert "amount: amount must be positive" in _html.all_text(bad.text, errors.alert)
+    assert bad.headers["HX-Retarget"] == "#modal-root"
+    assert "Amount : amount must be positive" in _html.all_text(bad.text, entries.summary)

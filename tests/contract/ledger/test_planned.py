@@ -178,15 +178,17 @@ def test_delete_and_restore_unknown_id_are_404(client: TestClient, seeded: Ids) 
     assert client.post("/planned/99999/restore").status_code == 404
 
 
-@covers("GET /planned/{planned_id}/promote", "GET /planned/{planned_id}/promote/inline")
-def test_promote_forms_and_unknown_id(client: TestClient, seeded: Ids) -> None:
+@covers("GET /planned/{planned_id}/promote")
+def test_promote_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     modal = client.get(f"/planned/{seeded['pl']}/promote", headers=HTMX)
     assert modal.status_code == 200
     assert "<html" not in modal.text
-    inline = client.get(f"/planned/{seeded['pl']}/promote/inline", headers=HTMX)
-    assert inline.status_code == 200
     assert client.get("/planned/99999/promote").status_code == 404
-    assert client.get("/planned/99999/promote/inline").status_code == 404
+
+
+def test_inline_promote_route_is_gone(client: TestClient, seeded: Ids) -> None:
+    """T-UR24: the inline promote form route no longer exists."""
+    assert client.get(f"/planned/{seeded['pl']}/promote/inline", headers=HTMX).status_code == 404
 
 
 @covers("POST /planned/{planned_id}/promote")

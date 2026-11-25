@@ -69,3 +69,12 @@ def test_recently_deleted_lists_soft_deleted_rows(
     after = client.get("/ledger/recently-deleted")
     assert after.status_code == 200
     assert _html.exists(after.text, ledger.restore("txn", seeded["txn"]))
+
+
+@covers("GET /ledger/recently-deleted/panel")
+def test_recently_deleted_panel_lists_the_deleted_row(client: TestClient, seeded: Ids) -> None:
+    client.post(f"/transactions/{seeded['txn']}/delete")
+    panel = client.get("/ledger/recently-deleted/panel")
+    assert panel.status_code == 200
+    assert "<html" not in panel.text
+    assert _html.exists(panel.text, ledger.restore("txn", seeded["txn"]))

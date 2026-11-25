@@ -110,7 +110,7 @@ def test_planned_row_menu_opens_the_dialogs(client: TestClient, ids: dict[str, i
     pid = ids["later"]
     actions = ledger.menu_actions(html, ledger.planned_row(pid))
     assert {k: (v.get("hx-get") or v.get("hx-post")) for k, v in actions.items()} == {
-        "promote": f"/planned/{pid}/promote?dialog=1",
+        "promote": f"/planned/{pid}/promote",
         "edit": f"/planned/{pid}/edit",
         "delete": f"/planned/{pid}/delete",
         "cancel": None,
@@ -119,7 +119,7 @@ def test_planned_row_menu_opens_the_dialogs(client: TestClient, ids: dict[str, i
     assert actions["delete"].get("hx-confirm") == "Delete this planned entry?"
     promote = _html.resolve_one(html, ledger.planned_promote(pid))
     assert (promote.get("hx-get"), promote.get("hx-target")) == (
-        f"/planned/{pid}/promote?dialog=1",
+        f"/planned/{pid}/promote",
         "#modal-root",
     )
 
@@ -156,7 +156,7 @@ def test_recurring_row_menu_opens_the_dialogs(client: TestClient, ids: dict[str,
     html = client.get("/ledger?view=recurring&date_from=2000-01-01&date_to=2099-12-31").text
     actions = ledger.menu_actions(html, ledger.recurring_row(rule))
     assert {k: (v.get("hx-get") or v.get("hx-post")) for k, v in actions.items()} == {
-        "promote": f"/recurring/{rule}/promote?dialog=1",
+        "promote": f"/recurring/{rule}/promote",
         "override": f"/recurring/{rule}/overrides/new",
         "skip next": f"/recurring/{rule}/skip-next",
         "edit": f"/recurring/{rule}/edit",

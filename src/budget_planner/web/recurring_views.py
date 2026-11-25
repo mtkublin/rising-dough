@@ -36,7 +36,7 @@ from budget_planner.web.form_responses import (
 )
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_int
-from budget_planner.web.paths import LEDGER_PATH
+from budget_planner.web.paths import LEDGER_PATH, PROMOTE_PATH
 from budget_planner.web.recurring_forms import (
     EMPTY_TERM_INPUT,
     OverrideError,
@@ -54,9 +54,7 @@ FORMULA_RESULT_TEMPLATE = "fragments/dialogs/formula-result.html"
 OCCURRENCE_TEMPLATE = "fragments/dialogs/override-occurrence.html"
 OCCURRENCE_REMOVE_TEMPLATE = "fragments/dialogs/override-remove-occurrence.html"
 CREATE_ACTION = "/recurring"
-_LEGACY_PROMOTE = "partials/recurring/_promote_modal.html"
 _ROW = "partials/recurring/_row.html"
-_PROMOTE_INLINE_ROW = "partials/recurring/_promote_inline_row.html"
 
 
 def render_form_errors(
@@ -168,30 +166,6 @@ def _promote_notes(rule: RecurringRule, override: RecurringOverride | None) -> l
     return notes
 
 
-def _legacy_promote(
-    request: Request,
-    *,
-    rule: RecurringRule,
-    account: Account | None,
-    override: RecurringOverride | None,
-    prefill: tuple[date, int, str],
-    errors: dict[str, str] | None,
-) -> Response:
-    """The old shell's promote slide-over (ledger) until T-UR09 / T-UR10."""
-    return render(
-        request,
-        _LEGACY_PROMOTE,
-        rule=rule,
-        account=account,
-        override=override,
-        prefill_date=prefill[0],
-        prefill_amount_minor=prefill[1],
-        prefill_description=prefill[2],
-        errors=errors or {},
-        status_code=422 if errors else 200,
-    )
-
-
 def render_promote_modal(
     request: Request,
     conn: sqlite3.Connection,
@@ -199,29 +173,20 @@ def render_promote_modal(
     rule_id: int,
     fx: FormulaFx,
     *,
-    as_dialog: bool | None = None,
     errors: dict[str, str] | None = None,
     posted: Mapping[str, str] | None = None,
 ) -> Response:
-    """The promote dialog for a rule's next occurrence: prefill (200) or posted values (422).
-
-    The old shell (ledger) still gets its slide-over until T-UR09 / T-UR10 (``as_dialog`` false);
-    ``None`` follows the post (``from_dialog``).
-    """
+    """The promote dialog for a rule's next occurrence: prefill (200) or posted values (422)."""
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="rule: not found")
     override = override_on_next_due(conn, user_id, rule_id, rule.next_due)
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     prefill = _promote_prefill(conn, user_id, rule, override, fx)
-    if not (from_dialog(request) if as_dialog is None else as_dialog):
-        return _legacy_promote(
-            request, rule=rule, account=account, override=override, prefill=prefill, errors=errors
-        )
     context = promote_context(
         conn,
         user_id,
-        action=f"{CREATE_ACTION}/{rule.id}/promote",
+        action=f"{CREATE_ACTION}/{rule.id}{PROMOTE_PATH}",
         category_id=rule.category_id,
         account=account,
         amount_minor=prefill[1],
@@ -687,34 +652,4 @@ def render_override_error(
     )
     return invalid_dialog_response(
         request, OCCURRENCE_TEMPLATE, context, {error.field: error.message}
-    )
-
-
-def render_inline_promote_row(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule: RecurringRule,
-    *,
-    occurrence: date,
-    fx: FormulaFx,
-) -> Response:
-    """F-02: row-expand inline form for the Today Upcoming Promote action."""
-    override = override_on_next_due(conn, user_id, rule.id, occurrence)
-    prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence, fx=fx)
-    prefill_description = rule.default_description
-    if override is not None:
-        if override.amount_override is not None:
-            prefill_amount = override.amount_override
-        if override.description_override is not None:
-            prefill_description = override.description_override
-    return render(
-        request,
-        _PROMOTE_INLINE_ROW,
-        rule=rule,
-        account=accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True),
-        occurrence_date=occurrence,
-        prefill_amount_minor=prefill_amount,
-        prefill_description=prefill_description,
-        categories_by_id={c.id: c for c in categories_service.list_all(conn, user_id)},
     )

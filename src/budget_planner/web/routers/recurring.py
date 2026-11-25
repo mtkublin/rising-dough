@@ -291,37 +291,11 @@ def delete_override(
 def promote_form(
     rule_id: int,
     request: Request,
-    *,
-    dialog: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
     fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
-    return views.render_promote_modal(request, conn, user_id, rule_id, fx, as_dialog=bool(dialog))
-
-
-@router.get("/{rule_id}/promote/inline", response_class=HTMLResponse)
-def promote_inline(
-    rule_id: int,
-    request: Request,
-    date: str = "",
-    *,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_fx),
-) -> Response:
-    """F-02 — Row-expand inline form for Today Upcoming Promote action.
-
-    Returns a <tr> fragment that replaces the current upcoming row, letting
-    the user edit `date` + `amount` and Confirm without leaving the page.
-    """
-    rule = recurring_svc.find_rule(conn, user_id, rule_id)
-    if rule is None:
-        return Response(status_code=404, content="not found")
-    occurrence = query_date("date", date) or rule.next_due
-    return views.render_inline_promote_row(
-        request, conn, user_id, rule, occurrence=occurrence, fx=fx
-    )
+    return views.render_promote_modal(request, conn, user_id, rule_id, fx)
 
 
 @router.post("/{rule_id}/promote")

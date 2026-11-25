@@ -26,8 +26,6 @@ ROUTES: dict[str, str] = {
     "/dev/shell": "pages/today.html",  # T-UR02 placeholder page on the new base
     "/dev/shell?view=theme": "pages/settings/preferences.html",
     "/today/upcoming": "pages/today.html",
-    "/planned/{planned_id}/promote/inline": "pages/overlays/promote--planned.html",
-    "/recurring/{rule_id}/promote/inline": "pages/overlays/promote--recurring.html",
     "/today/afford": "pages/today.html",
     "/afford": "pages/today.html",
     "/ledger": "pages/ledger/actual.html",
