@@ -23,15 +23,18 @@ You implement ONE work item of an orchestrated run (ADR-0066, ADR-0150) in budge
 
 ## Testing and CPU (ADR-0150 §5, §6)
 - Run ONLY the test files your steps name: `uv run pytest <file> -q --no-cov -p no:xdist`. No suites (`tests/unit`, `tests/integration`, `tests/contract`, `tests/e2e`), no `just test`, no `just ci`, never `-n auto`. The wave tester runs the suite after merge.
+- E2e: at most 4 local runs of the e2e files the brief names, each under the lock. Then, and in any case when your steps are done: `git push -u origin wi/<MAIN>/<ID>`; `e2e.yml` runs on the push. Find it with `gh run list --workflow e2e.yml --branch wi/<MAIN>/<ID> --limit 1` and watch it in the background. Report its run id and result under `CHECKS`.
+- The guard (`scripts/ci/agent_guard.py`) denies out-of-scope runs, foreground waits and heavy work past your budget. A deny reason names the allowed path: take it. Never reword a command to get past the guard.
 - Commit with the pytest hook skipped, everything else on: `SKIP=pytest-fast PYTEST_WORKERS=2 git commit -F <msg file>`, as a plain command (no `&&` chain; the worktree guard refuses a chained commit). Never `--no-verify`. Commit-message files go in the session scratchpad under `<ID>/`.
 - Hooks fail (ruff, mypy, import-linter, sqlfluff, djlint, stylelint, bandit, detect-secrets): fix and commit again. ruff-format rewrote files: `git add` them and commit again.
 - Before the final commit: `git merge --no-edit <MAIN>`, resolve keeping both sides, then `just guards`, `uv run lint-imports`, `uv run ruff check src tests`, `uv run mypy src tests` (a clean merge runs no hooks).
-- Heavy lock (only if a step needs a heavy job): the brief names it. Separate Bash calls: `mkdir <lock>` (retry `until mkdir <lock> 2>/dev/null; do sleep 20; done`), run, `rmdir <lock>`. Always release, also on failure.
+- Heavy lock: only for a local e2e file run (single-file pytest takes none). The brief names it. Separate Bash calls: acquire in the background (`until mkdir <lock> 2>/dev/null; do sleep 20; done; echo locked`, `run_in_background: true`; you are re-invoked when it exits), run, `rmdir <lock>`. Always release, also on failure.
+- Waits: anything that waits (lock, server start, `gh run watch`, a long run) goes in a background Bash call. A foreground `sleep` over 30 s is denied.
 
 ## Limits
 - `data/budget.sqlite` is PRODUCTION: never open, read in write mode, migrate or seed it. Scratch DBs under the scratchpad or `data/demo.sqlite` only.
 - Commit subjects: `<type>(<ID>): ...` (feat, fix, docs, refactor, test, chore, ci, perf, build).
-- Runtime: the item is sized under ~1 h. Past ~45 min, or looping (lock waits, conflicts, hook retries): commit what is green and report the rest as `PARTIAL`. No gold-plating beyond the brief.
+- Runtime: the item is sized under ~1 h. Past ~45 min, or looping (lock waits, conflicts, hook retries): commit what is green and report the rest as `PARTIAL`. At 60 min of active time the guard stops your test runs and locks. No gold-plating beyond the brief.
 - Autonomous: never stop to ask for confirmation (the prod DB is the only exception). A real blocker: `STATUS: BLOCKED` with the question under `QUESTIONS`.
 
 ## Report (end your final message with exactly this block, then optional prose)
