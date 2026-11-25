@@ -88,3 +88,12 @@ formula preview while incomplete, the forced 500); no JS error, no `pageerror`.
    deliberate status.
 
 Not verified: real screen-reader output; the 5-min load stayed below 2x cores.
+
+## Follow-up (commit after the audit)
+
+- Finding 1 fixed: `#credit-line` has `hx-sync="this:queue last"` (pinned in `test_forms.py`).
+- Finding 2 fixed: the category error is `role="alert"`; `dialog.js` focuses the first
+  `aria-invalid` field, else the category picker search button (pinned by the alert test in
+  `test_new_entry_posts.py`; focus move not covered by a browser test).
+- Finding 3 accepted as intended (the formula preview answers 422 while a component is incomplete;
+  the console line is the browser's network log of that status).
