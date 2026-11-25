@@ -36,7 +36,9 @@ from tests.visual.handoff_seed import build_seed
 
 pytestmark = pytest.mark.visual
 
-# Main app route of each handoff surface (the page its reference is compared with).
+# Main app route of each handoff surface: the page its reference is compared with when the page
+# has no entry of its own below. `auth` and `errors` are only the fallback of the pages listed in
+# UNMAPPED_PAGES (the mapping test fails a page that is neither mapped nor listed there).
 SURFACE_ROUTES: dict[str, str] = {
     "today": "/today",
     "accounts": "/accounts",
@@ -47,15 +49,84 @@ SURFACE_ROUTES: dict[str, str] = {
     "errors": "/settings/users/999999/edit",
     # No "overlays" entry: an overlay page renders over its own base page (`base_page_of`).
 }
-# Tab pages with their own app route (plan ?tab=, ledger ?view=, recently-deleted).
+# The invite link of the base seed (handoff_seed SeedData.invite_link).
+_INVITE = "/invite/handoff-invite-accountant"
+LEDGER_BOARD = "/ledger?date_from=2026-10-07&date_to=2026-10-31&page_size=11"
+_NO_MATCHES = LEDGER_BOARD + "&q=pizza"
+# Pages with their own app route (plan ?tab=, ledger ?view=, settings tabs, auth, errors).
 PAGE_ROUTES: dict[str, str] = {
     "pages/plan/year.html": "/plan?tab=year",
     "pages/plan/forecast.html": "/plan?tab=forecast",
     "pages/plan/analytics.html": "/plan?tab=analytics",
+    "pages/ledger/actual.html": LEDGER_BOARD,
+    "pages/ledger/actual--long.html": LEDGER_BOARD,
     "pages/ledger/planned.html": "/ledger?view=planned",
+    "pages/ledger/planned--empty.html": "/ledger?view=planned",
     "pages/ledger/recurring.html": "/ledger?view=recurring",
+    "pages/ledger/recurring--empty.html": "/ledger?view=recurring",
     "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
+    # The handoff board (4 day groups, 11 rows) with its "pizza" search (category chip needs an id).
+    "pages/ledger/actual--no-matches.html": _NO_MATCHES,
     "pages/errors/422.html": "/budget?month=zz",
+    "pages/settings/preferences.html": "/settings?tab=prefs",
+    "pages/settings/currency-fx.html": "/settings?tab=fx",
+    "pages/settings/security.html": "/settings/security",
+    "pages/settings/security--error.html": "/settings/security",
+    "pages/settings/users.html": "/settings/users",
+    "pages/auth/login.html": "/auth/login",
+    "pages/auth/login--error.html": "/auth/login",
+    "pages/auth/reauth.html": "/auth/reauth",
+    "pages/auth/reauth--error.html": "/auth/reauth",
+    "pages/auth/invite.html": _INVITE,
+    "pages/auth/invite--expired.html": _INVITE,
+    "pages/auth/invite--used.html": _INVITE,
+    "pages/auth/invite--invalid.html": "/invite/not-a-real-invite-token",
+}
+# Auth pages a signed-out visitor sees: rendered without the session cookie (a signed-in user is
+# redirected away from /auth/login). Reauth needs the session and is not listed.
+ANONYMOUS_PAGES: frozenset[str] = frozenset(
+    {
+        "pages/auth/login.html",
+        "pages/auth/login--error.html",
+        "pages/auth/invite.html",
+        "pages/auth/invite--expired.html",
+        "pages/auth/invite--used.html",
+        "pages/auth/invite--invalid.html",
+        "pages/auth/register.html",
+        "pages/auth/register--error.html",
+    }
+)
+# Error states reached by a failing form POST: the harness fills the fields (CSS selector, value)
+# and presses Enter in the last one (the browser sends the CSRF token with the form), so the app
+# answers with the error page the handoff shows.
+FORM_SUBMITS: dict[str, tuple[tuple[str, str], ...]] = {
+    "pages/auth/login--error.html": (
+        ("input[name=email]", "owner@example.test"),
+        ("input[type=password]", "wrong-password-1"),
+    ),
+    "pages/auth/reauth--error.html": (("input[type=password]", "wrong-password-1"),),
+}
+_SETUP_ONLY_EMPTY = "first-run setup (/setup) is open only with no users; the seed has users"
+_NEEDS_ROTATION_USER = "needs a signed-in user with must_change_password; no seed modifier"
+# Handoff pages (not overlays) the harness cannot reach yet: page -> why. Like UNMAPPED_OVERLAYS
+# they are still compared with their surface's fallback route (red); the unmapped-state item maps
+# them and this dict only shrinks.
+UNMAPPED_PAGES: dict[str, str] = {
+    "pages/settings/security--error.html": (
+        "POST /settings/password re-renders the forced-rotation page, not the Security tab"
+        " with the inline error"
+    ),
+    "pages/auth/register.html": _SETUP_ONLY_EMPTY,
+    "pages/auth/register--error.html": _SETUP_ONLY_EMPTY,
+    "pages/auth/force-password.html": _NEEDS_ROTATION_USER,
+    "pages/auth/force-password--error.html": _NEEDS_ROTATION_USER,
+    "pages/errors/409.html": "needs a version-conflict response; no GET renders the 409 card",
+    "pages/errors/500.html": "needs a server error; no GET renders the 500 card",
+    "pages/errors/offline.html": "the offline card is a client-side (service worker) state",
+    "pages/today--afford-invalid.html": "needs the afford check submitted with invalid input",
+    "pages/today--afford-over.html": "needs the afford check submitted over the limit",
+    "pages/today--flash.html": "needs the saved-toast flash state after a write",
+    "pages/today--loading.html": "needs the hero's loading (skeleton) state",
 }
 # Overlay pages whose dialog the app opens from a plain GET (the new-entry dialog,
 # `/add?when=<tab>`, T-UR07b). Like every opener it is fetched into #modal-root over the
@@ -105,6 +176,18 @@ OPENER_PAGES: frozenset[str] = frozenset(f"pages/overlays/{n}.html" for n in OPE
 # Pages that need the base seed plus named modifiers (handoff_seed.MODIFIER_NAMES).
 PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
     "pages/ledger/recurring.html": ("recurring-board",),
+    "pages/today--empty.html": ("empty",),
+    "pages/accounts--empty.html": ("empty-accounts",),
+    "pages/ledger/actual--empty.html": ("empty-ledger",),
+    "pages/ledger/planned--empty.html": ("empty-planned",),
+    "pages/ledger/recurring--empty.html": ("empty-recurring",),
+    "pages/ledger/actual--long.html": ("long",),
+    "pages/ledger/actual--no-matches.html": ("no-matches",),
+    "pages/auth/invite--expired.html": ("invite-expired",),
+    "pages/auth/invite--used.html": ("invite-used",),
+    # Fresh DB per run: the wrong-password POST must not eat a shared rate limit.
+    "pages/auth/login--error.html": ("form-error",),
+    "pages/auth/reauth--error.html": ("form-error",),
 }
 
 
@@ -142,6 +225,11 @@ def route_for(page: str) -> str:
     """App route compared with a handoff page (tab pages; overlays: their base page's route)."""
     base = base_page_of(page)
     return PAGE_ROUTES.get(base) or SURFACE_ROUTES[handoff.surface_of(base)]
+
+
+def is_anonymous(page: str) -> bool:
+    """Whether the page renders for a signed-out visitor (no session cookie)."""
+    return page in ANONYMOUS_PAGES
 
 
 def modifiers_for(page: str) -> tuple[str, ...]:
@@ -231,6 +319,8 @@ def test_app_matches_handoff(
             server = request.getfixturevalue("live_server")
             cookies = request.getfixturevalue("session_cookies")
             db_path = request.getfixturevalue("scratch_db")[0]
+        if is_anonymous(handoff_page):
+            cookies = []
         opener = _opener_for(handoff_page, db_path)
         _compare_app(
             handoff_page,
@@ -280,6 +370,12 @@ def _compare_app(
         context.clock.set_fixed_time(handoff.HANDOFF_FIXED_TIME)
         pg = context.new_page()
         pg.goto(f"{live_server}{route}", wait_until="networkidle", timeout=15000)
+        if handoff_page in FORM_SUBMITS:
+            fields = FORM_SUBMITS[handoff_page]
+            for selector, value in fields:
+                pg.fill(selector, value)
+            with pg.expect_navigation(wait_until="networkidle", timeout=15000):
+                pg.press(fields[-1][0], "Enter")
         if opener:
             pg.evaluate(
                 "url => window.htmx.ajax('GET', url, {target: '#modal-root', swap: 'innerHTML'})",

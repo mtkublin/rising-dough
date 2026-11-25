@@ -489,12 +489,18 @@ def today_upcoming(
     base_currency: str,
     window_label: str,
 ) -> TodayUpcoming:
-    """Overdue, due-today and next-N-days groups (capped at ``vm.UPCOMING_CAP`` rows)."""
+    """Overdue, due-today and next-N-days groups; only the next-N-days rows are capped at 6.
+
+    Flagged rows (overdue, due today) are always listed, as in the handoff board; the footer
+    reads "showing <upcoming rows listed> of <all pending items>".
+    """
+    flagged = [row for row in upcoming if row.operation_date <= today]
+    later = [row for row in upcoming if row.operation_date > today][: vm.UPCOMING_CAP]
     shown = tuple(
         _row_view(
             vm.upcoming_item(row, today, categories_by_id, accounts_by_id), today, base_currency
         )
-        for row in upcoming[: vm.UPCOMING_CAP]
+        for row in (*flagged, *later)
     )
     headed = (
         ("overdue", "▲ OVERDUE"),
@@ -510,8 +516,8 @@ def today_upcoming(
     return TodayUpcoming(
         groups=tuple(groups),
         total_count=len(upcoming),
-        shown_count=len(shown),
-        has_more=len(upcoming) > vm.UPCOMING_CAP,
+        shown_count=len(later),
+        has_more=len(upcoming) > len(shown),
         has_due=any(row.operation_date <= today for row in upcoming),
         color_rules="".join(dict.fromkeys(r.color_rule for r in shown if r.color_rule)),
     )
