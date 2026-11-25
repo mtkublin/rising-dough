@@ -596,4 +596,3 @@ def test_overlay_modifiers_name_overlays_and_known_modifiers() -> None:
     overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
     assert set(OVERLAY_MODIFIERS) <= overlays
     assert all(set(m) <= set(handoff_seed.MODIFIER_NAMES) for m in OVERLAY_MODIFIERS.values())
-
