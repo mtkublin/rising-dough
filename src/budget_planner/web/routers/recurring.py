@@ -23,19 +23,10 @@ from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, tod
 from budget_planner.web.dialogs import saved_response
 from budget_planner.web.htmx import Event, refresh_unless_on
 from budget_planner.web.params import parse_date, parse_int, query_date
-from budget_planner.web.paths import LEDGER_PATH, NEW_PATH
+from budget_planner.web.paths import LEDGER_PATH
 from budget_planner.web.view_models import month_name
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
-
-
-@router.get(NEW_PATH, response_class=HTMLResponse)
-def new_form(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    return views.render_new_form(request, conn, user_id)
 
 
 @router.post("")
@@ -68,10 +59,8 @@ async def create_rule(
             errors=draft.errors,
         )
     valid = draft.valid
-    rule = recurring_svc.create_rule(conn, user_id, forms.new_rule_from(fields, valid, today))
-    return views.render_created_row(
-        request, rule, valid.account, valid.category, valid.amount_minor
-    )
+    recurring_svc.create_rule(conn, user_id, forms.new_rule_from(fields, valid, today))
+    return views.render_created(request)
 
 
 # ADR-0056 §4 live formula preview. Registered BEFORE `/{rule_id}` so FastAPI's

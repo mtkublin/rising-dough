@@ -20,7 +20,7 @@ from budget_planner.domain.planned import PlannedTransaction
 from budget_planner.domain.transactions import Transaction
 from budget_planner.services import accounts as accounts_service, categories as categories_service
 from budget_planner.services.recurring_formula import FormulaFx
-from budget_planner.web import accounts_data, entry_forms, ledger_data
+from budget_planner.web import accounts_data, entry_forms
 from budget_planner.web.deps import today_for
 from budget_planner.web.dialogs import (
     dialog_response,
@@ -462,23 +462,21 @@ def stale_refresh(request: Request, *events: Event) -> Response:
     return html
 
 
-def created_txn_response(
-    request: Request, conn: sqlite3.Connection, user_id: int, new_txn: Transaction
-) -> Response:
-    """A saved transaction: its row, the stale events, a reload off the ledger."""
-    row = ledger_data.hydrate_txn_rows(conn, user_id, [new_txn])[0]
-    html = render(request, "partials/transactions/_row.html", txn=row)
-    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
+def created_txn_response(request: Request) -> Response:
+    """A saved transaction: the dialog closes, the toast flashes, a reload off the ledger."""
+    html = saved_response(
+        request,
+        None,
+        {},
+        message="Transaction saved",
+        events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
     refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
-def created_planned_response(
-    request: Request, planned: PlannedTransaction, check: entry_forms.EntryCheck
-) -> Response:
-    """A saved planned item: its row, the stale events, a reload off the ledger (T-D142)."""
-    view = ledger_data.planned_row_from_persisted(planned, check.account, check.category)
-    html = render(request, "partials/planned/_row.html", view=view)
-    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
+def created_planned_response(request: Request) -> Response:
+    """A saved planned item: the dialog closes, the toast flashes, a reload off the ledger."""
+    html = planned_saved(request)
     refresh_unless_on(request, html, LEDGER_PATH)
     return html

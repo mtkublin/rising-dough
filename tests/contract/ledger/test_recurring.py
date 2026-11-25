@@ -40,13 +40,6 @@ def _make_due(settings: Settings, rule_id: int) -> None:
         conn.close()
 
 
-@covers("GET /recurring/new")
-def test_new_form_is_a_slideover(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/recurring/new", headers=HTMX)
-    assert r.status_code == 200
-    assert "<html" not in r.text
-
-
 @covers("POST /recurring")
 def test_create_persists_audits_and_signals(
     client: TestClient, seeded: Ids, _migrated: Settings

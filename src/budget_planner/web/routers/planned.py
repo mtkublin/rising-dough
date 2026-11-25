@@ -21,7 +21,7 @@ from budget_planner.web.dialogs import removed_response, saved_response
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice
-from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, PLANNED_PATH, TABLE_PATH
+from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TABLE_PATH
 
 router = APIRouter(prefix="/planned", tags=["planned"])
 
@@ -116,16 +116,6 @@ def table_fragment(
     )
 
 
-@router.get(NEW_PATH, response_class=HTMLResponse)
-def new_form(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    """The new-entry dialog on the planned tab (T-UR07b)."""
-    return form_responses.open_new_entry(request, conn, user_id, tab="planned")
-
-
 @router.post("")
 def create_planned(
     request: Request,
@@ -168,8 +158,8 @@ def create_planned(
                 dest_account_id=dest_account_id,
             ),
         )
-    pl = entry_forms.save_planned(conn, user_id, check, description)
-    return form_responses.created_planned_response(request, pl, check)
+    entry_forms.save_planned(conn, user_id, check, description)
+    return form_responses.created_planned_response(request)
 
 
 @router.get("/{planned_id}/edit", response_class=HTMLResponse)

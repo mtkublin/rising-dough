@@ -88,7 +88,7 @@ def ctx(_migrated: Settings) -> dict[str, int]:
 
 
 def test_new_form(client: TestClient) -> None:
-    r = client.get("/recurring/new", headers=_HTMX)
+    r = client.get("/add?when=repeats&dialog=1", headers=_HTMX)
     assert r.status_code == 200
     assert _html.exists(r.text, entries.tab_repeats)
     start = _html.resolve_one(r.text, entries.field_start)
@@ -105,7 +105,7 @@ def test_new_form_single_term_consistent_indices(client: TestClient, ctx: dict[s
     # ``ctx`` seeds at least one income+expense category so
     # ``_formula_source_candidates`` yields non-empty checkbox markup.
     assert ctx["cat"] > 0
-    r = client.get("/recurring/new", headers=_HTMX)
+    r = client.get("/add?when=repeats&dialog=1", headers=_HTMX)
     assert r.status_code == 200
     checkbox_indices = {
         int(m.group(1)) for m in re.finditer(r'name="components\[(\d+)\]\[categories\]"', r.text)
@@ -1171,7 +1171,7 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[st
 
 
 def test_new_form_posts_into_the_modal_root_not_the_ledger_table(client: TestClient) -> None:
-    r = client.get("/recurring/new", headers=_HTMX)
+    r = client.get("/add?when=repeats&dialog=1", headers=_HTMX)
     form = _html.resolve_one(r.text, entries.dialog).find("form")
     assert form is not None
     assert (form.get("hx-post"), form.get("hx-target")) == ("/recurring", "#modal-root")

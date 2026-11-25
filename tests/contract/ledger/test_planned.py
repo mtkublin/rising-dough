@@ -62,13 +62,6 @@ def test_table_alias_renders_planned_rows(client: TestClient, seeded: Ids) -> No
     assert _html.exists(r.text, ledger.planned_row(seeded["pl"]))
 
 
-@covers("GET /planned/new")
-def test_new_form_is_a_slideover(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/planned/new", headers=HTMX)
-    assert r.status_code == 200
-    assert "<html" not in r.text
-
-
 @covers("POST /planned")
 def test_create_persists_audits_and_signals(
     client: TestClient, seeded: Ids, _migrated: Settings

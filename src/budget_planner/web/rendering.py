@@ -6,14 +6,12 @@ Keeping this out of `templating.py` so filters remain pure and testable.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Final
+from typing import Any
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 
 from budget_planner.web.http_headers import HX_REQUEST
-
-SLIDEOVER_TEMPLATE: Final = "partials/_slideover.html"
 
 
 def is_hx_request(request: Request) -> bool:
@@ -41,12 +39,6 @@ def render_context(
     """Render a Jinja template, injecting `request` + `url_for` + settings.
 
     Takes the template keys as one mapping (view-model builders return one).
-
-    B-03 — When a non-HTMX client requests a route whose template is the
-    bare slide-over fragment (``partials/_slideover.html``), transparently
-    swap to ``partials/_slideover_page.html``. That template extends
-    ``base.html`` and renders the slide-over inside ``#modal-root`` so
-    share-link, refresh, and open-in-new-tab work.
     """
     env = request.app.state.jinja_env
     settings = request.app.state.settings
@@ -58,10 +50,6 @@ def render_context(
         "csrf_token": getattr(request.state, "csrf_token", ""),
     }
     base_ctx.update(context)
-    if template_name == SLIDEOVER_TEMPLATE and not is_hx_request(request):
-        fragment_html = env.get_template(SLIDEOVER_TEMPLATE).render(**base_ctx)
-        base_ctx["_slideover_fragment"] = fragment_html
-        template_name = "partials/_slideover_page.html"
     html: str = env.get_template(template_name).render(**base_ctx)
     return HTMLResponse(html, status_code=status_code)
 

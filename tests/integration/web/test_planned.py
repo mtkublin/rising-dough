@@ -91,7 +91,7 @@ def test_table_fragment(client: TestClient, ctx: dict[str, int]) -> None:
 
 
 def test_new_form(client: TestClient) -> None:
-    r = client.get("/planned/new", headers=_HTMX)
+    r = client.get("/add?when=planned&dialog=1", headers=_HTMX)
     assert r.status_code == 200
     assert _html.exists(r.text, entries.tab_planned)
     due = _html.resolve_one(r.text, entries.field_due)
@@ -530,7 +530,7 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[st
 
 
 def test_new_form_posts_into_the_modal_root_not_the_planned_table(client: TestClient) -> None:
-    r = client.get("/planned/new", headers=_HTMX)
+    r = client.get("/add?when=planned&dialog=1", headers=_HTMX)
     form = _html.resolve_one(r.text, entries.dialog).find("form")
     assert form is not None
     assert (form.get("hx-post"), form.get("hx-target")) == ("/planned", "#modal-root")
