@@ -232,5 +232,5 @@ def test_fixed_amount_needs_an_account_currency_and_a_positive_amount(
     assert _amounts(conn, source="fixed", amount="-3", currency="PLN") == (
         None,
         None,
-        {"default_amount": "amount must be positive"},
+        {"default_amount": "Enter an amount above 0.00"},
     )

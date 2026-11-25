@@ -226,7 +226,7 @@ def test_create_duplicate_email_is_422_case_insensitive(
     _add(admin_client, "dup@example.test")
     r = admin_client.post("/settings/users", data={"email": "DUP@Example.test"}, headers=HX)
     assert r.status_code == 422
-    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(r.text, ui.add_errors)
+    assert "A user with this email already exists" in _html.text_of(r.text, ui.add_errors)
     assert not _html.exists(r.text, ui.new_password_value)
     n = db.execute("SELECT count(*) FROM users WHERE lower(email) = 'dup@example.test'").fetchone()
     assert n[0] == 1

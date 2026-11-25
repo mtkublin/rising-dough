@@ -25,7 +25,7 @@ from budget_planner.services import invites as invites_service
 from budget_planner.services.invites import INVITE_LIFETIME
 from budget_planner.services.password_change import MSG_TOO_SHORT
 from budget_planner.services.setup import MSG_CONFIRM_MISMATCH
-from budget_planner.services.users import DUPLICATE_EMAIL_MESSAGE, INVALID_EMAIL_MESSAGE
+from budget_planner.services.users import INVALID_EMAIL_MESSAGE
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
 from tests.auth_support import FAST_HASHER, TEST_EMAIL
 from tests.ui_map import _html, auth, settings as ui
@@ -199,7 +199,7 @@ def test_create_refuses_bad_duplicate_and_pending_emails(
     assert user.status_code == 422
     assert (
         _html.text_of(user.text, ui.invite_email_error).strip()
-        == f"\u25b2 {DUPLICATE_EMAIL_MESSAGE}"
+        == "\u25b2 A user with this email already exists"
     )
 
     _create(admin_client)
