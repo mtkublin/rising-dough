@@ -33,7 +33,7 @@ SETUP_URL = f"/setup?token={TOKEN}"
 USERS_WITH_EMAIL = "SELECT COUNT(*) FROM users WHERE email IS NOT NULL"
 MARKERS = "SELECT COUNT(*) FROM setup_token_consumed"
 MISMATCH = "The two passwords do not match."
-BAD_EMAIL = "Enter a valid email address."
+BAD_EMAIL = "Enter a full email address"
 LOGIN = "/auth/login"
 SHORT_VALUE = "-".join(("too", "short"))
 OTHER_VALUE = "-".join(("some", "other", "value"))

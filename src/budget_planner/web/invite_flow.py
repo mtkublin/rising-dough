@@ -31,7 +31,7 @@ STATE_MESSAGES: Final = MappingProxyType(
     {
         EXPIRED: "This invite link has expired. Ask an admin to resend it.",
         USED: "This invite has already been used. Sign in with the account it created.",
-        INVALID: "This link isn\u2019t valid. Ask an admin to resend the invite.",
+        INVALID: "This link isn\u2019t valid. Open the newest invite email, or ask an admin to resend it.",
     }
 )
 

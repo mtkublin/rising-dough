@@ -86,7 +86,7 @@ _LOG = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 PAGE_EXPIRED_NOTICE: Final = "This page expired, please try again."
-GENERIC_LOGIN_ERROR: Final = "That email and password combination didn't work."
+GENERIC_LOGIN_ERROR: Final = "Email or password is incorrect."
 PASSKEY_LOGIN_FAILED: Final = "login_failed"
 SECURITY_SESSIONS_URL: Final = "/settings/security#sessions"
 SECURITY_PASSKEYS_URL: Final = "/settings/security#passkeys"
@@ -94,7 +94,7 @@ SECURITY_PASSKEYS_URL: Final = "/settings/security#passkeys"
 #: purpose (the session cookie is already expired; the CSRF cookie must survive).
 _CLEAR_SITE_DATA: Final = '"cache", "storage"'
 REAUTH_FAILED: Final = "reauth_failed"
-GENERIC_REAUTH_ERROR: Final = "That password didn't work."
+GENERIC_REAUTH_ERROR: Final = "That password doesn’t match."
 RATE_LIMITED_REAUTH_ERROR: Final = "Too many attempts. Please wait a few minutes and try again."
 
 

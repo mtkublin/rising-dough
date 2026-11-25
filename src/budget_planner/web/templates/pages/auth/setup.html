@@ -9,33 +9,18 @@
 {% block title %}Set up · Rising Dough{% endblock %}
 {% block bake %}
   <a class="rd-auth__brand" href="/auth/login">Rising Dough</a>
-  <p class="rd-auth__headline">
-    Let's get the <i>first loaf</i> in.
+  <p class="rd-auth__headline rd-auth__headline--wide">
+    Your money, <i>proofed</i> and rising.
   </p>
   <span class="rd-auth__spacer"></span>
 {% endblock %}
 {% block form %}
-  <h1 class="rd-auth__title">Set up Rising Dough</h1>
-  <p class="rd-auth__lede">Create the first admin account. This page closes as soon as you are done.</p>
+  <h1 class="rd-auth__title">Create the first account</h1>
+  <p class="rd-auth__lede">Only shown while the app has no users. You’ll be its admin.</p>
   {% if alert %}<div class="rd-alert" role="alert" id="form-alert">▲ {{ alert }}</div>{% endif %}
   <form class="rd-form" method="post" action="/setup">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <input type="hidden" id="setup-token" name="token" value="{{ token }}">
-    <div class="rd-field">
-      <label class="rd-field__label" for="setup-name">name</label>
-      <span class="rd-input">
-        <input class="rd-input__control"
-               id="setup-name"
-               name="name"
-               type="text"
-               value="{{ name }}"
-               autocomplete="name"
-               {% if errors.get('name') %}aria-describedby="setup-name-error" aria-invalid="true"{% endif %}
-               autofocus>
-      </span>
-      {% if errors.get("name") %}<p class="rd-field__error"
-   id="setup-name-error">▲ {{ errors.get("name") }}</p>{% endif %}
-    </div>
     <div class="rd-field">
       <label class="rd-field__label" for="setup-email">email</label>
       <span class="rd-input">
@@ -44,12 +29,29 @@
                name="email"
                type="email"
                value="{{ email }}"
+               placeholder="name@example.com"
                autocomplete="username"
                {% if errors.get('email') %}aria-describedby="setup-email-error" aria-invalid="true"{% endif %}
                required>
       </span>
       {% if errors.get("email") %}<p class="rd-field__error"
    id="setup-email-error">▲ {{ errors.get("email") }}</p>{% endif %}
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label" for="setup-name">name</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="setup-name"
+               name="name"
+               type="text"
+               value="{{ name }}"
+               placeholder="Your name"
+               autocomplete="name"
+               {% if errors.get('name') %}aria-describedby="setup-name-error" aria-invalid="true"{% endif %}
+               required>
+      </span>
+      {% if errors.get("name") %}<p class="rd-field__error"
+   id="setup-name-error">▲ {{ errors.get("name") }}</p>{% endif %}
     </div>
     <div class="rd-field">
       <label class="rd-field__label" for="setup-password">password</label>

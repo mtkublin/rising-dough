@@ -34,8 +34,7 @@
                value="{{ email }}"
                autocomplete="username webauthn"
                required
-               autofocus
-               {% if error and not throttled %}aria-describedby="form-alert" aria-invalid="true"{% endif %}>
+               {% if error and not throttled %}aria-describedby="form-alert"{% endif %}>
       </span>
     </div>
     <div class="rd-field">
@@ -47,7 +46,7 @@
                type="password"
                autocomplete="current-password"
                required
-               {% if error and not throttled %}aria-describedby="form-alert" aria-invalid="true"{% endif %}>
+               {% if error and not throttled %}aria-describedby="form-alert"{% endif %}>
       </span>
     </div>
     <button type="submit" class="rd-btn rd-btn--primary rd-btn--block">[ sign in ]</button>
@@ -60,8 +59,10 @@
           data-js="passkey"
           data-passkey-login
           data-next="{{ next_path }}">sign in with a passkey</button>
+  <a class="rd-auth__link" href="#forgot" data-forgot-password>forgot password</a>
   <p class="rd-caption"
      data-passkey-status
+     hidden
      role="status"
      aria-live="polite"></p>
 {% endblock %}
