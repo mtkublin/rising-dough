@@ -94,3 +94,49 @@ In /private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/
 Viewed: 1440 light happened-jpy, typing-after-pick, new-entry-422, repeats-formula-typing, plan-budget, dev-sheet; 1440 dark category-422;
 1024 dark hero-fail; 375 dark hero-fail, category-422, new-entry-422, plan-budget; 375 light override; handoff new-entry--error. The rest were
 checked through the DOM diagnostics.
+
+## Re-audit after fixes (head 1a2cfb16, visual-auditor)
+
+Same scratch DB recipe and method as above (fresh copy, heavy lock taken and released). The full 108-row sweep was re-run, plus focused checks
+at 1440, 1024 and 375 in light and dark (36 focused runs).
+
+### Diagnostics
+
+| Rows | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|
+| all 108 (18 states x 3 widths x 2 themes), including dlg-happened-pln | 0 | 0 | 0 | 0 | 0 |
+
+Step 3b repeated: the new-entry and category 422 error ids are unique and wired, the summary links resolve, and the budget hero still prints
+"−61,701.72" (U+2212, equal to the service value) at every width and theme.
+
+### F1 (hero request aborted on a search pick): fixed
+
+| Check | Result at all six width x theme combinations |
+|---|---|
+| Pick a category with search plus Enter | exactly 1 hero request, 0 console errors, 0 failed requests |
+| Blur the search box afterwards | still 1 request (no second refresh from the native change) |
+| Pick a recent category by click | 1 hero request, hero refreshed |
+| Pick a recent category by keyboard (focus the radio, Space) | 1 hero request, hero refreshed |
+
+### F2 (caret after the hero swap): fixed, one cosmetic note
+
+- Real key presses: click the amount, wait, type "12", hold the refresh (account switched to EUR), release it, then type "34": the value is
+  "1234" at every width and theme; unit EUR; the typed value is never lost.
+- Fresh focus without a refresh in flight (blur to the note, then `focus()` and then a click on the amount): value "1234", selection 0..4, so
+  amount-input's select-all-on-focus still works.
+- Caret flicker (the amount sampled every 10 ms across the swap): the selection is 2..2 before the swap, becomes 0..2 (whole value selected)
+  for about 20 to 30 ms (two or three samples, one to two frames), then returns to 2..2 and stays. A brief select-all highlight may flash once
+  per swap; it never persists and no input is lost. Triaged as cosmetic (low), not blocking.
+
+### Save during an in-flight hero refresh
+
+Refresh held, then [ save ] clicked, at all six combinations: the dialog closes, the transaction is stored (row count 1 for the note, checked
+in the scratch DB), and the console shows `htmx:afterRequest` and `htmx:sendAbort` plus one aborted (net::ERR_ABORTED) refresh request. The
+save succeeded, so this is expected (the save aborts the stale refresh on purpose, app-toast.js `htmx:beforeRequest`) and recorded as such.
+
+### Regression sweep
+
+The other states from the first pass (dev variants standard, confirm, blocked, sheet, invalid, reconcile; UR11b override; UR13 archive; category
+422; new-entry 422; hero fail with the em dash; typing after an account pick; JPY placeholder "0" against "0.00" for PLN and EUR; formula typing;
+budget hero) show 0 on all five diagnostics and unchanged screenshots. Viewed: `re_1440_light_typing.png`, `re_375_dark_typing.png`.
+Focused results are in scratchpad `ur04g/re.json`.
