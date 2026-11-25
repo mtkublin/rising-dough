@@ -37,11 +37,14 @@ from budget_planner.services import (
     transactions as transactions_service,
 )
 from budget_planner.web import ledger_view
+from budget_planner.web.htmx import HX_TRIGGER
+from budget_planner.web.http_headers import HX_PUSH_URL
 from budget_planner.web.ledger_export import export_links
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
 from budget_planner.web.params import query_choice, query_date, query_int
 from budget_planner.web.rendering import render_context
 
+FILTER_FORM_ID: Final = "ledger-filters"
 _PAGE_SIZE_DEFAULT: Final = 50
 _DIRECTIONS: Final = tuple(d.value for d in Direction)
 _SCOPES: Final = ("all", "unpromoted")
@@ -528,6 +531,8 @@ def table_context(
         ),
         "day_nets": day_nets,
         "categories_by_id": cats,
+        "export": export_links(view, filters),
+        "oob_export": True,  # the menu sits outside the swapped region; refresh it with it
     }
 
 
@@ -541,11 +546,14 @@ def render_table_for(
     today: date,
 ) -> HTMLResponse:
     """Render the ledger table fragment for ``view`` (shared by the legacy fragment aliases)."""
-    ctx = table_context(
-        conn, user_id, settings=settings, view=view, filters=parse_filters(request), today=today
-    )
+    filters = parse_filters(request)
+    ctx = table_context(conn, user_id, settings=settings, view=view, filters=filters, today=today)
     template = "fragments/ledger/actual-table.html" if view == "actual" else "ledger/_table.html"
-    return render_context(request, template, ctx)
+    response = render_context(request, template, ctx)
+    if request.headers.get(HX_TRIGGER) == FILTER_FORM_ID:
+        # A filter change keeps the URL in step, so a reload or Back reopens the same filters.
+        response.headers[HX_PUSH_URL] = ledger_view.ledger_url(view, filters)
+    return response
 
 
 def _lookup_keys(

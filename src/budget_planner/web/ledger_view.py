@@ -272,6 +272,11 @@ def category_rules(rows: Sequence[TxnRow]) -> str:
     return "".join(dict.fromkeys(rule for rule in rules if rule))
 
 
+def ledger_url(view: ViewKind, filters: LedgerFilters) -> str:
+    """The canonical page URL of a view under the live filters (what a reload must reopen)."""
+    return "/ledger?" + urlencode([("view", view), *filter_query(filters)])
+
+
 @dataclass(frozen=True, slots=True)
 class PageLinks:
     """Pagination of the Actual view (plain links; page 1 has no newer link)."""

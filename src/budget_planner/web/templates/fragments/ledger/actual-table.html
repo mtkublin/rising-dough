@@ -74,3 +74,6 @@
     {% endif %}
   </div>
 </div>
+{% if oob_export|default(none) and export %}
+  {% include "fragments/ledger/export-menu.html" %}
+{% endif %}

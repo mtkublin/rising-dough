@@ -1,6 +1,9 @@
 {# fragment: ledger/export-menu
-   Inputs: export (ledger_export.ExportLinks, the live filters in both hrefs), view. #}
-<div class="rd-ledger-head__export">
+   Inputs: export (ledger_export.ExportLinks, the live filters in both hrefs), view, oob (table fragments:
+   the menu is outside the swapped region, so the response carries a fresh copy out of band). #}
+<div class="rd-ledger-head__export"
+     id="ledger-export"
+     {% if oob_export|default(none) %}hx-swap-oob="true"{% endif %}>
   <button type="button"
           class="rd-btn"
           aria-haspopup="menu"

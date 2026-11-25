@@ -314,3 +314,33 @@ def test_new_entry_button_opens_the_dialog_in_place(client: TestClient) -> None:
     assert button.get("hx-get") == "/add?when=happened&dialog=1"
     assert button.get("hx-target") == "#modal-root"
     assert button.get("href") == "/transactions/new"  # no script: the shell page opens the dialog
+
+
+def test_filter_response_refreshes_the_export_links_and_pushes_the_url(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    w = _world(db)
+    _txn(db, w["main"], w["food"], 1234, "Milk")
+    params: dict[str, str | int] = {
+        "category_id": w["food"],
+        "q": "milk",
+        "date_from": "2026-11-01",
+    }
+    query = f"date_from=2026-11-01&category_id={w['food']}&q=milk"
+    r = client.get(
+        "/ledger/table",
+        params=params,
+        headers={"HX-Request": "true", "HX-Trigger": "ledger-filters"},
+    )
+    csv = f"/transactions/export?{query}&format=csv"
+    assert ledger.export_hrefs(r.text) == {
+        "export as csv": csv,
+        "export as parquet": f"/transactions/export?{query}&format=parquet",
+    }
+    assert r.headers["HX-Push-Url"] == f"/ledger?view=actual&{query}"
+    # a refetch by ledger-stale keeps the URL as it is
+    stale = client.get("/ledger/table", params=params, headers={"HX-Trigger": "ledger-table"})
+    assert "HX-Push-Url" not in stale.headers
+    # the full page renders the menu once, in place
+    page = client.get("/ledger", params=params)
+    assert ledger.export_hrefs(page.text)["export as csv"] == csv

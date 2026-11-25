@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -107,6 +108,23 @@ def test_filter_survives_ledger_stale_refetch(live_server: tuple[str, Path], pag
         page.evaluate("htmx.trigger(document.body, 'ledger-stale')")
     expect(_rows(page, "actual")).to_have_count(_ROWS_B)
     _assert_no_include_warning(messages)
+
+
+def test_filter_survives_reload_and_updates_export_links(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    _, db_path = live_server
+    _open_filtered(live_server, page, use_alpha=False)
+    beta = str(db_probe.category_id(db_path, "Beta"))
+    expect(page).to_have_url(re.compile(rf"/ledger\?view=actual&category_id={beta}$"))
+    # the export menu follows the filter, not the unfiltered page
+    menu = to_playwright(page, ledger.export_menu)
+    csv = menu.get_by_role("menuitem", name="export as csv", include_hidden=True)
+    expect(csv).to_have_attribute("href", f"/transactions/export?category_id={beta}&format=csv")
+    page.reload()
+    expect(to_playwright(page, ledger.filter_category)).to_have_value(beta)
+    expect(_rows(page, "actual")).to_have_count(_ROWS_B)
+    expect(to_playwright(page, ledger.view_table("actual"))).not_to_contain_text("alpha apple")
 
 
 def test_search_keeps_other_filters(live_server: tuple[str, Path], page: Page) -> None:

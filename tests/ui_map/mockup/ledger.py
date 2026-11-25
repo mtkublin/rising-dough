@@ -38,6 +38,7 @@ NO_HANDOFF_TWIN = frozenset(
         "txn_row_ids",
         "day_heads",
         "chips",
+        "export_hrefs",
         "color_rules",
         "planned_row",
         "recurring_row",
@@ -113,6 +114,10 @@ def day_heads(source: _html.Source) -> list[str]:
 
 def chips(source: _html.Source) -> dict[str, str | None]:
     return _app.chips(source)
+
+
+def export_hrefs(source: _html.Source) -> dict[str, str]:
+    return _app.export_hrefs(source)
 
 
 def color_rules(source: _html.Source) -> str:

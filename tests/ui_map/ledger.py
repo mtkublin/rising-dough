@@ -59,6 +59,15 @@ newer_button = role("link", "newer")
 hero_figure = by_id("ledger-spent")
 
 
+export_menu = by_id("export-menu")
+
+
+def export_hrefs(source: _html.Source) -> dict[str, str]:
+    """Export menu links by label (``export as csv``); the popover is closed, so found by id."""
+    menu = _html.resolve_one(source, by_id("export-menu"))
+    return {a.get_text(strip=True): str(a.get("href")) for a in menu.find_all("a")}
+
+
 def row_cells(tx_id: int) -> Locator:
     """The cells of a transaction row: select, description, category, amount, actions."""
     return role("cell").inside(row(tx_id))
