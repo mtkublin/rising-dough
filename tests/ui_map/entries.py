@@ -60,3 +60,4 @@ promote_submit = role("button", "[ promote ]", exact=True)
 opener = role("region", "New entry", exact=True)  # plain page load: asks /add for the dialog
 credit_line = by_id("credit-line")
 summary = by_id("error-summary")
+hero_refresh = by_id("hero-refresh")  # hidden: carries the hero refresh trigger (T-UR04g)

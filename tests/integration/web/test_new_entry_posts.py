@@ -14,7 +14,6 @@ from collections.abc import Iterator
 from datetime import date
 
 import pytest
-from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -446,8 +445,7 @@ def test_formula_slot_refreshes_the_hero_while_typing_and_never_drops_the_form(
     client: TestClient, ids: dict[str, int]
 ) -> None:
     r = client.get("/add?when=repeats&dialog=1", headers=_HX)
-    refresh = BeautifulSoup(r.text, "html.parser").select_one('[hx-select=".rd-dialog__hero"]')
-    assert isinstance(refresh, Tag)
+    refresh = _html.resolve_one(r.text, entries.hero_refresh)
     trigger = str(refresh.get("hx-trigger"))
     assert "keyup changed delay:400ms from:#formula-slot" in trigger
     assert "change from:#formula-slot" in trigger
