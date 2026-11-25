@@ -151,6 +151,12 @@ def apply_rows(page: str, html: str, rows: Sequence[Row]) -> str:
 
 _TOKEN = re.compile(r"[A-Za-z]|-?\d+(?:\.\d+)?")
 _COMPARED = ALLOWED_ATTRIBUTES | GEOMETRY_ATTRIBUTES
+# Attributes the app adds on purpose where the handoff markup has none, per element selector.
+# derived.md "Deviations", row "`charts/forecast` scroll container": keyboard access for the
+# 375 px sideways scroll. Only these, only on that element; every other mismatch still raises.
+APP_ONLY_ATTRIBUTES: Final[dict[str, frozenset[str]]] = {
+    "div.rd-chart-card__plot": frozenset({"tabindex", "role", "aria-label"}),
+}
 
 
 def same_geometry(old: str, new: str) -> bool:
@@ -184,8 +190,13 @@ def _diff(old: Tag, new: Tag, path: str, page: str, reason: str) -> list[Row]:
     if old.name != new.name or old.get("class") != new.get("class"):
         raise OverlayError(f"{page}: {path}: <{old.name}> differs structurally from <{new.name}>")
     found: list[tuple[str, str, str]] = []
+    derived = frozenset().union(
+        *(attrs for selector, attrs in APP_ONLY_ATTRIBUTES.items() if new.css.match(selector))
+    )
     for name in sorted(_COMPARED & (set(old.attrs) | set(new.attrs))):
         before, after = old.get(name), new.get(name)
+        if name in derived and before is None:
+            continue
         if not isinstance(before, str) or not isinstance(after, str):
             raise OverlayError(f"{page}: {path}: attribute {name!r} is missing on one side")
         if before != after and not (name in GEOMETRY_ATTRIBUTES and same_geometry(before, after)):

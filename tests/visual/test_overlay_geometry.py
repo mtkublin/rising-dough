@@ -19,11 +19,13 @@ from budget_planner.services.forecast import MonthlyProjectionPoint
 from budget_planner.web import chart_geometry
 from budget_planner.web.templating import build_jinja_env
 from tests.visual.overlay import (
+    APP_ONLY_ATTRIBUTES,
     FORECAST_CHART_ROOT,
     FORECAST_PAGE,
     GEOMETRY_ATTRIBUTES,
     GEOMETRY_SOURCES,
     OverlayError,
+    Row,
     apply_rows,
     geometry_rows,
     same_geometry,
@@ -85,7 +87,7 @@ def _flow_html(months: tuple[MonthlyFlow, ...]) -> str:
     )
 
 
-def _forecast_rows(series: tuple[tuple[int, int], ...]) -> tuple:  # type: ignore[type-arg]
+def _forecast_rows(series: tuple[tuple[int, int], ...]) -> tuple[Row, ...]:
     return geometry_rows(
         FORECAST_PAGE,
         FORECAST_HTML,
@@ -177,3 +179,17 @@ def test_flow_rows_follow_changed_amounts() -> None:
     assert {"d", "aria-label"} <= {r.field for r in rows}
     labels = [r.value for r in rows if r.field == "aria-label"]
     assert labels == ["Oct 2026: income 22,341.10 PLN, expense 29,000.00 PLN"]
+
+
+def test_derived_attributes_pass_only_on_the_listed_element() -> None:
+    app = _forecast_html(HANDOFF_SERIES)
+    assert 'role="region"' in app  # the scroll container carries its derived attributes
+    stray = app.replace(
+        '<line class="rd-chart__guide"', '<line aria-label="x" class="rd-chart__guide"', 1
+    )
+
+    with pytest.raises(OverlayError, match="attribute 'aria-label' is missing on one side"):
+        geometry_rows(
+            FORECAST_PAGE, FORECAST_HTML, root=FORECAST_CHART_ROOT, app_html=stray, reason="test"
+        )
+    assert "div.rd-chart-card__plot" in APP_ONLY_ATTRIBUTES
