@@ -52,3 +52,44 @@ Status: FINDINGS (diagnostics are all zero; F1 is a visible overlap and should b
 ## Captures viewed
 
 All in `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/shots/` (`<vp>-<theme>-<state>.png`, 78 files, plus `flow-*.png` for the Step 3b flows). Viewed: 1440 light new-empty, new-error, edit-liability, delete-blocked, reconcile-preview, row-menu; 375 light new-error, reconcile-liability; 375 dark row-menu, delete-confirm; 1024 dark new-filled. The rest were checked through the DOM diagnostics (identical values across states).
+
+## Re-audit 8b90ed5f
+
+Change under audit: fix(UR08b) at `8b90ed5f` (F1: optional `form_id` on `fragments/dialogs/dialog.html`, the new-account `<form>` carries `id=account-form`, wrapper div removed; F4: missing name/currency/actual_balance default to `""`; F2 and F3 recorded as rows in `docs/plans/ui-redesign/derived.md`). Run: Playwright (Chromium) against a fresh scratch copy of `data/demo.sqlite` (EUR, JPY, liability with limit 3,000.00, plus FX cache rows), same capture rules as above (`dialog[open]`, then `getAnimations({subtree:true}).length === 0` + 300 ms).
+
+### Diagnostics
+
+States per viewport and theme: new empty, new filled, new 422, edit asset, edit liability, reconcile asset (shared macro, regression check), 6 x 3 viewports x 2 themes = 36 captures.
+
+| Route | Viewport | Theme | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|---|---|
+| /accounts (6 states) | 1440 | light, dark | false | 0 | 0 | 0 | 0 |
+| /accounts (6 states) | 1024 | light, dark | false | 0 | 0 | 0 | 0 |
+| /accounts (6 states) | 375 | light, dark | false | 0 | 0 | 0 | 0 |
+
+consoleErrors: 0 unexpected. The only entry is Chromium's own `Failed to load resource ... 422` for the deliberately forced 422 (new 422 state), and the `500` line of the forced-500 check below.
+
+### F1 verification (field spacing and 422 layout)
+
+- Measured in every state and viewport: top-level fields in `.rd-dialog__body` are 20 px apart (the `--space-5` flex gap; `row-gap` computes to 20px), `#account-form` is the `<form>` (new) and no wrapper exists in edit and reconcile. No two text leaves inside the fields overlap in any state (overlap list empty), including new 422 at 1440, 1024 and 375, light and dark.
+- 422: `▲ ISO 4217 code required` sits above the hint `currency is fixed after creation` with clear space (1440 and 375 viewed); at 375 the error wraps to two lines and still does not touch the hint.
+- Side by side with the handoff `new-account`, `new-account--filled`, `new-account--error`, `edit-account`, `edit-account--liability`, `reconcile`: field rhythm, error/hint placement, hero band, actions match. Known, declared deviations only: the credit-limit field, the 422 summary box, the hint, no `as of` field (F2, now a derived.md row) and static hero unit (F3, derived.md row).
+- Reconcile asset (shared macro): unchanged spacing and layout, preview prints `+65.44` (equals the service value from the first audit run).
+
+### Step 2: missing name (browser `required` bypassed)
+
+Removed `name` from the submitted form (field absent from the POST, not just empty). Result: dialog stays open with the human summary `1 field needs attention · Name: name required` and the inline `▲ name required`; no JSON, no `detail` text. F4 fixed.
+
+### Step 3: create through the dialog
+
+Form `hx-target`s: all trigger links target `#modal-root` (1 match each), the form targets `#account-form` (1 match). Creating `Revolut EUR` (EUR 1,234.50): the row `account-16` appears in the list with `1,234.50 EUR`, `#modal-root` is empty, no `dialog[open]`, no duplicate ids, 0 request failures. Forced 500 on create: dialog stays open and the toast `Something went wrong on our side. Try again.` shows (nothing looks saved).
+
+### Step 3b
+
+Swap targets exist once, before and after the swap: ok. Failing saves visible (422 summary and field errors, 500 toast): ok. `rg` for `float`, `/ 100`, `* 100`, `{% set` over `dialog-account.html` and `dialog.html`: no match. Money by currency unchanged from the first run (EUR 2 decimals, JPY none). F2/F3 rows present in derived.md.
+
+### Findings
+
+Status: CLEAN. F1 and F4 are fixed; F2 and F3 are accepted deviations recorded in `derived.md`.
+
+Captures viewed (`/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/shots8/`, `<vp>-<theme>-<state>.png`, plus `flow-missing-name.png`, `flow-after-create.png`): 1440 light new-422 (against handoff `hand/1440-new-account--error.png`), 1440 light edit-liability, 1024 light reconcile-asset, 375 dark new-422. The rest were checked through the DOM geometry and diagnostics (identical values across states).
