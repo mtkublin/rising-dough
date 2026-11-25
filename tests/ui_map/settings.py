@@ -118,3 +118,9 @@ def fx_row(pair: str) -> Locator:
 pref_terms = role("term").inside(panel)
 pref_values = role("definition").inside(panel)
 prefs_panel_heading = role("heading", "Workspace", level=2)
+theme_group = role("group", "theme")
+
+
+def theme_option(value: str) -> Locator:
+    """One of the system / light / dark buttons in the Appearance card (T-UR27)."""
+    return role("button", value, exact=True).inside(theme_group)
