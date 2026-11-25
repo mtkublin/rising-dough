@@ -21,7 +21,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, entries, ledger
 
 USER_ID = 1
 
@@ -91,17 +91,19 @@ def test_table_fragment_is_not_full_page(client: TestClient, seeded: dict[str, i
 
 
 def test_new_form_fragment(client: TestClient, seeded: dict[str, int]) -> None:
-    r = client.get("/transactions/new")
+    r = client.get("/transactions/new", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    form = _html.resolve_one(r.text, ledger.form)
+    form = _html.resolve_one(r.text, entries.dialog).find("form")
+    assert form is not None
     assert form.get("hx-post") == "/transactions"
-    for field in (
-        ledger.field_date,
-        ledger.field_category,
-        ledger.field_account,
-        ledger.field_amount,
-    ):
-        assert ledger.controls(r.text, field.inside(ledger.form))
+    date_field = _html.resolve_one(r.text, entries.field_date)
+    account = _html.resolve_one(r.text, entries.field_account)
+    amount = _html.resolve_one(r.text, entries.hero_amount)
+    assert (date_field.get("name"), date_field.get("type")) == ("operation_date", "date")
+    assert account.get("name") == "account_id"
+    assert amount.get("name") == "amount"
+    # The category is picked from the shared picker; its radios post as "category".
+    assert _html.exists(r.text, entries.category_group)
 
 
 def test_create_valid_persists_and_triggers(
@@ -164,11 +166,23 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, seeded: dict
     assert "HX-Refresh" not in r.headers
 
 
-def test_new_form_targets_itself_not_ledger_table(
+def test_new_form_posts_into_the_modal_root_not_the_ledger_table(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
+    r = client.get("/transactions/new", headers={"HX-Request": "true"})
+    form = _html.resolve_one(r.text, entries.dialog).find("form")
+    assert form is not None
+    assert form.get("hx-target") == "#modal-root"
+
+
+def test_new_form_on_a_plain_page_load_opens_the_dialog_through_the_shell(
+    client: TestClient, seeded: dict[str, int]
+) -> None:
+    """The top bar links here: a full load is a shell page that fetches ``/add`` on load."""
     r = client.get("/transactions/new")
-    assert _html.resolve_one(r.text, ledger.form).get("hx-target") == "#txn-form"
+    assert r.status_code == 200
+    opener = _html.resolve_one(r.text, entries.opener)
+    assert (opener.get("hx-get"), opener.get("hx-trigger")) == ("/add?when=happened", "load")
 
 
 def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str, int]) -> None:

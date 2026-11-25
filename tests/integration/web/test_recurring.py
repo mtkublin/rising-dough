@@ -26,7 +26,8 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, errors, ledger
+from tests.ui_map import _html, entries, errors, ledger
+from tests.ui_map.locator import role
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
@@ -88,27 +89,29 @@ def ctx(_migrated: Settings) -> dict[str, int]:
 def test_new_form(client: TestClient) -> None:
     r = client.get("/recurring/new", headers=_HTMX)
     assert r.status_code == 200
-    assert ledger.controls(r.text, ledger.field_cadence)
+    assert _html.exists(r.text, entries.tab_repeats)
+    start = _html.resolve_one(r.text, entries.field_start)
+    assert (start.get("name"), start.get("type")) == ("start_date", "date")
+    assert _html.exists(r.text, entries.cadence_group)
 
 
 def test_new_form_single_term_consistent_indices(client: TestClient, ctx: dict[str, int]) -> None:
     """ADR-0047 regression: inner category loop must not shadow outer term
     loop's `loop.index0`. Single-term new form must emit every checkbox under
-    `terms[0][source_category_ids]`, matching the sign/coefficient fields.
+    `components[0][categories]`, matching the sign/percent fields (the dialog's names; the
+    route reads them as terms, ``recurring_forms.parse_terms_from_form``).
     """
     # ``ctx`` seeds at least one income+expense category so
     # ``_formula_source_candidates`` yields non-empty checkbox markup.
     assert ctx["cat"] > 0
-    r = client.get("/recurring/new")
+    r = client.get("/recurring/new", headers=_HTMX)
     assert r.status_code == 200
     checkbox_indices = {
-        int(m.group(1))
-        for m in re.finditer(
-            r'name="terms\[(\d+)\]\[source_category_ids\]"',
-            r.text,
-        )
+        int(m.group(1)) for m in re.finditer(r'name="components\[(\d+)\]\[categories\]"', r.text)
     }
-    sign_indices = {int(m.group(1)) for m in re.finditer(r'name="terms\[(\d+)\]\[sign\]"', r.text)}
+    sign_indices = {
+        int(m.group(1)) for m in re.finditer(r'name="components\[(\d+)\]\[sign\]"', r.text)
+    }
     # New form seeds a single empty term — both axes must agree on index 0.
     assert checkbox_indices == {0}, checkbox_indices
     assert sign_indices == {0}, sign_indices
@@ -561,16 +564,22 @@ def _get_rule_next_due(_migrated: Settings, rule_id: int) -> date:
 def test_promote_form_renders(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
     assert r.status_code == 200
-    assert _html.exists(r.text, ledger.promote_dialog)
-    form = _html.resolve_one(r.text, ledger.promote).find_parent("form")
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    dialog = _html.resolve_one(r.text, role("dialog", re.compile("^promote ·")))
+    form = dialog.find("form")
     assert form is not None
-    assert form.get("hx-post") == f"/recurring/{ctx['rule']}/promote"
+    assert (form.get("hx-post"), form.get("hx-target")) == (
+        f"/recurring/{ctx['rule']}/promote",
+        "#modal-root",
+    )
+    assert _html.resolve_one(r.text, entries.promote_amount).get("name") == "amount"
+    assert _html.resolve_one(r.text, entries.promote_date).get("name") == "operation_date"
 
 
 def test_promote_form_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/promote")
     assert r.status_code == 404
-    assert "rule: not found" in _html.all_text(r.text, errors.alert)
+    assert r.text == "rule: not found"
 
 
 def test_promote_submit_no_edits(
@@ -605,7 +614,9 @@ def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, in
         data={"amount": "not-a-number"},
     )
     assert r.status_code == 422
-    assert "amount" in _html.text_of(r.text, ledger.form_errors).lower()
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert "Amount" in _html.all_text(r.text, entries.summary)
+    assert _html.resolve_one(r.text, entries.promote_amount).get("value") == "not-a-number"
 
 
 def test_promote_submit_zero_amount_422(
@@ -617,7 +628,7 @@ def test_promote_submit_zero_amount_422(
         data={"amount": "0"},
     )
     assert r.status_code == 422
-    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert "Amount : amount must be positive" in _html.all_text(r.text, entries.summary)
     assert _state(db) == before
 
 
@@ -630,7 +641,7 @@ def test_promote_submit_invalid_date_422(
         data={"operation_date": "not-a-date"},
     )
     assert r.status_code == 422
-    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "Date : invalid date" in _html.all_text(r.text, entries.summary)
     assert _state(db) == before
 
 
@@ -658,7 +669,9 @@ def test_promote_submit_cross_currency_transit_422(client: TestClient, _migrated
         conn.close()
     r = client.post(f"/recurring/{rule_id}/promote", data={})
     assert r.status_code == 422
-    assert "promotion: cross-currency transit not supported" in _html.all_text(r.text, errors.alert)
+    assert "Promotion : cross-currency transit not supported" in _html.all_text(
+        r.text, entries.summary
+    )
     conn = get_connection(_migrated)
     try:
         assert transactions_repo.list_filtered(conn, USER_ID, TransactionFilter()) == []
@@ -1118,9 +1131,11 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[st
     assert "ledger-stale" in r.headers["HX-Trigger"]
 
 
-def test_new_form_targets_itself_not_ledger_table(client: TestClient) -> None:
+def test_new_form_posts_into_the_modal_root_not_the_ledger_table(client: TestClient) -> None:
     r = client.get("/recurring/new", headers=_HTMX)
-    assert _html.resolve_one(r.text, ledger.recurring_form).get("hx-target") == "#recurring-form"
+    form = _html.resolve_one(r.text, entries.dialog).find("form")
+    assert form is not None
+    assert (form.get("hx-post"), form.get("hx-target")) == ("/recurring", "#modal-root")
 
 
 _ON_TODAY = {"HX-Request": "true", "HX-Current-URL": "http://testserver/today"}
@@ -1149,17 +1164,11 @@ def test_update_off_ledger_refreshes_and_on_ledger_does_not(
     assert "HX-Refresh" not in on.headers
 
 
-def test_promote_and_override_forms_target_their_own_panel(
-    client: TestClient, ctx: dict[str, int]
-) -> None:
-    for path, dialog in (
-        (f"/recurring/{ctx['rule']}/promote", ledger.promote_dialog),
-        (f"/recurring/{ctx['rule']}/overrides/new", ledger.override_dialog),
-    ):
-        r = client.get(path, headers=_HTMX)
-        form = ledger.form_in(r.text, dialog)
-        assert form.get("hx-target") == "closest .slide-over-root"
-        assert form.has_attr("data-close-overlay-on-success")
+def test_override_form_targets_its_own_panel(client: TestClient, ctx: dict[str, int]) -> None:
+    r = client.get(f"/recurring/{ctx['rule']}/overrides/new", headers=_HTMX)
+    form = ledger.form_in(r.text, ledger.override_dialog)
+    assert form.get("hx-target") == "closest .slide-over-root"
+    assert form.has_attr("data-close-overlay-on-success")
 
 
 def test_promote_off_ledger_refreshes_and_on_ledger_does_not(

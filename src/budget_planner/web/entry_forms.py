@@ -8,21 +8,28 @@ module only sequences them per form and names the result for the router.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
+from types import MappingProxyType
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
+from budget_planner.domain.money import format_major
+from budget_planner.domain.planned import NewPlannedTransaction, PlannedTransaction
+from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.services import (
     accounts as accounts_service,
     categories as categories_service,
+    planned as planned_service,
     transactions as transactions_service,
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.params import parse_date, parse_int, positive_amount
+from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,3 +268,214 @@ def check_planned_update(
     minor, amount_errors = _amount(amount, acc)
     errors.update(amount_errors)
     return EntryCheck(errors, op_date, minor, submitted, acc, cat)
+
+
+# ---------------------------------------------------------------------------
+# New-entry dialog context (T-UR07b, ADR-0107): one builder for the three tabs.
+# ---------------------------------------------------------------------------
+
+ENTRY_TABS: tuple[str, ...] = ("happened", "planned", "repeats")
+_TAB_ACTIONS = MappingProxyType(
+    {"happened": "/transactions", "planned": "/planned", "repeats": "/recurring"}
+)
+_SIGNS = MappingProxyType({Direction.EXPENSE: "\N{MINUS SIGN}", Direction.INCOME: "+"})
+
+
+def _component_rows(terms: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
+    """Posted or stored formula terms in the shape ``fields/formula`` renders."""
+    rows: list[dict[str, object]] = []
+    for term in terms:
+        ids = term.get("source_category_ids")
+        rows.append(
+            {
+                "sign": "\N{MINUS SIGN}" if term.get("sign") == "-" else "+",
+                "percent": term.get("coefficient_percent", ""),
+                "category_ids": {int(str(i)) for i in ids}
+                if isinstance(ids, tuple | list)
+                else set(),
+            }
+        )
+    return rows
+
+
+def new_entry_context(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    tab: str,
+    today: date,
+    base_currency: str,
+    posted: Mapping[str, str] | None = None,
+    terms: Sequence[Mapping[str, object]] | None = None,
+) -> dict[str, object]:
+    """Everything ``pages/entries/new-entry.html`` renders: defaults or the posted values."""
+    values = posted or {}
+    cats = categories_service.list_all(conn, user_id)
+    accounts = accounts_service.list_all(conn, user_id)
+    picker = categories_service.picker_summary(conn, user_id)
+    account = _picked(accounts, parse_int(values.get("account_id", "")), accounts[:1])
+    return {
+        "tab": tab,
+        "action": _TAB_ACTIONS[tab],
+        "picker": picker,
+        **_category_view(
+            cats, picker, parse_int(values.get("category", values.get("category_id", "")))
+        ),
+        "accounts": accounts,
+        "selected_account_id": account.id if account else None,
+        "currency": account.currency if account else base_currency,
+        "values": values,
+        "today_iso": today.isoformat(),
+        "transit_when": _when("category", [c.id for c in cats if c.direction == Direction.TRANSIT]),
+        "credit_when": _when(
+            "account_id", [a.id for a in accounts if a.is_liability and a.credit_limit_minor]
+        ),
+        "amount_source": values.get("amount_source", "fixed"),
+        "components": _component_rows(terms or [dict(EMPTY_TERM_INPUT)]),
+        "source_categories": formula_source_candidates(conn, user_id),
+        "errors": {},
+    }
+
+
+def _category_view(
+    cats: Sequence[Category], picker: categories_service.CategoryPicker, wanted: int | None
+) -> dict[str, object]:
+    """The chosen category: its id, the hero sign, and its name when it is not a recent radio."""
+    category = _picked(cats, wanted)
+    if category is None:
+        return {"selected_category_id": None, "picked_name": None, "sign": None}
+    recent = {c.id for c in picker.recent}
+    return {
+        "selected_category_id": category.id,
+        "picked_name": None if category.id in recent else category.name,
+        "sign": _SIGNS.get(category.direction),
+    }
+
+
+def _picked[T: (Account, Category)](
+    rows: Sequence[T], wanted: int | None, fallback: Sequence[T] = ()
+) -> T | None:
+    """The row with id ``wanted``, else the first of ``fallback``, else ``None``."""
+    found = [r for r in rows if r.id == wanted] or list(fallback)
+    return found[0] if found else None
+
+
+def _when(name: str, ids: Sequence[int]) -> str:
+    """A ``data-show-when`` condition on ``name`` holding for any of ``ids`` ('' when none)."""
+    return f"{name}=" + "|".join(str(i) for i in ids) if ids else ""
+
+
+def posted_entry(
+    category: int,
+    account_id: int,
+    amount: str,
+    *,
+    operation_date: str,
+    description: str,
+    dest_account_id: str,
+) -> dict[str, str]:
+    """The posted create form as the dialog re-renders it."""
+    return {
+        "category": str(category or ""),
+        "account_id": str(account_id),
+        "amount": amount,
+        "operation_date": operation_date,
+        "description": description,
+        "dest_account_id": dest_account_id,
+    }
+
+
+def check_promote_input(
+    account: Account | None, operation_date: str, amount: str
+) -> tuple[date | None, int | None, dict[str, str]]:
+    """Date, amount (minor units) and field errors of a planned promote post."""
+    op_date = parse_date(operation_date)
+    errors: dict[str, str] = {} if op_date is not None else {"operation_date": "invalid date"}
+    if account is None:
+        return op_date, None, {**errors, "amount": "unknown account currency"}
+    minor, err = positive_amount(amount, account.currency)
+    return op_date, minor, ({**errors, "amount": err} if err else errors)
+
+
+def promote_context(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    action: str,
+    category_id: int,
+    account: Account | None,
+    amount_minor: int,
+    date_value: date,
+    note_value: str,
+    base_currency: str,
+    recurring: bool = False,
+    notes: Sequence[str] = (),
+    posted: Mapping[str, str] | None = None,
+) -> dict[str, object]:
+    """Everything ``pages/entries/promote.html`` renders: stored prefill or posted values."""
+    values = posted or {}
+    cat = categories_service.find_by_id(conn, user_id, category_id, include_deleted=True)
+    currency = account.currency if account else base_currency
+    name = cat.name if cat else ""
+    return {
+        "dialog_id": "promote-dialog",
+        "title": f"promote · {name}" if recurring else f"promote to actual · {name}",
+        "action": action,
+        "currency": currency,
+        "sign": _SIGNS.get(cat.direction) if cat else None,
+        "amount_value": values.get("amount", format_major(amount_minor, currency)),
+        "date_value": values.get("operation_date", date_value.isoformat()),
+        "note_value": values.get("description", note_value),
+        "notes": list(notes),
+        "errors": {},
+    }
+
+
+def category_choice(category_id: str, category: str) -> int:
+    """The posted category id: ``category_id`` or the picker's ``category``; ``0`` when blank."""
+    return parse_int(category_id or category) or 0
+
+
+def pick_category_error(errors: dict[str, str], category: int) -> dict[str, str]:
+    """A blank pick reads "pick a category" instead of "unknown category" (handoff error state)."""
+    if category == 0 and "category_id" in errors:
+        return {**errors, "category_id": "pick a category"}
+    return errors
+
+
+def save_txn(
+    conn: sqlite3.Connection, user_id: int, check: EntryCheck, description: str
+) -> Transaction:
+    """Create the transaction a valid create check describes."""
+    op_date, minor = check.valid_values()
+    return transactions_service.create(
+        conn,
+        user_id,
+        NewTransaction(
+            operation_date=op_date,
+            category_id=require_present(check.category, "validated category").id,
+            account_id=require_present(check.account, "validated account").id,
+            amount=minor,
+            description=description,
+            dest_account_id=check.dest_id,
+        ),
+    )
+
+
+def save_planned(
+    conn: sqlite3.Connection, user_id: int, check: EntryCheck, description: str
+) -> PlannedTransaction:
+    """Create the planned transaction a valid create check describes."""
+    op_date, minor = check.valid_values()
+    return planned_service.create(
+        conn,
+        user_id,
+        NewPlannedTransaction(
+            operation_date=op_date,
+            category_id=require_present(check.category, "validated category").id,
+            account_id=require_present(check.account, "validated account").id,
+            amount=minor,
+            description=description,
+            dest_account_id=check.dest_id,
+        ),
+    )

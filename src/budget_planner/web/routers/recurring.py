@@ -34,7 +34,7 @@ def new_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
     return views.render_new_form(request, conn, user_id)
 
 
@@ -300,9 +300,10 @@ def promote_submit(
         return Response(status_code=404, content="not found")
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     parsed = forms.parse_promote_input(operation_date, amount, account)
+    posted = {"amount": amount, "operation_date": operation_date, "description": description}
     if parsed.errors:
         return views.render_promote_modal(
-            request, conn, user_id, rule_id, fx, errors=parsed.errors, status_code=422
+            request, conn, user_id, rule_id, fx, errors=parsed.errors, posted=posted
         )
     edits = recurring_svc.PromotionEdits(
         operation_date=parsed.operation_date,
@@ -326,7 +327,7 @@ def promote_submit(
             rule_id,
             fx,
             errors={"promotion": str(exc)},
-            status_code=422,
+            posted=posted,
         )
     return views.stale_response(
         request, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE

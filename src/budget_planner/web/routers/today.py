@@ -7,7 +7,6 @@ at the canonical URL ``/today``. ``/`` redirects here (ADR-0077).
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -23,13 +22,12 @@ from budget_planner.services import (
     today as today_service,
 )
 from budget_planner.services.recurring_formula import FormulaFx
-from budget_planner.web import today_data, view_models
+from budget_planner.web import entry_forms, form_responses, today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, get_settings_dep
 from budget_planner.web.http_headers import HX_RESWAP, HX_RETARGET
 from budget_planner.web.params import query_choice
 from budget_planner.web.paths import GET_HEAD_METHODS
-from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["today"])
@@ -162,38 +160,13 @@ def afford(
     )
 
 
-# F-04 — Unified Add entry overlay. Hosts the Happened / Planned / Repeats
-# segmented control; each tab reuses the existing /transactions, /planned,
-# /recurring form partials so submit paths stay unchanged.
-_ADD_TAB_FORMS: tuple[tuple[str, str, str, str], ...] = (
-    ("happened", "partials/transactions/_form.html", "/transactions", "txn"),
-    ("planned", "partials/planned/_form.html", "/planned", "planned"),
-    ("repeats", "partials/recurring/_form.html", "/recurring", "rule"),
-)
-
-
 @router.get("/add", response_class=HTMLResponse)
 def add_entry_overlay(
     request: Request,
     when: str = "happened",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """Return the unified Add entry overlay (F-04)."""
-    picked = query_choice("when", when, tuple(row[0] for row in _ADD_TAB_FORMS)) or "happened"
-    tab = next(row for row in _ADD_TAB_FORMS if row[0] == picked)
-    active_tab, form_include, action, entity_name = tab
-    ctx: dict[str, Any] = {
-        "active_tab": active_tab,
-        "form_include": form_include,
-        "action": action,
-        "categories": categories_service.list_all(conn, user_id),
-        "accounts": accounts_service.list_all(conn, user_id),
-        "errors": {},
-        entity_name: None,
-    }
-    if active_tab == "repeats":
-        ctx["source_categories"] = formula_source_candidates(conn, user_id)
-        ctx["amount_source"] = "fixed"
-        ctx["terms"] = [dict(EMPTY_TERM_INPUT)]
-    return render(request, "partials/_add_entry_overlay.html", **ctx)
+) -> Response:
+    """The new-entry dialog (happened / planned / repeats tab, T-UR07b)."""
+    tab = query_choice("when", when, entry_forms.ENTRY_TABS) or "happened"
+    return form_responses.open_new_entry(request, conn, user_id, tab=tab)

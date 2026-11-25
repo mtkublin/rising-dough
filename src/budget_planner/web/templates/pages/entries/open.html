@@ -1,0 +1,17 @@
+{# pages/entries/open.html: a plain page load of a new-entry route (top bar link, share link, no script).
+   The shell hosts the dialog in #modal-root, so the page asks the dialog route for it on load.
+   Context: tab (happened | planned | repeats). #}
+{% extends "layouts/base.html" %}
+{% block title %}New entry · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-panel-section"
+           aria-label="New entry"
+           hx-get="/add?when={{ tab }}"
+           hx-trigger="load"
+           hx-target="#modal-root"
+           hx-swap="innerHTML">
+    <p class="rd-caption">
+      <a class="rd-link" href="/today">← back to today</a>
+    </p>
+  </section>
+{% endblock %}

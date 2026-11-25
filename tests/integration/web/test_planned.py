@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import sqlite3
 from collections.abc import Iterator
 from datetime import date
@@ -23,7 +24,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, errors, ledger
+from tests.ui_map import _html, entries, errors, ledger
+from tests.ui_map.locator import role
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
@@ -86,7 +88,9 @@ def test_table_fragment(client: TestClient, ctx: dict[str, int]) -> None:
 def test_new_form(client: TestClient) -> None:
     r = client.get("/planned/new", headers=_HTMX)
     assert r.status_code == 200
-    assert ledger.controls(r.text, ledger.field_date.inside(ledger.planned_form))
+    assert _html.exists(r.text, entries.tab_planned)
+    due = _html.resolve_one(r.text, entries.field_due)
+    assert (due.get("name"), due.get("type")) == ("operation_date", "date")
 
 
 def test_create(client: TestClient, ctx: dict[str, int]) -> None:
@@ -240,7 +244,7 @@ def test_promote_form(client: TestClient, ctx: dict[str, int]) -> None:
 def test_promote_form_404(client: TestClient) -> None:
     r = client.get("/planned/9999/promote")
     assert r.status_code == 404
-    assert "planned: not found" in _html.all_text(r.text, errors.alert)
+    assert r.text == "planned: not found"
 
 
 def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
@@ -263,8 +267,10 @@ def test_promote_submit_invalid(
         data={"operation_date": "bad", "amount": "-1"},
     )
     assert r.status_code == 422
-    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
-    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    summary = _html.all_text(r.text, entries.summary)
+    assert "Date : invalid date" in summary
+    assert "Amount : amount must be positive" in summary
     assert _planned_state(db) == before
     assert _txn_count(db) == txns
 
@@ -352,9 +358,11 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[st
     assert "ledger-stale" in r.headers["HX-Trigger"]
 
 
-def test_new_form_targets_itself_not_planned_table(client: TestClient) -> None:
+def test_new_form_posts_into_the_modal_root_not_the_planned_table(client: TestClient) -> None:
     r = client.get("/planned/new", headers=_HTMX)
-    assert _html.resolve_one(r.text, ledger.planned_form).get("hx-target") == "#planned-form"
+    form = _html.resolve_one(r.text, entries.dialog).find("form")
+    assert form is not None
+    assert (form.get("hx-post"), form.get("hx-target")) == ("/planned", "#modal-root")
 
 
 _ON_TODAY = {"HX-Request": "true", "HX-Current-URL": "http://testserver/today"}
@@ -393,15 +401,24 @@ def test_update_invalid_amount_rerenders_form_in_place(
     assert _html.exists(r.text, ledger.planned_form)
 
 
-def test_promote_modal_is_slide_over_that_closes_on_success(
+def test_promote_dialog_prefills_the_planned_values(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
     r = client.get(f"/planned/{ctx['pl']}/promote", headers=_HTMX)
-    assert _html.exists(r.text, ledger.slideover)
-    form = _html.resolve_one(r.text, ledger.promote).find_parent("form")
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    dialog = _html.resolve_one(r.text, role("dialog", re.compile("^promote to actual")))
+    form = dialog.find("form")
     assert form is not None
-    assert form.get("hx-target") == "closest .slide-over-root"
-    assert form.has_attr("data-close-overlay-on-success")
+    assert (form.get("hx-post"), form.get("hx-target")) == (
+        f"/planned/{ctx['pl']}/promote",
+        "#modal-root",
+    )
+    amount = _html.resolve_one(r.text, entries.promote_amount)
+    date_field = _html.resolve_one(r.text, entries.promote_date)
+    note = _html.resolve_one(r.text, entries.promote_note)
+    assert (amount.get("name"), amount.get("value")) == ("amount", "500.00")
+    assert (date_field.get("name"), date_field.get("value")) == ("operation_date", "2026-10-15")
+    assert (note.get("name"), note.get("value")) == ("description", "rent")
 
 
 def test_promote_off_ledger_refreshes_page(client: TestClient, ctx: dict[str, int]) -> None:

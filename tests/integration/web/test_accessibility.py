@@ -17,8 +17,8 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
-from tests.ui_map import _html, shell
-from tests.ui_map.locator import role
+from tests.ui_map import _html, entries, shell
+from tests.ui_map.locator import by_id, role
 
 _TAB = role("tab")
 
@@ -204,17 +204,14 @@ def test_settings_drawer_is_dialog(client: TestClient) -> None:
     assert drawer.get("tabindex") == "-1"
 
 
-def test_slideover_is_dialog(client: TestClient) -> None:
-    """T-071: FAB-launched slide-over form carries dialog aria + data-slideover."""
+def test_new_entry_is_a_labelled_modal_dialog(client: TestClient) -> None:
+    """T-071, T-UR07b: the new-entry dialog is a modal dialog named by its heading."""
     r = client.get("/transactions/new", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    frag = BeautifulSoup(r.text, "html.parser")
-    overlays = [d for d in _html.resolve(frag, shell.dialog) if d.has_attr("data-slideover")]
-    assert len(overlays) == 1
-    overlay = overlays[0]
-    assert overlay.get("role") == "dialog"
-    assert overlay.get("aria-modal") == "true"
-    assert overlay.get("aria-labelledby"), "slide-over missing aria-labelledby"
+    dialog = _html.resolve_one(r.text, entries.dialog)
+    assert dialog.get("data-js") == "modal"
+    assert dialog.get("aria-labelledby") == "new-entry-dialog-title"
+    assert _html.text_of(r.text, by_id("new-entry-dialog-title")) == "new entry"
 
 
 def test_ledger_segmented_marks_active_view(client: TestClient) -> None:

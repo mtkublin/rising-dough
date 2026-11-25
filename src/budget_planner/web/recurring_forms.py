@@ -44,7 +44,16 @@ EMPTY_TERM_INPUT: Mapping[str, object] = MappingProxyType(
     }
 )
 
-_TERM_FIELD_RE = re.compile(r"^terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]$")
+# The dialog's formula fragment posts the handoff names (the vendored formula.js re-indexes only
+# those): components[i][sign|percent|categories], U+2212 for a subtracted component.
+_TERM_FIELD_RE = re.compile(
+    r"^(?:terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]"
+    r"|components\[(\d+)\]\[(sign|percent|categories)\])$"
+)
+_COMPONENT_FIELDS = MappingProxyType(
+    {"sign": "sign", "percent": "coefficient_percent", "categories": "source_category_ids"}
+)
+_MINUS = "\N{MINUS SIGN}"
 _CADENCES: Mapping[str, Cadence] = MappingProxyType({c.value: c for c in Cadence})
 _DEST = "dest_account_id"
 
@@ -74,13 +83,13 @@ def parse_terms_from_form(form: FormData) -> list[TermInput]:
         m = _TERM_FIELD_RE.match(key)
         if m is None:
             continue
-        idx = int(m.group(1))
-        field = m.group(2)
+        idx = int(m.group(1) or m.group(3))
+        field = m.group(2) or _COMPONENT_FIELDS[m.group(4)]
         ids.setdefault(idx, [])
         if field == "source_category_ids":
             ids[idx].append(str(raw))
         elif field == "sign":
-            signs[idx] = str(raw)
+            signs[idx] = "-" if str(raw) == _MINUS else str(raw)
         else:
             percents[idx] = str(raw)
     return [
@@ -258,7 +267,7 @@ def read_rule_fields(form: FormData) -> RuleFields:
         cadence=text("cadence"),
         start_date=text("start_date"),
         end_date=text("end_date"),
-        category_id=text("category_id"),
+        category_id=text("category_id") or text("category"),
         account_id=text("account_id"),
         dest_account_id=text("dest_account_id"),
         default_amount=text("default_amount"),
