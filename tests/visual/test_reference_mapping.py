@@ -298,8 +298,8 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
         conn.close()
     assert (refs.transactions, refs.planned, refs.recurring) == (33, 2, 8)
     expected = (
-        f"{refs.transactions} transactions and {refs.planned} planned items "
-        f"and {refs.recurring} recurring rules."
+        f"{refs.transactions} transactions and {refs.planned + refs.recurring} "
+        "planned or recurring items."
     )
     assert expected in text
 
@@ -502,6 +502,7 @@ def test_post_state_recipes_type_what_the_handoff_shows() -> None:
         "pages/overlays/add-user--error.html",
         "pages/overlays/invite-user--error.html",
         "pages/overlays/one-time-password.html",
+        "pages/overlays/new-account.html",
         "pages/overlays/new-account--filled.html",
         "pages/overlays/new-account--error.html",
         "pages/overlays/new-category--filled.html",
@@ -555,7 +556,10 @@ _STATES = {
 def test_state_overlays_are_mapped_with_their_base_pages() -> None:
     assert {p.split("/")[-1][:-5] for p in STATE_PAGES} == set(_STATES) == set(STATE_SOURCE)
     assert not {n for n in STATE_SOURCE if f"pages/overlays/{n}.html" in OPENER_PAGES}
-    assert set(STATE_RECIPES) == set(STATE_SOURCE) - {"override--remove"}
+    # edit-account--liability is a recipe on the routed edit dialog (no source of its own)
+    assert set(STATE_RECIPES) == (set(STATE_SOURCE) - {"override--remove"}) | {
+        "edit-account--liability"
+    }
     for stem in ("edit-recurring--empty", "edit-recurring--incomplete", "edit-recurring--picking"):
         page = f"pages/overlays/{stem}.html"
         assert route_for(page) == "/ledger?view=recurring"

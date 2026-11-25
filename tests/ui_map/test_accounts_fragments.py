@@ -67,6 +67,7 @@ def _card(acc: Account, balance: int, **kw: object) -> dict[str, object]:
         "snapshots": [
             AccountSnapshot(id=1, account_id=acc.id, taken_at=_NOW, balance=370_244, note="")
         ],
+        "checked_at": _NOW,
         "planned": AccountPlanned(
             account_id=acc.id, currency="PLN", net_minor=-28_925, projected_minor=-274_499
         ),
@@ -122,6 +123,7 @@ def test_row_view_holds_exact_values() -> None:
 def test_account_without_snapshot_reads_never_and_zero_planned_hides_the_note() -> None:
     card = _card(_account(is_liability=False, credit_limit_minor=None, type="bank"), 12_345)
     card["snapshots"] = []
+    card["checked_at"] = None
     card["planned"] = AccountPlanned(account_id=9, currency="PLN", net_minor=0, projected_minor=0)
     row = account_row(card)
     assert (row.checked, row.after_text, row.credit, row.subtitle) == ("never", None, None, "bank")

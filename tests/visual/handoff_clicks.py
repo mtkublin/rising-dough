@@ -97,7 +97,7 @@ CLICK_RECIPES: Final[dict[str, Recipe]] = {
     "period-picker--year": _period_picker,
     "row-menu--upcoming": _row_menu,
     "row-menu--budget": _row_menu_keyboard,
-    "row-menu--account": _row_menu,
+    "row-menu--account": _row_menu_keyboard,
     "row-menu--planned": _row_menu,
     "row-menu--recurring": _row_menu,
     "row-menu--transaction": _row_menu,
