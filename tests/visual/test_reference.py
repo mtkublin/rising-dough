@@ -30,6 +30,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.visual import handoff
 from tests.visual.conftest import serve_db
+from tests.visual.handoff_clicks import click_recipe
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.handoff_seed import build_seed
 
@@ -67,18 +68,14 @@ OVERLAY_DIALOGS: dict[str, str] = {
 # Overlay pages whose dialog the app opens from a dialog route (id-bound ones resolved from
 # the seed): `handoff_openers.OPENERS`; the test loads the overlay's base page and fetches it
 # into #modal-root.
-# Overlay pages with no way to open their dialog yet (row menus, palette and pickers, POST
-# error states, settings/users dialogs, formula editor states): compared against their plain
+# Overlay pages with no way to open their state yet (the year-cell inline editor, POST
+# error states, settings/users dialogs, formula editor states); click and key states are
+# `handoff_clicks.CLICK_RECIPES`: compared against their plain
 # base page.
 UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
         "add-user--error",
         "add-user",
-        "category-picker--no-match",
-        "category-picker",
-        "command-palette--filtered",
-        "command-palette--no-match",
-        "command-palette",
         "delete-account--blocked-planned",
         "delete-account",
         "delete-user",
@@ -100,17 +97,8 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "one-time-password",
         "override--remove",
         "override--year-cell",
-        "period-picker--year",
-        "period-picker",
         "reset-password",
         "revoke-invite",
-        "row-menu--account",
-        "row-menu--budget",
-        "row-menu--planned",
-        "row-menu--recurring",
-        "row-menu--transaction",
-        "row-menu--upcoming",
-        "shortcuts",
     }
 )
 OPENER_PAGES: frozenset[str] = frozenset(f"pages/overlays/{n}.html" for n in OPENERS)
@@ -298,6 +286,8 @@ def _compare_app(
                 opener,
             )
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
+        elif (recipe := click_recipe(handoff_page)) is not None:
+            recipe(pg)  # client-side overlay: the click or key a user makes (handoff_clicks)
         pg.add_style_tag(content=handoff.FREEZE_CSS)
         pg.evaluate("document.fonts.ready.then(() => undefined)")
         with tempfile.TemporaryDirectory() as tmp:

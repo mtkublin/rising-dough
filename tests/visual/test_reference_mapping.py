@@ -17,6 +17,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.web.app import create_app
 from budget_planner.web.auth_cookies import session_cookie_name
 from tests.visual import handoff, handoff_seed
+from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.test_reference import (
     OPENER_PAGES,
@@ -28,6 +29,8 @@ from tests.visual.test_reference import (
     route_for,
 )
 
+CLICK_PAGES = {f"pages/overlays/{n}.html" for n in CLICK_RECIPES}
+
 
 def test_recurring_reference_uses_board_modifier() -> None:
     assert modifiers_for("pages/ledger/recurring.html") == ("recurring-board",)
@@ -38,17 +41,30 @@ def test_recurring_reference_uses_board_modifier() -> None:
 
 def test_every_overlay_page_is_mapped_or_listed_unmapped() -> None:
     overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
-    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES
+    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES
     unmapped = {f"pages/overlays/{n}.html" for n in UNMAPPED_OVERLAYS}
     assert mapped | unmapped == overlays
     assert not mapped & unmapped
     assert not set(OVERLAY_DIALOGS) & OPENER_PAGES
+    assert not CLICK_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES)
     for page in overlays:
         assert base_page_of(page).startswith("pages/")
         assert handoff.surface_of(base_page_of(page)) != "overlays"
         assert route_for(page) == route_for(base_page_of(page))
     for url in OVERLAY_DIALOGS.values():
         assert url.startswith("/add?when=")
+
+
+def test_click_recipes_name_handoff_overlays_and_leave_the_unmapped_set() -> None:
+    overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
+    assert overlays >= CLICK_PAGES
+    assert not {n for n in CLICK_RECIPES if n in UNMAPPED_OVERLAYS}
+    for name in UNMAPPED_OVERLAYS:
+        assert click_recipe(f"pages/overlays/{name}.html") is None
+    assert click_recipe("pages/overlays/shortcuts.html") is CLICK_RECIPES["shortcuts"]
+    assert click_recipe("pages/today.html") is None
+    # The year-cell inline editor does not exist in the app: it stays unmapped.
+    assert "override--year-cell" in UNMAPPED_OVERLAYS
 
 
 # Overlay page -> (route of its own base page, seed modifiers), derived from the handoff file.
