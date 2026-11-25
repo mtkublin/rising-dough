@@ -11,8 +11,9 @@ HTMX contract (``fragments/dialogs/*``, ``fragments/rows/user-row``):
   ``.../reset-password``, ``.../delete``); delete shows the blocked variant when a service
   guard (own account, last admin) would refuse.
 - Edit swaps the saved row and flashes success; delete removes the row and flashes.
-- Add (``GET .../new``, then ``POST``; a 422 re-opens the add dialog with the field errors) and reset answer with the one-time password
-  dialog and the refreshed table out of band. The response is ``no-store``.
+- Add (``GET .../new``, then ``POST``; a 422 re-opens the add dialog with the field errors) and
+  reset answer with the one-time password dialog and the refreshed table out of band. The
+  response is ``no-store``.
 - 422 (invalid / duplicate email, or an edit that changes the email) re-renders the dialog
   with the field summary. 409 (last admin, self-demotion, self-removal) is a flash with
   ``HX-Reswap: none`` and closes the dialog.
