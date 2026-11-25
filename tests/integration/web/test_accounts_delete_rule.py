@@ -38,8 +38,8 @@ def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def _account(db: sqlite3.Connection, name: str, **kw: object) -> int:
-    return accounts_repo.create(db, USER_ID, NewAccount(name=name, currency="PLN", **kw)).id  # type: ignore[arg-type]  # test helper forwards NewAccount kwargs
+def _account(db: sqlite3.Connection, name: str) -> int:
+    return accounts_repo.create(db, USER_ID, NewAccount(name=name, currency="PLN")).id
 
 
 def _expense_category(db: sqlite3.Connection) -> int:
