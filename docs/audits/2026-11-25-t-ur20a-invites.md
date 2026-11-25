@@ -46,3 +46,23 @@ Result: ok.
 - F3 (note): the invite link base is the configured public base URL (`http://localhost:8000/...` on the scratch run); it is not derived from the request host.
 
 No blocking findings.
+
+## Re-audit after F1 (head 5bcbb492)
+
+F1 fix verified: the 404/409 flashes on `/settings/users` (invite routes and the existing users routes) now render through `fragments/flash/error.html` into `#flash-region-assertive`. Own server on port 8791, scratch copy of `data/demo.sqlite` (migrated; admin set with `set-password`); never `data/budget.sqlite`. Forced via real `htmx.ajax` calls from the loaded page (stale revoked invite revoked from a second page; unknown ids; self-delete; self-demote). Screenshots: `/tmp/fe-audit-ur20a/re/<width>__<state>.png`; viewed `1440__409-resend.png`, `375__users-409-demote-self.png`, `375__create-dialog.png`, `1024__invite-unknown.png`.
+
+| State (route `/settings/users`) | Result at 1440 / 1024 / 375 |
+|---|---|
+| resend revoked invite -> 409 | `rd-flash rd-flash--error`, "▲ This invite was already used or revoked. Create a new one.", Dismiss (x) button; below the header, inside the page container (x 80/24/16, widths 1280/976/343) |
+| revoke revoked invite -> 409 | same text and styling |
+| resend / revoke unknown id -> 404 | `rd-flash rd-flash--error`, "▲ Invite not found" |
+| delete self -> 409 | styled, "▲ You can't remove your own account. Ask another admin." |
+| demote last admin (self) -> 409 | styled, "▲ Can't remove admin rights from the last admin. Promote another user first." |
+| delete unknown user -> 404 | styled, "▲ User not found" |
+| Dismiss click | flash removed (0 left) |
+
+Diagnostics for the audited states (users page before, create dialog, link dialog, six error flashes, after, invite landing AU08 with a real link, AU09 invalid link): horizontalScroll=0, overflowingElements=0 (at 375 only the pre-existing contained `a.rd-tabs__tab` strip, F2, same as before, document does not scroll), duplicateIds=0, consoleErrors=0 apart from Chromium's automatic `Failed to load resource 404/409` lines for the deliberately failing requests (no JS error, no pageerror), requestFailures=0. `#flash-region-assertive` exists exactly once in every state; legacy `.flash.flash-error` count 0.
+
+Step 3b: failing saves visible (409/404 above, styled, dismissible); no template changes since the first audit; swap targets unchanged. Regression glance: create-invite dialog and the link dialog render as before; AU08 (invite landing, caption "invited by admin@local.test", form) and AU09 (invalid link alert) unchanged at 1440/1024/375.
+
+F1: resolved. No new findings.
