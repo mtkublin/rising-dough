@@ -6,7 +6,7 @@ light and dark. The images are the target the redesigned templates are compared
 against; ``just visual-reference`` regenerates them, ``just test-visual
 --reference=handoff <surface>`` compares.
 
-Stdlib-only PNG diff (no Pillow dependency; a stack change needs an ADR).
+PNG decode via Pillow (dev-only dependency, ADR-0153); the diff itself is stdlib.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from PIL import Image
 from playwright.sync_api import Browser, sync_playwright
 
 from tests.visual.overlay import overlay_handler
@@ -169,63 +170,13 @@ def generate(only_surface: str | None = None, shard: str | None = None) -> int:
     return count
 
 
-def _add_bytes(x: bytes, y: bytes) -> bytes:
-    """Bytewise ``(x + y) mod 256`` of two equal-length byte strings (SWAR over big ints)."""
-    n = len(x)
-    low = int.from_bytes(b"\x7f" * n, "little")
-    xi, yi = int.from_bytes(x, "little"), int.from_bytes(y, "little")
-    total = ((xi & low) + (yi & low)) ^ ((xi ^ yi) & ~low & ((1 << (8 * n)) - 1))
-    return total.to_bytes(n, "little")
-
-
 def _decode(path: Path) -> tuple[int, int, int, bytes]:
-    """Minimal PNG decoder: 8-bit, non-interlaced. Returns width, height, channels, raw rows."""
-    data = path.read_bytes()
-    pos, idat, width, height, channels = 8, b"", 0, 0, 0
-    while pos < len(data):
-        length, kind = struct.unpack(">I4s", data[pos : pos + 8])
-        body = data[pos + 8 : pos + 8 + length]
-        if kind == b"IHDR":
-            width, height, depth, ctype, _, _, interlace = struct.unpack(">IIBBBBB", body)
-            if depth != 8 or interlace or ctype not in (2, 6):
-                raise ValueError(f"unsupported PNG layout in {path}")
-            channels = 3 if ctype == 2 else 4
-        elif kind == b"IDAT":
-            idat += body
-        pos += 12 + length
-    raw = zlib.decompress(idat)
-    stride = width * channels
-    out = bytearray()
-    prev = bytearray(stride)
-    for row in range(height):
-        base = row * (stride + 1)
-        ftype, line = raw[base], bytearray(raw[base + 1 : base + 1 + stride])
-        if ftype == 0:
-            out += line
-            prev = line
-            continue
-        if ftype == 2:
-            line = bytearray(_add_bytes(bytes(line), bytes(prev)))
-            out += line
-            prev = line
-            continue
-        for i in range(stride):
-            a = line[i - channels] if i >= channels else 0
-            b = prev[i]
-            c = prev[i - channels] if i >= channels else 0
-            if ftype == 1:
-                line[i] = (line[i] + a) & 255
-            elif ftype == 2:
-                line[i] = (line[i] + b) & 255
-            elif ftype == 3:
-                line[i] = (line[i] + ((a + b) >> 1)) & 255
-            elif ftype == 4:
-                pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
-                pred = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
-                line[i] = (line[i] + pred) & 255
-        out += line
-        prev = line
-    return width, height, channels, bytes(out)
+    """Decode an 8-bit RGB or RGBA PNG. Returns width, height, channels, raw interleaved bytes."""
+    with Image.open(path) as image:
+        if image.mode not in ("RGB", "RGBA") or image.info.get("interlace"):
+            raise ValueError(f"unsupported PNG layout in {path}")
+        channels = 3 if image.mode == "RGB" else 4
+        return image.width, image.height, channels, image.tobytes()
 
 
 def diff_ratio(expected: Path, actual: Path) -> float:
