@@ -2,10 +2,13 @@
    Inputs: preview (services.limit_preview.LimitPreview or none).
    The wrapper stays in the page and refetches the line from /transactions/_limit_preview whenever the
    form changes; the server answers this same fragment (outerHTML swap), so the line is always the
-   service value (ADR-0024). Within the limit: an aria-live line; over it: a role=alert line. #}
+   service value (ADR-0024). Within the limit: an aria-live line; over it: a role=alert line.
+   With no preview the wrapper is hidden, so it takes no gap of the dialog's flex column (handoff
+   edit-transaction--transit has no line); the swapped-in answer is visible again. #}
 <div id="credit-line"
+     {% if not preview|default(none) %}hidden{% endif %}
      hx-get="/transactions/_limit_preview"
-     hx-trigger="change from:closest form, keyup changed delay:400ms from:#field-amount"
+     hx-trigger="change from:closest form, keyup delay:400ms from:#field-amount"
      hx-include="closest form"
      hx-target="#credit-line"
      hx-swap="outerHTML">

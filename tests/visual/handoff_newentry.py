@@ -48,9 +48,11 @@ def _error(page: Page) -> None:
     _open(page, "happened")
     page.select_option("#modal-root select[name=account_id]", label="Credit Card")
     page.fill("#modal-root [data-js='amount-input']", "0.00")
+    page.fill("#modal-root input[name=description]", "Takeaway")  # the handoff's note
     page.click(f"{_DIALOG} button[type=submit]")
     page.wait_for_selector("#modal-root .rd-field__error", timeout=_TIMEOUT_MS)
     # The dialog focuses the amount and selects it; the user's next key (End) puts the caret back.
+    page.wait_for_timeout(150)  # amount-input.js selects a frame after focus
     page.press("#modal-root [data-js='amount-input']", "End")
 
 
@@ -64,6 +66,7 @@ def _over_limit(page: Page) -> None:
     page.select_option("#modal-root select[name=account_id]", label="Credit Card")
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)  # the hero refresh settles first
     page.click("#modal-root [data-js='amount-input']")  # back into the amount, caret at its end
+    page.wait_for_timeout(150)  # amount-input.js selects a frame after focus
     page.press("#modal-root [data-js='amount-input']", "End")
     # The form's change event (a field losing focus) refreshes the preview with all three values;
     # an earlier hero refresh can swallow it, so it is sent again until the line shows.
@@ -100,6 +103,55 @@ NEWENTRY_RECIPES: Final[dict[str, Recipe]] = {
     "pages/overlays/new-entry--over-limit.html": _over_limit,
     "pages/overlays/new-entry--repeats-formula.html": _repeats_formula,
 }
+
+
+def _typed(page: Page, *, due: str = "", day: str = "") -> None:
+    """The dialog as the handoff shows it once worked on: 35.50 on Credit Card, Takeaway, a note.
+
+    Amount first (each pick refreshes the hero), then category, account, the extra field of the
+    tab and the note; the user ends in the amount.
+    """
+    amount = "#modal-root [data-js='amount-input']"
+    page.fill(amount, "35.50")
+    page.locator("#modal-root .rd-chip-option", has_text="Takeaway").click()
+    page.select_option("#modal-root select[name=account_id]", label="Credit Card")
+    page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
+    if due:
+        page.fill("#modal-root input[name=operation_date]", due)
+    if day:
+        page.fill("#modal-root input[name=day_of_month]", day)
+    page.fill("#modal-root input[name$='description']", "Takeaway")
+    page.click(amount)
+    page.wait_for_timeout(150)  # amount-input.js selects a frame after focus
+    page.press(amount, "End")
+    page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
+
+
+def typed_happened(page: Page) -> None:
+    _typed(page)
+    page.locator("#modal-root .rd-credit-line").wait_for(timeout=_TIMEOUT_MS)
+
+
+def _typed_planned(page: Page) -> None:
+    _typed(page, due="2026-11-15")
+
+
+def _typed_repeats(page: Page) -> None:
+    _typed(page, day="31")
+
+
+# Dialog pages the harness opens from their route (``OVERLAY_DIALOGS``): the typed state follows.
+DIALOG_RECIPES: Final[dict[str, Recipe]] = {
+    "pages/overlays/new-entry--happened.html": typed_happened,
+    "pages/overlays/new-entry--phone-sheet.html": typed_happened,
+    "pages/overlays/new-entry--planned.html": _typed_planned,
+    "pages/overlays/new-entry--repeats-fixed.html": _typed_repeats,
+}
+
+
+def dialog_recipe(page: str) -> Recipe | None:
+    """What the user types into a dialog the harness opened from its route, None when nothing."""
+    return DIALOG_RECIPES.get(page)
 
 
 def newentry_recipe(page: str) -> Recipe | None:

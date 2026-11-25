@@ -207,6 +207,21 @@ def picker_summary(
     )
 
 
+def lead_with_selected(picker: CategoryPicker, selected: Category | None) -> CategoryPicker:
+    """The picker whose recent chips lead with the selected category (handoff edit dialogs).
+
+    The chosen category is the first chip, checked, followed by the other recent ones; the row
+    keeps :data:`RECENT_CATEGORY_LIMIT` chips. Nothing selected: the picker as it is.
+    """
+    if selected is None:
+        return picker
+    others = [c for c in picker.recent if c.id != selected.id]
+    recent = (selected, *others[: RECENT_CATEGORY_LIMIT - 1])
+    return CategoryPicker(
+        recent=recent, searchable=picker.searchable, total_count=picker.total_count
+    )
+
+
 def _last_ordinal(usage: CategoryUsage) -> int:
     return usage.last_used.toordinal() if usage.last_used is not None else 0
 
@@ -351,6 +366,7 @@ __all__ = [
     "expense_category_ids",
     "find_by_id",
     "find_by_name",
+    "lead_with_selected",
     "list_all",
     "list_recently_deleted",
     "picker_summary",

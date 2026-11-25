@@ -89,6 +89,12 @@ def test_new_transaction_dialog_posts_the_amount_preview_from_the_form(
     assert line.get("hx-get") == "/transactions/_limit_preview"
     assert line.get("hx-target") == "#credit-line"
     assert line.get("hx-include") == "closest form"
+    # Every keystroke of the amount refetches: `changed` would watch the wrapper's own (absent)
+    # value and let only the first keyup through. The id it listens to is the hero input's.
+    trigger = str(line.get("hx-trigger"))
+    assert "keyup delay:400ms from:#field-amount" in trigger
+    assert "changed" not in trigger
+    assert _html.resolve_one(r.text, entries.hero_amount).get("id") == "field-amount"
 
 
 def test_limit_preview_side_effect_returns_the_credit_line(

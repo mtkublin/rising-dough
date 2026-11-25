@@ -370,7 +370,6 @@ def new_entry_context(
     return {
         "tab": tab,
         "action": TAB_ACTIONS[tab],
-        "picker": picker,
         **category_view,
         "hero": hero,
         "accounts": accounts,
@@ -456,7 +455,7 @@ def _stored_values(
     return {
         "category": str(txn.category_id),
         "account_id": str(txn.account_id),
-        "amount": format_major(txn.amount, currency),
+        "amount": format_major(txn.amount, currency, grouped=True),
         "operation_date": txn.operation_date.isoformat(),
         "description": txn.description,
         "dest_account_id": str(txn.dest_account_id or ""),
@@ -512,7 +511,7 @@ def _typed_amount(raw: str, currency: str) -> str:
     Text that is not a non-negative amount of the currency stays as typed, so a 422 echoes it.
     """
     minor = parse_amount_minor(raw, currency)
-    return raw if minor is None or minor < 0 else format_figure(minor, currency)
+    return raw if minor is None or minor < 0 else format_major(minor, currency, grouped=True)
 
 
 def _hero(
@@ -591,15 +590,20 @@ def draft_hero(
 def _category_view(
     cats: Sequence[Category], picker: categories_service.CategoryPicker, wanted: int | None
 ) -> dict[str, object]:
-    """The chosen category: its id, the hero sign, and its name when it is not a recent radio."""
+    """The chosen category: its id, the hero sign and the picker whose first chip it is.
+
+    The handoff edit dialogs lead the recent chips with the selected category (checked), so
+    the search button never carries a picked name on first render (``combobox.js`` sets it when
+    the user picks from the list).
+    """
     category = _picked(cats, wanted)
     if category is None:
-        return {"selected_category_id": None, "picked_name": None, "sign": None}
-    recent = {c.id for c in picker.recent}
+        return {"selected_category_id": None, "picked_name": None, "sign": None, "picker": picker}
     return {
         "selected_category_id": category.id,
-        "picked_name": None if category.id in recent else category.name,
+        "picked_name": None,
         "sign": _direction_sign(category.direction),
+        "picker": categories_service.lead_with_selected(picker, category),
     }
 
 
@@ -674,7 +678,7 @@ def promote_context(
         "action": action,
         "currency": currency,
         "sign": _direction_sign(cat.direction) if cat else None,
-        "amount_value": values.get("amount", format_major(amount_minor, currency)),
+        "amount_value": values.get("amount", format_major(amount_minor, currency, grouped=True)),
         "date_value": values.get("operation_date", date_value.isoformat()),
         "note_value": values.get("description", note_value),
         "notes": list(notes),

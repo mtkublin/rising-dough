@@ -115,6 +115,25 @@ def test_picker_never_recommends_reconciliation(conn: sqlite3.Connection, acc: i
     assert recon.id not in [x.id for x in categories_svc.picker_summary(conn, USER_ID).recent]
 
 
+def test_lead_with_selected_puts_the_chosen_category_first_and_keeps_four_chips(
+    conn: sqlite3.Connection, acc: int
+) -> None:
+    ids = [_cat(conn, n) for n in ("A", "B", "C", "D", "E")]
+    for day, cid in enumerate(ids, start=1):
+        _txn(conn, cid, acc, date(2026, 10, day))
+    picker = categories_svc.picker_summary(conn, USER_ID)
+    assert [x.id for x in picker.recent] == [ids[4], ids[3], ids[2], ids[1]]
+    by_id = {c.id: c for c in picker.searchable}
+
+    outside = categories_svc.lead_with_selected(picker, by_id[ids[0]])
+    assert [x.id for x in outside.recent] == [ids[0], ids[4], ids[3], ids[2]]
+    inside = categories_svc.lead_with_selected(picker, by_id[ids[2]])
+    assert [x.id for x in inside.recent] == [ids[2], ids[4], ids[3], ids[1]]
+    assert outside.total_count == picker.total_count
+    assert outside.searchable == picker.searchable
+    assert categories_svc.lead_with_selected(picker, None) is picker
+
+
 def _planned(conn: sqlite3.Connection, cat: int, acc: int, user_id: int = USER_ID) -> int:
     return planned_repo.create(
         conn,

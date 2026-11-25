@@ -143,10 +143,9 @@ def test_bad_amount_marks_the_hero_and_keeps_the_picked_category(
     assert r.status_code == 422
     hero = _html.resolve_one(r.text, entries.hero_amount)
     assert (hero.get("aria-invalid"), hero.get("value")) == ("true", "0.00")  # as the handoff
-    # Groceries has no entry yet (not a recent radio): the picker carries it as the chosen one.
-    chosen = _html.resolve_one(r.text, entries.category_chosen)
-    assert chosen.get("value") == str(ids["groc"])
-    assert _html.text_of(r.text, entries.category_search) == "Groceries"
+    # Groceries has no entry yet: the recent chips lead with it, checked (derived.md, F6).
+    chosen = _html.resolve_one(r.text, role("radio", "Groceries"))
+    assert (chosen.get("value"), chosen.has_attr("checked")) == (str(ids["groc"]), True)
 
 
 def test_planned_posted_with_the_picker_category_is_stored(

@@ -30,7 +30,7 @@
        hx-target="#modal-root .rd-dialog__hero"
        hx-select=".rd-dialog__hero"
        hx-swap="outerHTML"></div>
-  {% with field_id="catpick-new-entry", selected_id=selected_category_id, picked_name=picked_name, error=errors.category_id|default(none), anchor_id="field-category_id" %}
+  {% with field_id="catpick-new-entry", new_category_url="/categories/new", selected_id=selected_category_id, picked_name=picked_name, error=errors.category_id|default(none), anchor_id="field-category_id" %}
     {% include "fragments/fields/category-picker.html" %}
   {% endwith %}
   <div class="rd-fields-row">
