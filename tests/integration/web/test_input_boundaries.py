@@ -43,7 +43,6 @@ def test_bad_query_is_422_with_message(client: TestClient, url: str) -> None:
 @pytest.mark.parametrize(
     "url",
     [
-        "/forecast?horizon_months=100000",
         "/ledger?page_size=1000000",
         "/ledger?page=-1",
     ],

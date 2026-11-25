@@ -40,10 +40,7 @@ VIEWPORTS: Final = {
     "1024": _Viewport(width=1024, height=768),
     "375": _Viewport(width=375, height=812),
 }
-ROUTES: Final = {
-    "budget": "/budget",
-    "forecast": "/forecast",
-}
+ROUTES: Final[dict[str, str]] = {}  # T-UR15a: /budget and /forecast now redirect to /plan
 FONT_HOSTS: Final = ("**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**")
 
 # Kill transitions/animations/carets so a screenshot never lands mid-motion.

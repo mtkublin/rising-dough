@@ -226,25 +226,6 @@ def month_name(month: int) -> str:
     return MONTH_LONG[month - 1]
 
 
-def period_label(year: int, month: int) -> str:
-    """``YYYY-MM`` label for a budget month."""
-    return f"{year}-{month:02d}"
-
-
-@dataclass(frozen=True, slots=True)
-class MonthOption:
-    """One ``<option>`` of the month selector."""
-
-    number: int
-    label: str
-    is_selected: bool
-
-
-def month_options(selected: int) -> tuple[MonthOption, ...]:
-    """The twelve month options with ``selected`` flagged."""
-    return tuple(MonthOption(n, f"{n:02d}", n == selected) for n in range(1, 13))
-
-
 @dataclass(frozen=True, slots=True)
 class BudgetLineView:
     """One category row: service line plus the values the table prints."""

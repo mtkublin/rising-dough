@@ -1,11 +1,17 @@
 {# Plan · forecast (T-UR12, ADR-0107). Handoff: pages/plan/forecast.html.
    Context: forecast (view_models.ForecastPageView), tab, base_ccy. Rendered by GET /plan?tab=forecast.
    The horizon buttons reload #main (hx-select) and push the URL, so the hero, chart and table stay
-   in step with the horizon. #}
+   in step with the horizon; the hero refetches the page on forecast-stale (ADR-0143). #}
 {% extends "layouts/base.html" %}
 {% block title %}Plan · forecast · Rising Dough{% endblock %}
 {% block main %}
-  <section class="rd-hero" aria-labelledby="hero-label">
+  <section class="rd-hero"
+           aria-labelledby="hero-label"
+           hx-get="/plan?tab=forecast&amp;horizon={{ forecast.horizon }}"
+           hx-trigger="forecast-stale from:body"
+           hx-target="#main"
+           hx-select="#main"
+           hx-swap="outerHTML">
     <div class="rd-hero__body">
       <h1 class="rd-hero__label" id="hero-label">{{ forecast.hero_label }}</h1>
       <p class="rd-hero__figure-row">
@@ -50,6 +56,7 @@
            role="region"
            aria-label="Table (scrolls sideways)">
         <table class="rd-ledger rd-ledger--forecast">
+          <caption class="u-visually-hidden">Projected balance by month</caption>
           <thead>
             <tr class="rd-row rd-row--head">
               <th scope="col">MONTH</th>

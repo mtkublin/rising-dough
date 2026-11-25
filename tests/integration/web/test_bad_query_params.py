@@ -26,8 +26,6 @@ BAD_CASES: tuple[tuple[str, str, str], ...] = (
     ("/budget/yearly", "year", "abc"),
     ("/budget/rules/1/overrides/new", "month", "13"),
     ("/budget/rules/1/overrides/new", "year", "abc"),
-    ("/forecast", "horizon_months", "abc"),
-    ("/forecast/view", "horizon_months", "abc"),
     ("/ledger", "date_from", "2026-02-30"),
     ("/ledger", "date_to", "tomorrow"),
     ("/ledger", "account_id", "x"),

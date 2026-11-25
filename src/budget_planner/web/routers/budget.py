@@ -19,15 +19,13 @@ from __future__ import annotations
 import sqlite3
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride, valid_month
 from budget_planner.services import (
-    budget as budget_service,
     budget_overrides as budget_overrides_service,
-    budget_rules,
     categories as categories_service,
     preferences as preferences_svc,
 )
@@ -36,16 +34,15 @@ from budget_planner.web import (
     override_dialogs,
     override_forms,
     plan_data,
+    plan_redirects,
     plan_year_view,
-    view_models,
 )
 from budget_planner.web.budget_forms import non_negative_amount
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.dialogs import dialog_response
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
-from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month, query_int
-from budget_planner.web.rendering import render
+from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, query_int
 
 router = APIRouter(prefix="/budget", tags=["budget"])
 
@@ -55,32 +52,10 @@ router = APIRouter(prefix="/budget", tags=["budget"])
 # ---------------------------------------------------------------------------
 
 
-@router.get("/yearly", response_class=HTMLResponse)
-def yearly_fragment(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """HTMX fragment for the Yearly grid (ADR-0031 §3).
-
-    Returns just the ``#budget-yearly`` section so year switching does not
-    force a full-page reload.
-    """
-    q = request.query_params
-    today = clock.today_local(settings)
-    year, _ = parse_year_month(q.get("year"), None, (today.year, 1))
-    yearly = budget_service.yearly_grid(
-        conn, user_id, year, display_timezone=settings.display_timezone
-    )
-    return render(
-        request,
-        "budget/_yearly.html",
-        year=year,
-        yearly=yearly,
-        month_labels=view_models.MONTH_SHORT,
-        base_ccy=settings.base_currency,
-    )
+@router.get("/yearly")
+def yearly_fragment(request: Request) -> RedirectResponse:
+    """The old yearly fragment is retired: the year tab of the Plan hub replaces it (T-UR15a)."""
+    return plan_redirects.to_plan(request, "year", {"year": "year"})
 
 
 @router.get("/rules/{category_id}/overrides/new", response_class=HTMLResponse)
@@ -147,42 +122,10 @@ def create_override(
     return override_dialogs.save(request, conn, user_id, shown, form)
 
 
-@router.get("", response_class=HTMLResponse)
-def index(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    q = request.query_params
-    # Default landing month = fiscal cycle (ADR-0064); overridable via query.
-    fiscal = budget_service.fiscal_month_for(conn, user_id, today_for(request))
-    year, month = parse_year_month(q.get("year"), q.get("month"), fiscal)
-    today = clock.today_local(settings)
-    summary = budget_service.month_summary(
-        conn,
-        user_id,
-        year,
-        month,
-        today=today,
-        base_currency=settings.base_currency,
-        display_timezone=settings.display_timezone,
-    )
-    return render(
-        request,
-        "budget/index.html",
-        year=year,
-        month=month,
-        budget=view_models.budget_view(summary, today),
-        period_label=view_models.period_label(year, month),
-        month_options=view_models.month_options(month),
-        rules=budget_rules.rules_rows(conn, user_id),
-        yearly=budget_service.yearly_grid(
-            conn, user_id, year, display_timezone=settings.display_timezone
-        ),
-        month_labels=view_models.MONTH_SHORT,
-        base_ccy=settings.base_currency,
-    )
+@router.get("")
+def index(request: Request) -> RedirectResponse:
+    """The old Budget page is retired: the budget tab of the Plan hub replaces it (T-UR15a)."""
+    return plan_redirects.to_plan(request, "budget", {"year": "year", "month": "month"})
 
 
 @router.post("/defaults/{category_id}")

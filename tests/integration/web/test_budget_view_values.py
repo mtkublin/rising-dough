@@ -28,7 +28,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import budget as budget_service
 from budget_planner.web import view_models
-from tests.ui_map import _html, plan, plan_budget, today as today_ui
+from tests.ui_map import _html, plan_budget, today as today_ui
 
 USER_ID = 1
 BUDGET_MINOR = 100_000
@@ -141,13 +141,6 @@ def test_plan_budget_tab_shows_view_model_values(
     assert cells[3] == f"left {_money_num(client, BUDGET_MINOR - SPENT_MINOR)}"
     bar = _html.resolve_one(html, plan_budget.bar("Groceries"))
     assert bar["aria-label"] == "25 percent spent, 75 percent left"
-
-
-def test_budget_page_row_bar_uses_view_percent(client: TestClient, world: None) -> None:
-    html = client.get("/budget").text
-
-    bar = _html.resolve_one(html, plan.remainder_bar)
-    assert bar.get("aria-valuenow") == "25"
 
 
 def test_budget_view_percent_clamps_and_flags_over() -> None:
