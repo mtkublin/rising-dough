@@ -163,22 +163,11 @@ def _theme_chosen(page: Page) -> None:
     page.click(f"[data-theme-value='{'dark' if dark else 'light'}']")
 
 
-def _search_cleared(page: Page) -> None:
-    """The no-matches board with the search box emptied after the search ran (as the handoff shows).
-
-    The route carries the ``q`` filter, so the summary names it. The handoff file shows the field
-    empty beside that summary, a state no request produces (typing triggers a new search). Only
-    the field's value is reset, with no input event, so the card stays as the app rendered it.
-    """
-    page.eval_on_selector("#f-q", "el => { el.value = ''; }")
-
-
 # Handoff page -> recipe run after the page's route is loaded.
 RECIPES: Final[dict[str, Recipe]] = {
     "pages/errors/409.html": _conflict,
     "pages/errors/500.html": _server_error,
     "pages/errors/offline.html": _offline,
-    "pages/ledger/actual--no-matches.html": _search_cleared,
     "pages/today--flash.html": _flash,
     "pages/today--loading.html": _loading,
     "pages/auth/register--error.html": _setup_invalid,

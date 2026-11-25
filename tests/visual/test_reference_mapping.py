@@ -372,7 +372,6 @@ _STATE_PAGES = {
     "pages/auth/force-password--error.html": "/settings/password",
     "pages/settings/security--error.html": "/settings/security",
     "pages/settings/preferences.html": "/settings?tab=prefs",
-    "pages/ledger/actual--no-matches.html": LEDGER_BOARD + "&q=pizza",
 }
 
 
@@ -395,7 +394,6 @@ def test_state_recipes_name_handoff_pages_reached_by_a_request() -> None:
         "pages/auth/force-password--error.html",
         "pages/settings/security--error.html",
         "pages/settings/preferences.html",
-        "pages/ledger/actual--no-matches.html",
     }
     assert set(RECIPES) <= set(_STATE_PAGES)
     assert not set(RECIPES) & set(FORM_SUBMITS)
