@@ -1,0 +1,18 @@
+{# pages/entries/promote.html: promote a planned item or the next recurring occurrence (T-UR07b, ADR-0107;
+   handoff overlays/promote--planned.html, promote--recurring.html). One dialog, two posts.
+   Context: dialog_id, title, action, currency, sign, amount_value, date_value, note_value, notes (list of
+   status lines: override applied, last occurrence), errors, field_count/field_errors (422). The fields keep the
+   existing names (operation_date, amount, description). #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% from "fragments/fields/field.html" import text_field %}
+{% call dialog(dialog_id, title, action=action, hx_post=action, hero={"currency": currency, "amount_value": amount_value, "sign": sign, "amount_id": "field-amount", "error": errors.amount|default(none)}, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ promote ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  {% for note in notes|default([]) %}<p class="rd-field__hint rd-field__hint--solo"
+   role="status">{{ note }}</p>{% endfor %}
+  {% if errors.promotion|default(none) %}<p class="rd-field__error"
+   id="field-promotion"
+   role="alert">▲ {{ errors.promotion }}</p>{% endif %}
+  <div class="rd-fields-row">
+    {{ text_field("operation_date", "date", date_value, type="date", error=errors.operation_date|default(""), required=true) }}
+    {{ text_field("description", "note", note_value, error=errors.description|default("")) }}
+  </div>
+{% endcall %}

@@ -23,6 +23,14 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.dialogs import dialog_response, invalid_dialog_response
+from budget_planner.web.entry_forms import promote_context
+from budget_planner.web.form_responses import (
+    PROMOTE_TEMPLATE,
+    from_dialog,
+    new_entry_errors,
+    open_new_entry,
+)
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_int
 from budget_planner.web.paths import LEDGER_PATH
@@ -38,9 +46,9 @@ from budget_planner.web.recurring_forms import (
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 _FORM_TEMPLATE = "partials/recurring/_form.html"
-_PROMOTE_MODAL = "partials/recurring/_promote_modal.html"
 _OVERRIDE_FORM = "partials/recurring/_override_form.html"
 CREATE_ACTION = "/recurring"
+_LEGACY_PROMOTE = "partials/recurring/_promote_modal.html"
 _ROW = "partials/recurring/_row.html"
 _PROMOTE_INLINE_ROW = "partials/recurring/_promote_inline_row.html"
 
@@ -114,6 +122,60 @@ def override_on_next_due(
     return None
 
 
+def _promote_prefill(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    override: RecurringOverride | None,
+    fx: FormulaFx,
+) -> tuple[date, int, str]:
+    """Date, amount and note the promote dialog opens with: the rule's, or the override's."""
+    amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=fx)
+    if override is None:
+        return rule.next_due, amount, rule.default_description
+    return (
+        override.date_override or rule.next_due,
+        amount if override.amount_override is None else override.amount_override,
+        rule.default_description
+        if override.description_override is None
+        else override.description_override,
+    )
+
+
+def _promote_notes(rule: RecurringRule, override: RecurringOverride | None) -> list[str]:
+    """Status lines above the promote fields (override applied, last occurrence)."""
+    notes = []
+    if override is not None and override.state.value == "overridden":
+        notes.append("Override applied for this occurrence.")
+    if rule.end_date and rule.next_due == rule.end_date:
+        notes.append("Last occurrence: the rule deactivates after promote.")
+    return notes
+
+
+def _legacy_promote(
+    request: Request,
+    *,
+    rule: RecurringRule,
+    account: Account | None,
+    override: RecurringOverride | None,
+    prefill: tuple[date, int, str],
+    errors: dict[str, str] | None,
+) -> Response:
+    """The old shell's promote slide-over (ledger) until T-UR09 / T-UR10."""
+    return render(
+        request,
+        _LEGACY_PROMOTE,
+        rule=rule,
+        account=account,
+        override=override,
+        prefill_date=prefill[0],
+        prefill_amount_minor=prefill[1],
+        prefill_description=prefill[2],
+        errors=errors or {},
+        status_code=422 if errors else 200,
+    )
+
+
 def render_promote_modal(
     request: Request,
     conn: sqlite3.Connection,
@@ -121,47 +183,42 @@ def render_promote_modal(
     rule_id: int,
     fx: FormulaFx,
     *,
+    as_dialog: bool | None = None,
     errors: dict[str, str] | None = None,
-    status_code: int = 200,
+    posted: Mapping[str, str] | None = None,
 ) -> Response:
+    """The promote dialog for a rule's next occurrence: prefill (200) or posted values (422).
+
+    The old shell (ledger) still gets its slide-over until T-UR09 / T-UR10 (``as_dialog`` false);
+    ``None`` follows the post (``from_dialog``).
+    """
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return render(
-            request,
-            _PROMOTE_MODAL,
-            rule=None,
-            account=None,
-            override=None,
-            prefill_date=None,
-            prefill_amount_minor=None,
-            prefill_description="",
-            errors={"rule": "not found"},
-            status_code=404,
-        )
+        return Response(status_code=404, content="rule: not found")
     override = override_on_next_due(conn, user_id, rule_id, rule.next_due)
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    prefill_date = rule.next_due
-    prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=fx)
-    prefill_description = rule.default_description
-    if override is not None:
-        if override.date_override is not None:
-            prefill_date = override.date_override
-        if override.amount_override is not None:
-            prefill_amount = override.amount_override
-        if override.description_override is not None:
-            prefill_description = override.description_override
-    return render(
-        request,
-        _PROMOTE_MODAL,
-        rule=rule,
+    prefill = _promote_prefill(conn, user_id, rule, override, fx)
+    if not (from_dialog(request) if as_dialog is None else as_dialog):
+        return _legacy_promote(
+            request, rule=rule, account=account, override=override, prefill=prefill, errors=errors
+        )
+    context = promote_context(
+        conn,
+        user_id,
+        action=f"{CREATE_ACTION}/{rule.id}/promote",
+        category_id=rule.category_id,
         account=account,
-        override=override,
-        prefill_date=prefill_date,
-        prefill_amount_minor=prefill_amount,
-        prefill_description=prefill_description,
-        errors=errors or {},
-        status_code=status_code,
+        amount_minor=prefill[1],
+        date_value=prefill[0],
+        note_value=prefill[2],
+        base_currency=request.app.state.settings.base_currency,
+        recurring=True,
+        notes=_promote_notes(rule, override),
+        posted=posted,
     )
+    if errors:
+        return invalid_dialog_response(request, PROMOTE_TEMPLATE, context, errors)
+    return dialog_response(request, PROMOTE_TEMPLATE, context)
 
 
 def render_rule_form_errors(
@@ -175,6 +232,27 @@ def render_rule_form_errors(
     errors: Mapping[str, str],
 ) -> Response:
     """Re-render the rule form (422) with the posted terms and the per-field errors."""
+    if rule is None and from_dialog(request):
+        return new_entry_errors(
+            request,
+            conn,
+            user_id,
+            tab="repeats",
+            posted={
+                "category": fields.category_id,
+                "account_id": fields.account_id,
+                "dest_account_id": fields.dest_account_id,
+                "default_amount": fields.default_amount,
+                "start_date": fields.start_date,
+                "end_date": fields.end_date,
+                "day_of_month": fields.day_of_month,
+                "cadence": fields.cadence,
+                "amount_source": fields.amount_source,
+                "default_description": fields.default_description,
+            },
+            errors=errors,
+            terms=fields.form_terms,
+        )
     return render_form_errors(
         request,
         conn,
@@ -187,22 +265,9 @@ def render_rule_form_errors(
     )
 
 
-def render_new_form(request: Request, conn: sqlite3.Connection, user_id: int) -> HTMLResponse:
-    """Slide-over wrapper for FAB launches (T-069)."""
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="New recurring rule",
-        form_include=_FORM_TEMPLATE,
-        rule=None,
-        action=CREATE_ACTION,
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        source_categories=formula_source_candidates(conn, user_id),
-        amount_source="fixed",
-        terms=[dict(EMPTY_TERM_INPUT)],
-        errors={},
-    )
+def render_new_form(request: Request, conn: sqlite3.Connection, user_id: int) -> Response:
+    """The new-entry dialog on the repeats tab (T-UR07b)."""
+    return open_new_entry(request, conn, user_id, tab="repeats")
 
 
 def render_edit_form(

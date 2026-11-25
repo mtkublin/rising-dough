@@ -86,7 +86,7 @@ def _fill_amount_and_save(
     to_playwright(page, ledger.save.inside(panel_scope)).click()
 
 
-@pytest.mark.skip(reason="T-UR07b: override dialog not ported to the new shell")
+@pytest.mark.skip(reason="T-UR10: override dialog not ported to the new shell")
 def test_today_override_recurring_saves_and_closes(
     live_server: tuple[str, Path], page: Page
 ) -> None:
@@ -103,7 +103,7 @@ def test_today_override_recurring_saves_and_closes(
     expect(to_playwright(page, ledger.table_container)).to_contain_text("77.00")
 
 
-@pytest.mark.skip(reason="T-UR07b: override dialog not ported to the new shell")
+@pytest.mark.skip(reason="T-UR10: override dialog not ported to the new shell")
 def test_today_override_planned_saves_and_closes(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _planned(base_url, page, _seed(base_url, db_path, page))

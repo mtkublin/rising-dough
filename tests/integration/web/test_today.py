@@ -85,6 +85,41 @@ def test_today_upcoming_row_tint_overdue_due_future(
     assert "rd-upcoming__row--due" not in classes["future"]
 
 
+def test_today_upcoming_row_prints_the_account_currency(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """A planned item on an EUR account is printed in EUR, one on a PLN account in PLN."""
+    conn = get_connection(_migrated)
+    try:
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
+        due = clock.today_local(_migrated) + timedelta(days=1)
+        rows = {}
+        for name, ccy, minor in (("Euro bill", "EUR", 2550), ("Zloty bill", "PLN", 4000)):
+            acc = accounts_repo.create(conn, USER_ID, NewAccount(name=name, currency=ccy))
+            rows[name] = planned_repo.create(
+                conn,
+                USER_ID,
+                NewPlannedTransaction(
+                    operation_date=due,
+                    category_id=cat.id,
+                    account_id=acc.id,
+                    amount=minor,
+                    description=name,
+                ),
+            ).id
+    finally:
+        conn.close()
+
+    r = client.get("/today/upcoming")
+    euro = _html.text_of(r.text, today.upcoming_planned(rows["Euro bill"]))
+    zloty = _html.text_of(r.text, today.upcoming_planned(rows["Zloty bill"]))
+    assert "\N{MINUS SIGN}25.50 EUR" in euro
+    assert "PLN" not in euro
+    assert "\N{MINUS SIGN}40.00 PLN" in zloty
+
+
 def test_afford_endpoint_zero_and_blank_are_invalid(client: TestClient) -> None:
     for amount in ("0", ""):
         r = client.get("/today/afford", params={"amount": amount})
