@@ -34,38 +34,45 @@ archive_confirm = role("button", "archive", exact=True).inside(archive_dialog)
 modal_root = by_id("modal-root")
 section_headings = role("heading", level=2)  # Expense, Income, System group titles
 
-# --- security page ---
+# --- security page (T-UR14: handoff pages/settings/security, security--error) ---
 password_form = by_id("password-form")
-current_password = label("Current password", exact=True)
-new_password = label("New password", exact=True)
-confirm_password = label("Confirm new password", exact=True)
+current_password = label("current password", exact=True)
+new_password = label("new password", exact=True)
+confirm_password = label("confirm new password", exact=True)
 change_password_button = role("button", "Change password")
 save_and_continue = role("button", "Save and continue")
 sign_out_instead = role("button", "Sign out instead")
 password_summary = by_id("pw-summary")
 forced_banner = role("note", "Your password needs rotating")
-passkeys = by_id("passkeys")
-sessions = by_id("sessions")
+passkeys = role("region", "Passkeys", exact=True)
+sessions = role("region", "Active sessions", exact=True)
 session_signout = role("button", "Sign out")
-passkey_label = label("Label")
+passkey_label = label("label")
 add_passkey = role("button", "Add passkey")
 
-# --- users admin ---
+# --- users admin (T-UR14: handoff pages/settings/users and the edit-user, delete-user overlays) ---
 users_table = by_id("users-table")
 new_password_toast = by_id("new-password-toast")
 new_password_value = by_id("new-password-value")
-edit_form = by_id("user-edit-form")
-user_email = label("Email", exact=True)
-user_name = label("Name", exact=True)
-user_is_admin = label("Admin")
-create_user = role("button", "Create user")
-add_errors = role("alert")
+edit_form = role("dialog", "edit user")
+edit_save = role("button", "save").inside(edit_form)
+reset_dialog = role("alertdialog", "reset")
+reset_confirm = role("button", "reset password").inside(reset_dialog)
+delete_confirm = role("button", "delete user").inside(role("alertdialog", "delete"))
+one_time_dialog = role("dialog", "one-time password")
+one_time_done = role("button", "done").inside(one_time_dialog)
+user_email = label("email", exact=True)
+user_name = label("name", exact=True)
+user_is_admin = label("admin", exact=True)
+delete_dialog = role("alertdialog", "delete")
+delete_blocked = role("alertdialog", "can't delete")
+add_errors = by_id("error-summary")
 flash_success = role("status")
 flash_error = role("alert")
 
 
 def password_error(field_name: str) -> Locator:
-    return by_id(f"pw-{field_name}-error")
+    return by_id(f"{field_name.replace('_', '-')}-error")
 
 
 def tab(name: str) -> Locator:
@@ -89,11 +96,20 @@ def user_row(user_id: int) -> Locator:
 
 
 def remove_user(name: str) -> Locator:
-    return role("button", f"Remove {name}")
+    return role("menuitem", "delete user").inside(role("row", name))
 
 
 def reset_user(name: str) -> Locator:
-    return role("button", f"Reset password for {name}")
+    return role("menuitem", "reset password").inside(role("row", name))
+
+
+def user_menu(name: str) -> Locator:
+    """The row-menu button of a user row (not on your own row)."""
+    return role("button", "Row menu").inside(role("row", name))
+
+
+def edit_user_item(name: str) -> Locator:
+    return role("menuitem", "edit user").inside(role("row", name))
 
 
 def passkey_remove(name: str) -> Locator:

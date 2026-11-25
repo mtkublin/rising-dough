@@ -14,6 +14,7 @@ from budget_planner.repositories import sessions as sessions_repo, webauthn as w
 from budget_planner.repositories.sessions import session_handle
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
 from tests.auth_support import issue_session, seed_login_user
+from tests.ui_map import _html, settings as ui
 
 pytestmark = pytest.mark.integration
 
@@ -54,9 +55,11 @@ def test_sessions_page_lists_own_sessions_by_handle(
         assert raw not in html
     assert "This device" in html
     assert html.count("This device") == 1
-    assert "Expires" in html
+    assert "EXPIRES" in html
     # The page renders expiry in the display timezone (ADR-0007), so derive it the same way.
-    expected = (clock.now_in(settings.display_timezone) + timedelta(days=30)).strftime("%d %b %Y")
+    expected = (
+        (clock.now_in(settings.display_timezone) + timedelta(days=30)).strftime("%d %b").upper()
+    )
     assert expected in html  # absolute expiry = created_at + 30 days (ADR-0076)
 
 
@@ -148,13 +151,13 @@ def test_app_nav_shows_only_sign_out(client: TestClient) -> None:
 
 def test_security_tab_lists_all_sections_for_non_admin(client: TestClient) -> None:
     html = client.get("/settings/security").text
-    assert 'id="tab-security"' in html
+    assert _html.resolve_one(html, ui.tab("Security"))["aria-selected"] == "true"
     assert 'id="password"' in html
     assert 'id="passkeys"' in html
     assert 'id="sessions"' in html
     assert html.index('id="password"') < html.index('id="passkeys"') < html.index('id="sessions"')
     assert "data-passkey-register" in html
-    assert "/static/js/passkeys.js" in html
+    assert "/static/rd/js/passkeys.js" in html
     assert 'id="tab-users"' not in html
 
 
@@ -174,3 +177,53 @@ def test_password_get_redirects_to_security_tab_when_not_forced(client: TestClie
     r = client.get("/settings/password", follow_redirects=False)
     assert r.status_code == 303
     assert r.headers["location"] == "/settings/security#password"
+
+
+# --- T-UR14: the session and passkey rows on the new shell ----------------------------------------
+
+
+def test_session_rows_print_the_device_label_and_only_others_ids(
+    client: TestClient, conn: sqlite3.Connection, other_user: int
+) -> None:
+    ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Gecko/20100101 Firefox/121.0"
+    sessions_repo.create_session(conn, 1, ip="83.24.117.9", user_agent=ua)
+    sessions_repo.create_session(conn, other_user, ip="9.9.9.9", user_agent=ua)
+    html = client.get("/settings/security").text
+    sessions = _html.text_of(html, ui.sessions)
+    assert "Firefox · macOS" in sessions
+    assert "83.24.117.9" in sessions
+    assert "9.9.9.9" not in sessions  # the other user's session is absent
+    assert _html.count(html, ui.session_signout.inside(ui.sessions)) == 2  # this one + the new one
+
+
+def test_revoking_another_session_removes_its_row_and_keeps_the_current(
+    client: TestClient, conn: sqlite3.Connection, session_cookie: tuple[str, str]
+) -> None:
+    second = issue_session(conn)
+    assert (
+        _html.count(client.get("/settings/security").text, ui.session_signout.inside(ui.sessions))
+        == 2
+    )
+    client.post(f"/auth/sessions/{session_handle(second)}/revoke")
+    html = client.get("/settings/security").text
+    assert _html.count(html, ui.session_signout.inside(ui.sessions)) == 1
+    assert session_handle(second) not in html
+    assert sessions_repo.get_session(conn, session_cookie[1]) is not None
+
+
+def test_passkey_rows_list_own_label_and_post_to_the_revoke_route(
+    client: TestClient, conn: sqlite3.Connection, other_user: int
+) -> None:
+    pk = _passkey(conn, 1, "Laptop key", b"cred-laptop")
+    _passkey(conn, other_user, "Mallory key", b"cred-mallory")
+    html = client.get("/settings/security").text
+    assert "Laptop key" in _html.text_of(html, ui.passkeys)
+    assert "Mallory key" not in html
+    remove = _html.resolve_one(html, ui.passkey_remove("Laptop key"))
+    remove_form = remove.find_parent("form")
+    assert remove_form is not None
+    assert remove_form["action"] == f"/auth/passkeys/{pk}/revoke"
+    register = _html.resolve_one(html, ui.add_passkey).find_parent("form")
+    assert register is not None
+    assert register.has_attr("data-passkey-register")  # the hook rd/js/passkeys.js binds
+    assert _html.resolve_one(html, ui.passkey_label)["name"] == "label"

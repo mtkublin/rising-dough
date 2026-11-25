@@ -17,7 +17,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 |---|---|---|---|
 | `src/budget_planner/web/static/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
 | `src/budget_planner/web/static/app.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/auth.css` | T-UR15 | delete | kept: rd-auth__* used by settings security/password until T-UR14 |
+| `src/budget_planner/web/static/auth.css` | T-UR15 | delete | T-UR14 (2026-11-25): settings security and password no longer use `rd-auth__*`; the only remaining linker is the old `templates/base.html` (T-UR15); the new pages use the vendored `rd-auth__*` of `static/rd/css/pages/auth.css`. `test_forced_exempt_paths` only names the URL |
 | `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: ADR-0107 §2: shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
 | `src/budget_planner/web/static/favicon.svg` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts.css` | T-UR15 | delete |  |
@@ -51,10 +51,10 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/rising-dough.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/shortcuts.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/txn-form.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/users-admin.js` | T-UR14 | delete | ADR-0107 §2: behaviour kept only if the handoff `settings/users` page has no equivalent; T-UR14 decides, then sets `deleted` or `keep: <reason>` |
+| `src/budget_planner/web/static/js/users-admin.js` | T-UR14 | deleted | The handoff users page has the copy button markup (no script); the one-time password dialog prints the value in a selectable `<output>`. Copy-to-clipboard moves to T-UR20 with the add-user dialog |
 | `src/budget_planner/web/static/rising-dough.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/settings-security.css` | T-UR14 | delete |  |
-| `src/budget_planner/web/static/settings-users.css` | T-UR14 | delete |  |
+| `src/budget_planner/web/static/settings-security.css` | T-UR14 | deleted |  |
+| `src/budget_planner/web/static/settings-users.css` | T-UR14 | deleted |  |
 | `src/budget_planner/web/static/tailwind.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/tailwind.src.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/tokens.css` | T-UR15 | delete |  |
@@ -153,18 +153,18 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/settings/_categories.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/settings/_drawer.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/settings/_fx.html` | T-UR13 | deleted |  |
-| `src/budget_planner/web/templates/settings/_password_form.html` | T-UR14 | delete |  |
+| `src/budget_planner/web/templates/settings/_password_form.html` | T-UR14 | deleted | replaced by `fragments/forms/password-form.html` (shared with the forced page `pages/auth/force-password.html`, T-UR20 finishes it) |
 | `src/budget_planner/web/templates/settings/_prefs.html` | T-UR13 | deleted |  |
-| `src/budget_planner/web/templates/settings/_tabs.html` | T-UR14 | delete | still included by settings/security and settings/users; the new shell's strip is `fragments/nav/settings-tabs.html` (T-UR13) |
+| `src/budget_planner/web/templates/settings/_tabs.html` | T-UR14 | deleted | replaced by `fragments/nav/settings-tabs.html` (T-UR13) |
 | `src/budget_planner/web/templates/settings/index.html` | T-UR13 | deleted |  |
-| `src/budget_planner/web/templates/settings/password.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/security.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/users/_add-errors.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/users/_password-toast.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/users/_row.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/users/_table.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/users/edit.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/users/list.html` | T-UR14 | delete |  |
+| `src/budget_planner/web/templates/settings/password.html` | T-UR14 | deleted |  |
+| `src/budget_planner/web/templates/settings/security.html` | T-UR14 | deleted |  |
+| `src/budget_planner/web/templates/settings/users/_add-errors.html` | T-UR14 | deleted |  |
+| `src/budget_planner/web/templates/settings/users/_password-toast.html` | T-UR14 | deleted |  |
+| `src/budget_planner/web/templates/settings/users/_row.html` | T-UR14 | deleted |  |
+| `src/budget_planner/web/templates/settings/users/_table.html` | T-UR14 | deleted |  |
+| `src/budget_planner/web/templates/settings/users/edit.html` | T-UR14 | deleted |  |
+| `src/budget_planner/web/templates/settings/users/list.html` | T-UR14 | deleted |  |
 | `src/budget_planner/web/templates/today/_afford_preview.html` | T-UR07 | deleted |  |
 | `src/budget_planner/web/templates/today/_upcoming.html` | T-UR07 | deleted |  |
 | `src/budget_planner/web/templates/today/index.html` | T-UR07 | deleted |  |

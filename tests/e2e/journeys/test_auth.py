@@ -65,13 +65,19 @@ def test_protected_page_redirects_to_login_and_returns_after_sign_in(anon_world:
 
 def test_stale_session_is_sent_to_reauth_then_confirmed_with_the_secret(world: World) -> None:
     world.make_admin()
+    world.write(
+        "INSERT INTO users (name, email, password_hash, must_change_password) "
+        "VALUES ('Late', 'late@example.test', 'seeded-hash', 0)"
+    )
     world.write("UPDATE sessions SET authenticated_at = ?", (STALE,))
     world.goto("/settings/users")
-    world.find(settings.user_email).fill("late@example.test")
-    world.find(settings.create_user).click()
+    world.find(settings.user_menu("late@example.test")).click()
+    world.find(settings.reset_user("late@example.test")).click()
+    world.find(settings.reset_confirm).click()
 
     expect(world.find(auth.reauth_heading)).to_be_visible()
-    assert world.scalar("SELECT COUNT(*) FROM users WHERE email = 'late@example.test'") == 0
+    seeded = "SELECT password_hash FROM users WHERE email = 'late@example.test'"
+    assert world.scalar(seeded) == "seeded-hash"  # the reset did not run
     world.find(auth.reauth_password).fill("wrong-wrong-wrong")
     world.find(auth.reauth_confirm).click()
     expect(world.find(auth.reauth_error)).to_be_visible()
@@ -124,3 +130,20 @@ def test_login_and_reauth_pages_show_their_fields_on_either_target(journey: Jour
     journey.goto("/auth/login")
     for name in ("login_heading", "email", "password", "sign_in", "passkey_sign_in"):
         to_playwright(journey.page, getattr(auth_ui, name)).wait_for(state="attached")
+
+
+def test_throttled_password_change_shows_the_wait_message_in_the_form(world: World) -> None:
+    """A 429 re-renders the form like a 422 (T-D18a); the shell script must let it swap in."""
+    before = world.scalar("SELECT password_hash FROM users WHERE id = 1")
+    world.goto("/settings/security")
+    for _ in range(12):
+        world.find(settings.current_password).fill("not-my-current-one")
+        world.find(settings.new_password).fill(NEW_SECRET)
+        world.find(settings.confirm_password).fill(NEW_SECRET)
+        world.find(settings.change_password_button).click()
+        summary = world.find(settings.password_summary)
+        expect(summary).to_be_visible()
+        if "Too many attempts" in summary.inner_text():
+            break
+    expect(world.find(settings.password_summary)).to_contain_text("Too many attempts")
+    assert world.scalar("SELECT password_hash FROM users WHERE id = 1") == before

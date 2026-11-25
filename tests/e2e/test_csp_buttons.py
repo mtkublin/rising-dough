@@ -7,6 +7,8 @@ only need to drive the UI and assert its visible result.
 
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -333,3 +335,33 @@ def test_create_category_blank_name_rerenders_form(
     expect(to_playwright(page, settings.category_form)).to_have_count(1)
     expect(to_playwright(page, settings.category_form)).to_contain_text("name required")
     assert db_probe.rows(db_path, "SELECT id FROM categories WHERE name = ''") == []
+
+
+def test_user_menu_edit_and_delete_dialogs_work_under_csp(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    # T-UR14: the row menu opens the edit and delete dialogs in #modal-root; saving swaps the row,
+    # deleting removes it. Both are HTMX swaps the prod CSP must let through.
+    base_url, db_path = live_server
+    with closing(sqlite3.connect(db_path)) as conn, conn:
+        conn.execute("UPDATE users SET is_admin = 1 WHERE id = 1")
+        conn.execute(
+            "INSERT INTO users (name, email, password_hash, must_change_password) "
+            "VALUES ('Sam', 'sam@example.test', 'seeded-hash', 0)"
+        )
+    user = db_probe.scalar(db_path, "SELECT id FROM users WHERE email = 'sam@example.test'")
+    page.goto(f"{base_url}/settings/users")
+    to_playwright(page, settings.user_menu("sam@example.test")).click()
+    to_playwright(page, settings.edit_user_item("sam@example.test")).click()
+    expect(to_playwright(page, settings.edit_form)).to_be_visible()
+    to_playwright(page, settings.user_name).fill("Samantha")
+    to_playwright(page, settings.edit_save).click()
+    expect(to_playwright(page, settings.edit_form)).to_have_count(0)
+    expect(to_playwright(page, settings.user_row(user))).to_contain_text("Samantha")
+    assert db_probe.scalar(db_path, "SELECT name FROM users WHERE id = ?", user) == "Samantha"
+
+    to_playwright(page, settings.user_menu("sam@example.test")).click()
+    to_playwright(page, settings.remove_user("sam@example.test")).click()
+    to_playwright(page, settings.delete_confirm).click()
+    expect(to_playwright(page, settings.user_row(user))).to_have_count(0)
+    assert db_probe.scalar(db_path, "SELECT deleted_at IS NOT NULL FROM users WHERE id = ?", user)

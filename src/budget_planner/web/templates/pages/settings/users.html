@@ -1,0 +1,34 @@
+{# Settings · users (T-UR14, ADR-0107, ADR-0073). Handoff: pages/settings/users.html. Admin only (AdminRequiredMiddleware).
+   Context: active_tab, rows (settings_view.UserRowView), toast (one-time password payload | none, the no-script fallback of the dialog),
+   form_summary ((name, label, message) rows of a refused create).
+   The "+ add user" and "+ invite by email" buttons, pending-invite rows and invite menus belong to T-UR20 (derived.md). #}
+{% extends "layouts/base.html" %}
+{% block title %}Settings · users · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Users</h1>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Users">
+    <div class="rd-settings">
+      <div class="rd-settings__head">{% include "fragments/nav/settings-tabs.html" %}</div>
+      {% if form_summary %}
+        {% with field_count=form_summary|length, field_errors=form_summary %}
+          {% include "fragments/forms/error-summary.html" %}
+        {% endwith %}
+      {% endif %}
+      {% if toast %}
+        {# No script: the dialog cannot open, so the one-time password is printed in the page. #}
+        <section class="rd-card rd-card--outline" aria-labelledby="otp-title">
+          <h2 class="rd-card__title" id="otp-title">one-time password · {{ toast.email }}</h2>
+          <div class="rd-card__body">{% include "fragments/forms/one-time-password.html" %}</div>
+        </section>
+      {% endif %}
+      <section class="rd-card rd-card--outline" aria-labelledby="users-title">
+        <h2 class="rd-card__title" id="users-title">Users</h2>
+        <div class="rd-card__body">{% include "fragments/tables/users-table.html" %}</div>
+      </section>
+    </div>
+  </section>
+{% endblock %}

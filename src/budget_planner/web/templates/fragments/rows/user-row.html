@@ -1,0 +1,18 @@
+{# fragment: rows/user-row (T-UR14, handoff pages/settings/users). Input: row (settings_view.UserRowView).
+   An admin's own row has no menu (ADR-0134 section 11): the server guards stay, the UI does not offer them.
+   Menu items open the dialogs in #modal-root (shared menus/row-menu). #}
+<tr class="rd-row rd-row--user" id="user-row-{{ row.id }}">
+  <td class="rd-session__device">
+    {{ row.email_text }}<span class="rd-row__sub">{{ row.sub_text }}</span>
+  </td>
+  <td>{{ row.role_text }}</td>
+  <td>{{ row.last_seen }}</td>
+  <td>{{ row.status_text }}</td>
+  <td class="rd-row__actions">
+    {% if not row.is_me %}
+      {% with menu_id=row.menu_id, title=row.email_text, sub=row.menu_sub, items=row.menu_items %}
+        {% include "fragments/menus/row-menu.html" %}
+      {% endwith %}
+    {% endif %}
+  </td>
+</tr>

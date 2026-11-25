@@ -111,6 +111,12 @@
       const region = document.getElementById('flash-region-assertive');
       if (region) region.replaceChildren(flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT));
     } else {
+      /* A throttled form (429, T-D18a) re-renders like a 422: the page's own error slot shows the message.
+         htmx-csrf.js already lets the 422 through; htmx skips every other 4xx body. */
+      if (xhr.status === 429) {
+        detail.shouldSwap = true;
+        detail.isError = false;
+      }
       return;
     }
     detail.shouldSwap = false;

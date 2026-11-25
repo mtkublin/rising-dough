@@ -15,10 +15,11 @@ from budget_planner.services import password_change as password_service
 from budget_planner.services.auth import LABEL_MAX_LENGTH
 from budget_planner.services.security_settings import security_view
 from budget_planner.web.middleware.auth import CurrentUser
+from budget_planner.web.settings_view import passkey_row_view, session_row_view
 
 SECURITY_PATH: Final = "/settings/security"
 PASSWORD_ANCHOR: Final = f"{SECURITY_PATH}#password"
-PAGE_TEMPLATE: Final = "settings/security.html"
+PAGE_TEMPLATE: Final = "pages/settings/security.html"
 
 
 def security_context(
@@ -31,15 +32,18 @@ def security_context(
         session_token=getattr(request.state, "session_id", None),
         absolute_lifetime_days=request.app.state.settings.session_absolute_lifetime_days,
     )
+    tz = request.app.state.settings.display_timezone
     return {
         "active_tab": "security",
         "current_user": user,
-        "session_rows": view.session_rows,
-        "passkeys": view.passkeys,
+        "session_rows": tuple(session_row_view(r, tz) for r in view.session_rows),
+        "passkeys": tuple(passkey_row_view(p, tz) for p in view.passkeys),
         "label_max_length": LABEL_MAX_LENGTH,
         "min_length": password_service.MIN_PASSWORD_LENGTH,
         "forced": False,
         "next_path": SECURITY_PATH,
-        "outcome": None,
+        "errors": {},
+        "summary_rows": (),
+        "attempts_text": None,
         "throttle_error": None,
     }
