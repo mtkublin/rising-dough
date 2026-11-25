@@ -311,12 +311,33 @@ def _lumps() -> tuple[TxnSeed, ...]:
     return tuple(lumps)
 
 
-TRANSACTIONS: Final = (*_LISTED, *_lumps())
+# Jul to Sep 2026 history (ADR-0147 section 4 amendment 2026-11-25): the analytics flow chart
+# draws four months, so the seed needs entries before October. One income and one expense
+# entry per month on Checking, equal to the board's monthly figures (HANDOFF_FLOW in
+# test_overlay_geometry.py); October's totals come from the entries above.
+_HISTORY_FLOW: Final = (
+    ("2026-07", 2_141_206, 2_235_418),
+    ("2026-08", 2_201_840, 2_520_177),
+    ("2026-09", 2_137_795, 2_604_012),
+)
+_HISTORY: Final = tuple(
+    entry
+    for month, income, expense in _HISTORY_FLOW
+    for entry in (
+        TxnSeed(f"{month}-10", "Side Income", "Checking", income, "Side Income"),
+        TxnSeed(f"{month}-15", "Fixed costs", "Checking", expense, "Fixed costs"),
+    )
+)
+
+TRANSACTIONS: Final = (*_LISTED, *_lumps(), *_HISTORY)
 
 PLANNED: Final[tuple[PlannedSeed, ...]] = (
     PlannedSeed("2026-12-15", "Car", "Checking", 223_980, "Car"),
     PlannedSeed("2026-10-28", "Other", "Checking", 41_200, "Annual insurance"),
     PlannedSeed("2026-10-31", "VAT Refund", "Checking EUR", 112_045, "Tax refund"),
+    # Lifts the 12-month projection to the board's five-gridline axis (peak above 80k; ADR-0147
+    # section 4 amendment 2026-11-25). Dated after the 7 Nov payday, so Today is unchanged.
+    PlannedSeed("2026-11-20", "Side Income", "Checking", 2_500_000, "Annual bonus"),
     PlannedSeed("2026-12-15", "Car", "Checking", 230_635, "Car", _local("2026-10-29", "20:30")),
 )
 
