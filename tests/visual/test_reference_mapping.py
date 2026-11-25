@@ -14,10 +14,14 @@ from fastapi.testclient import TestClient
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
+from budget_planner.repositories import users as users_repo
+from budget_planner.services import invites as invites_service
 from budget_planner.web.app import create_app
 from budget_planner.web.auth_cookies import session_cookie_name
+from budget_planner.web.middleware.csrf import csrf_cookie_name
 from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
+from tests.visual.handoff_forms import DIALOG_SUBMITS
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.test_reference import (
     ANONYMOUS_PAGES,
@@ -95,6 +99,15 @@ _BASES = {
     "new-entry--happened": ("/today", ()),
     "new-entry--planned": ("/today", ()),
     "new-entry--repeats-fixed": ("/today", ()),
+    "add-user": ("/settings/users", ()),
+    "add-user--error": ("/settings/users", ()),
+    "edit-user": ("/settings/users", ()),
+    "delete-user": ("/settings/users", ()),
+    "reset-password": ("/settings/users", ()),
+    "one-time-password": ("/settings/users", ()),
+    "invite-user": ("/settings/users", ()),
+    "invite-user--error": ("/settings/users", ()),
+    "revoke-invite": ("/settings/users", ()),
 }
 
 
@@ -128,6 +141,15 @@ _DIALOG_TEXT = {
     "override--budget-default": "Big Purchases",
     "edit-transaction": "Takeaway",
     "edit-transaction--transit": "Transit",
+    "add-user": "add user",
+    "add-user--error": "add user",
+    "edit-user": "partner@example.test",
+    "delete-user": "Delete Ola?",
+    "reset-password": "Reset Ola",
+    "one-time-password": "Reset Ola",
+    "invite-user": "create invite",
+    "invite-user--error": "create invite",
+    "revoke-invite": "accountant@example.test",
 }
 
 
@@ -290,3 +312,58 @@ def test_unmapped_pages_carry_a_reason() -> None:
     }
     assert all(len(reason) > 20 for reason in UNMAPPED_PAGES.values())
     assert set(FORM_SUBMITS) == {"pages/auth/login--error.html", "pages/auth/reauth--error.html"}
+
+
+def test_user_openers_resolve_ids_by_email_from_the_seed(seeded: tuple[Settings, str]) -> None:
+    settings, _ = seeded
+    conn = get_connection(settings)
+    try:
+        ola = next(u.id for u in users_repo.list_live(conn) if u.email == "partner@example.test")
+        invite = next(
+            i.id for i in invites_service.list_invites(conn) if i.email == "accountant@example.test"
+        )
+    finally:
+        conn.close()
+    assert _url(settings, "edit-user") == f"/settings/users/{ola}/edit"
+    assert _url(settings, "delete-user") == f"/settings/users/{ola}/delete"
+    assert _url(settings, "reset-password") == f"/settings/users/{ola}/reset-password"
+    assert _url(settings, "revoke-invite") == f"/settings/users/invites/{invite}/revoke"
+
+
+def test_post_state_recipes_type_what_the_handoff_shows() -> None:
+    assert set(DIALOG_SUBMITS) == {
+        "pages/overlays/add-user--error.html",
+        "pages/overlays/invite-user--error.html",
+        "pages/overlays/one-time-password.html",
+    }
+    for page, recipe in DIALOG_SUBMITS.items():
+        assert page in {f"pages/overlays/{n}.html" for n in OPENERS}
+        text = (handoff.HANDOFF_ROOT / page).read_text(encoding="utf-8")
+        for _, value in recipe.fills:
+            assert f'value="{value}"' in text
+
+
+def test_used_email_posts_answer_422_with_the_typed_values(seeded: tuple[Settings, str]) -> None:
+    settings, token = seeded
+    for stem, path, error in (
+        ("add-user--error", "/settings/users", "A user with this email already exists"),
+        # The app words the invite error like the add-user one; the handoff reads "This person
+        # already has an account" (a copy difference reported for the migration, not mapped).
+        ("invite-user--error", "/settings/users/invites", "A user with this email already exists"),
+    ):
+        recipe = DIALOG_SUBMITS[f"pages/overlays/{stem}.html"]
+        data = {sel.rsplit("name=", 1)[1].rstrip("]"): value for sel, value in recipe.fills}
+        with (
+            clock.frozen(dt.datetime.fromisoformat(handoff.HANDOFF_FIXED_TIME)),
+            TestClient(create_app(settings), base_url="https://testserver") as client,
+        ):
+            client.cookies.set(session_cookie_name(settings), token)
+            client.get("/settings/users")  # mints the CSRF cookie the form would carry
+            csrf = client.cookies.get(csrf_cookie_name(settings)) or ""
+            response = client.post(
+                path, data=data, headers={"HX-Request": "true", "X-CSRF-Token": csrf}
+            )
+        assert response.status_code == 422, stem
+        text = " ".join(re.sub(r"<[^>]+>", " ", response.text).split())
+        assert error in text, stem
+        assert 'value="partner@example.test"' in response.text

@@ -31,6 +31,7 @@ from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.visual import handoff
 from tests.visual.conftest import serve_db
 from tests.visual.handoff_clicks import click_recipe
+from tests.visual.handoff_forms import DIALOG_SUBMITS, submit_dialog
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.handoff_seed import build_seed
 
@@ -145,18 +146,12 @@ OVERLAY_DIALOGS: dict[str, str] = {
 # base page.
 UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
-        "add-user--error",
-        "add-user",
         "delete-account--blocked-planned",
         "delete-account",
-        "delete-user",
         "edit-recurring--empty",
         "edit-recurring--incomplete",
         "edit-recurring--picking",
         "edit-transaction--error",
-        "edit-user",
-        "invite-user--error",
-        "invite-user",
         "new-account--error",
         "new-account--filled",
         "new-category--error",
@@ -165,11 +160,8 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "new-entry--over-limit",
         "new-entry--phone-sheet",
         "new-entry--repeats-formula",
-        "one-time-password",
         "override--remove",
         "override--year-cell",
-        "reset-password",
-        "revoke-invite",
     }
 )
 OPENER_PAGES: frozenset[str] = frozenset(f"pages/overlays/{n}.html" for n in OPENERS)
@@ -308,8 +300,9 @@ def test_app_matches_handoff(
     route = route_for(handoff_page)
     modifiers = modifiers_for(handoff_page)
     with contextlib.ExitStack() as stack:
-        if modifiers:
-            # Own seeded DB: the opener's ids are resolved from the DB being served.
+        if modifiers or handoff_page in DIALOG_SUBMITS:
+            # Own seeded DB: the opener's ids are resolved from the DB being served (and a
+            # submitted dialog, e.g. a password reset, must not change the shared one).
             tmp_path_factory = request.getfixturevalue("tmp_path_factory")
             db_path = tmp_path_factory.mktemp("handoff-state") / "handoff.sqlite"
             token = build_seed(db_path, modifiers=modifiers).session_token
@@ -382,6 +375,8 @@ def _compare_app(
                 opener,
             )
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
+            if handoff_page in DIALOG_SUBMITS:
+                submit_dialog(pg, handoff_page)
         elif (recipe := click_recipe(handoff_page)) is not None:
             recipe(pg)  # client-side overlay: the click or key a user makes (handoff_clicks)
         pg.add_style_tag(content=handoff.FREEZE_CSS)
