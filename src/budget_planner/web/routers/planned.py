@@ -12,7 +12,6 @@ from fastapi.responses import HTMLResponse, Response
 from budget_planner.config import Settings
 from budget_planner.services import (
     accounts as accounts_service,
-    categories as categories_service,
     export as export_service,
     planned as planned_service,
 )
@@ -23,7 +22,6 @@ from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, tri
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice
 from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, PLANNED_PATH, TABLE_PATH
-from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/planned", tags=["planned"])
 
@@ -293,7 +291,6 @@ def restore_planned(
 def promote_form(
     planned_id: int,
     request: Request,
-    dialog: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
@@ -301,31 +298,7 @@ def promote_form(
     if pl is None:
         return Response(status_code=404, content="planned: not found")
     acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
-    return form_responses.promote_planned_dialog(
-        request, conn, user_id, pl, acc, as_dialog=bool(dialog)
-    )
-
-
-@router.get("/{planned_id}/promote/inline", response_class=HTMLResponse)
-def promote_inline(
-    planned_id: int,
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    """F-02 — Row-expand inline Promote form for Today Upcoming."""
-    pl = planned_service.find_by_id(conn, user_id, planned_id)
-    if pl is None:
-        return Response(status_code=404, content="not found")
-    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
-    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
-    return render(
-        request,
-        "partials/planned/_promote_inline_row.html",
-        planned=pl,
-        account=acc,
-        categories_by_id=categories_by_id,
-    )
+    return form_responses.promote_planned_dialog(request, conn, user_id, pl, acc)
 
 
 @router.post("/{planned_id}/promote")

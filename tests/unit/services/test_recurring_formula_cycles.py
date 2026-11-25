@@ -71,7 +71,7 @@ def _rule(
         USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
-            start_date=date(2026, 1, 1),
+            start_date=date(2099, 1, 1),
             category_id=ids[category],
             account_id=ids["acc"],
             default_amount=10_000,
@@ -161,9 +161,9 @@ def test_a_stored_cycle_is_skipped_marked_and_logged(
             conn,
             USER_ID,
             fx=fx,
-            start=date(2026, 11, 1),
-            end=date(2027, 3, 1),
-            today=date(2026, 11, 22),
+            start=date(2099, 1, 1),
+            end=date(2099, 6, 1),
+            today=date(2098, 12, 1),
             include_overdue=False,
         )
     marked = {(i.rule_id, i.amount, i.description) for i in items if i.rule_id is not None}
@@ -177,9 +177,9 @@ def test_a_stored_cycle_is_skipped_marked_and_logged(
         conn,
         USER_ID,
         fx=DATES_ONLY,
-        start=date(2026, 11, 1),
-        end=date(2027, 3, 1),
-        today=date(2026, 11, 22),
+        start=date(2099, 1, 1),
+        end=date(2099, 6, 1),
+        today=date(2098, 12, 1),
         include_overdue=False,
     )
     assert {i.description for i in dates_only} == {""}
@@ -194,14 +194,14 @@ def test_live_amount_of_a_stored_cycle_is_zero_and_flagged_like_the_expansion(
     fx = formula_fx_of(conn, USER_ID)
     rule = recurring_repo.find_rule(conn, USER_ID, taxes_rule)
     assert rule is not None
-    assert live_rule_amount(conn, USER_ID, rule, date(2026, 11, 1), fx) == (0, True)
+    assert live_rule_amount(conn, USER_ID, rule, date(2099, 1, 1), fx) == (0, True)
     expanded = recurring_svc.pending_occurrences(
         conn,
         USER_ID,
         fx=fx,
-        start=date(2026, 11, 1),
-        end=date(2027, 3, 1),
-        today=date(2026, 11, 22),
+        start=date(2099, 1, 1),
+        end=date(2099, 6, 1),
+        today=date(2098, 12, 1),
         include_overdue=False,
     )
     assert {i.amount for i in expanded if i.rule_id == taxes_rule} == {0}
@@ -214,4 +214,4 @@ def test_live_amount_of_a_healthy_rule_is_not_flagged(
     fx = formula_fx_of(conn, USER_ID)
     rule = recurring_repo.find_rule(conn, USER_ID, fixed)
     assert rule is not None
-    assert live_rule_amount(conn, USER_ID, rule, date(2026, 11, 1), fx) == (10_000, False)
+    assert live_rule_amount(conn, USER_ID, rule, date(2099, 1, 1), fx) == (10_000, False)

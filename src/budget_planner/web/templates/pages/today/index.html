@@ -111,7 +111,7 @@
         </form>
       {% endif %}
     </div>
-    {# upcoming-root: target of the inline promote fragments, which stay routed until T-UR24 #}
+    {# upcoming-root: refetched on ledger-stale (the promote dialog posts from #modal-root) #}
     <div id="upcoming-root"
          hx-get="/today/upcoming?window={{ window_label }}"
          hx-trigger="ledger-stale from:body"

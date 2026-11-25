@@ -233,6 +233,9 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 #### T-UR08c Account delete of an unknown or foreign id returns 404 (operator decision Q15, audit F5)
 - `POST /accounts/{id}/delete` for an unknown, foreign or archived id: 404, no `HX-Trigger` toast, no DB or audit change, same response for every case. Contract test renamed `test_delete_unknown_or_foreign_is_404`. ADR-0152 §5 amended; no new ADR; no template change. Files: `web/routers/accounts.py`, `tests/contract/test_accounts.py`.
 
+#### T-UR41a Unknown routes: HTML 404 page for browsers, JSON 404 for API clients (operator decision Q12)
+- A request to an unknown route with `Accept: text/html` and no `HX-Request` gets the existing `pages/errors/404.html` page (status 404, heading "Not found", `X-Request-Id`). Every other caller (JSON, `*/*`, HTMX) keeps `{"detail": "Not Found"}`. Handler in `web/errors.py`; contract test `test_unknown_route_is_404_html_for_browsers_json_for_api_clients` replaces the JSON-for-every-caller pin. ADR-0106 §1 amended; no new ADR. Template item (reuses the T-UR06 404 template; the orchestrator dispatches the visual-auditor). Files: `web/errors.py`, `tests/contract/test_errors.py`, `docs/adr/0106-ui-behaviour-test-harness.md`.
+
 ### ◻ T-UR09 [P] Ledger · actual → T-UR07
 - Handoff: `pages/ledger/actual` (+ `--empty`, `--no-matches`, `--long`); overlays `edit-transaction*`, `row-menu--transaction`, `category-picker*`.
 - Fragments: `ledger/filter-bar`, `ledger/bulk-bar`, `rows/transaction-row`, `rows/transaction-day`.
@@ -296,6 +299,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR24 [P] Remove inline promote routes → T-UR07, T-UR10
 - Delete `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline`, their templates, UI-map names and route allowlist entries. ADR-0134 §5.
+- UR24 scope (2026-11-25): also drops the legacy non-dialog branch of `GET .../promote` (`form_responses.promote_planned_dialog`, `recurring_views.render_promote_modal`, templates `_promote_modal.html`); the dialog (`pages/entries/promote.html`, UR10a) is the only promote UI and its flash toasts stay. The removed routes return 404.
 
 ### ✅ T-UR25 [P] Offline save-failure handling → T-UR04
 - HTMX request failure (no response) keeps an open dialog's typed input and shows the offline state (`errors/offline` markup); no service worker. ADR-0134 §4, ADR-0113.

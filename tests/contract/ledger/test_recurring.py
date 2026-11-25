@@ -286,17 +286,20 @@ def test_formula_preview_statuses(client: TestClient, seeded: Ids, _migrated: Se
     assert scalar(_migrated, "SELECT COUNT(*) FROM recurring_rules") == 2
 
 
-@covers("GET /recurring/{rule_id}/promote", "GET /recurring/{rule_id}/promote/inline")
-def test_promote_forms_and_unknown_id(client: TestClient, seeded: Ids) -> None:
+@covers("GET /recurring/{rule_id}/promote")
+def test_promote_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     rid = seeded["rule"]
     assert client.get(f"/recurring/{rid}/promote", headers=HTMX).status_code == 200
+    assert client.get("/recurring/99999/promote").status_code == 404
+
+
+def test_inline_promote_route_is_gone(client: TestClient, seeded: Ids) -> None:
+    """T-UR24: the inline promote form route no longer exists."""
+    rid = seeded["rule"]
     inline = client.get(
         f"/recurring/{rid}/promote/inline", params={"date": "2026-05-01"}, headers=HTMX
     )
-    assert inline.status_code == 200
-    assert "<html" not in inline.text
-    assert client.get("/recurring/99999/promote").status_code == 404
-    assert client.get("/recurring/99999/promote/inline").status_code == 404
+    assert inline.status_code == 404
 
 
 @covers("POST /recurring/{rule_id}/promote")

@@ -90,3 +90,7 @@ Visual parity complements the behaviour harness (sections 1 to 4) and does not r
 ## Amendment 2026-11-22 (b): CI-rendered references, cluster cap, data overlay
 
 [ADR-0147](0147-handoff-parity-ci-rendered-references-and-data-overlay.md) amends the amendment above: references are rendered in the CI job that compares them (none committed; replaces the provenance manifest of §2); the 0.1 % ratio of §3 gains a cluster cap; data the seed cannot reproduce is corrected on the handoff side by a text-and-value-attribute overlay, never by masking or a looser tolerance (§1).
+
+## Amendment 2026-11-25: unknown routes answer by caller (Q12, T-UR41a)
+
+Operator decision Q12 (`docs/plans/ui-redesign/operator-decisions-2026-11-25.md`) refines §1: an unknown route answers 404 with the HTML error page when the caller asks for HTML (`Accept` contains `text/html`, no `HX-Request`), and with the JSON `{"detail": "Not Found"}` for every other caller (API clients, `*/*`, HTMX). Handlers that raise an explicit `detail` (for example `not_found` on the revoke routes) keep the JSON body for all callers. Anonymous callers still hit the auth gate first.

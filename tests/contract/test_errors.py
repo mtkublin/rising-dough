@@ -1,7 +1,8 @@
 """Error-shape contracts shared by every route (T-UT04a, ADR-0106 section 1).
 
 HTTP-level errors (404, 405, 422, 403 CSRF) answer with a JSON ``detail``
-body whatever the caller is (browser, HTMX or JSON); anonymous callers hit
+body whatever the caller is (browser, HTMX or JSON), except an unknown route,
+which answers a browser (``Accept: text/html``) with the HTML 404 page (Q12); anonymous callers hit
 the auth gate first. Domain-error pages and flash fragments are exercised in
 ``tests/integration/web/test_errors.py`` through the UI map.
 """
@@ -14,11 +15,13 @@ from fastapi.testclient import TestClient
 
 from tests.contract._audit import audit_count
 from tests.contract.conftest import covers
+from tests.ui_map import _html, errors
 
 pytest_plugins = ["tests.contract._support"]
 
 HX = {"HX-Request": "true"}
 JSON = {"Accept": "application/json"}
+BROWSER = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
 ANY_CALLER: tuple[dict[str, str], ...] = ({}, HX, JSON)
 
 
@@ -52,10 +55,16 @@ def test_unknown_credential_is_404_not_found(client: TestClient) -> None:
 
 
 @covers("GET /auth/login")
-def test_unknown_route_is_404_json_for_signed_in_users(client: TestClient) -> None:
-    for headers in ANY_CALLER:
+def test_unknown_route_is_404_html_for_browsers_json_for_api_clients(client: TestClient) -> None:
+    browser = client.get("/definitely-not-a-route", headers=BROWSER)
+    assert browser.status_code == 404
+    assert browser.headers["content-type"].startswith("text/html")
+    assert _html.text_of(browser.text, errors.heading) == "Not found"
+    assert browser.headers["x-request-id"]
+    for headers in (JSON, HX, {}, {**HX, **BROWSER}):
         r = client.get("/definitely-not-a-route", headers=headers)
         assert (r.status_code, r.json()) == (404, {"detail": "Not Found"})
+        assert r.headers["content-type"].startswith("application/json")
         assert r.headers["x-request-id"]
 
 
