@@ -143,7 +143,12 @@ an agent commits it). Mutation: weekly `mutation.yml`.
 3. Dispatch a `reviewer` with the item brief (owned globs, steps, acceptance). It runs
    `just check-item <ID> <owned globs>` (executable DoD: branch ahead, owned files, hotspots,
    commit subjects, allowlist totals, audit record; WARN lists suppressions and new definitions)
-   and checks reuse, guard-gaming and brief compliance. `RETURN` -> the findings go to the
+   and checks reuse, guard-gaming and brief compliance. From inside an item worktree the work
+   branch is derived from `wi/<work>/<ID>` (or pass `--work`). Extra flags (run the script
+   directly: `uv run python scripts/ci/check_item.py --item <ID> --owned ... --hotspots <globs>
+   --allow-framework-rows`): `--hotspots` lists scribe files the item may touch;
+   `--allow-framework-rows` makes growth of permanent `[[framework]]` allowlist rows a WARN
+   (other growth still FAILs). `RETURN` -> the findings go to the
    implementer; review again after the fix. Only `MERGE` merges.
 4. In the main checkout (start each command with a `cd` there; cwd drifts):
    `just merge-item <ID> "<summary>"`. It refuses on `main`, a dirty tree or an unfinished merge;
