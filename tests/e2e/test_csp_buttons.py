@@ -192,15 +192,17 @@ def test_edit_dialog_saves_under_csp(live_server: tuple[str, Path], page: Page) 
     ) == db_probe.category_id(db_path, "Transport")
 
 
-def test_add_slide_over_on_ledger_under_csp(live_server: tuple[str, Path], page: Page) -> None:
+def test_add_from_ledger_submits_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
-    _open_add_slide_over(page, base_url, "/ledger")
-    pick(page, ledger.field_category, "Groceries")
-    pick(page, ledger.field_account, "Checking")
-    _fill(page, ledger.field_amount, "12.34")
-    _fill(page, ledger.field_note, "csp-added")
-    _submit(page, ledger.add_entry)
+    page.goto(f"{base_url}/ledger")
+    open_new_entry(page)
+    choose_category(page, "Groceries")
+    choose_account(page, "Checking")
+    to_playwright(page, entries.hero_amount).fill("12.34")
+    to_playwright(page, entries.field_note).fill("csp-added")
+    to_playwright(page, entries.save).click()
+    expect(to_playwright(page, entries.dialog)).not_to_be_visible()  # ledger-stale closes it
     expect(to_playwright(page, ledger.view_table("actual"))).to_contain_text("csp-added")
     assert db_probe.txn_amounts(db_path, "csp-added") == [_ADDED_MINOR]
 

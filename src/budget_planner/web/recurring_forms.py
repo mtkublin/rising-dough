@@ -195,6 +195,7 @@ def _resolve_formula(
     today: date,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     try:
         terms = [
@@ -215,6 +216,7 @@ def _resolve_formula(
             fx=fx,
             target_ccy=target_ccy,
             exclude_rule_id=exclude_rule_id,
+            posting_category_id=posting_category_id,
         )
     except formula_svc.FormulaError as exc:
         return None, None, {"formula": str(exc)}
@@ -232,6 +234,7 @@ def resolve_amount_inputs(
     exclude_rule_id: int | None,
     today: date,
     fx: FormulaFx,
+    posting_category_id: int | None = None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
     is_formula = amount_source == "formula"
@@ -247,6 +250,7 @@ def resolve_amount_inputs(
             today=today,
             fx=fx,
             target_ccy=account_currency,
+            posting_category_id=posting_category_id,
         )
     minor, amount_err = positive_amount(default_amount, account_currency)
     return minor, None, ({} if amount_err is None else {"default_amount": amount_err})
@@ -369,6 +373,16 @@ def _lookup_refs(
     return acc, cat, dest_id, {**errors, **dest_errors}
 
 
+def _missing_id_errors(fields: RuleFields) -> dict[str, str]:
+    """Per-field messages for a category or account that is blank or not a number."""
+    errors: dict[str, str] = {}
+    if parse_int(fields.category_id) is None:
+        errors["category_id"] = "pick a category" if not fields.category_id else "unknown category"
+    if parse_int(fields.account_id) is None:
+        errors["account_id"] = "unknown account"
+    return errors
+
+
 def validate_rule_draft(
     conn: sqlite3.Connection,
     user_id: int,
@@ -384,7 +398,7 @@ def validate_rule_draft(
     start = parse_date(fields.start_date)
     end, errors = _date_errors(fields, cadence, start, cadence_error)
     if ids is None:
-        return RuleDraft(None, {**errors, "account_id": "invalid account/category"})
+        return RuleDraft(None, {**errors, **_missing_id_errors(fields)})
     category_id, account_id = ids
     acc, cat, dest_id, ref_errors = _lookup_refs(conn, user_id, fields, ids)
     errors = {**errors, **ref_errors}
@@ -398,6 +412,7 @@ def validate_rule_draft(
         account_currency=acc.currency if acc else None,
         exclude_rule_id=exclude_rule_id,
         today=today,
+        posting_category_id=category_id,
     )
     errors = {**errors, **amount_errors}
     if errors:

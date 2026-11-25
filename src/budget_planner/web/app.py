@@ -53,6 +53,7 @@ from budget_planner.web.routers import (
     settings_password,
     settings_security,
     settings_users,
+    setup,
     today,
     transactions,
 )
@@ -282,6 +283,7 @@ def _register_routers(app: FastAPI, *, include_dev: bool) -> None:
     # /health + /ready stay publicly reachable (ADR-0033 §5).
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(setup.router)
     app.include_router(transactions.router)
     app.include_router(accounts.router)
     app.include_router(categories.router)

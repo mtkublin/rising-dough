@@ -14,6 +14,7 @@
 > | T-UR15 | `dev/components` (3 currency literals; port from the handoff) |
 
 > Plan: [README.md](README.md). Decision: [ADR-0107](../../adr/0107-sourdough-redesign-from-designer-handoff.md). Handoff: `docs/design/rising-dough-frontend/` (its `README.md` is required reading for every task).
+> Operator decisions 2026-11-25 (binding for the rest of the run): [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-URxx` depends on upstream task.
 > Every Phase 2 task follows the per-surface loop and definition of done in [README.md](README.md#per-surface-loop-test-first), including the visual diff at the strict default tolerance (0.1%, `MAX_DIFF_PIXEL_RATIO`, plus the cluster cap `MAX_DIFF_CLUSTER_PX`, ADR-0147 §2) unless `derived.md` records an operator-signed exception (T-UR00b).
 
@@ -181,6 +182,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - From T-UR01: link `/static/rd/css/app.bundle.css`; `<script type="module">` for `/static/rd/js/*`; `theme.js` as a classic `<head>` script; the palette is static markup today (`templates/partials/_palette.html`, 15 entries, first `g o`), there is no palette route: port the entries and use `g t` for Today (ADR-0147 §5).
 - Done (2026-11-24): `templates/layouts/{base,_palette,_shortcuts}.html` per the handoff shell (top bar `rd-mainnav` >= 768 px, `rd-tabbar` below; the handoff has no side rail), `fragments/flash/{success,error}`, `fragments/toast/undo`, nine `fragments/states/*`; dev-gated placeholder `GET /dev/shell` (`routers/dev_components.py`, contract-covered, 404 in production); new-shell UI map `tests/ui_map/rd_shell.py` (old `tests/ui_map/shell.py` kept for unmigrated pages), journeys `tests/e2e/test_rd_shell.py` on mockup and app targets. Palette has the handoff's 7 entries (not 15); Today is `g t` in app, `g o` on the mockup (ADR-0147 §5). Icons use the external sprite path `/static/rd/icons/sprite.svg#icon-…`. Old `csrf.js` / `htmx-csrf.js` still load from `static/` until T-UR04. Pages pass `nav_current`. Fragment link defaults are placeholders; wiring items pass real URLs. Audit: `docs/audits/2026-11-24-t-ur02-base-layout.md` (clean).
 - Follow-up done 2026-11-25 (UR02b, 98366386; audit docs/audits/2026-11-25-t-ur02b-shell-flash-toast.md): assertive live region, toast renderer (static/rd/js/app-toast.js), visible 4xx/5xx flashes, signed-in email in the topbar (designer to confirm placement).
+- Done (2026-11-25): UR02c rd-styled error flash, shown above an open dialog (faff04b2, ADR-0107, ADR-0143).
 
 ### ✅ T-UR03 [P] Server-side value helpers → T-UR01
 - **Deliverables** (pure functions + Jinja filters, unit-tested, ADR-0107 §5): category colour to `data-color` preset or nonce'd rule with the `--cat-edge` 3:1 contrast computation; block-character bar spans (20 / 10 cells, `--over`, `--none`); hero figure fit counts (`data-digits`, `data-marks`, `data-signs`); year-cell `data-state`; bar `aria-label` text.
@@ -196,6 +198,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - **Acceptance**: contract tests for dialog/OOB behaviour green; each shared fragment rendered in a fragment-level test via the UI map.
 - Done (2026-11-24): shared fragments `fragments/fields/{category-picker,formula,formula-component,amount-input}`, `popovers/period-picker`, `plan/period-nav`, `menus/row-menu`, `ledger/pagination` (UI-map render tests `tests/ui_map/test_rd_shared_fragments.py`; inputs documented in each fragment header; audit `docs/audits/2026-11-24-t-ur04a-shared-fragments.md`); `fragments/forms/error-summary`; response helpers `web/dialogs.py` (`dialog_response`, `saved_response` row + OOB `#modal-root` clear + OOB `flash/success`, `removed_response` `HX-Reswap: delete` + OOB `toast/undo`, `invalid_dialog_response` 422; canonical row) with contract tests `tests/contract/test_dialogs.py`; kept JS copied to `static/rd/js/{csrf,htmx-csrf,passkeys}.js` (`htmx-csrf.js` swaps 422 bodies), loaded by `layouts/base.html`; old copies stay until T-UR15 (audit `docs/audits/2026-11-24-t-ur04b-dialogs-js.md`). For page items: dialog inputs need `id="field-<name>"` and `aria-invalid` from `errors`; verify the undo toast OOB on a delete swap in the first page that uses `removed_response`; the picker shows the bare direction until the `direction_label` filter lands.
 - Follow-up (2026-11-24): `web/dialogs.dialog_response` wraps the dialog in one `<div>` so the vendored `dialog.js` (`init(e.target)` + `querySelectorAll`) opens a `<dialog>` that would otherwise be the swap root (UR04c); `pages/dev/dialog.html` carries its own wrapper too (harmless nesting; drop it in T-UR15). Picker direction text now from the `direction_label` filter (`↓ expense`, `↑ income`, `⇄ transit`, `± adjustment`; audit `docs/audits/2026-11-24-t-ur03b-direction-label.md`).
+- Done (2026-11-25): UR04g dialog shell gaps: placeholder, hero race, action attrs, field_error, formula refresh, stale unit, budget hero sign (4d4bd510).
 
 ---
 
@@ -218,11 +221,13 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Fragments: `today/upcoming-list`, `today/afford-result`, `rows/upcoming-row`, hero.
 - The new-entry dialog is owned here; Ledger reuses it.
 - Page part done 2026-11-25 (UR07a, 10cf35bb; audit docs/audits/2026-11-24-t-ur07a-today.md). Open (UR07b): new-entry dialog /add, promote and override dialogs; re-enable the T-UR07b skips.
+- Remaining: upcoming-row override links do not open (UR07b audit F6, routed to T-UR10).
 
 ### ◻ T-UR08 [P] Accounts
 - Handoff: `pages/accounts`, `accounts--empty`; overlays `new-account*`, `edit-account*`, `delete-account*`, `reconcile*`, `row-menu--account`.
 - Fragments: `rows/account-row` (including the credit-limit line), `rows/reconcile-snapshot`, sparkline chart.
 - Page part done 2026-11-25 (UR08a, 40f1ff1f; audit docs/audits/2026-11-24-t-ur08a-accounts.md). Open (UR08b): new/edit/delete/reconcile dialogs, ISO currency combobox in the new-account form (currently dead in the new shell), unknown-id POST /accounts/<id>/delete reports success (audit F5); re-enable the T-UR08b skips and the /accounts KNOWN_BUGS xfail.
+- Remaining: UR08b (awaiting operator contract-test decision).
 
 ### ◻ T-UR09 [P] Ledger · actual → T-UR07
 - Handoff: `pages/ledger/actual` (+ `--empty`, `--no-matches`, `--long`); overlays `edit-transaction*`, `row-menu--transaction`, `category-picker*`.
@@ -232,7 +237,7 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Handoff: `pages/ledger/planned` (+ `--empty`), `recurring` (+ `--empty`), `recently-deleted`; overlays `edit-planned`, `edit-recurring*`, `override--occurrence`, `override--remove`, `row-menu--planned`, `row-menu--recurring`.
 - Fragments: `rows/planned-row`, `rows/recurring-row`, `rows/deleted-planned`, `rows/deleted-category`.
 
-### ◻ T-UR11 [P] Plan · budget and year
+### ✅ T-UR11 [P] Plan · budget and year
 - Handoff: `pages/plan/budget`, `year`; overlays `override--budget-*`, `override--year-cell`, `period-picker*`, `row-menu--budget`.
 - Fragments: `rows/budget-line`, `plan/unbudgeted-disclosure`, `rows/year-grid-row`, `rows/year-cell-editor`.
 - Budget tab done 2026-11-25 (UR11a, 22a3dc57; audit docs/audits/2026-11-24-t-ur11a-plan-budget.md). Open (UR11b): year tab, override dialogs, year-cell editor; re-enable the T-UR11b skips.
@@ -240,8 +245,9 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 ### ◻ T-UR12 [P] Plan · forecast and analytics
 - Handoff: `pages/plan/forecast`, `analytics`; `charts/forecast`, `charts/income-vs-expense`, `charts/spend-by-category`.
 - Fragments: `rows/forecast-month`, `rows/analytics-category`, `charts/*`. SVG geometry from the server per the handoff's chart notes (amends ADR-0054).
+- Remaining: UR12b (seed history, geometry_rows, ADR-0147 §4 amendment).
 
-### ◻ T-UR13 [P] Settings · categories, currency and FX, preferences
+### ✅ T-UR13 [P] Settings · categories, currency and FX, preferences
 - Handoff: `pages/settings/categories`, `currency-fx`, `preferences`; overlays `new-category*`, `edit-category`, `archive-category`.
 - Fragments: `rows/category-row`. Theme switch (`theme-switch.js`) on Preferences.
 
@@ -257,6 +263,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR18 [S] Invite email: cost evaluation (operator)
 - Evaluate mail provider, Terraform and secret cost for sending invite email. Output: go or no-go recorded in ADR-0134 (amendment). On no-go the switch of T-UR19 stays off and the code is kept. ADR-0134 §1.
+- Decision 2026-11-25: no-go for v1 (operator QA Q9); switch stays off.
 
 ### ◻ T-UR19 [moved] Invite email behind a config switch → T-UR31
 - **Moved whole to T-UR31** (Phase P, ADR-0148). Original scope kept for reference: send the invite email through an injected port (ADR-0021), behind a config switch, default off. No secret committed; Terraform and secret only if T-UR18 is go. ADR-0134 §1, ADR-0099.
@@ -269,8 +276,9 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Must land before T-UR21 (`/setup` page) can be exercised on a drill.
 - ADR-0134 §9, ADR-0099, ADR-0111.
 
-### ◻ T-UR21 [P] First-run `/setup` page with one-time token → T-UR05, T-UR32, T-UR21a
+### ✅ T-UR21 [P] First-run `/setup` page with one-time token → T-UR05, T-UR32, T-UR21a
 - Token service and "setup open" predicate shipped in Phase P (T-UR32, ADR-0148); this task adds the page and route. Page on `/setup` (not `/auth/register*`), reachable only while no users exist and no bootstrap admin is configured, and only with a valid single-use setup token; 404 without it (no oracle). Token invalidated once the first admin is created, never committed, never logged. Errors: invalid email, credential under 12 characters, mismatch. Once any user exists it redirects to sign in. ADR-0134 §9.
+- Done (2026-11-25): UR21 first-run `/setup` page (ef3458b2, ADR-0134 §9).
 
 ### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
 - Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0134 §9, ADR-0099.
@@ -288,8 +296,9 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR26 [deferred] Service worker for failed full page loads
 - Deferred beyond the redesign release; needs its own ADR (ADR-0123, ADR-0113 CSP). Tracked here so the offline page is not wired to full-page failures until then. ADR-0134 §4.
 
-### ◻ T-UR27 [P] Theme switch → T-UR13
+### ✅ T-UR27 [P] Theme switch → T-UR13
 - Preferences Appearance control (system, light, dark), default system, per browser, full light set. ADR-0134 §8.
+- Done (2026-11-25): UR27 theme switch e2e, ui_map entries and audit (427f6c17, ADR-0134 §8).
 
 ### ◻ T-UR28 [P] Ledger export menu and credit-limit line → T-UR09
 - `export` menu beside the Ledger Actual and Planned tabs (csv, parquet, current tab and filters, kept on phone, none on Recurring); credit-limit line under the account in new entry, edit and phone sheet (pink with `role=alert` over limit, saving allowed). ADR-0134 §2, §6.
@@ -315,6 +324,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
 - ADR-0107 flipped to Accepted (if not already), `docs/CHANGELOG.md` entry, `derived.md` final.
+- Operator 2026-11-25 (Q11): the run stops at a ready PR; the operator dispatches the explore drill and clicks through.
 
 ---
 
@@ -329,3 +339,6 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR41 [S] Re-run the T-Q316/T-Q317 frontend audit on the migrated templates → T-UR17
 - Re-run `frontend-visual-audit` for the flows audited in `docs/audits/2026-11-23-t-q316-t-q317.md`: Undo reload waiting on in-flight htmx requests (T-Q316) and the passkey journey (T-Q317), on the migrated templates at 1440 / 1024 / 375. Step 3b (behaviour contract) included.
 - Commit the result as `docs/audits/<date>-t-ur41.md`. Quality-audit follow-up (h); deferred because the redesign replaces the templates the original audit covered.
+
+### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
+- Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).

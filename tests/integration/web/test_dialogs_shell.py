@@ -12,6 +12,8 @@ from pathlib import Path
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+from budget_planner.config import Settings
+from budget_planner.web.templating import build_jinja_env
 from tests.ui_map import _html, rd_dialogs as d, rd_fragments as f
 from tests.ui_map.locator import by_id, label, role
 
@@ -325,3 +327,73 @@ def test_reconcile_variant_skeleton_matches_the_liability_overlay(client: TestCl
     assert theirs["band"], "reconcile--liability: band and hero not parsed from the handoff"
     for key in ("dialog", "form", "band", "title", "close"):
         assert ours[key] == theirs[key], key
+
+
+# T-UR04g: optional hero placeholder, action hx_include / hx_vals, field_error macro.
+_MACRO_CALL = (
+    '{% from "fragments/dialogs/dialog.html" import dialog %}'
+    '{% call dialog("d", "t", hero=hero, actions=actions) %}x{% endcall %}'
+)
+
+
+def _macro(hero: dict[str, object], actions: list[dict[str, object]]) -> str:
+    env = build_jinja_env(Settings(_env_file=None))
+    return env.from_string(_MACRO_CALL).render(hero=hero, actions=actions)
+
+
+def _placeholder(html: str) -> object:
+    field = BeautifulSoup(html, "html.parser").find("input", id="hero-amount")
+    assert isinstance(field, Tag)
+    return field.get("placeholder")
+
+
+def test_hero_placeholder_defaults_to_two_decimals_and_can_be_overridden() -> None:
+    assert _placeholder(_macro({"currency": "PLN"}, [])) == "0.00"
+    assert _placeholder(_macro({"currency": "JPY", "placeholder": "0"}, [])) == "0"
+
+
+def test_actions_without_the_new_keys_render_no_hx_include_or_vals() -> None:
+    html = _macro(
+        {"currency": "PLN"},
+        [{"tone": "secondary", "label": "go", "hx_get": "/x"}, {"tone": "primary", "label": "ok"}],
+    )
+    assert "hx-include" not in html
+    assert "hx-vals" not in html
+
+
+def test_secondary_and_primary_actions_carry_hx_include_and_hx_vals() -> None:
+    html = _macro(
+        {"currency": "PLN"},
+        [
+            {
+                "tone": "secondary",
+                "label": "go",
+                "hx_post": "/x",
+                "hx_include": "closest form",
+                "hx_vals": '{"a": "1"}',
+            },
+            {"tone": "primary", "label": "save", "hx_include": "#f", "hx_vals": '{"b": "2"}'},
+        ],
+    )
+    buttons = BeautifulSoup(html, "html.parser").find_all("button", class_="rd-btn")
+    assert [(b.get("hx-include"), b.get("hx-vals")) for b in buttons] == [
+        ("closest form", '{"a": "1"}'),
+        ("#f", '{"b": "2"}'),
+    ]
+
+
+def test_field_error_macro_renders_the_paragraph_the_summary_expects() -> None:
+    env = build_jinja_env(Settings(_env_file=None))
+    src = (
+        '{% from "fragments/fields/field-error.html" import field_error %}'
+        '{{ field_error("name", errors) }}'
+    )
+    html = env.from_string(src).render(errors={"name": "required"})
+    p = BeautifulSoup(html, "html.parser").find("p")
+    assert isinstance(p, Tag)
+    assert (p.get("id"), p.get("class"), p.get_text()) == (
+        "field-name-error",
+        ["rd-field__error"],
+        "▲ required",
+    )
+    assert env.from_string(src).render(errors={}).strip() == ""

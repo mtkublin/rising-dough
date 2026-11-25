@@ -1,19 +1,7 @@
 {% from "_partials/kebab_menu.html" import kebab_menu %}
-{# Ledger table (T-064, T-092; refactored for manual-audit #25-#30).
-
-   Three view variants — Actual · Planned · Recurring — picked by the
-   ``view`` context var. Column shape matches the designer handoff
-   (`desktop-02-ledger-actual.html` / -03 / -04): Actual + Planned carry
-   `Date · Description+Account · Category · Amount · Actions`, Recurring
-   carries `Next due · Rule · Category · Amount · Overrides · Actions`.
-   The Actual day-group header surfaces the group net on the right. #}
-{% set table_id = (
-  "txn-table" if view == "actual"
-  else "planned-table" if view == "planned"
-  else "recurring-table"
-) %}
-{# Per-day net comes from the router (services.ledger_totals, T-D48): base
-   currency, ADR-0008 signs (adjustment pre-signed), transit excluded. #}
+{# Ledger table, Planned and Recurring views only (T-064, T-092). TRANSITIONAL (T-UR10a ports the
+   rows to the new shell): the Actual view is fragments/ledger/actual-table.html (T-UR09). #}
+{% set table_id = "planned-table" if view == "planned" else "recurring-table" %}
 <div id="ledger-table"
      data-ledger-table-root
      data-view="{{ view }}"
@@ -24,7 +12,10 @@
      hx-include="#ledger-filters"
      hx-disinherit="hx-include">
   <div id="{{ table_id }}" data-ledger-table data-view="{{ view }}">
-    <div class="ledger-scroll">
+    <div class="rd-table-scroll"
+         tabindex="0"
+         role="region"
+         aria-label="{{ view|capitalize }} (scrolls sideways)">
       <table class="ledger">
         <caption class="sr-only">Ledger — {{ view }}</caption>
         <thead>
@@ -44,71 +35,13 @@
               <th scope="col" class="text-right">Amount</th>
               <th scope="col">Status</th>
               <th scope="col"><span class="sr-only">Actions</span></th>
-            {% else %}
-              <th scope="col">Description · Account</th>
-              <th scope="col">Category</th>
-              <th scope="col">Direction</th>
-              <th scope="col" class="text-right">Amount</th>
-              <th scope="col"><span class="sr-only">Actions</span></th>
             {% endif %}
           </tr>
         </thead>
         <tbody>
           {%- set ns = namespace(day=none) -%}
           {% for row in rows %}
-            {% if view == "actual" %}
-              {%- if ns.day != row.operation_date -%}
-                {%- set ns.day = row.operation_date -%}
-                {%- set day_net = day_nets.get(row.operation_date.isoformat()) -%}
-                <tr class="rd-day-head">
-                  <td colspan="4">
-                    <span class="rd-eyebrow">{{ row.operation_date.strftime("%a %d %b") }}</span>
-                  </td>
-                  <td class="text-right">
-                    {% if day_net is not none and day_net != 0 %}
-                      <span class="num {{ 'pos' if day_net > 0 else 'neg' }}">net {{ day_net|money_num(base_ccy, signed=True) }}</span>
-                    {% endif %}
-                  </td>
-                  <td></td>
-                </tr>
-              {%- endif -%}
-              {% set dir_value = row.category.direction.value if row.category else '' %}
-              {% set is_income = dir_value == 'income' %}
-              <tr id="txn-{{ row.id }}" class="row">
-                <td>
-                  <strong>{{ row.description or '—' }}</strong>
-                  <br>
-                  <small class="text-muted">
-                    {{ row.account.name if row.account else '' }}{% if row.dest_account %} → {{ row.dest_account.name }}{% endif %}
-                  </small>
-                </td>
-                <td>{{ category_label(row.category) }}</td>
-                <td>{% if row.category %}{{ direction_badge(row.category.direction) }}{% endif %}</td>
-                <td class="text-right num {{ 'pos' if is_income else '' }}">
-                  {{ '+' if is_income else '' }}{{ row.amount|money(row.currency) }}
-                </td>
-                <td class="rd-actions">
-                  {% call kebab_menu(id="txn-" ~ row.id) %}
-                    <li role="none">
-                      <button type="button"
-                              role="menuitem"
-                              hx-get="/transactions/{{ row.id }}/edit"
-                              hx-target="#modal-root"
-                              hx-swap="innerHTML">Edit</button>
-                    </li>
-                    <li role="none">
-                      <button type="button"
-                              role="menuitem"
-                              data-destructive
-                              hx-post="/transactions/{{ row.id }}/delete"
-                              hx-target="#txn-{{ row.id }}"
-                              hx-swap="outerHTML"
-                              hx-confirm="Delete this transaction?">Delete</button>
-                    </li>
-                  {% endcall %}
-                </td>
-              </tr>
-            {% elif view == "planned" %}
+            {% if view == "planned" %}
               {% set days_delta = (row.operation_date - today_date).days if today_date is defined else 0 %}
               {% set dir_value = row.category.direction.value if row.category else '' %}
               {% set is_income = dir_value == 'income' %}
@@ -365,32 +298,10 @@
                   hx-target="#modal-root"
                   hx-swap="innerHTML">+ Recurring rule</button>
         </div>
-      {% else %}
-        <p class="text-faint mt-4">No entries match the current filters.</p>
       {% endif %}
-    {% endif %}
-    {% if view == "actual" %}
-      <nav class="rd-pagination" aria-label="Pagination">
-        {% if page > 1 %}
-          <button type="button"
-                  class="rd-btn rd-btn--sm"
-                  hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
-                  hx-include="#ledger-filters"
-                  hx-target="#ledger-table"
-                  hx-sync="#ledger-table:replace"
-                  hx-swap="outerHTML">← Newer</button>
-        {% endif %}
-        <span class="rd-pagination__state">Page {{ page }}</span>
-        {% if has_next %}
-          <button type="button"
-                  class="rd-btn rd-btn--sm"
-                  hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
-                  hx-include="#ledger-filters"
-                  hx-target="#ledger-table"
-                  hx-sync="#ledger-table:replace"
-                  hx-swap="outerHTML">Older →</button>
-        {% endif %}
-      </nav>
     {% endif %}
   </div>
 </div>
+{% if oob_export|default(none) and export %}
+  {% include "fragments/ledger/export-menu.html" %}
+{% endif %}

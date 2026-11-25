@@ -58,6 +58,7 @@ from budget_planner.services._promotion import (
 )
 from budget_planner.services.recurring_formula import (
     DatesOnly,
+    FormulaCycleError,
     FormulaFx,
     resolve_rule_amount,
     rt_expand,
@@ -273,10 +274,16 @@ def _promotion_values(
     """Resolve (amount, description, operation date): rule -> override -> explicit edits."""
     # Defaults start from the rule. Formula rules recompute from the
     # live source-rule state for the next_due month (ADR-0045).
+    try:
+        live_amount = resolve_rule_amount(conn, user_id, rule, due_date, fx=fx)
+    except FormulaCycleError as exc:
+        raise ValidationError(
+            f"{exc} \N{EM DASH} edit the formula or override this occurrence"
+        ) from exc
     default_amount, default_description, effective_date = _apply_override(
         match,
         rule,
-        amount=resolve_rule_amount(conn, user_id, rule, due_date, fx=fx),
+        amount=live_amount,
         description=rule.default_description,
         due_date=due_date,
     )

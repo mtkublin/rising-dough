@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import timedelta
 
 import pyarrow.parquet as pq
@@ -16,6 +17,7 @@ from budget_planner.repositories import planned as planned_repo
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import USER_ID, audit_ops, hx_events, query, scalar
 from tests.ui_map import _html, ledger
+from tests.ui_map.locator import by_id, role
 
 Ids = dict[str, int]
 HTMX = {"HX-Request": "true"}
@@ -117,6 +119,8 @@ def test_create_validation_errors(client: TestClient, seeded: Ids, _migrated: Se
 def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     ok = client.get(f"/planned/{seeded['pl']}/edit", headers=HTMX)
     assert ok.status_code == 200
+    assert ok.headers["HX-Retarget"] == "#modal-root"  # a dialog now, not a slide-over
+    assert _html.exists(ok.text, role("dialog", re.compile(r"^edit planned")))
     assert "<html" not in ok.text
     assert client.get("/planned/99999/edit").status_code == 404
 
@@ -128,7 +132,9 @@ def test_update_persists_audits_and_signals(
     r = client.post(f"/planned/{seeded['pl']}", data=_form(seeded, amount="9"))
     assert r.status_code == 200
     assert hx_events(r) == FORECAST_LEDGER
-    assert r.headers["HX-Reswap"] == "none"
+    # the dialog closes: #modal-root is emptied out of band (was HX-Reswap none + reload)
+    assert "HX-Reswap" not in r.headers
+    assert _html.resolve_one(r.text, by_id("modal-root")).get("hx-swap-oob") == "innerHTML"
     assert (
         scalar(_migrated, "SELECT amount FROM planned_transactions WHERE id = ?", (seeded["pl"],))
         == 900

@@ -57,14 +57,18 @@ def row_violations(row: Row) -> list[str]:
 
 
 def skeleton(html: str) -> list[tuple[object, ...]]:
-    """Tags in order with every attribute except the allowed value ones; script/style bodies."""
+    """Tags in order, attributes except the allowed value and geometry ones; script/style bodies."""
     soup = BeautifulSoup(html, "html.parser")
     out: list[tuple[object, ...]] = []
     for el in soup.find_all(True):
         assert isinstance(el, Tag)
         attrs = tuple(
-            sorted((k, str(v)) for k, v in el.attrs.items() if k not in ALLOWED_ATTRIBUTES)
-        )
+            sorted(
+                (k, str(v))
+                for k, v in el.attrs.items()
+                if k not in ALLOWED_ATTRIBUTES and k not in GEOMETRY_ATTRIBUTES
+            )
+        )  # geometry attributes change only through source = "geometry" rows (row_violations)
         body = el.get_text() if el.name in ("script", "style") else ""
         out.append((el.name, attrs, body))
     return out

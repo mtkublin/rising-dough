@@ -69,8 +69,8 @@ def _built(tmp_path: Path, *modifiers: str) -> sqlite3.Connection:
 
 def test_entity_counts() -> None:
     assert (len(seed.ACCOUNTS), len(seed.CATEGORIES)) == (10, 22)
-    assert len(seed.TRANSACTIONS) == 26
-    assert (len(seed.PLANNED), len(seed.RULES), len(seed.BUDGETS)) == (4, 15, 13)
+    assert len(seed.TRANSACTIONS) == 32
+    assert (len(seed.PLANNED), len(seed.RULES), len(seed.BUDGETS)) == (5, 15, 13)
 
 
 def test_refuses_existing_db(tmp_path: Path) -> None:
@@ -148,7 +148,9 @@ def test_categories_and_deleted(base: Built) -> None:
 def test_ledger_rows(base: Built) -> None:
     conn, _ = base
     rows = transactions_repo.list_filtered(conn, USER, TransactionFilter())
-    assert len(rows) == 26  # tab count 616 is a handoff-only figure: overlay
+    assert (
+        len(rows) == 32
+    )  # 26 + 6 Jul-Sep history entries; tab count 616 is a handoff-only figure: overlay
     newest = max(rows, key=lambda t: (t.operation_date, t.id))
     assert (newest.operation_date, newest.amount, newest.description) == (
         dt.date(2026, 10, 31),
@@ -202,6 +204,7 @@ def test_planned_and_recurring(base: Built) -> None:
     assert sorted((p.operation_date.isoformat(), p.amount, p.description) for p in planned) == [
         ("2026-10-28", 41_200, "Annual insurance"),
         ("2026-10-31", 112_045, "Tax refund"),
+        ("2026-11-20", 2_500_000, "Annual bonus"),
         ("2026-12-15", 223_980, "Car"),
     ]
     deleted = planned_repo.list_recently_deleted(conn, USER)
