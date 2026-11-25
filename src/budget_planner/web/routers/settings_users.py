@@ -11,7 +11,7 @@ HTMX contract (``fragments/dialogs/*``, ``fragments/rows/user-row``):
   ``.../reset-password``, ``.../delete``); delete shows the blocked variant when a service
   guard (own account, last admin) would refuse.
 - Edit swaps the saved row and flashes success; delete removes the row and flashes.
-- Reset (and the create route kept for T-UR20's add dialog) answer with the one-time password
+- Add (``GET .../new``, then ``POST``; a 422 re-opens the add dialog with the field errors) and reset answer with the one-time password
   dialog and the refreshed table out of band. The response is ``no-store``.
 - 422 (invalid / duplicate email, or an edit that changes the email) re-renders the dialog
   with the field summary. 409 (last admin, self-demotion, self-removal) is a flash with
@@ -55,13 +55,14 @@ from budget_planner.web.invites_admin import (
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render, render_context
 from budget_planner.web.users_admin import (
+    ADD_DIALOG,
     DELETE_DIALOG,
     EDIT_DIALOG,
     LIST_PATH,
     LIST_TEMPLATE,
     RESET_DIALOG,
     ROW_TEMPLATE,
-    SUMMARY_TEMPLATE,
+    add_context,
     checkbox,
     conflict,
     conflict_message,
@@ -95,31 +96,38 @@ def create_user(
     email: str = Form(default=""),
     name: str = Form(default=""),
     is_admin: str | None = Form(default=None),
+    role: str = Form(default="member"),
     conn: sqlite3.Connection = Depends(get_db),
     admin: CurrentUser = Depends(current_admin),
     request_ctx: RequestCtx = Depends(get_request_ctx),
     tokens: TokenSource = Depends(get_token_source),
     hasher: PasswordHasher = Depends(get_password_hasher),
 ) -> HTMLResponse:
-    """Create a user; show the generated password once (the add dialog is T-UR20)."""
+    """Create a user; the add dialog answers with the one-time password dialog (shown once)."""
+    admin_flag = checkbox(is_admin) or role == "admin"
     try:
-        draft = users_service.build_draft(email=email, name=name, is_admin=checkbox(is_admin))
+        draft = users_service.build_draft(email=email, name=name, is_admin=admin_flag)
         user, password = users_service.create_user(
             conn, admin.id, draft, tokens=tokens, hasher=hasher, request_ctx=request_ctx
         )
     except UserInputError as exc:
-        rows = field_summary(exc.fields)
         if is_hx_request(request):
-            return render(
+            return invalid_dialog_response(
                 request,
-                SUMMARY_TEMPLATE,
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                field_count=len(rows),
-                field_errors=rows,
+                ADD_DIALOG,
+                add_context(email=email, name=name, is_admin=admin_flag),
+                exc.fields,
             )
+        rows = field_summary(exc.fields)
         context = {**page_context(request, conn, admin), "form_summary": rows}
         return render(request, LIST_TEMPLATE, HTTPStatus.UNPROCESSABLE_ENTITY, **context)
     return render_toast(request, conn, admin, password_toast(user, password, kind="created"))
+
+
+@router.get("/new", response_class=HTMLResponse, dependencies=[Depends(current_admin)])
+def add_form(request: Request) -> HTMLResponse:
+    """Add user dialog (email, name, role)."""
+    return dialog_response(request, ADD_DIALOG, add_context())
 
 
 # --- invites (T-UR20a): before the ``/{user_id}`` routes so ``invites`` is not read as an id ---

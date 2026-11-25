@@ -37,6 +37,7 @@ LIST_TEMPLATE: Final = "pages/settings/users.html"
 TABLE_TEMPLATE: Final = "fragments/tables/users-table.html"
 ROW_TEMPLATE: Final = "fragments/rows/user-row.html"
 ONE_TIME_DIALOG: Final = "fragments/dialogs/one-time-password.html"
+ADD_DIALOG: Final = "fragments/dialogs/add-user.html"
 EDIT_DIALOG: Final = "fragments/dialogs/edit-user.html"
 DELETE_DIALOG: Final = "fragments/dialogs/delete-user.html"
 RESET_DIALOG: Final = "fragments/dialogs/reset-password.html"
@@ -52,6 +53,13 @@ _CHECKBOX_TRUE: Final = frozenset({"on", "1", "true", "yes"})
 def checkbox(value: str | None) -> bool:
     """HTML checkbox text to a bool (absent means unchecked)."""
     return value is not None and value.lower() in _CHECKBOX_TRUE
+
+
+def add_context(
+    *, email: str = "", name: str = "", is_admin: bool = False
+) -> dict[str, object]:
+    """Values of the add user dialog (submitted values come back on a 422)."""
+    return {"email": email, "name": name, "is_admin": is_admin, "errors": {}}
 
 
 def not_found(request: Request) -> HTMLResponse:

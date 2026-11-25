@@ -125,6 +125,11 @@ def test_get_forced_page_is_standalone_with_banner(forced: TestClient) -> None:
 
 
 @covers("GET /settings/password")
+def test_get_forced_page_is_no_store(forced: TestClient) -> None:
+    assert forced.get("/settings/password").headers["cache-control"] == "no-store"
+
+
+@covers("GET /settings/password")
 def test_get_forced_carries_only_safe_next(forced: TestClient) -> None:
     ok = forced.get("/settings/password?next=/ledger").text
     assert _next_value(ok) == "/ledger"

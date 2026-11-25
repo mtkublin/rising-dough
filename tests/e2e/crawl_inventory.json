@@ -1464,6 +1464,11 @@
     },
     {
       "kind": "hx-get",
+      "name": "+ add user",
+      "target": "/settings/users/new"
+    },
+    {
+      "kind": "hx-get",
       "name": "+ create invite",
       "target": "/settings/users/invites/new"
     },
