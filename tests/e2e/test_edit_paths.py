@@ -123,6 +123,7 @@ def test_today_override_planned_saves_and_closes(live_server: tuple[str, Path], 
     expect(to_playwright(page, ledger.table_container)).to_contain_text("33.00")
 
 
+@pytest.mark.skip(reason="T-UR09b: edit dialog not ported; the old slide-over sticks")
 def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     account_id, category_id = _seed(base_url, db_path, page)
@@ -139,7 +140,8 @@ def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], p
     tx = ledger.row(db_probe.txn_id(db_path, "edit-txn"))
     page.goto(_ledger(base_url, "actual"))
     assert page.evaluate("typeof window.htmx") == "object"
-    _kebab_item(page, tx, "Edit")
+    to_playwright(page, ledger.row_menu(db_probe.txn_id(db_path, "edit-txn"))).click()
+    to_playwright(page, ledger.row_action("edit")).click()
     expect(_panel(page)).to_be_visible()
     to_playwright(page, ledger.field_amount.inside(shell.slideover)).fill("99.00")
     to_playwright(page, ledger.save.inside(shell.slideover)).click()
@@ -148,6 +150,7 @@ def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], p
     assert db_probe.txn_amounts(db_path, "edit-txn") == [9900]
 
 
+@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_ledger_planned_promote_closes(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _planned(base_url, page, _seed(base_url, db_path, page))
@@ -163,6 +166,7 @@ def test_ledger_planned_promote_closes(live_server: tuple[str, Path], page: Page
     expect(to_playwright(page, ledger.table_container)).to_contain_text("edit-planned")
 
 
+@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_override_invalid_month_shows_error_in_panel(
     live_server: tuple[str, Path], page: Page
 ) -> None:

@@ -212,12 +212,10 @@ def test_new_entry_is_a_labelled_modal_dialog(client: TestClient) -> None:
     assert _html.text_of(r.text, by_id("new-entry-dialog-title")) == "new entry"
 
 
-def test_ledger_segmented_marks_active_view(client: TestClient) -> None:
-    """Rising Dough v2 — anchor-based rd-segmented; active tab carries aria-selected='true'."""
+def test_ledger_tabs_mark_active_view(client: TestClient) -> None:
+    """The view tabs are links in a labelled nav; the open view carries aria-current."""
     soup = _soup(client, "/ledger?view=planned")
-    items = [a for a in _html.resolve(soup, _TAB) if a.name == "a"]
-    assert len(items) >= 3, "expected actual / planned / recurring tabs"
-    active = [a for a in items if a.get("aria-selected") == "true"]
-    assert len(active) == 1, "exactly one segmented tab should be aria-selected"
-    href = active[0].get("href", "")
-    assert isinstance(href, str) and href.endswith("view=planned")
+    items = _html.resolve(soup, role("link").inside(role("navigation", "Ledger view")))
+    assert [a.get_text(strip=True) for a in items] == ["actual 0", "planned 0", "recurring 0"]
+    active = [a for a in items if a.get("aria-current") == "page"]
+    assert [a.get("href") for a in active] == ["/ledger?view=planned"]

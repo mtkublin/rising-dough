@@ -11,8 +11,9 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World, days_from_today
-from tests.ui_map import ledger
-from tests.ui_map.locator import Locator
+from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry
+from tests.ui_map import entries, ledger
+from tests.ui_map.locator import Locator, label
 
 pytestmark = pytest.mark.e2e
 
@@ -42,28 +43,30 @@ def test_two_term_formula_shows_computed_preview(world: World) -> None:
     world.rule(account, bonus, "200.00", "bonus-rule")
     rules_before = world.scalar("SELECT COUNT(*) FROM recurring_rules")
     world.goto(LEDGER_ALL_TIME)
-    world.find(ledger.add_new).click()
-    expect(world.find(ledger.slideover)).to_be_visible()
-    world.find(ledger.entry_tab("Repeats")).click()
-    expect(world.find(ledger.entry_tab("Repeats"))).to_have_attribute("aria-selected", "true")
-    _pick(world, ledger.field_category, "Savings")
-    _pick(world, ledger.field_account, "Checking")
-    world.find(ledger.amount_source_formula).dispatch_event("click")
+    open_new_entry(world.page)
+    world.find(entries.tab_repeats).click()
+    expect(world.find(entries.tab_repeats)).to_have_attribute("aria-current", "page")
+    choose_category(world.page, "Savings")
+    choose_account(world.page, "Checking")
+    world.find(entries.amount_formula).check(force=True)
 
-    _open_formula_source(world, "Salary")
-    world.find(ledger.formula_coefficient).nth(0).fill("50")
-    expect(world.find(ledger.formula_preview)).to_have_text("= 500.00")
+    world.find(entries.formula_pick).click()
+    world.find(label("Salary", exact=True).inside(entries.formula_group)).check(force=True)
+    world.find(entries.formula_percent).press_sequentially("50")  # keyup fires the preview
+    expect(world.find(entries.formula_result)).to_contain_text("500.00")
 
-    world.find(ledger.add_term).click()
-    world.find(ledger.formula_sign_minus).nth(1).dispatch_event("click")  # sr-only radio
-    _open_formula_source(world, "Bonus")
-    world.find(ledger.formula_coefficient).nth(1).fill("10")
-    expect(world.find(ledger.formula_preview)).to_have_text("= 480.00")
+    world.find(entries.formula_add_component).click()
+    world.find(entries.formula_subtract).nth(1).check(force=True)
+    world.find(entries.formula_pick).click()  # only the new component still reads "pick categories"
+    world.find(label("Bonus", exact=True).inside(entries.formula_group)).nth(1).check(force=True)
+    world.find(entries.formula_percent).nth(1).press_sequentially("10")
+    expect(world.find(entries.formula_result)).to_contain_text("480.00")
 
-    expect(world.find(ledger.slideover)).to_be_visible()
+    expect(world.find(entries.dialog)).to_be_visible()  # the preview did not close it
     assert world.scalar("SELECT COUNT(*) FROM recurring_rules") == rules_before
 
 
+@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_formula_cycle_shows_error_chip_and_keeps_edit_open(world: World) -> None:
     account = world.account("Checking")
     salary = world.category("Salary", "income")

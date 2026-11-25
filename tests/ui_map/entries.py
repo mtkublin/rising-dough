@@ -61,3 +61,10 @@ opener = role("region", "New entry", exact=True)  # plain page load: asks /add f
 credit_line = by_id("credit-line")
 summary = by_id("error-summary")
 hero_refresh = by_id("hero-refresh")  # hidden: carries the hero refresh trigger (T-UR04g)
+
+# --- formula components (repeats tab, formula mode) ---
+formula_percent = role("textbox", "Percentage", exact=True).inside(formula_group)
+formula_subtract = role("radio", "subtract", exact=True).inside(formula_group)
+formula_add_component = role("button", "+ add component", exact=True).inside(formula_group)
+formula_pick = role("button", "pick categories", exact=True).inside(formula_group)
+formula_result = role("status").inside(formula_group)

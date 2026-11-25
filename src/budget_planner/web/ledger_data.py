@@ -36,10 +36,15 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
     transactions as transactions_service,
 )
+from budget_planner.web import ledger_view
+from budget_planner.web.htmx import HX_TRIGGER
+from budget_planner.web.http_headers import HX_PUSH_URL
+from budget_planner.web.ledger_export import export_links
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
 from budget_planner.web.params import query_choice, query_date, query_int
 from budget_planner.web.rendering import render_context
 
+FILTER_FORM_ID: Final = "ledger-filters"
 _PAGE_SIZE_DEFAULT: Final = 50
 _DIRECTIONS: Final = tuple(d.value for d in Direction)
 _SCOPES: Final = ("all", "unpromoted")
@@ -473,6 +478,28 @@ def _page_keys(
     }
 
 
+def _actual_keys(
+    conn: sqlite3.Connection,
+    user_id: int,
+    settings: Settings,
+    *,
+    filters: LedgerFilters,
+    rows: Sequence[TxnRow],
+    day_nets: Mapping[str, int | None],
+) -> dict[str, object]:
+    """Keys of ``fragments/ledger/actual-table.html``: day groups, pagination, empty states."""
+    cats, accts = _lookups(conn, user_id)
+    summary = filter_summary(filters, cats, accts)
+    has_next = len(rows) == filters.page_size
+    return {
+        "days": ledger_view.actual_days(rows, day_nets, settings.base_currency),
+        "links": ledger_view.page_links(filters, has_next=has_next),
+        "color_rules": ledger_view.category_rules(rows),
+        "no_matches": not rows and (summary.is_active or filters.page > 1),
+        "summary_text": ledger_view.no_matches_text(summary),
+    }
+
+
 def table_context(
     conn: sqlite3.Connection,
     user_id: int,
@@ -485,6 +512,7 @@ def table_context(
     """Template keys for the ``/ledger/table`` fragment."""
     rows: Sequence[object]
     day_nets: dict[str, int | None] = {}
+    actual: list[TxnRow] | None = None
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
@@ -496,8 +524,15 @@ def table_context(
     cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
     return {
         **_page_keys(view, rows, filters, today),
+        **(
+            _actual_keys(conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets)
+            if actual is not None
+            else {}
+        ),
         "day_nets": day_nets,
         "categories_by_id": cats,
+        "export": export_links(view, filters),
+        "oob_export": True,  # the menu sits outside the swapped region; refresh it with it
     }
 
 
@@ -511,25 +546,58 @@ def render_table_for(
     today: date,
 ) -> HTMLResponse:
     """Render the ledger table fragment for ``view`` (shared by the legacy fragment aliases)."""
-    ctx = table_context(
-        conn, user_id, settings=settings, view=view, filters=parse_filters(request), today=today
-    )
-    return render_context(request, "ledger/_table.html", ctx)
+    filters = parse_filters(request)
+    ctx = table_context(conn, user_id, settings=settings, view=view, filters=filters, today=today)
+    template = "fragments/ledger/actual-table.html" if view == "actual" else "ledger/_table.html"
+    response = render_context(request, template, ctx)
+    if request.headers.get(HX_TRIGGER) == FILTER_FORM_ID:
+        # A filter change keeps the URL in step, so a reload or Back reopens the same filters.
+        response.headers[HX_PUSH_URL] = ledger_view.ledger_url(view, filters)
+    return response
 
 
 def _lookup_keys(
-    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: LedgerFilters,
+    live: tuple[list[Category], list[Account]],
 ) -> dict[str, object]:
     """Category and account lists, the id lookup and the no-matches filter summary."""
     cats_all = categories_service.list_all(conn, user_id, include_deleted=True)
     accts_all = accounts_service.list_all(conn, user_id, include_deleted=True)
     return {
-        "categories": categories_service.list_all(conn, user_id),
-        "accounts": accounts_service.list_all(conn, user_id),
+        "categories": live[0],
+        "accounts": live[1],
         "categories_by_id": {c.id: c for c in cats_all},
         "filter_summary": filter_summary(
             filters, {c.id: c for c in cats_all}, {a.id: a for a in accts_all}
         ),
+    }
+
+
+def _chrome_keys(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    view: ViewKind,
+    filters: LedgerFilters,
+    spent: int | None,
+    base_ccy: str,
+) -> dict[str, object]:
+    """Keys of the page chrome: hero, view tabs, filter bar, export links, lookups."""
+    live = (categories_service.list_all(conn, user_id), accounts_service.list_all(conn, user_id))
+    tab_counts = _tab_counts(conn, user_id)
+    return {
+        **_lookup_keys(conn, user_id, filters, live),
+        "nav_current": "ledger",
+        "title": ledger_view.VIEW_TITLES[view],
+        "hero": ledger_view.ledger_hero(spent, base_ccy),
+        "tabs": ledger_view.ledger_tabs(view, tab_counts),
+        "bar": ledger_view.filter_bar(filters, live[0], live[1]),
+        "export": export_links(view, filters),
+        "views": view_kinds(),
+        "filters": filters,
+        "tab_counts": tab_counts,
     }
 
 
@@ -550,10 +618,14 @@ def index_context(
     base_ccy = settings.base_currency
     fx = fx_service.converter_for(conn, settings, today)
     spent: int | None = None
+    page_keys: dict[str, object] = {}
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
         spent = period_spent_minor(conn, user_id, settings, today)
+        page_keys = _actual_keys(
+            conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets
+        )
     elif view == "planned":
         planned = _planned_rows(conn, user_id, filters, today)
         planned_summary = ledger_totals.planned_totals(
@@ -571,12 +643,10 @@ def index_context(
         rows = recurring
     return {
         **_page_keys(view, rows, filters, today),
-        **_lookup_keys(conn, user_id, filters),
+        **_chrome_keys(conn, user_id, view=view, filters=filters, spent=spent, base_ccy=base_ccy),
+        **page_keys,
         "spent_minor": spent,
-        "views": view_kinds(),
         "day_nets": day_nets,
-        "filters": filters,
-        "tab_counts": _tab_counts(conn, user_id),
         "recurring_summary": recurring_summary,
         "planned_summary": planned_summary,
     }
