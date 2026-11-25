@@ -43,7 +43,7 @@ forecast_horizon = role("spinbutton", "Horizon (months)")
 plan_nav_link = role("link", "Plan", exact=True)
 
 # --- anchor select (rendered on settings, posted to /budget/preferences/income-anchor) ---
-anchor_select = by_id("anchor-select")
+anchor_select = by_id("income-anchor")  # settings categories page (T-UR13)
 
 
 def summary_row(category_name: str) -> Locator:

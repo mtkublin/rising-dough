@@ -189,19 +189,17 @@ def test_dialogs_have_accessible_labels(client: TestClient) -> None:
     assert dialog.get("aria-modal") == "true"
 
 
-def test_settings_drawer_is_dialog(client: TestClient) -> None:
-    """Rising Dough v2: Settings page is a full page. HX request still gets
-    the drawer fragment with full dialog aria shape."""
-    r = client.get("/settings", headers={"HX-Request": "true"})
+def test_settings_page_has_no_drawer_and_category_dialog_is_labelled(client: TestClient) -> None:
+    """ADR-0152: Settings is a page (no slide-over drawer); its dialogs come from the shell."""
+    page = client.get("/settings", headers={"HX-Request": "true"})
+    assert page.status_code == 200
+    assert not [d for d in _html.resolve(page.text, shell.dialog) if d.has_attr("data-drawer")]
+    r = client.get("/categories/new", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    frag = BeautifulSoup(r.text, "html.parser")
-    drawers = [d for d in _html.resolve(frag, shell.dialog) if d.has_attr("data-drawer")]
-    assert len(drawers) == 1
-    drawer = drawers[0]
-    assert drawer.get("role") == "dialog"
-    assert drawer.get("aria-modal") == "true"
-    assert drawer.get("aria-labelledby"), "drawer missing aria-labelledby"
-    assert drawer.get("tabindex") == "-1"
+    dialogs = _html.resolve(BeautifulSoup(r.text, "html.parser"), shell.dialog)
+    assert len(dialogs) == 1
+    assert dialogs[0].get("aria-labelledby") == f"{dialogs[0].get('id')}-title"
+    assert dialogs[0].get("data-js") == "modal"
 
 
 def test_slideover_is_dialog(client: TestClient) -> None:

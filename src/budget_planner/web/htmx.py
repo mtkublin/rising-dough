@@ -25,6 +25,7 @@ class Event(StrEnum):
 
     BALANCE_STALE = "balance-stale"
     BUDGET_STALE = "budget-stale"
+    DIALOG_CLOSE = "dialog-close"
     FORECAST_STALE = "forecast-stale"
     LEDGER_STALE = "ledger-stale"
     TODAY_STALE = "today-stale"
