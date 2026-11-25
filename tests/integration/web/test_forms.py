@@ -47,7 +47,7 @@ from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, entries, ledger
 
 USER_ID = 1
 
@@ -113,29 +113,22 @@ def _extract_after_request_handler(source: str) -> str:
     raise AssertionError(msg)
 
 
-def test_new_transaction_slideover_wraps_reset_on_submit_form(
+def test_new_transaction_dialog_posts_the_amount_preview_from_the_form(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
-    """``GET /transactions/new`` renders the slide-over wrapping a reset-on-submit form.
+    """``GET /transactions/new`` is the new-entry dialog (T-UR07b, ADR-0152).
 
-    The pre-T-124 bug reproduced because the amount input's side-effect
-    HTMX request bubbled an ``htmx:afterRequest`` event whose target's
-    closest ancestor matched ``form[data-reset-on-submit]``. Pin that the
-    attribute still lives on the form so the T-124 scoping change
-    continues to apply.
+    The credit line refetches itself from the whole form, so an amount keystroke can
+    never close or reset the dialog: it targets ``#credit-line`` only.
     """
-    r = client.get("/transactions/new")
+    r = client.get("/transactions/new", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    overlay = soup.find("div", attrs={"data-slideover": True})
-    assert isinstance(overlay, Tag)
-    form = overlay.find("form", attrs={"data-reset-on-submit": True})
-    assert isinstance(form, Tag), "new-transaction form must carry data-reset-on-submit"
-    amount = form.find("input", attrs={"name": "amount"})
-    assert isinstance(amount, Tag)
-    assert amount.get("hx-get") == "/transactions/_limit_preview", (
-        "side-effect hx-get on amount input is the regression trigger"
-    )
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert _html.exists(r.text, entries.dialog)
+    line = _html.resolve_one(r.text, entries.credit_line)
+    assert line.get("hx-get") == "/transactions/_limit_preview"
+    assert line.get("hx-target") == "#credit-line"
+    assert line.get("hx-include") == "closest form"
 
 
 def test_limit_preview_side_effect_returns_fragment(
@@ -184,9 +177,6 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
     ``hasAttribute``, ``querySelectorAll``, ``closest``, ``reset``,
     ``parentElement.innerHTML``).
     """
-    base_html = client.get("/transactions/new").text  # has <head> + base scripts
-    # The slide-over fragment response does not include <head>; grab the
-    # home page which renders base.html wholesale.
     # /ledger is still on the old base, which loads app-init.js; moves with the shell at T-UR15.
     full = client.get("/ledger").text
     # ADR-0113: the bootstrap script is external, so the page must reference it.
@@ -198,9 +188,6 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
     assert "data-reset-on-submit" in handler_js, handler_js
     assert "requestConfig" in handler_js, handler_js
     assert '"post"' in handler_js, handler_js
-    # Verify the base document the handler reads from on page load.
-    assert "data-slideover" in base_html
-
     # Semantic replay — Python-side mirror of the handler logic. The
     # textual match above pins the handler shape; this block pins its
     # behaviour under the two production event shapes.

@@ -1,0 +1,40 @@
+{# fragment: fields/field (macros)
+   Plain form fields from the handoff (overlays/new-entry--*.html): label above a bordered input or select.
+   {% from "fragments/fields/field.html" import text_field, select_field %}
+   text_field(name, label, value="", type="text", error="", min="", max="", required=false)
+   select_field(name, label, options, selected, error="", empty_label="")   options: objects with id and name
+   Ids are "field-<name>" so the 422 summary can link to them; an error sets aria-invalid + describedby. #}
+{% macro text_field(name, label, value="", type="text", error="", min="", max="", required=false) %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="field-{{ name }}">{{ label }}</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="field-{{ name }}"
+             name="{{ name }}"
+             type="{{ type }}"
+             autocomplete="off"
+             {% if min %}min="{{ min }}"{% endif %}
+             {% if max %}max="{{ max }}"{% endif %}
+             {% if value != "" %}value="{{ value }}"{% endif %}
+             {% if required %}required{% endif %}
+             {% if error %}aria-invalid="true" aria-describedby="field-{{ name }}-error"{% endif %}>
+    </span>
+    {% if error %}<p class="rd-field__error" id="field-{{ name }}-error">▲ {{ error }}</p>{% endif %}
+  </div>
+{% endmacro %}
+{% macro select_field(name, label, options, selected, error="", empty_label="") %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="field-{{ name }}">{{ label }}</label>
+    <span class="rd-select-wrap">
+      <select class="rd-select rd-select--field"
+              id="field-{{ name }}"
+              name="{{ name }}"
+              {% if error %}aria-invalid="true" aria-describedby="field-{{ name }}-error"{% endif %}>
+        {% if empty_label %}<option value="">{{ empty_label }}</option>{% endif %}
+        {% for o in options %}<option value="{{ o.id }}"
+        {% if o.id == selected %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
+      </select>
+    </span>
+    {% if error %}<p class="rd-field__error" id="field-{{ name }}-error">▲ {{ error }}</p>{% endif %}
+  </div>
+{% endmacro %}
