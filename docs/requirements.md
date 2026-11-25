@@ -112,6 +112,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 - Charts are Jinja-rendered server-side SVG with data-table fallbacks (no Plotly, no CDN; §5.1, [ADR-0123](adr/0123-frontend-stays-server-rendered-no-spa-framework.md)).
 - `uv` for Python dependency and virtual-environment management.
 - `npm` for the small dev-only Node toolchain (`tailwindcss`, `stylelint`, `pixelmatch`, Playwright). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
+- `Pillow` as a dev-only dependency: PNG decode for the visual compare harness ([ADR-0153](adr/0153-pillow-dev-dependency-for-visual-compare-decode.md)).
 - `just` as the task runner.
 - Architecture and test-quality tooling: `import-linter` (layer contracts) and Mutmut (mutation testing, `domain` + `services`; [ADR-0131](adr/0131-mutation-testing-policy.md)), both pinned dev dependencies. Architecture guards live in `tests/architecture/` ([ADR-0130](adr/0130-prevention-regime-and-full-architectural-compliance.md)).
 

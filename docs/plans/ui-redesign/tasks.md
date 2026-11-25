@@ -351,6 +351,11 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Re-run `frontend-visual-audit` for the flows audited in `docs/audits/2026-11-23-t-q316-t-q317.md`: Undo reload waiting on in-flight htmx requests (T-Q316) and the passkey journey (T-Q317), on the migrated templates at 1440 / 1024 / 375. Step 3b (behaviour contract) included.
 - Commit the result as `docs/audits/<date>-t-ur41.md`. Quality-audit follow-up (h); deferred because the redesign replaces the templates the original audit covered.
 
+### ◻ T-UR42a [S] Visual compare decode speed: Pillow dev dependency (operator Q14, 2026-11-25)
+- Operator decision Q14: add a dev-only dependency for the screenshot decode, with an ADR. See [ADR-0153](../../adr/0153-pillow-dev-dependency-for-visual-compare-decode.md) and [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
+- **Change**: `pillow` in the `dev` group (`pyproject.toml`, `uv.lock`); `tests/visual/handoff.py` `_decode` uses it; diff mask, ratio and cluster semantics unchanged.
+- **Acceptance**: `tests/visual/test_compare.py` and `tests/visual/test_reference_mapping.py` green with unchanged expectations; before/after timings in the commit.
+
 ### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
 - Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 
