@@ -75,5 +75,5 @@
       {% if new_category_url|default(none) %}<a class="rd-btn" href="{{ new_category_url }}">+ new category “<span data-js="combobox-query">{{ query|default("") }}</span>”</a>{% endif %}
     </div>
   </div>
-  {% if error|default(none) %}<p class="rd-field__error" id="{{ field_id }}-error">▲ {{ error }}</p>{% endif %}
+  {% if error|default(none) %}<p class="rd-field__error" id="{{ field_id }}-error" role="alert">▲ {{ error }}</p>{% endif %}
 </fieldset>

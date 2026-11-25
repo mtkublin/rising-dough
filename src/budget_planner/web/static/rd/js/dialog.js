@@ -13,7 +13,12 @@
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     returnFocus.set(dialog, opener);
     dialog.showModal();
+    /* After a 422 focus goes to the first invalid field: the amount when it has an error, else the
+       category picker's search button (its radios are not a sensible stop), else any aria-invalid. */
+    const invalid = dialog.querySelector('input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"]')
+      || dialog.querySelector('fieldset[aria-describedby] [data-js="combobox-open"]');
     const first = dialog.querySelector('[autofocus]')
+      || invalid
       || dialog.querySelector('input:not([type="hidden"]):not([readonly]):not([type="radio"]):not([type="checkbox"]), select, textarea')
       || dialog.querySelector('button');
     if (first) first.focus({ preventScroll: true });

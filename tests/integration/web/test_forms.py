@@ -89,6 +89,9 @@ def test_new_transaction_dialog_posts_the_amount_preview_from_the_form(
     assert line.get("hx-get") == "/transactions/_limit_preview"
     assert line.get("hx-target") == "#credit-line"
     assert line.get("hx-include") == "closest form"
+    # Typing the amount first fires a request without category; the category/account change that
+    # follows must queue behind it instead of being dropped (F8).
+    assert line.get("hx-sync") == "this:queue last"
     # Every keystroke of the amount refetches: `changed` would watch the wrapper's own (absent)
     # value and let only the first keyup through. The id it listens to is the hero input's.
     trigger = str(line.get("hx-trigger"))

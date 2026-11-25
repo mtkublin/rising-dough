@@ -121,6 +121,9 @@ def test_transaction_without_a_category_reopens_the_dialog_with_the_values(
     assert _html.error_lines(r.text) == {
         "catpick-new-entry-error": "▲ Pick a category",
     }
+    # announced like the amount error; the picker's search button is where focus goes (dialog.js)
+    alert = _html.resolve_one(r.text, role("alert", "▲ Pick a category"))
+    assert alert.get("id") == "catpick-new-entry-error"
     assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.34"
     assert _html.resolve_one(r.text, entries.field_note).get("value") == "milk"
     assert _html.resolve_one(r.text, entries.field_date).get("value") == "2026-11-20"

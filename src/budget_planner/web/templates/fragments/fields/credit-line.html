@@ -10,6 +10,7 @@
      hx-get="/transactions/_limit_preview"
      hx-trigger="change from:closest form, keyup delay:400ms from:#field-amount"
      hx-include="closest form"
+     hx-sync="this:queue last"
      hx-target="#credit-line"
      hx-swap="outerHTML">
   {% if preview|default(none) %}
