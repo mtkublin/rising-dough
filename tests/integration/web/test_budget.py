@@ -148,6 +148,9 @@ def test_plan_budget_override_item_targets_its_own_category(
     client: TestClient, cat_id: int
 ) -> None:
     """T-D49: each row's override item opens that category's form; menu ids are unique."""
+    # F1 (derived.md budget rows): a category without a budget, entry, plan item or
+    # rule is hidden from the budget table, so give Groceries a default budget first.
+    assert client.post(f"/budget/defaults/{cat_id}", data={"amount": "500"}).status_code == 200
     r = client.get("/plan?tab=budget&year=2026&month=10")
     assert r.status_code == 200
     item = _html.resolve_one(r.text, plan_budget.override_item("Groceries"))
