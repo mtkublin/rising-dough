@@ -49,6 +49,7 @@ from tests.visual.test_reference import (
     ANONYMOUS_PAGES,
     FORM_SUBMITS,
     LEDGER_BOARD,
+    LEDGER_LONG,
     OPENER_PAGES,
     OVERLAY_DIALOGS,
     OVERLAY_MODIFIERS,
@@ -127,11 +128,11 @@ _BASES = {
     "new-account--error": ("/accounts", ()),
     "delete-account": ("/accounts", ("unreferenced-account",)),
     "delete-account--blocked-planned": ("/accounts", ("account-with-rules",)),
-    "new-category--filled": ("/settings", ()),
-    "new-category--error": ("/settings", ()),
-    "edit-category": ("/settings", ()),
-    "archive-category": ("/settings", ()),
-    "new-category": ("/settings", ()),
+    "new-category--filled": ("/settings", ("settings-categories",)),
+    "new-category--error": ("/settings", ("settings-categories",)),
+    "edit-category": ("/settings", ("settings-categories",)),
+    "archive-category": ("/settings", ("settings-categories",)),
+    "new-category": ("/settings", ("settings-categories",)),
     "edit-planned": ("/ledger?view=planned", ()),
     "promote--planned": ("/ledger?view=planned", ()),
     "edit-recurring--fixed": ("/ledger?view=recurring", ("recurring-board",)),
@@ -281,8 +282,9 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
     text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
     assert "Can\u2019t delete Checking It still has" in text
     # F1 grew the seed's Checking transactions 23 -> 33 (overlay row "Checking txns 23 -> 33",
-    # tests/visual/handoff_overlay.toml); planned items and recurring rules are unchanged.
-    assert "33 transactions and 3 planned items and 7 recurring rules." in text
+    # tests/visual/handoff_overlay.toml); the F2 seed rework then moved Checking's references to
+    # 2 planned items and 8 recurring rules (the seed's own counts, `test_handoff_seed`).
+    assert "33 transactions and 2 planned items and 8 recurring rules." in text
 
 
 def _non_overlay_pages() -> set[str]:
@@ -324,7 +326,7 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ("pages/overlays/shortcuts.html", "/today?amount=250.00", ()),
         ("pages/accounts--empty.html", "/accounts", ("empty-accounts",)),
         ("pages/ledger/actual--empty.html", "/ledger", ("empty-ledger",)),
-        ("pages/ledger/actual--long.html", LEDGER_BOARD, ("long",)),
+        ("pages/ledger/actual--long.html", LEDGER_LONG, ("long",)),
         ("pages/ledger/actual.html", LEDGER_BOARD, ()),
         (
             "pages/ledger/actual--no-matches.html",
@@ -333,7 +335,7 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ),
         ("pages/ledger/planned--empty.html", "/ledger?view=planned", ("empty-planned",)),
         ("pages/ledger/recurring--empty.html", "/ledger?view=recurring", ("empty-recurring",)),
-        ("pages/settings/categories.html", "/settings", ()),
+        ("pages/settings/categories.html", "/settings", ("settings-categories",)),
         ("pages/settings/preferences.html", "/settings?tab=prefs", ()),
         ("pages/settings/currency-fx.html", "/settings?tab=fx", ()),
         ("pages/settings/security.html", "/settings/security", ()),
@@ -369,6 +371,8 @@ _STATE_PAGES = {
     "pages/auth/force-password.html": "/settings/password",
     "pages/auth/force-password--error.html": "/settings/password",
     "pages/settings/security--error.html": "/settings/security",
+    "pages/settings/preferences.html": "/settings?tab=prefs",
+    "pages/ledger/actual--no-matches.html": LEDGER_BOARD + "&q=pizza",
 }
 
 
@@ -390,6 +394,8 @@ def test_state_recipes_name_handoff_pages_reached_by_a_request() -> None:
         "pages/auth/register--error.html",
         "pages/auth/force-password--error.html",
         "pages/settings/security--error.html",
+        "pages/settings/preferences.html",
+        "pages/ledger/actual--no-matches.html",
     }
     assert set(RECIPES) <= set(_STATE_PAGES)
     assert not set(RECIPES) & set(FORM_SUBMITS)
@@ -495,9 +501,8 @@ def test_used_email_posts_answer_422_with_the_typed_values(seeded: tuple[Setting
     settings, token = seeded
     for stem, path, error in (
         ("add-user--error", "/settings/users", "A user with this email already exists"),
-        # The app words the invite error like the add-user one; the handoff reads "This person
-        # already has an account" (a copy difference reported for the migration, not mapped).
-        ("invite-user--error", "/settings/users/invites", "A user with this email already exists"),
+        # The invite error reads like the handoff since F3 (T-UR00b).
+        ("invite-user--error", "/settings/users/invites", "This person already has an account"),
     ):
         recipe = DIALOG_SUBMITS[f"pages/overlays/{stem}.html"]
         data = {sel.rsplit("name=", 1)[1].rstrip("]"): value for sel, value in recipe.fills}
@@ -591,3 +596,4 @@ def test_overlay_modifiers_name_overlays_and_known_modifiers() -> None:
     overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
     assert set(OVERLAY_MODIFIERS) <= overlays
     assert all(set(m) <= set(handoff_seed.MODIFIER_NAMES) for m in OVERLAY_MODIFIERS.values())
+
