@@ -1,0 +1,94 @@
+{# Plan · analytics (T-UR12, ADR-0107). Handoff: pages/plan/analytics.html.
+   Context: analytics (view_models.AnalyticsPageView), tab, base_ccy. Rendered by
+   GET /plan?tab=analytics. The range buttons reload #main (hx-select) and push the URL. #}
+{% extends "layouts/base.html" %}
+{% block title %}Plan · analytics · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero" aria-labelledby="hero-label">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__label" id="hero-label">where it went</h1>
+      <p class="rd-hero__figure-row">
+        <span class="rd-hero__figure rd-hero__figure--wide"
+              data-digits="{{ (analytics.hero_total_minor|hero_fit(base_ccy)).digits }}"
+              data-marks="{{ (analytics.hero_total_minor|hero_fit(base_ccy)).marks }}"
+              data-signs="{{ (analytics.hero_total_minor|hero_fit(base_ccy)).signs }}">{{ analytics.hero_text }}</span><span class="rd-hero__unit">{{ base_ccy }} spent</span>
+      </p>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Analytics">
+    <div class="rd-plan-head">
+      {% include "pages/plan/_tabs.html" %}
+      {% with label=analytics.period.label, prev_url=analytics.period.prev_url, next_url=analytics.period.next_url, picker=analytics.period.picker %}
+        {% include "fragments/plan/period-nav.html" %}
+      {% endwith %}
+    </div>
+    <div class="rd-segmented rd-analytics__range"
+         role="group"
+         aria-label="Range"
+         hx-history="false">
+      {% for option in analytics.ranges %}
+        <button type="button"
+                class="rd-segmented__option"
+                aria-pressed="{{ 'true' if option.pressed else 'false' }}"
+                hx-get="{{ option.url }}"
+                hx-target="#main"
+                hx-select="#main"
+                hx-swap="outerHTML"
+                hx-push-url="true">{{ option.label }}</button>
+      {% endfor %}
+    </div>
+    <div class="rd-analytics">
+      <section class="rd-chart-card rd-analytics__card"
+               aria-labelledby="spend-title">
+        <h2 class="rd-fc__title" id="spend-title">Spend by category</h2>
+        {% if analytics.rows %}
+          <div class="rd-table-scroll rd-analytics__scroll"
+               tabindex="0"
+               role="region"
+               aria-label="Table (scrolls sideways)">
+            <table class="rd-ledger rd-ledger--spend">
+              <thead>
+                <tr class="rd-row rd-row--head">
+                  <th scope="col">CATEGORY</th>
+                  <th scope="col">SHARE</th>
+                  <th scope="col" class="rd-spend__period">PERIOD</th>
+                  <th scope="col" class="rd-spend__delta">VS 12-MO AVG</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in analytics.rows %}
+                  {% include "fragments/rows/analytics-category.html" %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="rd-muted">No expense activity in this period.</p>
+        {% endif %}
+      </section>
+      <div class="rd-analytics__side">
+        {% with chart=analytics.flow, has_flow=analytics.has_flow %}
+          {% include "fragments/charts/income-vs-expense.html" %}
+        {% endwith %}
+        <section class="rd-chart-card rd-analytics__card"
+                 aria-labelledby="largest-title">
+          <h2 class="rd-fc__title" id="largest-title">Largest single items</h2>
+          {% if analytics.largest %}
+            <ul class="rd-largest">
+              {% for item in analytics.largest %}
+                <li class="rd-largest__item">
+                  <a class="rd-largest__link" href="{{ item.url }}">
+                    <span class="rd-largest__name">{{ item.name }} <span class="rd-largest__date">· {{ item.date_text }}</span></span>
+                    <span class="rd-amount">{{ item.amount_text }} <span class="rd-amount__cur">{{ base_ccy }}</span></span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="rd-muted">No expense transactions this period.</p>
+          {% endif %}
+        </section>
+      </div>
+    </div>
+  </section>
+{% endblock %}

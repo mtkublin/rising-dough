@@ -20,7 +20,6 @@ from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import format_money, percent_of
 from budget_planner.services import (
-    analytics as analytics_service,
     budget as budget_service,
     ledger_totals,
     today as today_service,
@@ -382,8 +381,8 @@ def period_note(month: int, start: date, end: date) -> str:
     return f"{MONTH_SHORT[month - 1].lower()} = {day_month(start)} \u2192 {day_month(end)}"
 
 
-def budget_period(
-    picked: budget_service.PickerMonth, summary: budget_service.MonthSummary, base_url: str
+def month_period(
+    picked: budget_service.PickerMonth, *, picker_id: str, note: str, base_url: str
 ) -> BudgetPeriod:
     """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
 
@@ -391,7 +390,7 @@ def budget_period(
         return f"{base_url}&year={year}&month={month}"
 
     picker = PeriodPicker(
-        id="period-budget",
+        id=picker_id,
         is_year=False,
         year=picked.year,
         prev_year_url=url(picked.year - 1, picked.month),
@@ -400,13 +399,25 @@ def budget_period(
             PickerCell(MONTH_SHORT[n - 1], url(picked.year, n), n == picked.month)
             for n in range(1, 13)
         ),
-        note=period_note(picked.month, summary.period_start, summary.next_income_date),
+        note=note,
     )
     return BudgetPeriod(
         label=f"{month_name(picked.month)} {picked.year}",
         prev_url=url(picked.prev_year, picked.prev_month),
         next_url=url(picked.next_year, picked.next_month),
         picker=picker,
+    )
+
+
+def budget_period(
+    picked: budget_service.PickerMonth, summary: budget_service.MonthSummary, base_url: str
+) -> BudgetPeriod:
+    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
+    return month_period(
+        picked,
+        picker_id="period-budget",
+        note=period_note(picked.month, summary.period_start, summary.next_income_date),
+        base_url=base_url,
     )
 
 
@@ -608,49 +619,6 @@ def year_view(rows: tuple[budget_service.YearlyRow, ...]) -> YearView:
         unset_rows=unset_rows,
         unset_heading=f"Show {len(unset_rows)} {noun} without a budget",
     )
-
-
-# --- Analytics spend rows ----------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class SpendRowView:
-    """One spend-by-category row with its bar width and 12-month delta."""
-
-    category_id: int
-    category_name: str
-    amount_minor: int
-    bar_pct: int
-    has_average: bool
-    delta_minor: int
-    delta_kind: Literal["over", "under", "flat"]
-
-
-def spend_rows(
-    bundle: analytics_service.AnalyticsBundle, averages: Mapping[int, int]
-) -> tuple[SpendRowView, ...]:
-    """Spend rows scaled against the largest row, with deltas vs the 12-month average."""
-    rows = bundle.spend_by_category
-    top = rows[0].amount_minor if rows else 1
-    out: list[SpendRowView] = []
-    for row in rows:
-        avg = averages.get(row.category_id, 0)
-        delta = row.amount_minor - avg
-        kind: Literal["over", "under", "flat"] = (
-            "over" if delta > 0 else "under" if delta < 0 else "flat"
-        )
-        out.append(
-            SpendRowView(
-                category_id=row.category_id,
-                category_name=row.category_name,
-                amount_minor=row.amount_minor,
-                bar_pct=percent_of(row.amount_minor, top),
-                has_average=avg > 0,
-                delta_minor=delta,
-                delta_kind=kind,
-            )
-        )
-    return tuple(out)
 
 
 # --- Override form -----------------------------------------------------------
