@@ -244,10 +244,10 @@ def _recurring_row(
     conn: sqlite3.Connection,
     user_id: int,
     rule: RecurringRule,
-    refs: tuple[Account | None, Category | None],
+    refs: tuple[Account | None, Category | None, Account | None],
     formula_fx: formula_svc.FormulaFx,
 ) -> dict[str, object]:
-    acc, cat = refs
+    acc, cat, dest = refs
     overrides = recurring_service.list_overrides(conn, user_id, rule.id)
     # T-122: the override (if any) on the current `next_due` bolds / italicises its cells.
     override = next((ov for ov in overrides if ov.occurrence_date == rule.next_due), None)
@@ -266,6 +266,7 @@ def _recurring_row(
         "default_description": rule.default_description,
         "active": rule.active,
         "account": acc,
+        "dest_account": dest,
         "category": cat,
         "overrides": overrides,
         "override_deltas": {
@@ -309,7 +310,11 @@ def _recurring_rows(
             conn,
             user_id,
             rule,
-            (accts.get(rule.account_id), cats.get(rule.category_id)),
+            (
+                accts.get(rule.account_id),
+                cats.get(rule.category_id),
+                accts.get(rule.dest_account_id) if rule.dest_account_id is not None else None,
+            ),
             formula_fx,
         )
         for rule in rules
@@ -362,7 +367,9 @@ def _planned_rows(
     conn: sqlite3.Connection, user_id: int, filters: LedgerFilters, today: date
 ) -> list[dict[str, object]]:
     views = planned_service.list_planned(conn, user_id, planned_filter(filters, today), today=today)
-    return _hydrate_planned_rows(conn, user_id, views, today)
+    # Entry order (oldest first), as the handoff lists its three rows (derived.md, T-UR00b F2).
+    ordered = sorted(views, key=lambda v: v.persisted_id or 0)
+    return _hydrate_planned_rows(conn, user_id, ordered, today)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -491,6 +498,7 @@ def _sched_keys(
     view: ViewKind,
     filters: LedgerFilters,
     rows: Sequence[Row],
+    today: date,
 ) -> dict[str, object]:
     """Keys of ``fragments/ledger/{planned,recurring}-table.html``: row views, hues, empty state."""
     cats, accts = _lookups(conn, user_id)
@@ -504,7 +512,7 @@ def _sched_keys(
     if view == "planned":
         keys["planned_rows"] = ledger_view.planned_views(rows)
     else:
-        keys["groups"] = ledger_view.recurring_groups(rows, cats)
+        keys["groups"] = ledger_view.recurring_groups(rows, cats, today)
     return keys
 
 
@@ -538,7 +546,7 @@ def table_context(
         sched, hero = _sched_page(
             conn, user_id, settings=settings, view=view, filters=filters, today=today
         )
-        rows, view_keys = sched, _sched_keys(conn, user_id, view, filters, sched)
+        rows, view_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today)
     cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
     return {
         **_page_keys(view, rows, filters, today),
@@ -701,7 +709,7 @@ def index_context(
         sched, hero = _sched_page(
             conn, user_id, settings=settings, view=view, filters=filters, today=today
         )
-        rows, page_keys = sched, _sched_keys(conn, user_id, view, filters, sched)
+        rows, page_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today)
     chrome = _chrome_keys(conn, user_id, view=view, filters=filters, spent=spent, base_ccy=base_ccy)
     if view != "actual":
         chrome["hero"] = hero

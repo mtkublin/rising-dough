@@ -419,29 +419,8 @@ _LISTED_CASES: tuple[Case, ...] = (
         lambda v: f"recurring {v.recurring_count}",
         f"{_SEED} ledger_data tab_counts (recurring.list_rules, active)",
     ),
-    Case(
-        ALL,
-        '.rd-hero__figure--wide:-soup-contains-own("13,755.41")',
-        f"{MINUS}13,755.41",
-        lambda v: v.rec_figure,
-        f"{_SEED} ledger_totals.recurring_monthly_totals: monthly out",
-    ),
-    Case(
-        ALL,
-        '.rd-hero__note:-soup-contains-own("27 rules")',
-        "in +23,253.18 · 27 rules · next due 01 nov",
-        lambda v: v.rec_note,
-        f"{_SEED} ledger_totals.recurring_monthly_totals: monthly in, rule count, next due",
-    ),
-    Case(
-        ALL,
-        ".rd-formula__next",
-        f"{ARROW} next amount 1,836.93 PLN",
-        lambda v: f"{ARROW} next amount {money(next(iter(v.formula_next_all)))} PLN",
-        f"{_SEED} recurring_formula.resolve_rule_amount: the seed's formula rules all "
-        "evaluate to one amount for their next occurrence",
-        count=4,
-    ),
+    # The recurring hero, formula amounts and overrides live in the board-seed rows of
+    # test_overlay_values_ledger.py (the board lists twelve of the base seed's 24 rules).
     # Accounts: TXNS counts and the checked dates of the two reconciled accounts.
     *(
         Case(
@@ -567,8 +546,7 @@ def test_overlay_values_pin(vals: Vals) -> None:
     assert (vals.committed, vals.left, vals.per_day) == (44_660, 98_793, 14_113)
     assert (vals.afford_small_per_day, vals.afford_small_delta) == (10_542, -3_571)
     assert (vals.afford_over_per_day, vals.afford_over_over) == (-11_601, 81_207)
-    assert (vals.actual_count, vals.recurring_count) == (42, 15)
-    assert len(vals.formula_next_all) == 1
+    assert (vals.actual_count, vals.recurring_count) == (42, 24)
 
 
 def test_forecast_cells_left_out_of_the_overlay_match(vals: Vals) -> None:

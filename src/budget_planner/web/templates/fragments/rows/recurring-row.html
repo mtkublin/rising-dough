@@ -5,7 +5,10 @@
    with their delta against the rule amount; each override has a remove button that opens the confirm dialog. #}
 <tbody class="rd-rec">
   <tr class="rd-row rd-row--sched" id="{{ row.dom_id }}">
-    <td class="rd-sched__due">{{ row.due_text }}</td>
+    <td class="rd-sched__due">
+      {{ row.due_text }}
+      {%- if row.due_sub %}<span class="rd-row__sub">{{ row.due_sub }}</span>{% endif %}
+    </td>
     <td class="rd-row__desc">
       <span class="rd-row__title">{{ row.title }}
         {% if row.formula %}<abbr class="rd-formula-mark" title="formula amount">ƒ</abbr>{% endif %}
@@ -25,9 +28,9 @@
       {% if row.expand_id %}
         <button type="button"
                 class="rd-btn rd-btn--icon rd-expand"
-                aria-expanded="false"
+                aria-expanded="{{ 'true' if row.expanded else 'false' }}"
                 aria-controls="{{ row.expand_id }}"
-                aria-label="Show formula and overrides"
+                aria-label="{{ 'Hide' if row.expanded else 'Show' }} formula and overrides"
                 data-js="expand"></button>
       {% else %}
         <span class="rd-expand-spacer" aria-hidden="true"></span>
@@ -38,9 +41,9 @@
     </td>
   </tr>
   {% if row.expand_id %}
-    <tr class="rd-detail" id="{{ row.expand_id }}" hidden>
+    <tr class="rd-detail" id="{{ row.expand_id }}"{% if not row.expanded %} hidden{% endif %}>
       <td colspan="6">
-        <div class="rd-detail__grid">
+        <div class="rd-detail__grid{% if row.formula_rows and row.override_rows %} rd-detail__grid--two{% endif %}">
           {% if row.formula_rows %}
             <div class="rd-detail__panel">
               <p class="rd-caption">FORMULA</p>
