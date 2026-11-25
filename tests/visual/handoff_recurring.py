@@ -51,7 +51,9 @@ def settle(page: Page) -> None:
     page.evaluate(
         """() => {
             const a = document.activeElement;
-            if (a && a.setSelectionRange && a.type !== 'date') a.setSelectionRange(a.value.length, a.value.length);
+            if (a && a.setSelectionRange && a.type !== 'date') {
+                a.setSelectionRange(a.value.length, a.value.length);
+            }
             getSelection()?.removeAllRanges();
         }"""
     )
