@@ -437,7 +437,7 @@ class SessionRowView:
 
 
 def session_row_view(row: SessionRow, tz: str) -> SessionRowView:
-    """Values of a session row; the current device keeps its sign-out button (contract pin)."""
+    """Values of a session row; the current device reads ``now`` and has no button (handoff)."""
     session = row.session
     return SessionRowView(
         handle=session.handle,
@@ -445,7 +445,7 @@ def session_row_view(row: SessionRow, tz: str) -> SessionRowView:
         ip_text=session.ip or "—",
         title=session.user_agent or "Unknown device",
         signed_in=_local(session.created_at, tz, _STAMP),
-        last_seen=_local(session.last_seen_at, tz, _STAMP),
+        last_seen="now" if row.is_current else _local(session.last_seen_at, tz, _STAMP),
         expires=_local(row.absolute_expires_at, tz, _DAY),
         is_current=row.is_current,
         button_label="Sign out this device" if row.is_current else f"Sign out {row.device_label}",

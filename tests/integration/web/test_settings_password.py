@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import sqlite3
 
 import pytest
@@ -160,7 +159,7 @@ def test_post_wrong_current_audits_and_keeps_state(
         headers={"User-Agent": "audit-ua"},
     )
     assert r.status_code == 422
-    assert "current password" in _html.text_of(r.text, ui.password_error("current_password"))
+    assert "Current password is wrong" in _html.text_of(r.text, ui.password_error("current_password"))
     assert _html.resolve_one(r.text, ui.current_password)["aria-invalid"] == "true"
     assert "definitely-wrong" not in _html.text_of(r.text, ui.password_form)
     row = _user(conn)
@@ -201,7 +200,7 @@ def test_post_error_htmx_returns_fragment(client: TestClient) -> None:
     r = client.post("/settings/password", data=_form(new="short"), headers={"HX-Request": "true"})
     assert r.status_code == 422
     assert r.text.lstrip().startswith("<form")
-    assert _html.exists(r.text, ui.password_summary)
+    assert _html.exists(r.text, ui.password_error("new_password"))
 
 
 def test_post_requires_csrf(anon_client: TestClient, session_cookie: tuple[str, str]) -> None:
@@ -280,28 +279,26 @@ def test_anonymous_not_affected_by_rotation_gate(anon_client: TestClient) -> Non
     assert r.headers["location"].startswith("/auth/login")
 
 
-def test_wrong_current_password_prints_the_summary_and_attempts_left(
+def test_wrong_current_password_prints_the_inline_error_only(
     client: TestClient, conn: sqlite3.Connection
 ) -> None:
     before = _user(conn)["password_hash"]
     r = client.post("/settings/password", data=_form(current="definitely-wrong"))
     assert r.status_code == 422
-    summary = _html.text_of(r.text, ui.password_summary)
-    assert "1 field needs attention" in summary
-    assert "current password" in summary
-    assert re.search(
-        r"\d+ attempts? left\.", _html.text_of(r.text, ui.password_error("current_password"))
+    assert not _html.exists(r.text, ui.password_summary)  # the handoff has no summary box
+    assert (
+        _html.text_of(r.text, ui.password_error("current_password")).strip()
+        == "\u25b2 Current password is wrong"
     )
     assert _user(conn)["password_hash"] == before
 
 
-def test_policy_errors_name_every_field_in_the_summary(client: TestClient) -> None:
+def test_policy_errors_print_one_inline_error_per_field(client: TestClient) -> None:
     r = client.post(
         "/settings/password", data=_form(new="short", confirm="something-else-entirely")
     )
     assert r.status_code == 422
-    summary = _html.text_of(r.text, ui.password_summary)
-    assert "2 fields need attention" in summary
-    assert "new password" in summary
-    assert "confirm new password" in summary
+    assert not _html.exists(r.text, ui.password_summary)
+    assert _html.exists(r.text, ui.password_error("new_password"))
+    assert _html.exists(r.text, ui.password_error("confirm_password"))
     assert "attempts" not in _html.text_of(r.text, ui.password_error("new_password"))

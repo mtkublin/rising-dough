@@ -143,6 +143,7 @@ def _security_error(page: Page) -> None:
     page.fill("#current-password", WRONG_VALUE)
     page.press("#current-password", "Enter")
     page.wait_for_selector("#current-password-error", timeout=_TIMEOUT_MS)
+    page.evaluate("() => document.activeElement?.blur()")  # the handoff file shows no focus ring
 
 
 def _force_invalid(page: Page) -> None:

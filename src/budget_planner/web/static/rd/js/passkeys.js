@@ -45,6 +45,7 @@
   function setStatus(el, message, isError) {
     if (!el) return;
     el.textContent = message;
+    el.hidden = !message; // an empty live region takes no space (handoff parity)
     el.classList.toggle("rd-auth__status--error", Boolean(isError));
   }
 

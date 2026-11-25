@@ -48,7 +48,7 @@ def test_sessions_page_lists_own_sessions_by_handle(
     assert r.status_code == 200
     html = r.text
     current = session_cookie[1]
-    assert session_handle(current) in html
+    assert session_handle(current) not in html  # the current device has no sign-out form (handoff)
     assert session_handle(second) in html
     assert session_handle(foreign) not in html
     for raw in (current, second, foreign):
@@ -193,7 +193,7 @@ def test_session_rows_print_the_device_label_and_only_others_ids(
     assert "Firefox · macOS" in sessions
     assert "83.24.117.9" in sessions
     assert "9.9.9.9" not in sessions  # the other user's session is absent
-    assert _html.count(html, ui.session_signout.inside(ui.sessions)) == 2  # this one + the new one
+    assert _html.count(html, ui.session_signout.inside(ui.sessions)) == 1  # the new one; the current device has no button (handoff)
 
 
 def test_revoking_another_session_removes_its_row_and_keeps_the_current(
@@ -202,11 +202,11 @@ def test_revoking_another_session_removes_its_row_and_keeps_the_current(
     second = issue_session(conn)
     assert (
         _html.count(client.get("/settings/security").text, ui.session_signout.inside(ui.sessions))
-        == 2
+        == 1
     )
     client.post(f"/auth/sessions/{session_handle(second)}/revoke")
     html = client.get("/settings/security").text
-    assert _html.count(html, ui.session_signout.inside(ui.sessions)) == 1
+    assert _html.count(html, ui.session_signout.inside(ui.sessions)) == 0
     assert session_handle(second) not in html
     assert sessions_repo.get_session(conn, session_cookie[1]) is not None
 
