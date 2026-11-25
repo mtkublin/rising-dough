@@ -15,14 +15,17 @@ dark, into ``tests/visual/reference/`` in the same job and container first.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 from playwright.sync_api import Browser
 
-from tests.visual import handoff
+from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
+from tests.visual import handoff, handoff_seed
 
 pytestmark = pytest.mark.visual
 
@@ -47,6 +50,95 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
     "pages/errors/422.html": "/budget?month=zz",
 }
+# Overlay pages whose dialog the app opens from a plain GET: the new-entry shell page
+# (`/add?dialog=1&when=<tab>`) renders the page with the dialog open (T-UR07b).
+OVERLAY_DIALOGS: dict[str, str] = {
+    "pages/overlays/new-entry--happened.html": "/add?dialog=1&when=happened",
+    "pages/overlays/new-entry--planned.html": "/add?dialog=1&when=planned",
+    "pages/overlays/new-entry--repeats-fixed.html": "/add?dialog=1&when=repeats",
+}
+# Overlay pages with no app route that opens their dialog yet (id-bound edit/promote/menu
+# dialogs, request states, not-yet-ported forms): compared against plain /today.
+UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
+    {
+        "add-user--error",
+        "add-user",
+        "archive-category",
+        "category-picker--no-match",
+        "category-picker",
+        "command-palette--filtered",
+        "command-palette--no-match",
+        "command-palette",
+        "delete-account--blocked-planned",
+        "delete-account--blocked",
+        "delete-account",
+        "delete-user",
+        "edit-account--liability",
+        "edit-account",
+        "edit-category",
+        "edit-planned",
+        "edit-recurring--empty",
+        "edit-recurring--fixed",
+        "edit-recurring--formula",
+        "edit-recurring--incomplete",
+        "edit-recurring--picking",
+        "edit-transaction--error",
+        "edit-transaction--transit",
+        "edit-transaction",
+        "edit-user",
+        "invite-user--error",
+        "invite-user",
+        "new-account--error",
+        "new-account--filled",
+        "new-account",
+        "new-category--error",
+        "new-category--filled",
+        "new-category",
+        "new-entry--error",
+        "new-entry--over-limit",
+        "new-entry--phone-sheet",
+        "new-entry--repeats-formula",
+        "one-time-password",
+        "override--budget-default",
+        "override--budget-every",
+        "override--budget-month",
+        "override--occurrence",
+        "override--remove",
+        "override--year-cell",
+        "period-picker--year",
+        "period-picker",
+        "promote--planned",
+        "promote--recurring",
+        "reconcile--liability",
+        "reconcile",
+        "reset-password",
+        "revoke-invite",
+        "row-menu--account",
+        "row-menu--budget",
+        "row-menu--planned",
+        "row-menu--recurring",
+        "row-menu--transaction",
+        "row-menu--upcoming",
+        "shortcuts",
+    }
+)
+# Pages that need the base seed plus named modifiers (handoff_seed.MODIFIER_NAMES).
+PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
+    "pages/ledger/recurring.html": ("recurring-board",),
+}
+
+
+def route_for(page: str) -> str:
+    """App route compared with a handoff page (overlay dialogs, tab pages, surface default)."""
+    return (
+        OVERLAY_DIALOGS.get(page)
+        or PAGE_ROUTES.get(page)
+        or SURFACE_ROUTES[handoff.surface_of(page)]
+    )
+
+
+def modifiers_for(page: str) -> tuple[str, ...]:
+    return PAGE_MODIFIERS.get(page, ())
 
 
 @pytest.fixture(scope="session")
@@ -115,10 +207,38 @@ def test_app_matches_handoff(
     browser: Browser,
     request: pytest.FixtureRequest,
 ) -> None:
-    surface = handoff.surface_of(handoff_page)
-    route = PAGE_ROUTES.get(handoff_page, SURFACE_ROUTES[surface])
-    live_server: str = request.getfixturevalue("live_server")
-    cookies = request.getfixturevalue("session_cookies")
+    route = route_for(handoff_page)
+    modifiers = modifiers_for(handoff_page)
+    with contextlib.ExitStack() as stack:
+        if modifiers:
+            server, token = stack.enter_context(
+                request.getfixturevalue("handoff_server")(modifiers)
+            )
+            cookies = [{"name": SESSION_DEV_COOKIE_NAME, "value": token, "url": server}]
+        else:
+            server = request.getfixturevalue("live_server")
+            cookies = request.getfixturevalue("session_cookies")
+        _compare_app(
+            handoff_page,
+            route,
+            viewport=viewport,
+            theme=theme,
+            browser=browser,
+            live_server=server,
+            cookies=cookies,
+        )
+
+
+def _compare_app(
+    handoff_page: str,
+    route: str,
+    *,
+    viewport: str,
+    theme: str,
+    browser: Browser,
+    live_server: str,
+    cookies: list[Any],
+) -> None:
     width, height = handoff.VIEWPORTS[viewport]
     context = browser.new_context(
         viewport={"width": width, "height": height},
@@ -163,3 +283,22 @@ def test_app_matches_handoff(
         f"(max {handoff.MAX_DIFF_PIXEL_RATIO:.2%}), largest cluster {cluster} "
         f"(max {handoff.MAX_DIFF_CLUSTER_PX}px) at {result.box}"
     )
+
+
+def test_recurring_reference_uses_board_modifier() -> None:
+    assert modifiers_for("pages/ledger/recurring.html") == ("recurring-board",)
+    assert route_for("pages/ledger/recurring.html") == "/ledger?view=recurring"
+    assert modifiers_for("pages/ledger/planned.html") == ()
+    assert set(PAGE_MODIFIERS.values()) <= {(m,) for m in handoff_seed.MODIFIER_NAMES}
+
+
+def test_every_overlay_page_is_mapped_or_listed_unmapped() -> None:
+    overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
+    mapped = set(OVERLAY_DIALOGS)
+    unmapped = {f"pages/overlays/{n}.html" for n in UNMAPPED_OVERLAYS}
+    assert mapped | unmapped == overlays
+    assert not mapped & unmapped
+    for page in mapped:
+        assert route_for(page).startswith("/add?dialog=1&when=")
+    for page in unmapped:
+        assert route_for(page) == "/today"
