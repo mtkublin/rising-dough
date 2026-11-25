@@ -529,6 +529,23 @@ def _no_data_change(d: SeedData) -> SeedData:
     return d
 
 
+def _unreferenced_account(d: SeedData) -> SeedData:
+    """Accounts `delete-account`: Investments E exists with nothing pointing at it (balance 0)."""
+    return replace(d, accounts=(*d.accounts, AccountSeed("Investments E", "investment", 0, ())))
+
+
+def _account_with_rules(d: SeedData) -> SeedData:
+    """Accounts `delete-account--blocked-planned`: 2 recurring rules use Investments D.
+
+    Both are yearly and start in 2027, past every window a page sums, so no figure changes.
+    """
+    rules = (
+        RuleSeed(Y, "2027-08-01", "Fixed costs", "Investments D", 1_000, "Platform fee"),
+        RuleSeed(Y, "2027-09-01", "Fixed costs", "Investments D", 2_000, "Custody fee"),
+    )
+    return replace(d, rules=(*d.rules, *rules))
+
+
 # (name, transformation, what it models). `no-matches` and `over-limit` are request
 # states: the filter query / entry amount alone produce them, the data stays the base.
 _MODIFIERS: Final = (
@@ -552,6 +569,16 @@ _MODIFIERS: Final = (
     ("invite-expired", _invite_expired, "invite page --expired: link older than 7 days"),
     ("invite-used", _invite_used, "invite page --used: the link was already accepted"),
     ("form-error", _no_data_change, "request states (422, wrong password): no data change"),
+    (
+        "unreferenced-account",
+        _unreferenced_account,
+        "Accounts delete-account: Investments E (balance 0) with no references",
+    ),
+    (
+        "account-with-rules",
+        _account_with_rules,
+        "Accounts delete-account--blocked-planned: 2 recurring rules on Investments D",
+    ),
 )
 MODIFIER_NAMES: Final = tuple(name for name, _, _ in _MODIFIERS)
 

@@ -31,6 +31,7 @@ from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.visual import handoff
 from tests.visual.conftest import serve_db
 from tests.visual.handoff_clicks import click_recipe
+from tests.visual.handoff_forms import dialog_recipe
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.handoff_seed import build_seed
 
@@ -147,8 +148,6 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
         "add-user--error",
         "add-user",
-        "delete-account--blocked-planned",
-        "delete-account",
         "delete-user",
         "edit-recurring--empty",
         "edit-recurring--incomplete",
@@ -157,10 +156,6 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "edit-user",
         "invite-user--error",
         "invite-user",
-        "new-account--error",
-        "new-account--filled",
-        "new-category--error",
-        "new-category--filled",
         "new-entry--error",
         "new-entry--over-limit",
         "new-entry--phone-sheet",
@@ -188,6 +183,12 @@ PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
     # Fresh DB per run: the wrong-password POST must not eat a shared rate limit.
     "pages/auth/login--error.html": ("form-error",),
     "pages/auth/reauth--error.html": ("form-error",),
+}
+# Overlays whose dialog needs data the base page does not have (an account nothing points at,
+# an account with recurring rules); the modifier applies to that overlay only.
+OVERLAY_MODIFIERS: dict[str, tuple[str, ...]] = {
+    "pages/overlays/delete-account.html": ("unreferenced-account",),
+    "pages/overlays/delete-account--blocked-planned.html": ("account-with-rules",),
 }
 
 
@@ -234,7 +235,7 @@ def is_anonymous(page: str) -> bool:
 
 def modifiers_for(page: str) -> tuple[str, ...]:
     """Seed modifiers of a page; an overlay takes its base page's (recurring-board)."""
-    return PAGE_MODIFIERS.get(base_page_of(page), ())
+    return OVERLAY_MODIFIERS.get(page) or PAGE_MODIFIERS.get(base_page_of(page), ())
 
 
 @pytest.fixture(scope="session")
@@ -382,6 +383,8 @@ def _compare_app(
                 opener,
             )
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
+            if (fill := dialog_recipe(handoff_page)) is not None:
+                fill(pg)  # typed values or a failed save, as the handoff shows (handoff_forms)
         elif (recipe := click_recipe(handoff_page)) is not None:
             recipe(pg)  # client-side overlay: the click or key a user makes (handoff_clicks)
         pg.add_style_tag(content=handoff.FREEZE_CSS)

@@ -18,6 +18,7 @@ from budget_planner.web.app import create_app
 from budget_planner.web.auth_cookies import session_cookie_name
 from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
+from tests.visual.handoff_forms import DIALOG_SUBMITS, dialog_recipe
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.test_reference import (
     ANONYMOUS_PAGES,
@@ -25,6 +26,7 @@ from tests.visual.test_reference import (
     LEDGER_BOARD,
     OPENER_PAGES,
     OVERLAY_DIALOGS,
+    OVERLAY_MODIFIERS,
     PAGE_MODIFIERS,
     PAGE_ROUTES,
     SURFACE_ROUTES,
@@ -80,6 +82,12 @@ _BASES = {
     "edit-account--liability": ("/accounts", ()),
     "reconcile": ("/accounts", ()),
     "new-account": ("/accounts", ()),
+    "new-account--filled": ("/accounts", ()),
+    "new-account--error": ("/accounts", ()),
+    "delete-account": ("/accounts", ("unreferenced-account",)),
+    "delete-account--blocked-planned": ("/accounts", ("account-with-rules",)),
+    "new-category--filled": ("/settings", ()),
+    "new-category--error": ("/settings", ()),
     "edit-category": ("/settings", ()),
     "archive-category": ("/settings", ()),
     "new-category": ("/settings", ()),
@@ -109,6 +117,12 @@ def test_overlay_renders_over_its_own_base_page(stem: str) -> None:
 # Text each dialog must show once opened from its resolved route (the handoff names).
 _DIALOG_TEXT = {
     "new-account": "new account",
+    "new-account--filled": "new account",
+    "new-account--error": "new account",
+    "delete-account": "Delete Investments E?",
+    "delete-account--blocked-planned": "It has no transactions, but 2 recurring rules still use it",
+    "new-category--filled": "new category",
+    "new-category--error": "new category",
     "edit-account": "Investments A",
     "edit-account--liability": "Investments A",
     "delete-account--blocked": "Checking",
@@ -138,7 +152,8 @@ def test_every_opener_has_an_expected_dialog_text() -> None:
 @pytest.fixture(scope="module")
 def seeded(tmp_path_factory: pytest.TempPathFactory) -> tuple[Settings, str]:
     path = tmp_path_factory.mktemp("openers") / "seed.sqlite"
-    token = handoff_seed.build_seed(path).session_token
+    modifiers = tuple(m for names in OVERLAY_MODIFIERS.values() for m in names)
+    token = handoff_seed.build_seed(path, modifiers=modifiers).session_token
     settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
     return settings, token
 
@@ -290,3 +305,18 @@ def test_unmapped_pages_carry_a_reason() -> None:
     }
     assert all(len(reason) > 20 for reason in UNMAPPED_PAGES.values())
     assert set(FORM_SUBMITS) == {"pages/auth/login--error.html", "pages/auth/reauth--error.html"}
+
+
+def test_dialog_recipes_fill_openers_and_leave_the_unmapped_set() -> None:
+    overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
+    assert {f"pages/overlays/{n}.html" for n in DIALOG_SUBMITS} <= overlays & OPENER_PAGES
+    assert not {n for n in DIALOG_SUBMITS if n in UNMAPPED_OVERLAYS}
+    assert not set(DIALOG_SUBMITS) & set(CLICK_RECIPES)
+    assert dialog_recipe("pages/overlays/new-category--error.html") is not None
+    assert dialog_recipe("pages/overlays/new-category.html") is None
+
+
+def test_overlay_modifiers_name_overlays_and_known_modifiers() -> None:
+    overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
+    assert set(OVERLAY_MODIFIERS) <= overlays
+    assert all(set(m) <= set(handoff_seed.MODIFIER_NAMES) for m in OVERLAY_MODIFIERS.values())
