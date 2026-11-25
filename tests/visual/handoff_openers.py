@@ -24,12 +24,15 @@ from budget_planner.repositories import (
     planned as planned_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
+    users as users_repo,
 )
+from budget_planner.services import invites as invites_service
 
 OWNER_ID: Final = 1
 
 # page stem -> (route template, query). Placeholders: {account:<name>}, {category:<name>},
-# {planned:<description>}, {rule:<description>@<next due>}, {txn:<description>@<day>@<minor>}.
+# {user:<email>}, {invite:<email>}, {planned:<description>}, {rule:<description>@<next due>},
+# {txn:<description>@<day>@<minor>}.
 OPENERS: Final[dict[str, str]] = {
     "new-account": "/accounts/new",
     "edit-account": "/accounts/{account:Investments A}/edit",
@@ -65,6 +68,17 @@ OPENERS: Final[dict[str, str]] = {
     ),
     "edit-transaction": "/transactions/{txn:Takeaway@2026-10-31@3550}/edit",
     "edit-transaction--transit": "/transactions/{txn:Transit@2026-10-26@2193}/edit",
+    # Settings users board. The POST states (`handoff_forms.DIALOG_SUBMITS`) open the same
+    # dialog and then submit the typed values in the browser.
+    "add-user": "/settings/users/new",
+    "add-user--error": "/settings/users/new",
+    "edit-user": "/settings/users/{user:partner@example.test}/edit",
+    "delete-user": "/settings/users/{user:partner@example.test}/delete",
+    "reset-password": "/settings/users/{user:partner@example.test}/reset-password",
+    "one-time-password": "/settings/users/{user:partner@example.test}/reset-password",
+    "invite-user": "/settings/users/invites/new",
+    "invite-user--error": "/settings/users/invites/new",
+    "revoke-invite": "/settings/users/invites/{invite:accountant@example.test}/revoke",
 }
 
 
@@ -103,7 +117,17 @@ def _txn_id(conn: sqlite3.Connection, spec: str) -> int:
     )
 
 
+def _user_id(conn: sqlite3.Connection, email: str) -> int:
+    return next(u.id for u in users_repo.list_live(conn) if u.email == email)
+
+
+def _invite_id(conn: sqlite3.Connection, email: str) -> int:
+    return next(i.id for i in invites_service.list_invites(conn) if i.email == email)
+
+
 _RESOLVERS: Final = {
+    "user": _user_id,
+    "invite": _invite_id,
     "account": _account_id,
     "category": _category_id,
     "planned": _planned_id,
