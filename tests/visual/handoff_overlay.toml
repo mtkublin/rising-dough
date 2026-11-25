@@ -2271,6 +2271,67 @@ optional = true
 reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
 
 [[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 3
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 2
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 1
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 1
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 1
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = "dialog .rd-dialog__amount--static"
+field = "text"
+old = "1,836.93"
+value = "3,002.00"
+reason = "seed value via recurring_formula preview (formula_hero): the Taxes rule's 19 % of Salary and Side Income less 19 % of Bank Fees #18 over the seed's transactions"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = "dialog .rd-formula__result"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,002.00 PLN"
+reason = "seed value via recurring_formula preview (formula_hero), the hero figure above"
+
+[[row]]
 page = "pages/overlays/override--[or]*.html"
 select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
 field = "text"

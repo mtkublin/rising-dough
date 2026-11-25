@@ -455,7 +455,7 @@ def _stored_values(
     return {
         "category": str(txn.category_id),
         "account_id": str(txn.account_id),
-        "amount": format_major(txn.amount, currency),
+        "amount": format_major(txn.amount, currency, grouped=True),
         "operation_date": txn.operation_date.isoformat(),
         "description": txn.description,
         "dest_account_id": str(txn.dest_account_id or ""),
@@ -668,7 +668,7 @@ def promote_context(
         "action": action,
         "currency": currency,
         "sign": _direction_sign(cat.direction) if cat else None,
-        "amount_value": values.get("amount", format_major(amount_minor, currency)),
+        "amount_value": values.get("amount", format_major(amount_minor, currency, grouped=True)),
         "date_value": values.get("operation_date", date_value.isoformat()),
         "note_value": values.get("description", note_value),
         "notes": list(notes),

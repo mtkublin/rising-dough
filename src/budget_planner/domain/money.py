@@ -247,6 +247,7 @@ MAX_MINOR: Final = 10**15
 """Largest accepted absolute amount in minor units (T-Q233, Q-023); far below SQLite's int64."""
 
 _AMOUNT_RE: Final = re.compile(r"[+-]?\d+(?:\.(\d+))?", re.ASCII)
+_GROUPED_RE: Final = re.compile(r"[+-]?\d{1,3}(?:,\d{3})+\.\d+", re.ASCII)
 
 
 def parse_amount_str(raw: str, currency: str) -> Decimal | None:
@@ -254,12 +255,16 @@ def parse_amount_str(raw: str, currency: str) -> Decimal | None:
 
     The one amount parser (Q-023). Returns ``None`` (the router surfaces a 422) for:
 
-    - anything but ASCII digits with an optional sign and one ``.`` or ``,`` separator
-      (no exponents, ``NaN``/``Infinity``, underscores, non-ASCII digits, hex);
+    - anything but ASCII digits with an optional sign and one ``.`` or ``,`` separator, or
+      thousands grouped by commas before a ``.`` (``2,239.80``); no exponents,
+      ``NaN``/``Infinity``, underscores, non-ASCII digits, hex;
     - more fractional digits than the currency supports (``12.345`` for PLN);
     - an absolute value above ``MAX_MINOR`` minor units.
     """
-    normalised = raw.strip().replace(",", ".")
+    text = raw.strip()
+    if _GROUPED_RE.fullmatch(text):  # "2,239.80": commas group thousands when a "." follows
+        text = text.replace(",", "")
+    normalised = text.replace(",", ".")
     match = _AMOUNT_RE.fullmatch(normalised)
     if match is None:
         return None
@@ -351,10 +356,17 @@ def percent_of(part_minor: int, total_minor: int) -> int:
     return part_minor * 100 // total_minor
 
 
-def format_major(amount_minor: int, currency: str) -> str:
-    """Bare major-unit decimal at the currency exponent, for edit forms."""
+def format_major(amount_minor: int, currency: str, *, grouped: bool = False) -> str:
+    """Bare major-unit decimal at the currency exponent, for edit forms.
+
+    ``grouped`` separates thousands with commas (``2,239.80``, the handoff dialogs; the amount
+    parser reads it back). A currency without decimals stays bare: ``1,234`` would read as 1.234.
+    """
     decimals = currency_decimals(currency)
-    return f"{minor_to_major(amount_minor, currency):.{decimals}f}"
+    value = minor_to_major(amount_minor, currency)
+    if grouped and decimals > 0:
+        return f"{value:,.{decimals}f}"
+    return f"{value:.{decimals}f}"
 
 
 def format_whole(amount_minor: int, currency: str, *, grouped: bool = True) -> str:

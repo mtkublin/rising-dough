@@ -212,7 +212,9 @@ def _rule_values(rule: RecurringRule, account: Account | None) -> dict[str, str]
         "category": str(rule.category_id),
         "account_id": str(rule.account_id),
         "dest_account_id": str(rule.dest_account_id or ""),
-        "default_amount": format_major(rule.default_amount, account.currency) if account else "",
+        "default_amount": format_major(rule.default_amount, account.currency, grouped=True)
+        if account
+        else "",
         "start_date": rule.start_date.isoformat(),
         "end_date": rule.end_date.isoformat() if rule.end_date else "",
         "day_of_month": str(rule.day_of_month or ""),

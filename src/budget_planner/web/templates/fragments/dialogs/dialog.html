@@ -18,7 +18,7 @@
 
    API  {% call dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root",
                        hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=(), form_id="") %}body{% endcall %}
-     variant: "standard" | "confirm" | "blocked".  size: "" | "sm" | "md" (confirm and blocked default to "sm").
+     variant: "standard" | "confirm" | "blocked".  size: "" | "sm" | "md" | "plain" (confirm and blocked default to "sm"; "plain" adds no size class, handoff override--remove).
      hero (standard): dict with currency, amount_value, note, sign, amount_label, amount_id (hero-amount), amount_name (amount),
                       error (message; sets aria-invalid + aria-describedby),
                       output (true: a static <output class="rd-dialog__amount rd-dialog__amount--static" for=amount_id> showing
@@ -91,7 +91,7 @@
       </form>
     </dialog>
   {% else %}
-    <dialog class="rd-dialog rd-dialog--{{ size or 'sm' }} rd-dialog--confirm"
+    <dialog class="rd-dialog{% if size != 'plain' %} rd-dialog--{{ size or 'sm' }}{% endif %} rd-dialog--confirm"
             id="{{ dialog_id }}"
             role="alertdialog"
             aria-labelledby="{{ dialog_id }}-title"

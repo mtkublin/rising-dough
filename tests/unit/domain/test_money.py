@@ -8,6 +8,7 @@ from budget_planner.domain.money import (
     ascii_minus,
     currency_decimals,
     format_figure,
+    format_major,
     format_money,
     format_whole,
     minor_to_major,
@@ -161,6 +162,35 @@ def test_parse_amount_str_accepts_both_separators(
 )
 def test_parse_amount_str_rejects_malformed(raw: str, currency: str) -> None:
     assert parse_amount_str(raw, currency) is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("2,239.80", Decimal("2239.80")),  # grouped, as an edit dialog prefills it
+        ("1,234,567.50", Decimal("1234567.50")),
+        ("-1,000.00", Decimal("-1000.00")),
+    ],
+)
+def test_parse_amount_str_accepts_grouped_thousands_before_a_dot(
+    raw: str, expected: Decimal
+) -> None:
+    assert parse_amount_str(raw, "PLN") == expected
+
+
+@pytest.mark.parametrize("raw", ["2,23.80", "12,3456.00", ",239.80", "2,239,.80", "1.234,50"])
+def test_parse_amount_str_rejects_misplaced_grouping(raw: str) -> None:
+    assert parse_amount_str(raw, "PLN") is None
+
+
+def test_format_major_grouped_round_trips_and_leaves_zero_decimals_bare() -> None:
+    assert format_major(223_980, "PLN") == "2239.80"
+    assert format_major(223_980, "PLN", grouped=True) == "2,239.80"
+    assert format_major(99_999, "PLN", grouped=True) == "999.99"
+    assert format_major(123_456, "JPY", grouped=True) == "123456"  # "1,234" would read as 1.234
+    assert parse_amount_str(format_major(123_456_789, "PLN", grouped=True), "PLN") == Decimal(
+        "1234567.89"
+    )
 
 
 def test_parse_amount_str_round_trip_to_minor_units_matches_dot_input() -> None:
