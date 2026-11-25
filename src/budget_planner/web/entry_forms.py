@@ -21,6 +21,7 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
 from budget_planner.domain.money import (
+    format_figure,
     format_major,
     format_money,
     parse_amount_minor,
@@ -569,7 +570,7 @@ def draft_hero(
     """(figure, note) of the formula hero for already parsed terms."""
     result = formula_svc.preview(conn, user_id, today, rule_id, drafts, fx=fx, target_ccy=currency)
     if isinstance(result, formula_svc.PreviewOk):
-        figure = format_major(result.amount_minor, currency)
+        figure = format_figure(result.amount_minor, currency)
         return (
             figure,
             f"\N{RIGHTWARDS ARROW} next amount {format_money(result.amount_minor, currency)}",
