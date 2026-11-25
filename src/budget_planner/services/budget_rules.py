@@ -65,3 +65,13 @@ def apply_override(conn: sqlite3.Connection, user_id: int, command: OverrideComm
         budget_overrides.set_recurring(conn, user_id, command)
     else:
         budget_overrides.set_one_off(conn, user_id, command)
+
+
+def remove_override(
+    conn: sqlite3.Connection, user_id: int, category_id: int, *, month: int, year: int | None
+) -> None:
+    """Drop the one-off override of ``(year, month)``, or with no year the every-year one."""
+    if year is None:
+        budget_overrides.clear_recurring(conn, user_id, category_id, month)
+    else:
+        budget_overrides.clear_one_off(conn, user_id, category_id, year, month)

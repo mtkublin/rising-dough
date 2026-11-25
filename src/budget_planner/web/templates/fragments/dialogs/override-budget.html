@@ -1,0 +1,25 @@
+{# fragment: dialogs/override-budget
+   Inputs: override (plan_year_view.OverrideDialog), field_count / field_errors (422).
+   Handoff: overrides override--budget-month, override--budget-every, override--budget-default. One
+   dialog, the scope radio decides the tier; the hero note shows the default. Posts to
+   POST /budget/rules/{id}/overrides; success closes the dialog and sends budget-stale. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog("override-budget", override.title, action=override.target.action, hx_post=override.target.action, hero=override.hero, actions=override.actions, field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  <input type="hidden" name="year" value="{{ override.target.year }}">
+  <input type="hidden" name="month" value="{{ override.target.month }}">
+  <div class="rd-field rd-field--seg"
+       role="radiogroup"
+       aria-labelledby="override-budget-scope">
+    <span class="rd-field__label" id="override-budget-scope">scope</span>
+    <div class="rd-segmented" id="field-tier">
+      {% for option in override.tiers %}
+        <label class="rd-segmented__option">
+          <input type="radio"
+                 name="tier"
+                 value="{{ option.value }}"
+                 {% if option.checked %}checked{% endif %}>{{ option.label }}
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+{% endcall %}

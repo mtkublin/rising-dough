@@ -4,6 +4,13 @@
 {% extends "layouts/base.html" %}
 {% block title %}Plan · budget · Rising Dough{% endblock %}
 {% block main %}
+  {# A saved or removed override (budget row menu, override dialog) sends budget-stale: reload #main. #}
+  <span hidden
+        hx-get="/plan?tab=budget&year={{ year }}&month={{ month }}"
+        hx-trigger="budget-stale from:body"
+        hx-target="#main"
+        hx-select="#main"
+        hx-swap="outerHTML"></span>
   {% include "fragments/plan/budget-hero.html" %}
   <section class="rd-panel" aria-label="Budget">
     <div class="rd-plan-head">

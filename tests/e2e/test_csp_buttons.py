@@ -20,7 +20,7 @@ from budget_planner.domain.fx import NewFxRate
 from budget_planner.repositories import fx as fx_repo
 from tests.e2e import db_probe
 from tests.e2e.ui_actions import open_add_slide_over, pick
-from tests.ui_map import accounts, ledger, plan, settings, shell, today
+from tests.ui_map import accounts, ledger, plan_budget, plan_year, settings, shell, today
 from tests.ui_map.locator import Locator as UiLocator, role, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -157,9 +157,6 @@ def test_promote_on_today_under_csp(live_server: tuple[str, Path], page: Page) -
     expect(to_playwright(page, ledger.table_container)).to_contain_text("csp-promote")
 
 
-@pytest.mark.skip(
-    reason="T-UR11b rebuilds the override dialog on the new shell; the old inline slot is gone"
-)
 def test_override_on_plan_budget_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _, category_id = _seed(base_url, db_path, page)
@@ -167,19 +164,19 @@ def test_override_on_plan_budget_under_csp(live_server: tuple[str, Path], page: 
         f"{base_url}/budget/defaults/{category_id}", form={"amount": "500.00"}
     ).ok
 
-    page.goto(f"{base_url}/plan?tab=budget")
+    page.goto(f"{base_url}/plan?tab=budget&year=2026&month=10")
     assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, plan.override_button("Groceries")).click()
-    slot = plan.override_slot(int(category_id))
-    # The tier radio is visually hidden (its label is the click target).
-    to_playwright(page, plan.tier_default.inside(slot)).dispatch_event("click")
-    amount = to_playwright(page, plan.override_amount.inside(slot))
-    expect(amount).to_be_visible()
-    amount.fill("321.00")
-    to_playwright(page, plan.override_save.inside(slot)).click()
-    # Slot closes and the budget region re-renders with the override applied.
-    expect(to_playwright(page, plan.override_amount.inside(slot))).to_have_count(0)
-    expect(to_playwright(page, plan.budget_region)).to_contain_text("321.00")
+    to_playwright(page, plan_budget.row_menu_button("Groceries")).click()
+    to_playwright(page, plan_budget.override_item("Groceries")).click()
+    dialog = plan_year.dialog("Groceries", "Oct 2026")
+    expect(to_playwright(page, dialog)).to_be_visible()
+    # The scope radio is visually hidden (its label is the click target).
+    to_playwright(page, plan_year.tier(dialog, "new default")).dispatch_event("click")
+    to_playwright(page, plan_year.amount(dialog)).fill("321.00")
+    to_playwright(page, plan_year.save(dialog)).click()
+    # The dialog closes and the budget table re-renders with the override applied.
+    expect(to_playwright(page, dialog)).to_have_count(0)
+    expect(to_playwright(page, plan_budget.row("Groceries"))).to_contain_text("321.00")
     assert (
         db_probe.scalar(
             db_path,
