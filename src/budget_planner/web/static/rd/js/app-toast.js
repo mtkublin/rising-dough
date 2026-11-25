@@ -115,8 +115,7 @@
   }
 
   /* A dialog that opens again (showModal() sets its `open` attribute) starts without the flash of
-     its last session. `open` fires no event, so one observer on the attribute does it; no event
-     name is involved, so the G12 listener/emitter check has nothing to match. */
+     its last session. showModal() fires no event, so one observer on the `open` attribute does it. */
   new MutationObserver((records) => {
     records.forEach((record) => {
       const dialog = record.target;
@@ -147,6 +146,7 @@
     region = document.createElement('div');
     region.className = 'rd-flash-region';
     region.dataset.flashInDialog = id;
+    region.dataset.testid = 'flash-in-dialog';
     region.setAttribute('role', id === 'flash-region-assertive' ? 'alert' : 'status');
     region.setAttribute('aria-live', id === 'flash-region-assertive' ? 'assertive' : 'polite');
     dialog.prepend(region);
