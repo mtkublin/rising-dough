@@ -94,7 +94,7 @@ def test_recurring_rule_and_planned_promote_cycle(
     expect(to_playwright(page, ledger.overlay_field(ledger.field_note))).to_have_value(
         "promoted one-off"
     )
-    submit_ok(page, ledger.overlay_promote, path_suffix="/promote")
+    submit_ok(page, ledger.overlay_promote, path=f"/planned/{planned_id}/promote")
 
     # DB: the planned row points at the new transaction, with the edited amount.
     assert db_probe.txn_amounts(db_path, "promoted one-off") == [2750]

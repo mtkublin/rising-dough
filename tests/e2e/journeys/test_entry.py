@@ -60,7 +60,7 @@ def test_new_planned_entry_lands_in_planned(world: World) -> None:
     world.find(entries.hero_amount).fill("33.00")
     world.find(entries.field_due).fill(days_from_today(3))
     world.find(entries.field_note.inside(entries.dialog)).fill("planned-entry")
-    save_entry(world.page)
+    save_entry(world.page, "planned")
 
     found = world.wait_rows(
         "SELECT * FROM planned_transactions WHERE description = 'planned-entry'"
