@@ -121,7 +121,15 @@ The pre-commit hooks are the local gate and `*-changed` run the same selection o
 
 ## Multi-agent work
 
-For work split across parallel subagents, use the `orchestrator-mode` skill (`.claude/skills/orchestrator-mode/SKILL.md`, ADR-0066, ADR-0150): the main agent plans, dispatches, merges and reads verdicts only. Work goes to role agents in `.claude/agents/` (`explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor`; model pinned per role), each item in its own worktree + branch, briefs that pass a Definition of Ready (`brief-common.md`), the executable Definition of Done `just check-item`, and one `tester` pass per wave (orchestrated item agents commit with `SKIP=pytest-fast`; ADR-0120 amendment 2026-11-24). Conflicts are resolved by merging the main work branch into the item branch (no rebase). Heavy runs go to GitHub where a workflow exists; agents are sized to under 1 h; each run ends with a run log in `docs/runs/`.
+For work split across parallel subagents, use the `orchestrator-mode` skill (`.claude/skills/orchestrator-mode/SKILL.md`, ADR-0066, ADR-0150): the main agent plans, dispatches, merges and reads verdicts only. Work goes to role agents in `.claude/agents/` (`explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor`; model pinned per role), each item in its own worktree + branch, briefs that pass a Definition of Ready (`brief-common.md`), the executable Definition of Done `just check-item`, and one `tester` pass per wave (orchestrated item agents commit with `SKIP=pytest-fast`; ADR-0120 amendment 2026-11-24). Conflicts are resolved by merging the main work branch into the item branch (no rebase). Heavy runs go to GitHub where a workflow exists; agents are sized to under 1 h; each run ends with a run log in `docs/runs/`. Hooks in `.claude/settings.json` enforce the role rules: `scripts/ci/agent_guard.py` denies a role agent's out-of-scope test runs, foreground waits and heavy work past its runtime budget, and refuses an orchestrator stop without a `RUN-STATE:` line (ADR-0150 amendment 2026-11-25 "hook-enforced rules").
+
+### Project skills and agents: when to use
+
+| Name | Kind | Use when |
+|---|---|---|
+| `orchestrator-mode` | skill (`.claude/skills/orchestrator-mode/SKILL.md`) | Work splits into parallel items, or the operator says "orchestrate" / "dispatch agents". The main agent then only plans, dispatches, merges and reads verdicts. |
+| `frontend-visual-audit` | skill (`.claude/skills/frontend-visual-audit/SKILL.md`) | Any change to templates, CSS, breakpoints or HTMX swap targets (mandatory, see below), or a reported visual bug. |
+| `explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor` | role agents (`.claude/agents/`) | Only inside an `orchestrator-mode` run, each with a brief from `brief-common.md`. Not for ad-hoc use: the guard applies their role limits (test scope, waits, runtime budget) in any session. For one-off research or edits outside a run, use the general agents. |
 
 ## Frontend validation (MANDATORY)
 

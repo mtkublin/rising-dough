@@ -11,7 +11,13 @@ Ready: do not dispatch it; finish planning or send an `explorer` first.
 - [ ] Owned files (exact paths or narrow globs) and the files it must not touch.
 - [ ] Pre-assigned ADR / migration numbers, or `none`.
 - [ ] Numbered steps, each naming its file and function and a check command with the expected result.
-- [ ] Acceptance criteria written as commands (pytest node ids, `rg` expectations, `just` recipes).
+- [ ] Acceptance criteria written as commands (single test files or node ids, `rg` expectations,
+      `just check-item`). No suites, no `tests/e2e` directory, no `just test*`: the guard denies
+      them to the implementer and the reviewer. E2e evidence is the `e2e.yml` run on the pushed
+      item branch.
+- [ ] Estimate in minutes (at most 60). A frontend item: one page, or at most two dialogs.
+- [ ] Frontend item: the audit expectations (routes, the failing save per form and its visible
+      error, states to seed), so the implementer builds to what the auditor checks.
 - [ ] Base sha, `<MAIN>`, heavy-lock name, role and model (Haiku test passed, if Haiku).
 - [ ] Hotspot files (`tasks.md`, `CHANGELOG.md`, ADR index) left to the scribe unless listed as owned.
 
@@ -30,13 +36,19 @@ Owns: <paths/globs>
 Must not touch: <paths owned by parallel items, hotspots>
 Numbers: ADR-<NNNN> | migration <NNNN> | none
 
+Estimate: <minutes, at most 60>
+
 Steps (do in order; run each check, report its result):
 1. <file>::<function>: <change>. Pattern to copy: <path:line>. Check: `<command>` -> <expected>
 2. ...
 
-Acceptance (all must pass; the reviewer reruns them):
+Acceptance (all must pass; the reviewer reruns the single non-e2e files and `rg` checks):
 - `<command>` -> <expected>
+- e2e: the `e2e.yml` run on the pushed `wi/<MAIN>/<ID>` sha -> success | none (no e2e impact)
 - `just check-item <ID> <owned globs>` -> rc=0
+
+Local e2e files you may run (at most 4 runs in total, under the lock): <tests/e2e/test_x.py | none>
+Audit expectations (frontend items): <routes; per form the failing save and its visible error; states to seed | none>
 
 Out of scope: <what not to do>
 ```
