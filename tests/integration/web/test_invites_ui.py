@@ -37,7 +37,9 @@ NEW_EMAIL = "accountant@example.test"
 NEW_PASSWORD = "-".join(("a", "fresh", "passphrase"))  # pragma: allowlist secret
 STATE_EXPIRED = "This invite link has expired. Ask an admin to resend it."
 STATE_USED = "This invite has already been used. Sign in with the account it created."
-STATE_INVALID = "This link isn\u2019t valid. Ask an admin to resend the invite."
+STATE_INVALID = (
+    "This link isn\u2019t valid. Open the newest invite email, or ask an admin to resend it."
+)
 INVITE_AUDIT = (
     "SELECT operation FROM audit_log WHERE entity_type = 'invites' AND entity_id = ? ORDER BY id"
 )

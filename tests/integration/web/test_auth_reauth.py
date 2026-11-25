@@ -276,7 +276,8 @@ def test_wrong_password_is_generic_401_and_audited(
     r = client.post("/auth/reauth", data={"password": WRONG_PASSWORD, "next": "/today"})
     assert r.status_code == 401
     assert (
-        _html.text_of(r.text, auth.reauth_error) == "▲ That password didn't work. 2 attempts left."
+        _html.text_of(r.text, auth.reauth_error)
+        == "▲ That password doesn\u2019t match. 2 attempts left."
     )
     assert _token(client, session_cookie[0]) == session_cookie[1]  # not rotated
     failed = _rows(db, "reauth_failed")

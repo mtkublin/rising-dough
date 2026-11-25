@@ -38,7 +38,6 @@
                type="password"
                autocomplete="current-password"
                required
-               {% if not has_passkeys %}autofocus{% endif %}
                {% if error and not throttled %}aria-describedby="current-password-error" aria-invalid="true"{% endif %}>
       </span>
       {% if error and not throttled %}

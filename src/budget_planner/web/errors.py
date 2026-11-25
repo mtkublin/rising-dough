@@ -37,6 +37,14 @@ from budget_planner.web.params import ParamError
 
 logger = logging.getLogger("budget_planner.web")
 
+# Handoff copy of the full-page 409 and 500 (pages/errors/409.html, 500.html); the HTMX flash
+# keeps the specific message (a toast has room for the reason, the page states the outcome).
+CONFLICT_PAGE_COPY = (
+    "Someone saved this while you were editing. "
+    "Nothing of yours was saved; reload to see the latest version."
+)
+SERVER_ERROR_PAGE_COPY = "Nothing was saved. Try again."
+
 
 def _is_htmx(request: Request) -> bool:
     return request.headers.get(HX_REQUEST) == "true"
@@ -143,7 +151,7 @@ async def handle_conflict(request: Request, exc: Exception) -> HTMLResponse:
         request,
         "pages/errors/409.html",
         status=409,
-        message=cf.message,
+        message=CONFLICT_PAGE_COPY,
     )
 
 
@@ -218,7 +226,7 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
         "pages/errors/500.html",
         status=500,
         status_code=500,
-        message=message,
+        message=exc.message if isinstance(exc, ServiceError) else SERVER_ERROR_PAGE_COPY,
     )
 
 

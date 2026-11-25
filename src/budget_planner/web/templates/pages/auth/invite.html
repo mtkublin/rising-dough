@@ -44,7 +44,6 @@
                  placeholder="Your name"
                  autocomplete="name"
                  {% if errors.get('name') %}aria-describedby="inv-name-error" aria-invalid="true"{% endif %}
-                 autofocus
                  required>
         </span>
         {% if errors.get("name") %}

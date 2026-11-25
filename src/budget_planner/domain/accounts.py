@@ -6,6 +6,7 @@ from dataclasses import dataclass, fields
 from datetime import datetime
 
 from budget_planner.domain.limits import name_error
+from budget_planner.domain.money import ISO_4217_CURRENCIES
 
 ISO_CURRENCY_LENGTH = 3
 
@@ -99,9 +100,14 @@ class AccountStats:
 
 
 def currency_error(currency: str) -> str | None:
-    """Form error for a currency that is not a three-letter ISO 4217 code (or None)."""
-    ok = len(currency) == ISO_CURRENCY_LENGTH and currency.isalpha()
-    return None if ok else "ISO 4217 code required"
+    """Form error for a currency that is not a known ISO 4217 code (or None).
+
+    A malformed code keeps "ISO 4217 code required"; a well-formed one the app does not know
+    (``XYZ``) is "Unknown currency code" (handoff overlays new-account--error).
+    """
+    if not (len(currency) == ISO_CURRENCY_LENGTH and currency.isalpha()):
+        return "ISO 4217 code required"
+    return None if currency in ISO_4217_CURRENCIES else "Unknown currency code"
 
 
 def credit_limit_error(limit_minor: int | None) -> str | None:

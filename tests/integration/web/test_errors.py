@@ -96,7 +96,8 @@ def test_conflict_browser_renders_409_page(error_client: TestClient) -> None:
     assert r.status_code == 409
     heading = _html.text_of(r.text, errors.heading)
     assert heading == "Changed elsewhere"
-    assert "protected row" in _html.text_of(r.text, errors.main)
+    assert "Someone saved this while you were editing." in _html.text_of(r.text, errors.main)
+    assert "protected row" not in _html.text_of(r.text, errors.main)
 
 
 def test_conflict_htmx_renders_polite_flash(error_client: TestClient) -> None:
@@ -130,7 +131,8 @@ def test_service_error_browser_renders_500_with_request_id(
     assert rid
     main_text = _html.text_of(r.text, errors.main)
     assert "downstream unavailable" in main_text
-    assert rid in main_text
+    # The handoff card prints no reference line: the id rides on the card.
+    assert _html.resolve_one(r.text, by_id("error-card"))["data-request-id"] == rid
     # Correlation id present in log context.
     found = any(getattr(rec, "request_id", None) == rid for rec in caplog.records)
     assert found, "request_id missing from log context"
@@ -152,6 +154,7 @@ def test_unhandled_exception_falls_back_to_500(
         r = error_client.get("/_boom/unhandled")
     assert r.status_code == 500
     assert _html.text_of(r.text, errors.heading) == "Something broke"
+    assert "Nothing was saved. Try again." in _html.text_of(r.text, errors.main)
     rid = r.headers["X-Request-Id"]
     assert rid
     assert any(getattr(rec, "request_id", None) == rid for rec in caplog.records)

@@ -1,13 +1,16 @@
 {# pages/errors/500 (T-UR06): server error (also the 503 for a missing FX rate).
-   Inputs: message, status_code. Handoff: pages/errors/500.html. #}
+   Inputs: message, status_code, request_id (the X-Request-Id header and a data attribute; the
+   handoff card prints no reference line). Handoff: pages/errors/500.html. #}
 {% extends "layouts/base.html" %}
 {% block title %}{{ status_code }} · Something broke · Rising Dough{% endblock %}
 {% block main %}
-  <section class="rd-error" aria-labelledby="err-title">
+  <section class="rd-error"
+           id="error-card"
+           aria-labelledby="err-title"
+           {% if request_id %}data-request-id="{{ request_id }}"{% endif %}>
     <p class="rd-caption">ERROR {{ status_code }}</p>
     <h1 class="rd-error__title" id="err-title">Something broke</h1>
     <p class="rd-error__msg">{{ message }}</p>
-    {% if request_id %}<p class="rd-caption">REFERENCE {{ request_id }}</p>{% endif %}
     <div class="rd-error__actions">
       <a class="rd-btn rd-btn--primary" href="/today">[ try again ]</a>
     </div>
