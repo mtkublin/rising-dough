@@ -26,7 +26,15 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, edit_dialogs, entries, errors, ledger, rd_shell as shell
+from tests.ui_map import (
+    _html,
+    edit_dialogs,
+    entries,
+    errors,
+    ledger,
+    rd_fragments,
+    rd_shell as shell,
+)
 from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
@@ -233,8 +241,12 @@ def test_edit_opens_the_dialog_with_the_stored_values(
     note = _html.resolve_one(r.text, edit_dialogs.field_note(scope))
     assert (due.get("name"), due.get("value")) == ("operation_date", "2026-10-15")
     assert (note.get("name"), note.get("value")) == ("description", "rent")
-    chosen = _html.resolve_one(r.text, edit_dialogs.category_chosen)
-    assert chosen.get("value") == str(ctx["cat"])
+    chips = [
+        (c.get("value"), c.has_attr("checked"))
+        for c in _html.resolve(r.text, rd_fragments.category_recent_radios)
+    ]
+    assert chips[0] == (str(ctx["cat"]), True)
+    assert [checked for _, checked in chips].count(True) == 1
     account = _html.resolve_one(r.text, edit_dialogs.field_account(scope))
     selected = account.find("option", selected=True)
     assert selected is not None

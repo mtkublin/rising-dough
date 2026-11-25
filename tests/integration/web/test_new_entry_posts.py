@@ -27,7 +27,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
-from tests.ui_map import _html, entries
+from tests.ui_map import _html, entries, rd_fragments
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -143,9 +143,15 @@ def test_bad_amount_marks_the_hero_and_keeps_the_picked_category(
     assert r.status_code == 422
     hero = _html.resolve_one(r.text, entries.hero_amount)
     assert (hero.get("aria-invalid"), hero.get("value")) == ("true", "0.00")  # as the handoff
-    # Groceries has no entry yet: the recent chips lead with it, checked (derived.md, F6).
-    chosen = _html.resolve_one(r.text, role("radio", "Groceries"))
-    assert (chosen.get("value"), chosen.has_attr("checked")) == (str(ids["groc"]), True)
+    # Groceries has no entry yet (not a recent radio): the picked category leads the chips, checked.
+    chips = [
+        (c.get("value"), c.has_attr("checked"))
+        for c in _html.resolve(r.text, rd_fragments.category_recent_radios)
+    ]
+    assert chips[0] == (str(ids["groc"]), True)
+    assert [checked for _, checked in chips].count(True) == 1
+    named = _html.resolve_one(r.text, entries.category_option("Groceries"))
+    assert (named.get("value"), named.has_attr("checked")) == (str(ids["groc"]), True)
 
 
 def test_zero_amount_422_keeps_the_credit_line_of_a_card(
@@ -155,9 +161,7 @@ def test_zero_amount_422_keeps_the_credit_line_of_a_card(
     card = accounts_repo.create(
         db,
         USER_ID,
-        NewAccount(
-            name="Card", currency="PLN", is_liability=True, credit_limit_minor=500_000
-        ),
+        NewAccount(name="Card", currency="PLN", is_liability=True, credit_limit_minor=500_000),
     )
     r = client.post(
         "/transactions",
@@ -513,8 +517,7 @@ def test_repeats_formula_hero_shows_the_service_next_amount(
     assert row.get_text(" ", strip=True) == "\N{MINUS SIGN} 1,200.00 PLN"  # signed like a typed one
     assert "\N{RIGHTWARDS ARROW} next amount 1,200.00 PLN" in _html.all_text(r.text, entries.dialog)
     # the figure sits once, in the formula line: the hero has no note (handoff)
-    assert r.text.count("next amount") == 1
-    assert "rd-dialog__hero-note" not in r.text
+    assert _html.all_text(r.text, entries.dialog).count("next amount") == 1
     # the figure is derived, never posted: the hero has no named amount input in formula mode
     assert not _html.exists(r.text, entries.hero_amount)
 

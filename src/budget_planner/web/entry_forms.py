@@ -48,6 +48,7 @@ from budget_planner.services import (
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.entry_hero import new_entry_hero
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.recurring_forms import (
     EMPTY_TERM_INPUT,
@@ -346,10 +347,7 @@ def new_entry_context(
     errors: Mapping[str, str] | None = None,
     formula: tuple[str, str] | None = None,
 ) -> dict[str, object]:
-    """Everything ``pages/entries/new-entry.html`` renders: defaults or the posted values.
-
-    ``formula`` is the (figure, note) of the repeats hero in formula mode (``formula_hero``).
-    """
+    """What ``pages/entries/new-entry.html`` renders; ``formula`` is ``formula_hero``'s pair."""
     values = posted or {}
     cats = categories_service.list_all(conn, user_id)
     accounts = accounts_service.list_by_last_use(conn, user_id)
@@ -359,7 +357,7 @@ def new_entry_context(
         cats, picker, parse_int(values.get("category", values.get("category_id", "")))
     )
     currency = account.currency if account else base_currency
-    hero = _hero(
+    hero = new_entry_hero(
         tab,
         values,
         currency=currency,
@@ -373,7 +371,9 @@ def new_entry_context(
         **category_view,
         "hero": hero,
         "accounts": accounts,
-        "credit_preview": _credit_preview(conn, user_id, tab, account, category_view, values),
+        "credit_preview": _credit_preview(
+            conn, user_id, tab=tab, account=account, category_view=category_view, values=values
+        ),
         "selected_account_id": account.id if account else None,
         "currency": currency,
         "values": values,
@@ -509,6 +509,7 @@ def _dependent_fields(
 def _credit_preview(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     tab: str,
     account: Account | None,
     category_view: Mapping[str, object],
@@ -525,51 +526,6 @@ def _credit_preview(
         category_id=picked if isinstance(picked, int) else None,
         amount_raw=values.get("amount", ""),
     )
-
-
-def _typed_amount(raw: str, currency: str) -> str:
-    """The amount the user typed, shown back grouped (``13,000.00``) when it is a plain figure.
-
-    Text that is not a non-negative amount of the currency stays as typed, so a 422 echoes it.
-    """
-    minor = parse_amount_minor(raw, currency)
-    return raw if minor is None or minor < 0 else format_major(minor, currency, grouped=True)
-
-
-def _hero(
-    tab: str,
-    values: Mapping[str, str],
-    *,
-    currency: str,
-    sign: object,
-    errors: Mapping[str, str],
-    formula: tuple[str, str] | None,
-) -> dict[str, object]:
-    """The dialog hero: the amount input (account currency, category sign) or the formula result."""
-    if tab == "repeats" and values.get("amount_source") == "formula":
-        figure, note = formula or ("\N{EM DASH}", "")
-        prefix = "\N{RIGHTWARDS ARROW} next amount "
-        next_amount = note.removeprefix(prefix) if note.startswith(prefix) else None
-        return {
-            "currency": currency,
-            "sign": sign,  # the handoff signs the computed amount like the typed one
-            "amount_id": "seg-amount-source",
-            "output": True,
-            "amount_value": figure,
-            # The handoff shows "next amount" under "+ add component", not in the hero band.
-            "note": "" if next_amount else note,
-            "next_amount": next_amount,
-        }
-    name = "default_amount" if tab == "repeats" else "amount"
-    return {
-        "currency": currency,
-        "sign": sign,
-        "amount_id": f"field-{name}",
-        "amount_name": name,
-        "amount_value": _typed_amount(values.get(name, ""), currency),
-        "placeholder": format_major(0, currency),
-        "error": errors.get(name),
-    }
 
 
 def formula_hero(

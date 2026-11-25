@@ -54,21 +54,18 @@ def compute_limit_preview(
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None or not acc.is_liability or acc.credit_limit_minor is None:
         return None
-    cat = None if category_id is None else categories_service.find_by_id(conn, user_id, category_id)
-    if category_id is not None and cat is None:
+    delta = _delta(
+        conn,
+        user_id,
+        currency=acc.currency,
+        account_id=account_id,
+        category_id=category_id,
+        amount_raw=amount_raw,
+    )
+    if delta is None:
         return None
-    dec = parse_amount_str(amount_raw, acc.currency)
-    if dec is None or dec < 0 or (cat is None and dec != 0):
-        return None
-    amount_minor = to_minor_units(dec, acc.currency)
     current = balance_service.derive_balance(conn, user_id, account_id) - _edited_effect(
         conn, user_id, account_id, exclude_txn_id
-    )
-    # Only the source leg matters for this account; a transit's destination is irrelevant here.
-    delta = (
-        0
-        if cat is None
-        else signed_legs(cat.direction, amount_minor, account_id, account_id)[0].amount_minor
     )
     projected = current + delta
     limit = acc.credit_limit_minor
@@ -84,6 +81,29 @@ def compute_limit_preview(
         currency=acc.currency,
         account_name=acc.name,
     )
+
+
+def _delta(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    currency: str,
+    account_id: int,
+    category_id: int | None,
+    amount_raw: str,
+) -> int | None:
+    """Signed effect of the typed amount on the account; ``None`` when there is no preview."""
+    dec = parse_amount_str(amount_raw, currency)
+    if dec is None or dec < 0:
+        return None
+    if category_id is None:
+        return 0 if dec == 0 else None
+    cat = categories_service.find_by_id(conn, user_id, category_id)
+    if cat is None:
+        return None
+    # Only the source leg matters for this account; a transit's destination is irrelevant here.
+    amount_minor = to_minor_units(dec, currency)
+    return signed_legs(cat.direction, amount_minor, account_id, account_id)[0].amount_minor
 
 
 def _edited_effect(
