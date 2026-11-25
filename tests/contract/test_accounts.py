@@ -382,13 +382,22 @@ def test_delete_soft_deletes_with_toast_and_audit(
 
 
 @covers("POST /accounts/{account_id}/delete")
-def test_delete_unknown_or_foreign_is_a_noop(
-    client: TestClient, foreign_id: int, _migrated: Settings
+def test_delete_unknown_or_foreign_is_404(
+    client: TestClient, acc_id: int, foreign_id: int, _migrated: Settings
 ) -> None:
+    """Operator decision Q15: 404, no toast, identical for unknown and foreign ids."""
     before = audit_ops(_migrated, "account")
-    assert client.post("/accounts/9999/delete").status_code == 200
-    assert client.post(f"/accounts/{foreign_id}/delete").status_code == 200
-    assert _account_rows(_migrated)[0]["deleted_at"] is None
+    unknown = client.post("/accounts/9999/delete")
+    foreign = client.post(f"/accounts/{foreign_id}/delete")
+    for r in (unknown, foreign):
+        assert r.status_code == 404
+        assert "HX-Trigger" not in r.headers
+    assert unknown.text == foreign.text
+    rows = {row["id"]: row for row in _account_rows(_migrated)}
+    assert rows[foreign_id]["name"] == "Theirs"
+    assert rows[foreign_id]["user_id"] == OTHER_USER_ID
+    assert rows[foreign_id]["deleted_at"] is None
+    assert rows[acc_id]["deleted_at"] is None
     assert audit_ops(_migrated, "account") == before
 
 

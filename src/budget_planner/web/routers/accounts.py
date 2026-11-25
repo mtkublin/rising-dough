@@ -179,7 +179,10 @@ def delete_account(
     user_id: int = Depends(current_user_id),
 ) -> Response:
     # The delete dialog swaps this empty body into #modal-root (closing it); the accounts
-    # panel refetches on balance-stale, which drops the row.
+    # panel refetches on balance-stale, which drops the row. Unknown, foreign and already
+    # archived ids are one 404 with no toast (operator decision Q15, T-UR08c).
+    if accounts_service.find_by_id(conn, user_id, account_id) is None:
+        return Response(status_code=404, content=_NOT_FOUND)
     accounts_service.archive_account(conn, user_id, account_id)
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(
