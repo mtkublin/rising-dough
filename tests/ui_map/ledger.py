@@ -226,6 +226,7 @@ def named_input(form: Tag, name: str) -> Tag:
 
 # --- T-UT08a: existing e2e journeys ---
 filter_category = label("Category").inside(filters_form)
+filter_direction = label("direction").inside(filters_form)
 filter_search = role("searchbox").inside(filters_form)
 older_button = role("link", "older")
 cancel_button = role("button", "Cancel")

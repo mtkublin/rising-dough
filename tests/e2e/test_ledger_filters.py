@@ -127,6 +127,37 @@ def test_filter_survives_reload_and_updates_export_links(
     expect(to_playwright(page, ledger.view_table("actual"))).not_to_contain_text("alpha apple")
 
 
+def test_back_restores_the_filter_fields_with_the_url(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    _, db_path = live_server
+    _open_filtered(live_server, page, use_alpha=False)  # category Beta, URL pushed
+    beta = str(db_probe.category_id(db_path, "Beta"))
+    direction = to_playwright(page, ledger.filter_direction)
+    search = to_playwright(page, ledger.filter_search)
+    with page.expect_response(lambda r: "direction=expense" in r.url):
+        direction.select_option("expense")
+    expect(page).to_have_url(re.compile(rf"category_id={beta}&direction=expense$"))
+    with page.expect_response(lambda r: "q=banana" in r.url):
+        search.fill("banana")
+    expect(page).to_have_url(re.compile(r"direction=expense&q=banana$"))
+    page.wait_for_function("document.querySelector('#ledger-table.htmx-request') === null")
+
+    page.go_back()  # the state with direction, without the search
+    expect(page).to_have_url(re.compile(rf"category_id={beta}&direction=expense$"))
+    expect(direction).to_have_value("expense")
+    expect(search).to_have_value("")
+    expect(to_playwright(page, ledger.filter_category)).to_have_value(beta)
+    expect(_rows(page, "actual")).to_have_count(_ROWS_B)
+
+    page.go_back()  # the state with the category only
+    expect(page).to_have_url(re.compile(rf"category_id={beta}$"))
+    expect(direction).to_have_value("")
+    expect(search).to_have_value("")
+    expect(to_playwright(page, ledger.filter_category)).to_have_value(beta)
+    expect(_rows(page, "actual")).to_have_count(_ROWS_B)
+
+
 def test_search_keeps_other_filters(live_server: tuple[str, Path], page: Page) -> None:
     messages = _open_filtered(live_server, page, use_alpha=False)
     with page.expect_response(lambda r: "q=a" in r.url):
