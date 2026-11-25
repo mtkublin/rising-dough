@@ -1903,7 +1903,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q330 [S] Hook-enforced orchestrator rules: decision record (docs only)
+### ✅ T-Q330 [S] Hook-enforced orchestrator rules: decision record (docs only)
 - Findings: 2026-11-25 analysis of the `ui/sourdough` orchestrator v2 run (wave 6 after about 14 h; 10.8 agent-h of lock waits, 3.2 h of poll loops, 5.8 h of implementer e2e runs, reviewer suite reruns, 12 implementers over 60 min, two idle orchestrator stretches of 21 and about 90 min).
 - Epic: E04
 - Band: 3 · Size: S · Tags: docs, ops
@@ -1914,7 +1914,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none (operator asked for the change 2026-11-25).
 - Removes allowlist entries: none.
 
-### T-Q331 [S] `scripts/ci/agent_guard.py` and the project hooks
+### ✅ T-Q331 [S] `scripts/ci/agent_guard.py` and the project hooks
 - Epic: E04
 - Band: 3 · Size: S · Tags: ops, tests
 - Depends on: T-Q330
@@ -1924,12 +1924,12 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q332 [S] Skill, brief template and role agents follow the amendment
+### ✅ T-Q332 [S] Skill, brief template and role agents follow the amendment
 - Epic: E04
 - Band: 3 · Size: S · Tags: docs, ops
 - Depends on: T-Q330, T-Q331
 - Docs-first step: ADR-0150 amendment 2026-11-25 "hook-enforced rules" §5.
-- Goal: `SKILL.md` (two lock slots, audit and review in parallel, next wave built while the tester runs, parked agents, `RUN-STATE` line, item size, untried workflows), `brief-common.md` (single-file acceptance commands, e2e evidence from `e2e.yml`, audit expectations, estimate), the six role files (background waits, runtime budgets, guard denials, reviewer reads `e2e.yml`), CLAUDE.md "Multi-agent work".
+- Goal: `SKILL.md` (two lock slots, audit and review in parallel, next wave built while the tester runs, parked agents, `RUN-STATE` line, item size, untried workflows), `brief-common.md` (single-file acceptance commands, e2e evidence from `e2e.yml`, audit expectations, estimate), the six role files (background waits, runtime budgets, guard denials, reviewer reads `e2e.yml`), CLAUDE.md "Multi-agent work" (plus a short table of the project skills and agents and when to use each; role agents are for orchestrated runs only).
 - Acceptance: no rule contradicts the guard; `brief-common.md` no longer tells the reviewer to rerun every acceptance command; `just guards` green (G15 guidance paths).
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
