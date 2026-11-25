@@ -21,7 +21,7 @@
       <ul>
         {% for name, label, message in field_errors %}
           <li>
-            <a href="#field-{{ name }}">{{ message }}</a>
+            <a href="{{ back_url }}#field-{{ name }}">{{ message }}</a>
           </li>
         {% endfor %}
       </ul>
