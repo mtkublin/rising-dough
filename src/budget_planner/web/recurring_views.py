@@ -55,6 +55,7 @@ OCCURRENCE_TEMPLATE = "fragments/dialogs/override-occurrence.html"
 OCCURRENCE_REMOVE_TEMPLATE = "fragments/dialogs/override-remove-occurrence.html"
 CREATE_ACTION = "/recurring"
 _ROW = "partials/recurring/_row.html"
+CYCLE_NOTE = "formula cycle: the amount shows 0.00 until the formula is edited to remove the cycle."
 
 
 def render_form_errors(
@@ -96,11 +97,8 @@ def effective_amount_for_render(
 def live_amount(
     conn: sqlite3.Connection, user_id: int, rule: RecurringRule, on: date, fx: FormulaFx
 ) -> int:
-    """What the rule posts on ``on``; a stored formula cycle falls back to the saved snapshot."""
-    try:
-        return formula_svc.resolve_rule_amount(conn, user_id, rule, on, fx=fx)
-    except formula_svc.FormulaCycleError:
-        return rule.default_amount
+    """What the rule posts on ``on``; a stored formula cycle posts 0.00 (Q25, ADR-0047)."""
+    return formula_svc.live_rule_amount(conn, user_id, rule, on, fx)[0]
 
 
 def preview_currency(
@@ -156,9 +154,13 @@ def _promote_prefill(
     )
 
 
-def _promote_notes(rule: RecurringRule, override: RecurringOverride | None) -> list[str]:
-    """Status lines above the promote fields (override applied, last occurrence)."""
+def _promote_notes(
+    rule: RecurringRule, override: RecurringOverride | None, *, cyclic: bool = False
+) -> list[str]:
+    """Status lines above the promote fields (formula cycle, override applied, last occurrence)."""
     notes = []
+    if cyclic:
+        notes.append(CYCLE_NOTE)
     if override is not None and override.state.value == "overridden":
         notes.append("Override applied for this occurrence.")
     if rule.end_date and rule.next_due == rule.end_date:
@@ -194,7 +196,11 @@ def render_promote_modal(
         note_value=prefill[2],
         base_currency=request.app.state.settings.base_currency,
         recurring=True,
-        notes=_promote_notes(rule, override),
+        notes=_promote_notes(
+            rule,
+            override,
+            cyclic=formula_svc.live_rule_amount(conn, user_id, rule, rule.next_due, fx)[1],
+        ),
         posted=posted,
     )
     if errors:

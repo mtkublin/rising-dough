@@ -32,7 +32,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
-from tests.ui_map import _html, edit_dialogs, errors, today
+from tests.ui_map import _html, edit_dialogs, entries, errors, ledger, today
 from tests.ui_map.locator import by_id
 
 USER_ID = 1
@@ -588,3 +588,56 @@ def test_promoting_a_stored_cycle_is_a_human_422(
     assert r.status_code == 422
     assert "formula cycle" in _html.all_text(r.text, edit_dialogs.summary)
     assert db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == txns
+
+
+def test_ledger_row_of_a_stored_cycle_shows_zero_and_the_warning(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    taxes_rule = _stored_cycle(db, ids, _migrated)
+    r = client.get("/ledger?view=recurring&date_from=2000-01-01&date_to=2099-12-31")
+    assert r.status_code == 200
+    row = _html.all_text(r.text, ledger.recurring_row(taxes_rule))
+    assert "taxes-cycle \N{MIDDLE DOT} formula cycle" in row
+    assert "0.00 PLN" in row
+    assert "100.00" not in row
+
+
+def test_promote_dialog_of_a_stored_cycle_prefills_zero_and_warns(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    taxes_rule = _stored_cycle(db, ids, _migrated)
+    r = client.get(f"/recurring/{taxes_rule}/promote?dialog=1", headers=_HTMX)
+    assert r.status_code == 200
+    assert _html.resolve_one(r.text, entries.promote_amount).get("value") == "0.00"
+    assert "formula cycle" in _html.page_text(r.text)
+
+
+def test_editing_a_stored_cycle_that_keeps_it_is_a_422_and_writes_nothing(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    taxes_rule = _stored_cycle(db, ids, _migrated)
+    ops = _ops(db, "recurring_rule", taxes_rule)
+    audit = db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    form = _formula_form(ids, **{"components[0][categories]": str(ids["rent"])})
+    r = client.post(f"/recurring/{taxes_rule}", data=form, headers=_FROM_DIALOG)
+    assert r.status_code == 422
+    assert "cycle" in _html.all_text(r.text, edit_dialogs.summary)
+    stored = recurring_repo.find_rule(db, USER_ID, taxes_rule)
+    assert stored is not None
+    assert stored.amount_formula == _reads(ids["rent"])
+    assert stored.default_amount == 10_000
+    assert _ops(db, "recurring_rule", taxes_rule) == ops
+    assert db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == audit
+
+
+def test_editing_a_stored_cycle_to_remove_it_succeeds(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    taxes_rule = _stored_cycle(db, ids, _migrated)
+    form = _formula_form(ids, amount_source="fixed", default_amount="321.50")
+    r = client.post(f"/recurring/{taxes_rule}", data=form, headers=_FROM_DIALOG)
+    assert r.status_code == 200
+    stored = recurring_repo.find_rule(db, USER_ID, taxes_rule)
+    assert stored is not None
+    assert (stored.amount_formula, stored.default_amount) == (None, 32_150)
+    assert "update" in _ops(db, "recurring_rule", taxes_rule)
