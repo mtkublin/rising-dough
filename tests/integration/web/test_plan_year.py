@@ -9,6 +9,7 @@ carries a budget that must never show.
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,7 +21,12 @@ from budget_planner.domain.budgets import (
 )
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
-from budget_planner.repositories import budgets as budgets_repo, categories as categories_repo
+from budget_planner.domain.transactions import NewTransaction
+from budget_planner.repositories import (
+    budgets as budgets_repo,
+    categories as categories_repo,
+    transactions as transactions_repo,
+)
 from tests.auth_support import seed_login_user
 from tests.ui_map import _html, plan_budget, plan_year
 
@@ -111,11 +117,26 @@ def test_cell_has_a_spoken_name_and_opens_its_dialog(
 
 
 def test_category_without_a_budget_is_listed_in_the_disclosure(
-    client: TestClient, world: dict[str, int]
+    client: TestClient, db: sqlite3.Connection, account_id: int, world: dict[str, int]
 ) -> None:
+    # F1 (derived.md year-grid rows): a category without a budget is hidden while nothing uses
+    # it and listed in the disclosure only once it has entries.
+    assert _html.count(client.get(URL).text, plan_year.disclosure) == 0
+    transactions_repo.create(
+        db,
+        USER_ID,
+        NewTransaction(
+            operation_date=date(2026, 5, 4),
+            category_id=world["Gym"],
+            account_id=account_id,
+            amount=4_000,
+            description="gym pass",
+        ),
+    )
     page = client.get(URL).text
 
     assert _html.count(page, plan_year.row("Gym")) == 0
+    assert _html.texts(page, plan_year.unbudgeted("Gym")) == ["Gym"]
     assert _html.text_of(page, plan_year.disclosure) == "1 category without a budget"
     link = _html.resolve_one(page, plan_year.unbudgeted("Gym"))
     assert str(link["href"]).startswith(

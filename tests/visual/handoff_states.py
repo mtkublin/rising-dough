@@ -78,7 +78,7 @@ def _offline(page: Page) -> None:
 
     page.route("**/today/upcoming*", refuse)
     page.click("#upcoming .rd-segmented__option[hx-get*='window=30']")
-    page.wait_for_selector("#flash-region [data-js='offline-state']", timeout=_TIMEOUT_MS)
+    page.wait_for_selector("#main [data-js='offline-state']", timeout=_TIMEOUT_MS)
     page.unroute("**/today/upcoming*")
 
 

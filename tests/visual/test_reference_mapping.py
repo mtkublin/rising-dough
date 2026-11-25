@@ -141,13 +141,13 @@ _BASES = {
     "override--budget-month": ("/plan", ()),
     "edit-transaction": (LEDGER_BOARD, ()),
     "edit-transaction--transit": (LEDGER_BOARD, ()),
-    "new-entry--happened": ("/today", ()),
-    "new-entry--planned": ("/today", ()),
-    "new-entry--repeats-fixed": ("/today", ()),
-    "new-entry--error": ("/today", ()),
-    "new-entry--over-limit": ("/today", ()),
-    "new-entry--phone-sheet": ("/today", ()),
-    "new-entry--repeats-formula": ("/today", ()),
+    "new-entry--happened": ("/today?amount=250.00", ()),
+    "new-entry--planned": ("/today?amount=250.00", ()),
+    "new-entry--repeats-fixed": ("/today?amount=250.00", ()),
+    "new-entry--error": ("/today?amount=250.00", ()),
+    "new-entry--over-limit": ("/today?amount=250.00", ()),
+    "new-entry--phone-sheet": ("/today?amount=250.00", ()),
+    "new-entry--repeats-formula": ("/today?amount=250.00", ()),
     "add-user": ("/settings/users", ()),
     "add-user--error": ("/settings/users", ()),
     "edit-user": ("/settings/users", ()),
@@ -280,7 +280,9 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
     assert status == 200
     text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
     assert "Can\u2019t delete Checking It still has" in text
-    assert "23 transactions and 3 planned items and 7 recurring rules." in text
+    # F1 grew the seed's Checking transactions 23 -> 33 (overlay row "Checking txns 23 -> 33",
+    # tests/visual/handoff_overlay.toml); planned items and recurring rules are unchanged.
+    assert "33 transactions and 3 planned items and 7 recurring rules." in text
 
 
 def _non_overlay_pages() -> set[str]:
@@ -316,7 +318,10 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ("pages/auth/invite--invalid.html", "/invite/not-a-real-invite-token", ()),
         ("pages/auth/reauth.html", "/auth/reauth", ()),
         ("pages/auth/reauth--error.html", "/auth/reauth", ("form-error",)),
-        ("pages/today--empty.html", "/today", ("empty",)),
+        ("pages/today.html", "/today?amount=250.00", ()),
+        ("pages/today--empty.html", "/today?amount=250.00", ("empty",)),
+        ("pages/overlays/row-menu--upcoming.html", "/today?amount=250.00", ()),
+        ("pages/overlays/shortcuts.html", "/today?amount=250.00", ()),
         ("pages/accounts--empty.html", "/accounts", ("empty-accounts",)),
         ("pages/ledger/actual--empty.html", "/ledger", ("empty-ledger",)),
         ("pages/ledger/actual--long.html", LEDGER_BOARD, ("long",)),

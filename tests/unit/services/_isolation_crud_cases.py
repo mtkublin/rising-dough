@@ -82,7 +82,7 @@ def _case_accounts_create(conn: sqlite3.Connection, world: World) -> None:
     audit_before = audit_total(conn)
     with pytest.raises(ValidationError) as err:
         accounts.create(conn, OWNER_ID, NewAccount(name=" ", currency="PL"))
-    assert err.value.fields == {"name": "name required", "currency": "ISO 4217 code required"}
+    assert err.value.fields == {"name": "Name is required", "currency": "ISO 4217 code required"}
     assert (_account_names(conn, OWNER_ID), audit_total(conn)) == (["acct-1"], audit_before)
     made = accounts.create(conn, OWNER_ID, NewAccount(name="new-acct", currency="EUR"))
     assert (made.user_id, made.name, made.currency) == (OWNER_ID, "new-acct", "EUR")
@@ -101,7 +101,7 @@ def _case_accounts_update(conn: sqlite3.Connection, world: World) -> None:
     audit_before = audit_total(conn)
     with pytest.raises(ValidationError) as err:
         accounts.update(conn, OWNER_ID, world.owner.account_id, PatchAccount(name=""))
-    assert err.value.fields == {"name": "name required"}
+    assert err.value.fields == {"name": "Name is required"}
     assert (_account_names(conn, OWNER_ID), audit_total(conn)) == (["renamed"], audit_before)
 
 
@@ -179,7 +179,7 @@ def _case_categories_create(conn: sqlite3.Connection, world: World) -> None:
             conn, OWNER_ID, NewCategory(name="", direction=Direction.EXPENSE, color="red")
         )
     assert err.value.fields == {
-        "name": "name required",
+        "name": "Name is required",
         "color": "invalid color 'red'; expected 6-digit hex like #a3c2ff",
     }
     assert audit_total(conn) == audit_before
@@ -202,7 +202,7 @@ def _case_categories_update(conn: sqlite3.Connection, world: World) -> None:
     )
     with pytest.raises(ValidationError) as err:
         categories.update(conn, OWNER_ID, world.owner.category_id, PatchCategory(name=" "))
-    assert err.value.fields == {"name": "name required"}
+    assert err.value.fields == {"name": "Name is required"}
 
 
 @covers("categories.soft_delete")

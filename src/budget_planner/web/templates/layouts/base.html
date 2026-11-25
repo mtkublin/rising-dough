@@ -114,6 +114,9 @@
     <template id="rd-offline-template">
       {% include "fragments/states/offline.html" %}
     </template>
+    <template id="rd-offline-page-template">
+      {% include "fragments/states/offline-page.html" %}
+    </template>
     {% include "layouts/_palette.html" %}
     {% include "layouts/_shortcuts.html" %}
     <script type="module" src="{{ url_for('static', path='rd/js/reveal.js') }}"></script>
