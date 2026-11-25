@@ -66,12 +66,12 @@ def test_accounts_empty_state_offers_a_new_account(journey: Journey) -> None:
 
 
 def test_accounts_reconcile_opens_the_overlay(journey: Journey) -> None:
-    if journey.target != "mockup":
-        pytest.skip(
-            "T-UR08b: the reconcile dialog is not ported; the click-through is a handoff flow here"
-        )
     accounts = journey.ui("accounts")
+    _seed_accounts(journey)
     journey.goto("/accounts")
     page: Any = journey.page
     to_playwright(page, accounts.reconcile_button(1)).first.click()
-    page.wait_for_url("**/pages/overlays/reconcile*.html")
+    if journey.target == "mockup":
+        page.wait_for_url("**/pages/overlays/reconcile*.html")
+    else:
+        to_playwright(page, accounts.reconcile_dialog).wait_for(state="visible")

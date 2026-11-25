@@ -23,7 +23,8 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import balance as balance_service
-from tests.ui_map import _html, accounts, errors, shell
+from tests.ui_map import _html, accounts, shell
+from tests.ui_map.locator import role
 
 USER_ID = 1
 
@@ -75,7 +76,8 @@ def test_create_rejects_bad_currency(client: TestClient) -> None:
         data={"name": "X", "currency": "EURO", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "currency" in _html.all_text(r.text, accounts.form_errors)
+    assert "Currency : ISO 4217 code required" in _html.text_of(r.text, accounts.form_errors)
+    assert r.headers["HX-Retarget"] == "#modal-root"
 
 
 def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
@@ -85,7 +87,7 @@ def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -
         data={"name": "   ", "currency": "PLN", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "name: name required" in _html.all_text(r.text, errors.alert)
+    assert "Name : name required" in _html.text_of(r.text, accounts.form_errors)
     assert _count(db, "accounts") == before
 
 
@@ -96,7 +98,7 @@ def test_create_rejects_bad_opening(client: TestClient, db: sqlite3.Connection) 
         data={"name": "A", "currency": "PLN", "opening_balance": "nan!"},
     )
     assert r.status_code == 422
-    assert "opening_balance: invalid number" in _html.all_text(r.text, errors.alert)
+    assert "Opening Balance : invalid number" in _html.text_of(r.text, accounts.form_errors)
     assert _count(db, "accounts") == before
 
 
@@ -111,21 +113,21 @@ def test_edit_and_update(client: TestClient, acc_id: int) -> None:
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/edit")
     assert r.status_code == 404
-    assert "account: not found" in _html.all_text(r.text, errors.alert)
+    assert r.text == "account not found"
 
 
 def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _count(db, "accounts")
     r = client.post("/accounts/9999", data={"name": "X"})
     assert r.status_code == 404
-    assert "account: not found" in _html.all_text(r.text, errors.alert)
+    assert r.text == "account not found"
     assert _count(db, "accounts") == before
 
 
 def test_update_blank_name(client: TestClient, acc_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/accounts/{acc_id}", data={"name": "   "})
     assert r.status_code == 422
-    assert "name: name required" in _html.all_text(r.text, errors.alert)
+    assert "Name : name required" in _html.text_of(r.text, accounts.form_errors)
     stored = accounts_repo.find_by_id(db, USER_ID, acc_id)
     assert stored is not None
     assert stored.name == "Main"
@@ -183,7 +185,7 @@ def test_reconcile_form_renders(client: TestClient, acc_id: int) -> None:
 def test_reconcile_form_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/reconcile")
     assert r.status_code == 404
-    assert "Account not found." in _html.text_of(r.text, accounts.reconcile_dialog)
+    assert r.text == "account not found"
 
 
 def test_reconcile_submit(client: TestClient, acc_id: int) -> None:
@@ -199,7 +201,7 @@ def test_reconcile_submit_bad_number(
     before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "notnum"})
     assert r.status_code == 422
-    assert "actual_balance: invalid number" in _html.all_text(r.text, errors.alert)
+    assert "Actual balance : invalid number" in _html.text_of(r.text, accounts.form_errors)
     assert _count(db, "transactions") == before
 
 
@@ -254,7 +256,7 @@ def test_create_credit_card_account_round_trips_limit(client: TestClient) -> Non
     )
     assert r.status_code == 200
     card = _html.all_text(r.text, accounts.any_row)
-    assert "Credit card" in card
+    assert "credit card" in card
     assert "10,000.00" in card
 
 
@@ -270,7 +272,9 @@ def test_create_liability_without_limit_returns_422(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
-    assert "credit_limit" in _html.all_text(r.text, accounts.form_errors)
+    assert "Credit Limit : positive credit limit required" in _html.text_of(
+        r.text, accounts.form_errors
+    )
 
 
 def test_create_liability_with_zero_limit_rejected(
@@ -288,7 +292,9 @@ def test_create_liability_with_zero_limit_rejected(
         },
     )
     assert r.status_code == 422
-    assert "credit_limit: positive credit limit required" in _html.all_text(r.text, errors.alert)
+    assert "Credit Limit : positive credit limit required" in _html.text_of(
+        r.text, accounts.form_errors
+    )
     assert _count(db, "accounts") == before
 
 
@@ -337,40 +343,35 @@ def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated:
 
 
 # ---------------------------------------------------------------------------
-# T-123 — Credit-limit field initial-render lockstep bug (ADR-0030 §6 contract).
-#
-# The sync `<script>` previously resolved the form via
-# `document.currentScript.previousElementSibling`, which breaks when the form
-# fragment is nested inside `partials/_slideover.html`. These tests pin the
-# server-rendered contract: `hidden` + `aria-hidden="true"` on the limit label
-# and `disabled` on the input must track `account is None or not
-# account.is_liability` in lockstep.
+# T-123, T-UR08b: the credit-limit field's server-rendered state tracks the liability radio.
+# reveal.js toggles ``hidden`` and ``disabled`` on ``data-show-when`` parts; the server renders the
+# initial state (a disabled field carries ``data-reveal-disabled`` so reveal.js can enable it).
 
 
-def _limit_markup(html: str) -> tuple[Tag, Tag]:
-    soup = BeautifulSoup(html, "html.parser")
-    label = soup.find("label", attrs={"data-limit-field": True})
-    assert isinstance(label, Tag), "credit-limit label with data-limit-field expected"
-    limit_input = label.find("input", attrs={"name": "credit_limit"})
-    assert isinstance(limit_input, Tag), "credit_limit input expected inside label"
+def _limit(html: str) -> tuple[Tag, Tag]:
+    limit_input = _html.resolve_one(html, accounts.form_credit_limit)
+    label = limit_input.find_parent("label")
+    assert isinstance(label, Tag)
     return label, limit_input
 
 
 def test_new_form_hides_credit_limit_by_default(client: TestClient) -> None:
     r = client.get("/accounts/new")
     assert r.status_code == 200
-    label, limit_input = _limit_markup(r.text)
+    label, limit_input = _limit(r.text)
     assert label.has_attr("hidden")
-    assert label.get("aria-hidden") == "true"
+    assert label["data-show-when"] == "is_liability=on"
     assert limit_input.has_attr("disabled")
+    assert limit_input.has_attr("data-reveal-disabled")
 
 
-def test_new_form_marks_form_root_for_sync(client: TestClient) -> None:
+def test_new_dialog_lists_every_iso_currency_in_the_datalist(client: TestClient) -> None:
     r = client.get("/accounts/new")
-    assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    form = soup.find("form", attrs={"data-account-form": True})
-    assert isinstance(form, Tag), "account form must expose data-account-form hook"
+    options = _html.resolve(r.text, role("option").inside(accounts.currency_options))
+    codes = [o["value"] for o in options]
+    assert {"PLN", "EUR", "USD"} <= set(codes)
+    assert len(codes) == len(set(codes)) > 100
+    assert _html.resolve_one(r.text, accounts.form_currency)["list"] == "iso-codes"
 
 
 def test_edit_form_shows_credit_limit_for_liability(
@@ -392,18 +393,18 @@ def test_edit_form_shows_credit_limit_for_liability(
         conn.close()
     r = client.get(f"/accounts/{visa.id}/edit")
     assert r.status_code == 200
-    label, limit_input = _limit_markup(r.text)
+    label, limit_input = _limit(r.text)
     assert not label.has_attr("hidden")
-    assert label.get("aria-hidden") is None
     assert not limit_input.has_attr("disabled")
+    assert limit_input["value"] == "10000.00"
+    assert _html.resolve_one(r.text, accounts.form_currency).has_attr("readonly")
 
 
 def test_edit_form_hides_credit_limit_for_asset(client: TestClient, acc_id: int) -> None:
     r = client.get(f"/accounts/{acc_id}/edit")
     assert r.status_code == 200
-    label, limit_input = _limit_markup(r.text)
+    label, limit_input = _limit(r.text)
     assert label.has_attr("hidden")
-    assert label.get("aria-hidden") == "true"
     assert limit_input.has_attr("disabled")
 
 

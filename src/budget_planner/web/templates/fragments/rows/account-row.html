@@ -1,6 +1,6 @@
 {# fragment: rows/account-row (one account in the accounts table, credit-limit line included)
-   Inputs: row (accounts_view.AccountRow). The menu is inline: its items still open the
-   existing accounts dialogs in #modal-root until T-UR08b ports them. #}
+   Inputs: row (accounts_view.AccountRow). The row menu is the shared menus/row-menu fragment;
+   its items open the account dialogs in #modal-root (T-UR08b). #}
 <tr class="rd-row rd-row--account" id="account-{{ row.id }}">
   <td class="rd-row__desc">
     <span class="rd-row__title">{{ row.name }}</span>
@@ -33,50 +33,8 @@
        hx-swap="innerHTML">reconcile</a>
   </td>
   <td class="rd-row__actions">
-    <button type="button"
-            class="rd-btn rd-btn--icon"
-            aria-label="Row menu"
-            aria-haspopup="menu"
-            popovertarget="{{ row.menu_id }}"
-            data-js="row-menu">
-      <svg class="rd-icon" aria-hidden="true" focusable="false">
-        <use href="/static/rd/icons/sprite.svg#icon-more"></use>
-      </svg>
-    </button>
-    <div class="rd-menu"
-         id="{{ row.menu_id }}"
-         popover
-         role="menu"
-         aria-label="{{ row.name }} actions">
-      <span class="rd-menu__grabber" aria-hidden="true"></span>
-      <div class="rd-menu__head" role="none">
-        <p class="rd-menu__title">{{ row.name }}</p>
-        <p class="rd-menu__sub">{{ row.menu_sub }}</p>
-      </div>
-      <button type="button"
-              class="rd-menu__item rd-menu__item--phone"
-              role="menuitem"
-              hx-get="/accounts/{{ row.id }}/reconcile"
-              hx-target="#modal-root"
-              hx-swap="innerHTML">reconcile</button>
-      <button type="button"
-              class="rd-menu__item"
-              role="menuitem"
-              hx-get="/accounts/{{ row.id }}/edit"
-              hx-target="#modal-root"
-              hx-swap="innerHTML">edit</button>
-      <button type="button"
-              class="rd-menu__item rd-menu__item--danger"
-              role="menuitem"
-              hx-post="/accounts/{{ row.id }}/delete"
-              hx-target="#account-{{ row.id }}"
-              hx-swap="outerHTML"
-              hx-confirm="Soft-delete this account? Transactions remain.">delete</button>
-      <button type="button"
-              class="rd-menu__item rd-menu__cancel"
-              role="menuitem"
-              popovertarget="{{ row.menu_id }}"
-              popovertargetaction="hide">cancel</button>
-    </div>
+    {% with menu_id=row.menu_id, title=row.name, sub=row.menu_sub, items=row.menu_items %}
+      {% include "fragments/menus/row-menu.html" %}
+    {% endwith %}
   </td>
 </tr>
