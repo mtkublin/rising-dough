@@ -19,6 +19,7 @@ You implement ONE work item of an orchestrated run (ADR-0066, ADR-0150) in budge
 - Canonical modules table (CLAUDE.md): search before you write, reuse owners, never import another module's `_private` name. Fill `SEARCHED/REUSED/NEW_HELPER`.
 - No new allowlist entry or suppression unless the brief says so; delete entries you fix (exact ratchet). Fix the cause, never the guard (no call-form tricks, renames or wrappers to dodge a scan).
 - Tests: failing test first, exact values (amounts, audit row, stored sign, a second user's rows absent). New assertions use `tests/ui_map` / `db_probe`, never raw markup substrings.
+- UI-facing change (templates, CSS, static JS, user-visible copy, HTMX swaps): the brief must name its design reference (`docs/design/<name>/` page or `docs/design/specs/` file); match it exactly, tokens only, both themes. No reference: `STATUS: BLOCKED`, do not improvise a design (CLAUDE.md "Design gate", ADR-0151 §6).
 - Templates/CSS/HTMX: do the change; the orchestrator sends a `visual-auditor` into your worktree afterwards. Do not run the audit yourself.
 
 ## Testing and CPU (ADR-0150 §5, §6)

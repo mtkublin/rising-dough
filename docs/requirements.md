@@ -655,3 +655,4 @@ Design work (proposals, canvases, handoffs) runs from Claude Code in this repo. 
 - Existing claude.ai artifacts (design systems, canvases) are never changed or deleted without the operator asking in the session.
 - `docs/design/rising-dough-frontend/` and `rising-dough-goals-starter/` stay as delivered; the base package is re-delivered through the builder only after the `ui/sourdough` migration is merged.
 - A design proposal that changes scope is a change request; `docs/requirements.md` or an ADR changes before code.
+- **Design gate:** every UI-facing change (templates, CSS, static JS, user-visible copy, layout, HTMX swaps, new screens, states, dialogs or flows) goes through the designer and has an agreed design reference (a handoff package page or a spec); it complies with the design system and the existing app design. A change that only restores an agreed reference cites it (ADR-0151 §6).

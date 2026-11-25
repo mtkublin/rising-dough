@@ -128,8 +128,19 @@ For work split across parallel subagents, use the `orchestrator-mode` skill (`.c
 | Name | Kind | Use when |
 |---|---|---|
 | `orchestrator-mode` | skill (`.claude/skills/orchestrator-mode/SKILL.md`) | Work splits into parallel items, or the operator says "orchestrate" / "dispatch agents". The main agent then only plans, dispatches, merges and reads verdicts. |
+| `designer` | skill (`.claude/skills/designer/SKILL.md`) | Any UI-facing change or new UI idea (mandatory, see "Design gate"): learn the current UI, canvas with light and dark artboards, agree with the operator, write the spec and change requests. Runs in the main session. |
+| `handoff-builder` | agent (`.claude/agents/handoff-builder.md`) | After `/designer` agrees a canvas: builds the static handoff package; done when `just check-handoff --render --parity` passes. |
 | `frontend-visual-audit` | skill (`.claude/skills/frontend-visual-audit/SKILL.md`) | Any change to templates, CSS, breakpoints or HTMX swap targets (mandatory, see below), or a reported visual bug. |
 | `explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor` | role agents (`.claude/agents/`) | Only inside an `orchestrator-mode` run, each with a brief from `brief-common.md`. Not for ad-hoc use: the guard applies their role limits (test scope, waits, runtime budget) in any session. For one-off research or edits outside a run, use the general agents. |
+
+## Design gate (MANDATORY)
+
+**Every UI-facing change goes through the designer** ([ADR-0151](docs/adr/0151-designer-skill-handoff-builder-and-package-template.md) §6). UI-facing = anything a user sees or interacts with: templates, CSS, static JS, user-visible copy, icons, layout and breakpoints, HTMX swap targets, a new screen, state, dialog or flow. No exceptions for "small" changes.
+
+- **Design reference first.** The change has an agreed handoff package page (`docs/design/<name>/`) or spec (`docs/design/specs/<slug>.md`), made with the `/designer` skill (canvas, light + dark artboards, operator agrees) and built by the `handoff-builder` agent. Name it in the task, the brief and the PR.
+- **Comply** with the design system (`docs/design/system/`: tokens only, both themes) and with the existing app design (the base package's chrome, components and patterns). No new component or pattern unless the reference introduces it.
+- **Restoring an agreed design** (a parity fix, implementing a delivered package such as the `ui/sourdough` migration) cites the reference and needs no new design round.
+- **No reference, no UI change.** Stop and ask the operator to run `/designer`; an `implementer` reports `BLOCKED`, a `reviewer` returns `RETURN`.
 
 ## Frontend validation (MANDATORY)
 
@@ -202,7 +213,7 @@ Before marking a task done:
 2. **Reuse check.** Searched the Canonical modules table and the tree before writing a helper; reused the canonical function, or registered the new one in `canonical_modules.toml` (why none fit is in the report).
 3. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI and the gate drill's `ci / just ci` job ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md)). The hook excludes `tests/e2e`: item agents run no manual suites beyond special cases (the `frontend-visual-audit` skill, a migration rehearsal); an agent that truly needs the full e2e pushes its `wi/**` branch and reads the `e2e.yml` run. `tests/e2e` runs on GitHub (`e2e.yml`, pinned Playwright container) on every PR to `main` and is a required check, so no local pre-PR e2e run is needed; `just test-e2e` stays optional, and the orchestrator may still run it alone after a wave ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md) and [ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md) amendments 2026-11-22, T-Q297). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
 4. **Architecture guards green; allowlist counts only went down.** Entries for violations you fixed are deleted; no new allowlist entry or suppression without a reason and an ADR-0130 amendment; any new dependency is justified in the commit. Fixes remove the cause; never satisfy a guard by syntax only.
-5. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
+5. **UI-facing tasks**: the design reference (handoff package page or spec) is named and the change matches it (see "Design gate"); then the `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
 6. The task line in `docs/plans/<plan>/tasks.md` prefixed with `✅`.
 7. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
 8. Append a dated line to `docs/CHANGELOG.md` (create on first use).

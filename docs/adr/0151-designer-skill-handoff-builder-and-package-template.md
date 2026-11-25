@@ -68,6 +68,16 @@ A canvas made from the claude.ai Design type is a set of `.dc.html` artboards un
 - New feature packages are `kind = "extension"`: they link the base package's `static/` by relative path (`../rising-dough-frontend/static/...`) instead of copying its chrome (amends ADR-0129 for future packages). A base re-delivery can break an extension; `just check-handoff` on every extension is part of the base re-delivery.
 - `rising-dough-frontend/` and `rising-dough-goals-starter/` stay as delivered. They are not checked against the template, and the in-flight migration on `ui/sourdough` keeps consuming `rising-dough-frontend/` unchanged. A future base re-delivery through the builder brings `rising-dough-frontend/` under the template; it waits until the `ui/sourdough` migration is merged.
 
+### 6. Design gate: every UI-facing change goes through the designer
+
+Operator decision (2026-11-25). A **UI-facing change** is any change a user can see or interact with: templates, CSS, static JS, user-visible copy, icons and images, layout and breakpoints, HTMX swap targets and what they render, a new screen, state, dialog, flow or interaction.
+
+- Every UI-facing change has a **design reference**: an agreed handoff package page or state (`docs/design/<name>/…`) or an agreed spec (`docs/design/specs/<slug>.md`), named in the task, the brief and the PR. It is produced through the `/designer` skill (canvas with light and dark artboards, the operator agrees, spec, package by the `handoff-builder`).
+- The implementation **complies with the design system** (`docs/design/system/`, tokens only, both themes) **and with the existing app design** (the base package's chrome, components and patterns). A new component or pattern exists only if the design reference introduces it.
+- A change that only makes the UI match an already agreed reference (a parity fix, a bug that breaks the agreed design, implementing a delivered package such as the `ui/sourdough` migration of `rising-dough-frontend/`) cites that reference and needs no new design round. Everything else needs one first, however small: a new label, a moved button, a new empty state.
+- No reference, no UI change: an agent that finds a UI-facing change without one stops and reports it (`implementer` `BLOCKED`, `reviewer` `RETURN`).
+- Enforcement is by review and the agent definitions now; a guard that fails a template, CSS or static-JS change whose task cites no design reference is T-DW10.
+
 ## Consequences
 
 - Design runs from the repo with the same two-theme system the app ships; the remote design systems stop being a second source of colour values.

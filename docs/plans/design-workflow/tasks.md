@@ -33,6 +33,15 @@
 - ADR-0151 §4.
 - Acceptance: `.claude/agents/handoff-builder.md` with valid frontmatter (`name`, `description`, `tools`, `model`), the build steps, `just check-handoff` as its DoD and the ADR-0150 §4 report block.
 
+### ✅ T-DW09 [S] Design gate for every UI-facing change (docs only) → T-DW01
+- Operator decision 2026-11-25. ADR-0151 §6; requirements §13.2; CLAUDE.md "Design gate"; `implementer` and `reviewer` rules.
+- Acceptance: CLAUDE.md states the gate and the design reference; the implementer stops and the reviewer returns a UI-facing change without one.
+
+### T-DW10 [S] Guard: UI-facing change needs a design reference → T-DW09
+- ADR-0151 §6.
+- Goal: a check (in `check_item.py` for orchestrated items and a PR CI step) that fails a change under `src/budget_planner/web/templates/`, `src/budget_planner/web/static/` when the task, brief or PR names no `docs/design/<name>/` page or `docs/design/specs/` file.
+- Acceptance: unit tests with exact outputs; the redesign migration items pass by citing `docs/design/rising-dough-frontend/`.
+
 ### T-DW07 [S] Prove artboard reference rendering on the first real canvas → T-DW05, T-DW06
 - ADR-0151 §4 "Artboard references".
 - Goal: render a canvas artboard's `.dc.html` locally to PNG at its width and theme, or record that it cannot be done and keep the operator-export fallback.
