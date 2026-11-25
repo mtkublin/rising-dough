@@ -300,6 +300,16 @@ def format_money(amount_minor: int, currency: str) -> str:
 _MINUS: Final = "\N{MINUS SIGN}"
 
 
+def ascii_minus(text: str) -> str:
+    """Typed text with the display minus (U+2212) turned back into ``-`` for parsing."""
+    return text.replace(_MINUS, "-")
+
+
+def sign_glyph(negative: bool) -> str:
+    """Display sign of an amount: U+2212 when ``negative``, ``+`` otherwise."""
+    return _MINUS if negative else "+"
+
+
 def format_figure(
     amount_minor: int, currency: str, *, plus: bool = False, with_currency: bool = False
 ) -> str:

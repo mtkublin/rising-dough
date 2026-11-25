@@ -8,17 +8,13 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.e2e.ui_actions import pick
-from tests.ui_map import ledger, shell
-from tests.ui_map.locator import role, to_playwright
+from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry
+from tests.ui_map import entries
+from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
-# The old Today toolbar button; the new-entry dialog replaces it in T-UR07b.
-ADD_PLANNED = role("button", "+ Planned")
 
-
-@pytest.mark.skip(reason="T-UR07b ports the new-entry dialog; Today has no + Planned button")
 def test_same_source_and_dest_shows_error_in_open_panel(
     live_server: tuple[str, Path], page: Page
 ) -> None:
@@ -27,22 +23,16 @@ def test_same_source_and_dest_shows_error_in_open_panel(
         f"{base_url}/accounts",
         form={"name": "Checking", "currency": "PLN", "opening_balance": "500.00"},
     ).ok
-    assert page.request.post(
-        f"{base_url}/categories", form={"name": "Groceries", "direction": "expense"}
-    ).ok
     page.goto(f"{base_url}/today")
-    assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, ADD_PLANNED).first.click()
-    panel = to_playwright(page, shell.slideover)
-    expect(panel).to_be_visible()
-    pick(page, ledger.field_category, "Groceries")
-    pick(page, ledger.field_account, "Checking")
-    pick(page, ledger.field_dest_account, "Checking")
-    to_playwright(page, ledger.field_amount.inside(shell.slideover)).fill("10.00")
-    to_playwright(page, ledger.add_entry.inside(shell.slideover)).click()
-    expect(to_playwright(page, ledger.form_errors.inside(shell.slideover))).to_contain_text(
-        "must differ"
-    )
-    expect(panel).to_be_visible()
+    open_new_entry(page)
+    to_playwright(page, entries.tab_planned).click()
+    choose_category(page, "Transit")  # a transit shows its destination account
+    choose_account(page, "Checking")
+    to_playwright(page, entries.field_dest).select_option(label="Checking")
+    to_playwright(page, entries.hero_amount).fill("10.00")
+    to_playwright(page, entries.save).click()
+    dialog = to_playwright(page, entries.dialog)
+    expect(to_playwright(page, entries.summary)).to_contain_text("must differ")
+    expect(dialog).to_be_visible()
     # DB: the rejected planned entry was not stored.
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM planned_transactions") == 0

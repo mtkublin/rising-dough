@@ -99,7 +99,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/ledger/_recently_deleted.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/ledger/_table.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/ledger/index.html` | T-UR09 | delete |  |
-| `src/budget_planner/web/templates/partials/_add_entry_overlay.html` | T-UR07 | delete |  |
+| `src/budget_planner/web/templates/partials/_add_entry_overlay.html` | T-UR15 | delete | still the old shell's "+ Add" overlay (ledger, forecast, settings) until T-UR09/T-UR10 port them; Today uses pages/entries/new-entry.html |
 | `src/budget_planner/web/templates/partials/_cheatsheet.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_direction_badge.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_flash.html` | T-UR15 | delete |  |
@@ -127,14 +127,14 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
 | `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | delete |  |
-| `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR15 | delete | still the old shell's promote slide-over (ledger) until T-UR09 / T-UR10; Today uses pages/entries/promote.html |
 | `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/planned/_table.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_formula_preview.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_override_form.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR24 | delete |  |
-| `src/budget_planner/web/templates/partials/recurring/_promote_modal.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/partials/recurring/_promote_modal.html` | T-UR15 | delete | still the old shell's promote slide-over (ledger) until T-UR09 / T-UR10; Today uses pages/entries/promote.html |
 | `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_empty.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_filter_form.html` | T-UR09 | delete |  |

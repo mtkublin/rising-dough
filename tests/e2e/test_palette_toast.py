@@ -48,7 +48,6 @@ def test_palette_shortcuts_opens_dialog(live_server: tuple[str, Path], page: Pag
     expect(to_playwright(page, shell.shortcuts_dialog)).to_be_visible()
 
 
-@pytest.mark.skip(reason="no renderer for the HX-Trigger toast payload in the new shell (T-UR07b)")
 def test_promote_all_due_toast_offers_undo(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     assert page.request.post(

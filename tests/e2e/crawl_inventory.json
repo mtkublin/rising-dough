@@ -1549,12 +1549,12 @@
     {
       "kind": "hx-get",
       "name": "promote",
-      "target": "/planned/{id}/promote"
+      "target": "/planned/{id}/promote?dialog={n}"
     },
     {
       "kind": "hx-get",
       "name": "promote",
-      "target": "/recurring/{id}/promote"
+      "target": "/recurring/{id}/promote?dialog={n}"
     },
     {
       "kind": "link",
@@ -1670,6 +1670,48 @@
       "skipped": "triggered by input or form event, not a click",
       "target": "/today/upcoming?window={n}",
       "via": "all"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "promote"
+    },
+    {
+      "kind": "button",
+      "name": "cancel",
+      "target": "",
+      "via": "promote"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "promote to actual \u00b7 Groceries \u2212 Amount PLN date note cancel ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/planned/{id}/promote",
+      "via": "promote"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "promote \u00b7 Groceries \u2212 Amount PLN date note cancel [ promote ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/recurring/{id}/promote",
+      "via": "promote"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "[ promote ]",
+      "target": "/planned/{id}/promote",
+      "via": "promote"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "[ promote ]",
+      "target": "/recurring/{id}/promote",
+      "via": "promote"
     }
   ]
 }

@@ -5,14 +5,35 @@ from decimal import Decimal
 import pytest
 
 from budget_planner.domain.money import (
+    ascii_minus,
     currency_decimals,
     format_figure,
     format_money,
     format_whole,
     minor_to_major,
     parse_amount_str,
+    sign_glyph,
     to_minor_units,
 )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("\N{MINUS SIGN}12.50", "-12.50"),
+        ("-3", "-3"),
+        ("+", "+"),
+        ("", ""),
+        ("1\N{MINUS SIGN}2", "1-2"),
+    ],
+)
+def test_ascii_minus(text: str, expected: str) -> None:
+    assert ascii_minus(text) == expected
+
+
+def test_sign_glyph() -> None:
+    assert sign_glyph(True) == "\N{MINUS SIGN}"
+    assert sign_glyph(False) == "+"
 
 
 def test_currency_decimals_defaults_to_two() -> None:
