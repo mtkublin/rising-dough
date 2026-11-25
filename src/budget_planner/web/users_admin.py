@@ -8,14 +8,16 @@ the 404/409 flashes, moved out of ``web/routers/settings_users.py``. Dialogs go 
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from http import HTTPStatus
 from typing import Final
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from budget_planner.services import users as users_service
+from budget_planner.services import invites as invites_service, users as users_service
 from budget_planner.services.users import AuthUser, UserConflict
+from budget_planner.web.deps import reauth_now
 from budget_planner.web.dialogs import MODAL_ROOT, dialog_response
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HX_RESWAP, HX_RETARGET
@@ -23,6 +25,7 @@ from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render, render_context
 from budget_planner.web.settings_view import (
     UserDialogView,
+    invite_rows,
     live_admin_count,
     user_dialog_view,
     user_row_view,
@@ -38,7 +41,8 @@ EDIT_DIALOG: Final = "fragments/dialogs/edit-user.html"
 DELETE_DIALOG: Final = "fragments/dialogs/delete-user.html"
 RESET_DIALOG: Final = "fragments/dialogs/reset-password.html"
 SUMMARY_TEMPLATE: Final = "fragments/forms/error-summary.html"
-FLASH_TEMPLATE: Final = "partials/_flash.html"
+FLASH_TEMPLATE: Final = "fragments/flash/error.html"
+FLASH_REGION: Final = "flash-region-assertive"
 NOT_FOUND_TEMPLATE: Final = "pages/errors/404.html"
 CONFLICT_TEMPLATE: Final = "pages/errors/409.html"
 RESET_NOTE: Final = "Their existing sessions have been signed out."
@@ -57,7 +61,7 @@ def not_found(request: Request) -> HTMLResponse:
             request,
             FLASH_TEMPLATE,
             HTTPStatus.NOT_FOUND,
-            level="error",
+            region=FLASH_REGION,
             message="User not found",
         )
     return render(request, NOT_FOUND_TEMPLATE, HTTPStatus.NOT_FOUND, entity="user", entity_id=0)
@@ -69,13 +73,19 @@ def see_other() -> RedirectResponse:
 
 
 def page_context(
-    request: Request, conn: sqlite3.Connection, admin: CurrentUser
+    request: Request,
+    conn: sqlite3.Connection,
+    admin: CurrentUser,
+    *,
+    now: datetime | None = None,
 ) -> dict[str, object]:
-    """Template context of the roster page."""
+    """Template context of the roster page (users, then pending and expired invites)."""
     tz = request.app.state.settings.display_timezone
+    at = reauth_now(request) if now is None else now
     return {
         "active_tab": "users",
         "rows": user_rows(users_service.list_live_users(conn), me_id=admin.id, tz=tz),
+        "invite_rows": invite_rows(invites_service.list_invites(conn), now=at, tz=tz),
         "toast": None,
         "form_summary": (),
     }
@@ -111,10 +121,15 @@ def render_toast(
 
 def conflict(request: Request, exc: UserConflict) -> HTMLResponse:
     """409: error flash with ``HX-Reswap: none`` (HTMX) or the 409 page."""
+    return conflict_message(request, exc.message)
+
+
+def conflict_message(request: Request, message: str) -> HTMLResponse:
+    """409 with ``message`` (a user or an invite refusal): flash (HTMX) or the 409 page."""
     if not is_hx_request(request):
-        return render(request, CONFLICT_TEMPLATE, HTTPStatus.CONFLICT, message=exc.message)
+        return render(request, CONFLICT_TEMPLATE, HTTPStatus.CONFLICT, message=message)
     response = render(
-        request, FLASH_TEMPLATE, HTTPStatus.CONFLICT, level="error", message=exc.message
+        request, FLASH_TEMPLATE, HTTPStatus.CONFLICT, region=FLASH_REGION, message=message
     )
     response.headers[HX_RESWAP] = "none"
     trigger(response, Event.DIALOG_CLOSE)  # an open dialog would hide the flash behind it

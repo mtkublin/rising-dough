@@ -1,0 +1,11 @@
+{# Settings · invite link dialog (T-UR20a, ADR-0107, ADR-0134 section 1). Derived from overlays/one-time-password.
+   Context: invite (settings_view.InviteRowView), invite_link, resent. The link is shown once (only its hash is stored); the response is no-store. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog(
+  "dlg-invite-link",
+  "invite link · " ~ invite.email_text,
+  size="md",
+  actions=[{"tone": "ok", "label": "[ done ]"}]
+) %}
+  {% include "fragments/forms/invite-link.html" %}
+{% endcall %}
