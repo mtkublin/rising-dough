@@ -150,4 +150,3 @@ def field_error(scope: Locator, name: str) -> Locator:
 
 
 formula_result = by_testid("formula-preview")
-category_chosen = by_id("catpick-edit-planned-picked")

@@ -27,7 +27,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
-from tests.ui_map import _html, entries
+from tests.ui_map import _html, entries, rd_fragments
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -143,10 +143,15 @@ def test_bad_amount_marks_the_hero_and_keeps_the_picked_category(
     assert r.status_code == 422
     hero = _html.resolve_one(r.text, entries.hero_amount)
     assert (hero.get("aria-invalid"), hero.get("value")) == ("true", "0")
-    # Groceries has no entry yet (not a recent radio): the picker carries it as the chosen one.
-    chosen = _html.resolve_one(r.text, entries.category_chosen)
-    assert chosen.get("value") == str(ids["groc"])
-    assert _html.text_of(r.text, entries.category_search) == "Groceries"
+    # Groceries has no entry yet (not a recent radio): the picked category leads the chips, checked.
+    chips = [
+        (c.get("value"), c.has_attr("checked"))
+        for c in _html.resolve(r.text, rd_fragments.category_recent_radios)
+    ]
+    assert chips[0] == (str(ids["groc"]), True)
+    assert [checked for _, checked in chips].count(True) == 1
+    named = _html.resolve_one(r.text, entries.category_option("Groceries"))
+    assert (named.get("value"), named.has_attr("checked")) == (str(ids["groc"]), True)
 
 
 def test_planned_posted_with_the_picker_category_is_stored(
