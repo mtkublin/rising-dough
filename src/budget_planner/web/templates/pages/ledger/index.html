@@ -20,30 +20,10 @@
           src="{{ url_for('static', path='rd/js/app-ledger.js') }}"></script>
 {% endblock %}
 {% block main %}
-  <section class="rd-hero" id="ledger-hero" aria-labelledby="hero-label">
-    <div class="rd-hero__body">
-      <h1 class="rd-hero__label" id="hero-label">{{ title }}</h1>
-      {% if hero %}
-        <p class="rd-hero__figure-row">
-          <span class="rd-hero__figure{% if hero.wide %} rd-hero__figure--wide{% endif %}"
-                {% if view == "actual" %}id="ledger-spent"{% else %}id="ledger-figure"{% endif %}
-                data-digits="{{ hero.fit.digits }}"
-                data-marks="{{ hero.fit.marks }}"
-                data-signs="{{ hero.fit.signs }}">{{ hero.figure }}</span><span class="rd-hero__unit">{{ hero.unit }}</span>
-        </p>
-        {% if hero.note %}<p class="rd-hero__note">{{ hero.note }}</p>{% endif %}
-      {% endif %}
-    </div>
-  </section>
+  {% include "fragments/ledger/hero.html" %}
   <section class="rd-panel rd-ledger-panel" aria-label="Transactions">
     <div class="rd-ledger-head">
-      <nav class="rd-tabs" aria-label="Ledger view">
-        {% for tab in tabs %}
-          <a class="rd-tabs__tab"
-             href="{{ tab.href }}"
-             {% if tab.current %}aria-current="page"{% endif %}>{{ tab.label }}</a>
-        {% endfor %}
-      </nav>
+      {% include "fragments/ledger/tabs.html" %}
       {% if export %}
         {% include "fragments/ledger/export-menu.html" %}
       {% endif %}
