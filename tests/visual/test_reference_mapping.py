@@ -102,7 +102,8 @@ def test_click_recipes_name_handoff_overlays_and_leave_the_unmapped_set() -> Non
     assert click_recipe("pages/today.html") is None
     # The year-cell inline editor is mapped: the recipe clicks the cell (T-UR00b F7).
     assert "override--year-cell" not in UNMAPPED_OVERLAYS
-    assert click_recipe("pages/overlays/override--year-cell.html") is CLICK_RECIPES["override--year-cell"]
+    year_cell = click_recipe("pages/overlays/override--year-cell.html")
+    assert year_cell is CLICK_RECIPES["override--year-cell"]
 
 
 def test_new_entry_input_states_are_mapped() -> None:
