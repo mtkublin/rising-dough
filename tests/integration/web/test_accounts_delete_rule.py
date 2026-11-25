@@ -14,6 +14,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.money import format_figure
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import NewRecurringRule
 from budget_planner.domain.transactions import NewTransaction
@@ -38,8 +39,10 @@ def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def _account(db: sqlite3.Connection, name: str) -> int:
-    return accounts_repo.create(db, USER_ID, NewAccount(name=name, currency="PLN")).id
+def _account(db: sqlite3.Connection, name: str, opening_balance: int = 0) -> int:
+    return accounts_repo.create(
+        db, USER_ID, NewAccount(name=name, currency="PLN", opening_balance=opening_balance)
+    ).id
 
 
 def _expense_category(db: sqlite3.Connection) -> int:
@@ -134,27 +137,55 @@ def test_blocked_by_transactions_and_rules_lists_every_count(
     assert _html.resolve_one(r.text, accounts.blocked_link).get_text() == "view 2 transactions"
 
 
-def test_second_users_rows_do_not_block_and_foreign_account_is_404(
+def test_foreign_account_delete_is_404_and_leaves_it_live(
     client: TestClient, db: sqlite3.Connection
 ) -> None:
     db.execute("INSERT INTO users(id, name) VALUES (2, 'other')")
-    acc = _account(db, "Mine")
     theirs = accounts_repo.create(db, 2, NewAccount(name="Theirs", currency="PLN")).id
-    their_cat = categories_repo.create(
-        db, 2, NewCategory(name="Rent", direction=Direction.EXPENSE)
-    ).id
-    transactions_repo.create(
-        db,
-        2,
-        NewTransaction(
-            operation_date=date(2026, 11, 10), category_id=their_cat, account_id=theirs, amount=5
-        ),
-    )
-    r = client.get(f"/accounts/{acc}/edit?intent=delete")
-    assert _html.exists(r.text, accounts.delete_dialog("Mine"))
     assert client.get(f"/accounts/{theirs}/edit?intent=delete").status_code == 404
     assert client.post(f"/accounts/{theirs}/delete").status_code == 404
     assert accounts_repo.find_by_id(db, 2, theirs) is not None
+
+
+def test_blocked_by_planned_only_uses_the_singular_verb(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _account(db, "OnePlan")
+    planned_repo.create(
+        db,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=date(2026, 12, 1),
+            category_id=_expense_category(db),
+            account_id=acc,
+            amount=700,
+        ),
+    )
+    r = client.get(f"/accounts/{acc}/edit?intent=delete")
+    assert (
+        "It has no transactions, but 1 planned item still uses it. Move or delete them first."
+        in _html.text_of(r.text, accounts.blocked_dialog("OnePlan"))
+    )
+    link = _html.resolve_one(r.text, accounts.blocked_link)
+    assert link["href"] == f"/ledger?account_id={acc}&view=planned"
+    assert link.get_text() == "view planned items"
+
+
+def test_blocked_by_balance_only_asks_to_bring_it_to_zero(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _account(db, "Funded", opening_balance=500)
+    r = client.get(f"/accounts/{acc}/edit?intent=delete")
+    figure = format_figure(500, "PLN", with_currency=True)
+    assert (
+        _html.text_of(r.text, accounts.blocked_dialog("Funded")).count(
+            f"Its balance is {figure}. Bring it to zero first."
+        )
+        == 1
+    )
+    assert not _html.exists(r.text, accounts.blocked_link)
+    assert not _html.exists(r.text, accounts.delete_confirm)
+    assert _html.resolve_one(r.text, accounts.blocked_ok).find_parent("form") is None
 
 
 def test_confirm_post_soft_deletes_and_writes_one_audit_row(
@@ -170,11 +201,16 @@ def test_confirm_post_soft_deletes_and_writes_one_audit_row(
     assert _audit(db) == before + 1
 
 
+@pytest.mark.parametrize("blocker", ["recurring", "transaction", "balance"])
 def test_post_while_blocked_is_refused_and_writes_nothing(
-    client: TestClient, db: sqlite3.Connection
+    client: TestClient, db: sqlite3.Connection, blocker: str
 ) -> None:
-    acc = _account(db, "Held")
-    _rule(db, acc, _expense_category(db))
+    acc = _account(db, "Held", opening_balance=500 if blocker == "balance" else 0)
+    cat = _expense_category(db)
+    if blocker == "recurring":
+        _rule(db, acc, cat)
+    elif blocker == "transaction":
+        _txn(db, acc, cat)
     before = _audit(db)
     r = client.post(f"/accounts/{acc}/delete")
     assert r.status_code == 409
