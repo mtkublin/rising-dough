@@ -10,9 +10,6 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.domain.planned import (
-    PatchPlannedTransaction,
-)
 from budget_planner.services import (
     accounts as accounts_service,
     categories as categories_service,
@@ -21,7 +18,7 @@ from budget_planner.services import (
 )
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
-from budget_planner.web.dialogs import removed_response, saved_response
+from budget_planner.web.dialogs import removed_response
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice
@@ -247,26 +244,8 @@ def update_planned(
             ),
             errors=entry_forms.pick_category_error(check.errors, chosen),
         )
-    op_date, amount_minor = check.valid_values()
-    planned_service.update(
-        conn,
-        user_id,
-        planned_id,
-        PatchPlannedTransaction(
-            operation_date=op_date,
-            category_id=chosen,
-            account_id=account,
-            amount=amount_minor,
-            description=description,
-        ),
-    )
-    return saved_response(
-        request,
-        None,
-        {},
-        message="Planned entry saved",
-        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
-    )
+    entry_forms.save_planned_update(conn, user_id, planned_id, check, description)
+    return form_responses.planned_saved(request)
 
 
 @router.post("/{planned_id}/delete")

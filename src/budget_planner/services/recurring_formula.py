@@ -533,23 +533,26 @@ def _walk_for_cycle(
     own_category_id: int | None = None,
 ) -> None:
     """Depth-first walk from ``seeds``; raise when ``target_id`` or ``own_category_id`` is read."""
+    by_id = {r.id: r for r in all_rules}
     visited: set[int] = set()
     pending = list(seeds)
     while pending:
         rid = pending.pop()
-        if rid == target_id:
+        referenced = _sources_of(by_id.get(rid))
+        if rid == target_id or own_category_id in referenced:
             raise FormulaCycleError(f"formula would create a cycle via rule {rid}")
         if rid in visited:
             continue
         visited.add(rid)
-        found: RecurringRule | None = next((r for r in all_rules if r.id == rid), None)
-        if found is None or found.amount_formula is None:
-            continue
-        referenced = _collect_referenced_category_ids(found.amount_formula)
-        if own_category_id is not None and own_category_id in referenced:
-            raise FormulaCycleError(f"formula would create a cycle via rule {rid}")
         for cat_id in referenced:
             pending.extend(c.id for c in by_category.get(cat_id, []) if c.id not in visited)
+
+
+def _sources_of(rule: RecurringRule | None) -> set[int]:
+    """Category ids a rule's formula reads (none for a fixed or unknown rule)."""
+    if rule is None or rule.amount_formula is None:
+        return set()
+    return _collect_referenced_category_ids(rule.amount_formula)
 
 
 # ---------------------------------------------------------------------------

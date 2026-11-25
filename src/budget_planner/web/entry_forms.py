@@ -21,7 +21,11 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
 from budget_planner.domain.money import format_major, format_money, sign_glyph
-from budget_planner.domain.planned import NewPlannedTransaction, PlannedTransaction
+from budget_planner.domain.planned import (
+    NewPlannedTransaction,
+    PatchPlannedTransaction,
+    PlannedTransaction,
+)
 from budget_planner.domain.transactions import NewTransaction, Transaction, signed_legs
 from budget_planner.services import (
     accounts as accounts_service,
@@ -582,6 +586,29 @@ def save_txn(
             amount=minor,
             description=description,
             dest_account_id=check.dest_id,
+        ),
+    )
+
+
+def save_planned_update(
+    conn: sqlite3.Connection,
+    user_id: int,
+    planned_id: int,
+    check: EntryCheck,
+    description: str,
+) -> None:
+    """Store the edit a valid update check describes."""
+    op_date, minor = check.valid_values()
+    planned_service.update(
+        conn,
+        user_id,
+        planned_id,
+        PatchPlannedTransaction(
+            operation_date=op_date,
+            category_id=require_present(check.category, "validated category").id,
+            account_id=require_present(check.account, "validated account").id,
+            amount=minor,
+            description=description,
         ),
     )
 

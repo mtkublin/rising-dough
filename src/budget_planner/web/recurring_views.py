@@ -336,54 +336,73 @@ def edit_context(
     """
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     values = dict(posted) if posted is not None else _rule_values(rule, account)
-    rows: Sequence[Mapping[str, object]]
-    if terms is not None:
-        rows = terms
-    elif rule.amount_formula is not None:
-        rows = formula_svc.term_input_rows(rule.amount_formula)
-    else:
-        rows = [dict(EMPTY_TERM_INPUT)]
-    today = today_for(request)
-    base = request.app.state.settings.base_currency
-
-    def build(formula: tuple[str, str] | None) -> dict[str, object]:
-        return entry_forms.new_entry_context(
+    rows = _term_rows(rule, terms)
+    context = _repeats_context(request, conn, user_id, values=values, rows=rows, errors=errors)
+    if values.get("amount_source") == "formula":
+        figure = entry_forms.draft_hero(
             conn,
             user_id,
-            tab="repeats",
-            today=today,
-            base_currency=base,
-            posted=values,
-            terms=rows,
-            errors=errors,
-            formula=formula,
+            _drafts(rows),
+            currency=str(context["currency"]),
+            today=today_for(request),
+            fx=fx,
+            rule_id=rule.id,
         )
-
-    context = build(None)
-    if values.get("amount_source") == "formula":
-        context = build(
-            entry_forms.draft_hero(
-                conn,
-                user_id,
-                _drafts(rows),
-                currency=str(context["currency"]),
-                today=today,
-                fx=fx,
-                rule_id=rule.id,
-            )
+        context = _repeats_context(
+            request, conn, user_id, values=values, rows=rows, errors=errors, formula=figure
         )
     category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
-    hero = context["hero"]
-    if isinstance(hero, dict):  # the formula hero is a static output; the handoff still signs it
-        context = {**context, "hero": {"sign": context["sign"], **hero}}
     return {
-        **context,
+        **_signed_hero(context),
         "title": f"edit recurring rule \N{MIDDLE DOT} {category.name if category else ''}",
         "action": f"{CREATE_ACTION}/{rule.id}",
         "hero_url": f"{CREATE_ACTION}/{rule.id}/edit?hero=1",
         "rule_id": rule.id,
         "selected_dest_id": parse_int(values.get("dest_account_id", "")),
     }
+
+
+def _repeats_context(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    values: Mapping[str, str],
+    rows: Sequence[Mapping[str, object]],
+    errors: Mapping[str, str] | None,
+    formula: tuple[str, str] | None = None,
+) -> dict[str, object]:
+    """The new-entry context of the repeats tab for ``values`` (the edit dialog's base)."""
+    return entry_forms.new_entry_context(
+        conn,
+        user_id,
+        tab="repeats",
+        today=today_for(request),
+        base_currency=request.app.state.settings.base_currency,
+        posted=values,
+        terms=rows,
+        errors=errors,
+        formula=formula,
+    )
+
+
+def _term_rows(
+    rule: RecurringRule, terms: Sequence[Mapping[str, object]] | None
+) -> Sequence[Mapping[str, object]]:
+    """The formula rows to show: the posted ones, else the stored formula's, else one empty."""
+    if terms is not None:
+        return terms
+    if rule.amount_formula is not None:
+        return formula_svc.term_input_rows(rule.amount_formula)
+    return [dict(EMPTY_TERM_INPUT)]
+
+
+def _signed_hero(context: dict[str, object]) -> dict[str, object]:
+    """The formula hero is a static output without a sign; the handoff still signs it."""
+    hero = context["hero"]
+    if not isinstance(hero, dict):
+        return context
+    return {**context, "hero": {"sign": context["sign"], **hero}}
 
 
 def render_edit_dialog(
@@ -551,17 +570,15 @@ def occurrence_context(
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     occurrence = recurring_svc.occurrence_in_month(rule, year, month)
     stored = _override_for(conn, user_id, rule, occurrence)
-    if stored is not None and stored.amount_override is not None:
-        minor = stored.amount_override
-    else:
-        minor = live_amount(conn, user_id, rule, occurrence or date(year, month, 1), fx)
     shown = promote_context(
         conn,
         user_id,
         action="",
         category_id=rule.category_id,
         account=account,
-        amount_minor=minor,
+        amount_minor=_override_minor(
+            conn, user_id, rule, stored, occurrence or date(year, month, 1), fx=fx
+        ),
         date_value=occurrence or date(year, month, 1),
         note_value="",
         base_currency=base_currency,
@@ -570,13 +587,7 @@ def occurrence_context(
     return {
         "title": f"override occurrence \N{MIDDLE DOT} {category.name if category else ''}",
         "action": f"{CREATE_ACTION}/{rule.id}/overrides",
-        "hero": {
-            "currency": shown["currency"],
-            "sign": shown["sign"],
-            "amount_id": "field-amount",
-            "amount_value": shown["amount_value"] if amount is None else amount,
-            "error": error.message if error is not None and error.field == "amount" else None,
-        },
+        "hero": _occurrence_hero(shown, amount, error),
         "year": year,
         "month": month,
         "month_label": f"{month_name(month)} {year}",
@@ -585,6 +596,34 @@ def occurrence_context(
         "errors": {error.field: error.message} if error is not None else {},
         "has_override": stored is not None,
     }
+
+
+def _occurrence_hero(
+    shown: Mapping[str, object], amount: str | None, error: OverrideError | None
+) -> dict[str, object]:
+    """The dialog hero: the stored or rule amount, or the posted text when it comes back."""
+    return {
+        "currency": shown["currency"],
+        "sign": shown["sign"],
+        "amount_id": "field-amount",
+        "amount_value": shown["amount_value"] if amount is None else amount,
+        "error": error.message if error is not None and error.field == "amount" else None,
+    }
+
+
+def _override_minor(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    stored: RecurringOverride | None,
+    on: date,
+    *,
+    fx: FormulaFx,
+) -> int:
+    """The stored override amount of the occurrence, else what the rule posts there."""
+    if stored is not None and stored.amount_override is not None:
+        return stored.amount_override
+    return live_amount(conn, user_id, rule, on, fx)
 
 
 def render_override_dialog(

@@ -23,7 +23,7 @@ from pathlib import Path
 from tests.architecture._ratchet import ALLOWLIST_DIR, REPO_ROOT
 
 CARVE_OUT_FILE = "template_logic.toml"
-CARVE_OUT_MAX = 72
+CARVE_OUT_MAX = 70
 ADR_FILE = (
     REPO_ROOT / "docs" / "adr" / "0130-prevention-regime-and-full-architectural-compliance.md"
 )
@@ -134,7 +134,7 @@ def test_gate_flags_each_class_of_violation(tmp_path: Path) -> None:
 
 def test_carve_out_maximum_is_pinned_and_the_file_fits_it() -> None:
     rows = tomllib.loads((ALLOWLIST_DIR / CARVE_OUT_FILE).read_text(encoding="utf-8"))["entry"]
-    assert CARVE_OUT_MAX == 72
+    assert CARVE_OUT_MAX == 70
     assert len(rows) <= CARVE_OUT_MAX
 
 

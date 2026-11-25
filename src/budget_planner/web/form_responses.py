@@ -22,7 +22,7 @@ from budget_planner.services import accounts as accounts_service, categories as 
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import accounts_data, entry_forms, ledger_data
 from budget_planner.web.deps import today_for
-from budget_planner.web.dialogs import dialog_response, invalid_dialog_response
+from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_int
 from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TRANSACTIONS_PATH
@@ -289,6 +289,17 @@ def edit_planned_dialog(
     if errors:
         return invalid_dialog_response(request, EDIT_PLANNED_TEMPLATE, context, errors)
     return dialog_response(request, EDIT_PLANNED_TEMPLATE, context)
+
+
+def planned_saved(request: Request) -> Response:
+    """A saved planned edit: the dialog empties, the lists refetch on the stale events."""
+    return saved_response(
+        request,
+        None,
+        {},
+        message="Planned entry saved",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
 
 
 def promote_planned_dialog(

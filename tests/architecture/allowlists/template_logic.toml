@@ -443,22 +443,6 @@ epic = "E16"
 owner = "T-UR10"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_override_form.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_override_form.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html"
 rule = "tpl-format"
 count = 1
