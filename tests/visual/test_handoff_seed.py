@@ -18,6 +18,7 @@ import pytest
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
+from budget_planner.domain.category_colors import preset_for
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import TransactionFilter
@@ -36,8 +37,10 @@ from budget_planner.services import (
     fortune as fortune_service,
     fx as fx_service,
     invites as invites_service,
+    recurring_formula,
     security_settings,
     today as today_service,
+    upcoming as upcoming_service,
 )
 from tests.visual import handoff_seed as seed
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
@@ -71,9 +74,9 @@ def _built(tmp_path: Path, *modifiers: str) -> sqlite3.Connection:
 
 
 def test_entity_counts() -> None:
-    assert (len(seed.ACCOUNTS), len(seed.CATEGORIES)) == (10, 22)
+    assert (len(seed.ACCOUNTS), len(seed.CATEGORIES)) == (10, 23)
     assert len(seed.TRANSACTIONS) == 32
-    assert (len(seed.PLANNED), len(seed.RULES), len(seed.BUDGETS)) == (5, 15, 13)
+    assert (len(seed.PLANNED), len(seed.RULES), len(seed.BUDGETS)) == (13, 15, 13)
 
 
 def test_refuses_existing_db(tmp_path: Path) -> None:
@@ -138,14 +141,80 @@ def test_categories_and_deleted(base: Built) -> None:
     by_direction: dict[Direction, int] = {}
     for c in live:
         by_direction[c.direction] = by_direction.get(c.direction, 0) + 1
-    assert by_direction[Direction.EXPENSE] == 17
+    assert by_direction[Direction.EXPENSE] == 18
     assert by_direction[Direction.INCOME] == 5
-    # ADR-0151: the picker's N excludes Reconciliation (system-only): 17 + 5 + Transit.
-    assert len([c for c in live if c.name != "Reconciliation"]) == 23
+    # ADR-0151: the picker's N excludes Reconciliation (system-only): 18 + 5 + Transit. The
+    # handoff picker lists 21 incl. Reconciliation (PAR-D): the count is the operator's call.
+    assert len([c for c in live if c.name != "Reconciliation"]) == 24
     deleted = categories_repo.list_recently_deleted(conn, USER, days=_ALL_TIME_DAYS)
     stamps = {c.name: c.deleted_at for c in deleted}
     assert sorted(stamps) == ["Bank Fees", "Opłaty bankowe i prowizje", "VAT Refund #6"]
     assert stamps["VAT Refund #6"] == dt.datetime(2026, 10, 29, 19, 6, tzinfo=dt.UTC)
+
+
+def test_picker_names_include_the_handoff_entry(base: Built) -> None:
+    conn, _ = base
+    live = {c.name: c.direction for c in categories_repo.list_all(conn, USER)}
+    assert live["Wyjścia na miasto"] == Direction.EXPENSE
+    handoff_picker = {
+        *("Big Purchases", "Car", "Entertainment", "Fixed costs", "Gifts", "Groceries"),
+        *("Health & Beauty", "Nights Out", "Other", "Sport & Hobby", "Subscriptions"),
+        *("Takeaway", "Taxes", "Transport", "Travel", "Wyjścia na miasto"),
+    }
+    assert handoff_picker <= set(live)
+
+
+def test_category_chip_colours_by_name(base: Built) -> None:
+    conn, _ = base
+    chips: dict[str, str | None] = {}
+    for c in categories_repo.list_all(conn, USER):
+        preset = preset_for(c.color) if c.color else None
+        chips[c.name] = preset.name if preset else None
+    assert chips == {
+        "Bank Fees #18": "sky",
+        "Big Purchases": "cyan",
+        "Car": "seafoam",
+        "Entertainment": "silver",
+        "Fixed costs": "violet",
+        "Gifts": "orchid",
+        "Groceries": "lime",
+        "Health & Beauty": "pink",
+        "Nights Out": "aqua",
+        "Opłaty bankowe i prowizje": None,
+        "Other": "coral",
+        "Sport & Hobby": "rose",
+        "Subscriptions": "gold",
+        "Takeaway": "orange",
+        "Taxes": "periwinkle",
+        "Transport": "blue",
+        "Travel": "peach",
+        "Wyjścia na miasto": None,
+        "Interest": None,
+        "Profit Share": None,
+        "Salary": "chartreuse",
+        "Side Income": "emerald",
+        "VAT Refund": "mint",
+        "Reconciliation": None,
+        "Transit": "teal",
+    }
+
+
+def test_today_upcoming_is_23_rows(base: Built) -> None:
+    """Handoff today.html: "showing 6 of 23" (default 30-day window, operator decision)."""
+    conn, _ = base
+    fx = recurring_formula.formula_fx(
+        conn, USER, fx_service.converter_for(conn, Settings(_env_file=None), DAY)
+    )
+    rows = upcoming_service.list_upcoming(conn, USER, today=DAY, window_days=30, fx=fx)
+    assert len(rows) == 23
+    assert [r.effective_date.isoformat() for r in rows[:6]] == [
+        "2026-10-28",
+        "2026-10-31",
+        "2026-11-01",
+        "2026-11-01",
+        "2026-11-05",
+        "2026-11-07",
+    ]
 
 
 def test_ledger_rows(base: Built) -> None:
@@ -208,6 +277,14 @@ def test_planned_and_recurring(base: Built) -> None:
         ("2026-10-28", 41_200, "Annual insurance"),
         ("2026-10-31", 112_045, "Tax refund"),
         ("2026-11-20", 2_500_000, "Annual bonus"),
+        ("2026-11-21", 4_500, "Dentist"),
+        ("2026-11-22", 2_500, "Gym pass"),
+        ("2026-11-23", 8_900, "Pharmacy"),
+        ("2026-11-24", 3_300, "Parking"),
+        ("2026-11-25", 12_000, "Tickets"),
+        ("2026-11-26", 5_500, "Haircut"),
+        ("2026-11-27", 7_000, "Books"),
+        ("2026-11-28", 1_900, "Stationery"),
         ("2026-12-15", 223_980, "Car"),
     ]
     deleted = planned_repo.list_recently_deleted(conn, USER, days=_ALL_TIME_DAYS)
