@@ -27,7 +27,7 @@ symbol = "parse_amount_str"
 status = "exists"
 finding = "Q-011"
 epic = "E11"
-search = ["parse_amount", "format_money", "format_figure","to_minor_units", "currency_decimals"]
+search = ["parse_amount", "format_money", "format_figure","to_minor_units", "currency_decimals", "ascii_minus", "sign_glyph"]
 banned = ["_parse_amount*", "parse_amount*", "_parse_money*", "*minor_per_major*", "figure_text", "minus_sign", "plus_minus_sign"]
 
 [[row]]

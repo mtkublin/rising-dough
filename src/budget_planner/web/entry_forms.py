@@ -20,9 +20,9 @@ from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
-from budget_planner.domain.money import format_major, format_money
+from budget_planner.domain.money import format_major, format_money, sign_glyph
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedTransaction
-from budget_planner.domain.transactions import NewTransaction, Transaction
+from budget_planner.domain.transactions import NewTransaction, Transaction, signed_legs
 from budget_planner.services import (
     accounts as accounts_service,
     categories as categories_service,
@@ -35,6 +35,7 @@ from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.recurring_forms import (
     EMPTY_TERM_INPUT,
+    category_alias,
     formula_source_candidates,
     parse_draft_terms,
 )
@@ -286,7 +287,13 @@ ENTRY_TABS: tuple[str, ...] = ("happened", "planned", "repeats")
 TAB_ACTIONS = MappingProxyType(
     {"happened": "/transactions", "planned": "/planned", "repeats": "/recurring"}
 )
-_SIGNS = MappingProxyType({Direction.EXPENSE: "\N{MINUS SIGN}", Direction.INCOME: "+"})
+
+
+def _direction_sign(direction: Direction) -> str | None:
+    """Hero sign of a category by the canonical direction rule; none for transit, adjustment."""
+    if direction not in (Direction.EXPENSE, Direction.INCOME):
+        return None
+    return sign_glyph(signed_legs(direction, 1, 0, None)[0].amount_minor < 0)
 
 
 def _component_rows(terms: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
@@ -296,7 +303,7 @@ def _component_rows(terms: Sequence[Mapping[str, object]]) -> list[dict[str, obj
         ids = term.get("source_category_ids")
         rows.append(
             {
-                "sign": "\N{MINUS SIGN}" if term.get("sign") == "-" else "+",
+                "sign": sign_glyph(term.get("sign") == "-"),
                 "percent": term.get("coefficient_percent", ""),
                 "category_ids": {int(str(i)) for i in ids}
                 if isinstance(ids, tuple | list)
@@ -442,7 +449,7 @@ def _category_view(
     return {
         "selected_category_id": category.id,
         "picked_name": None if category.id in recent else category.name,
-        "sign": _SIGNS.get(category.direction),
+        "sign": _direction_sign(category.direction),
     }
 
 
@@ -516,7 +523,7 @@ def promote_context(
         "title": f"promote · {name}" if recurring else f"promote to actual · {name}",
         "action": action,
         "currency": currency,
-        "sign": _SIGNS.get(cat.direction) if cat else None,
+        "sign": _direction_sign(cat.direction) if cat else None,
         "amount_value": values.get("amount", format_major(amount_minor, currency)),
         "date_value": values.get("operation_date", date_value.isoformat()),
         "note_value": values.get("description", note_value),
@@ -532,7 +539,7 @@ def account_choice(account_id: str) -> int:
 
 def category_choice(category_id: str, category: str) -> int:
     """The posted category id: ``category_id`` or the picker's ``category``; ``0`` when blank."""
-    return parse_int(category_id or category) or 0
+    return parse_int(category_alias(category_id, category)) or 0
 
 
 def pick_category_error(errors: dict[str, str], category: int) -> dict[str, str]:

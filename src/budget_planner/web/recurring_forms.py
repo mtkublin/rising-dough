@@ -18,6 +18,7 @@ from starlette.datastructures import FormData, QueryParams
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.money import ascii_minus
 from budget_planner.domain.recurring import (
     AmountFormula,
     NewRecurringRule,
@@ -44,16 +45,26 @@ EMPTY_TERM_INPUT: Mapping[str, object] = MappingProxyType(
     }
 )
 
-# The dialog's formula fragment posts the handoff names (the vendored formula.js re-indexes only
-# those): components[i][sign|percent|categories], U+2212 for a subtracted component.
-_TERM_FIELD_RE = re.compile(
-    r"^(?:terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]"
-    r"|components\[(\d+)\]\[(sign|percent|categories)\])$"
-)
+# The old shell's form posts terms[i][sign|coefficient_percent|source_category_ids]. The dialog's
+# formula fragment posts the handoff names (the vendored formula.js re-indexes only those):
+# components[i][sign|percent|categories], U+2212 for a subtracted component.
+_TERM_FIELD_RE = re.compile(r"^terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]$")
+_COMPONENT_FIELD_RE = re.compile(r"^components\[(\d+)\]\[(sign|percent|categories)\]$")
 _COMPONENT_FIELDS = MappingProxyType(
     {"sign": "sign", "percent": "coefficient_percent", "categories": "source_category_ids"}
 )
-_MINUS = "\N{MINUS SIGN}"
+_COMPONENTS_PREFIX = "components["
+
+
+def category_alias(category_id: str, category: str) -> str:
+    """The posted category: ``category_id`` wins over the picker's ``category`` when both come.
+
+    The one place the two spellings meet (the dialog's picker posts ``category``, the old form
+    ``category_id``); the transaction, planned and recurring creates all read it through here.
+    """
+    return category_id or category
+
+
 _CADENCES: Mapping[str, Cadence] = MappingProxyType({c.value: c for c in Cadence})
 _DEST = "dest_account_id"
 
@@ -79,17 +90,21 @@ def parse_terms_from_form(form: FormData | QueryParams) -> list[TermInput]:
     signs: dict[int, str] = {}
     percents: dict[int, str] = {}
     ids: dict[int, list[str]] = {}
-    for key, raw in form.multi_items():
-        m = _TERM_FIELD_RE.match(key)
+    items = list(form.multi_items())
+    # Never merge the two spellings: any ``components[`` key makes the post a dialog post.
+    dialog = any(key.startswith(_COMPONENTS_PREFIX) for key, _ in items)
+    pattern = _COMPONENT_FIELD_RE if dialog else _TERM_FIELD_RE
+    for key, raw in items:
+        m = pattern.match(key)
         if m is None:
             continue
-        idx = int(m.group(1) or m.group(3))
-        field = m.group(2) or _COMPONENT_FIELDS[m.group(4)]
+        idx = int(m.group(1))
+        field = _COMPONENT_FIELDS[m.group(2)] if dialog else m.group(2)
         ids.setdefault(idx, [])
         if field == "source_category_ids":
             ids[idx].append(str(raw))
         elif field == "sign":
-            signs[idx] = "-" if str(raw) == _MINUS else str(raw)
+            signs[idx] = ascii_minus(str(raw))
         else:
             percents[idx] = str(raw)
     return [
@@ -267,7 +282,7 @@ def read_rule_fields(form: FormData) -> RuleFields:
         cadence=text("cadence"),
         start_date=text("start_date"),
         end_date=text("end_date"),
-        category_id=text("category_id") or text("category"),
+        category_id=category_alias(text("category_id"), text("category")),
         account_id=text("account_id"),
         dest_account_id=text("dest_account_id"),
         default_amount=text("default_amount"),

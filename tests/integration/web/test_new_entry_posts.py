@@ -8,6 +8,7 @@ with the posted values.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from datetime import date
@@ -444,3 +445,101 @@ def test_repeats_formula_hero_shows_the_service_next_amount(
     assert "\N{RIGHTWARDS ARROW} next amount 1,200.00 PLN" in _html.all_text(r.text, entries.dialog)
     # the figure is derived, never posted: the hero has no named amount input in formula mode
     assert not _html.exists(r.text, entries.hero_amount)
+
+
+def test_category_id_wins_over_the_picker_category(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    """Both spellings in one post: ``category_id`` is the one stored (``category_alias``)."""
+    r = client.post(
+        "/transactions",
+        data={
+            "category_id": str(ids["groc"]),
+            "category": str(ids["tax"]),
+            "account_id": str(ids["acc"]),
+            "amount": "3.00",
+            "operation_date": "2026-11-20",
+            "description": "both",
+        },
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 200
+    assert _txn(db)[2] == ids["groc"]
+
+
+def _stored_terms(db: sqlite3.Connection, category_id: int) -> list[dict[str, object]]:
+    raw = db.execute(
+        "SELECT amount_formula FROM recurring_rules WHERE category_id = ? ORDER BY id DESC",
+        (category_id,),
+    ).fetchone()[0]
+    terms: list[dict[str, object]] = json.loads(raw)["terms"]
+    return terms
+
+
+def _formula_post(ids: dict[str, int], extra: dict[str, str]) -> dict[str, str]:
+    base = {
+        "category": str(ids["tax"]),
+        "account_id": str(ids["acc"]),
+        "start_date": "2026-03-10",
+        "cadence": "monthly",
+        "amount_source": "formula",
+    }
+    return {**base, **extra}
+
+
+_COMPONENTS = {
+    "components[0][sign]": "+",
+    "components[0][percent]": "12",
+    "components[1][sign]": "\N{MINUS SIGN}",
+    "components[1][percent]": "2",
+}
+_TERMS = {"terms[0][sign]": "+", "terms[0][coefficient_percent]": "30"}
+
+
+def test_formula_from_components_stores_exactly_those_terms(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    data = {
+        **_COMPONENTS,
+        "components[0][categories]": str(ids["salary"]),
+        "components[1][categories]": str(ids["salary"]),
+    }
+    r = client.post("/recurring", data=_formula_post(ids, data), headers=FROM_DIALOG)
+    assert r.status_code == 200, r.text
+    assert _stored_terms(db, ids["tax"]) == [
+        {"coefficient_bps": 1200, "sign": "+", "source_category_ids": [ids["salary"]]},
+        {"coefficient_bps": 200, "sign": "-", "source_category_ids": [ids["salary"]]},
+    ]
+
+
+def test_formula_from_old_shell_terms_stores_exactly_those_terms(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    data = {**_TERMS, "terms[0][source_category_ids]": str(ids["salary"])}
+    r = client.post("/recurring", data=_formula_post(ids, data), headers=_HX)
+    assert r.status_code == 200, r.text
+    assert _stored_terms(db, ids["tax"]) == [
+        {"coefficient_bps": 3000, "sign": "+", "source_category_ids": [ids["salary"]]}
+    ]
+
+
+def test_formula_post_with_both_spellings_uses_only_the_components(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    """Any ``components[`` key makes it a dialog post: ``terms[`` keys are ignored, not merged."""
+    data = {
+        **_COMPONENTS,
+        "components[0][categories]": str(ids["salary"]),
+        "components[1][categories]": str(ids["salary"]),
+        **_TERMS,
+        "terms[0][source_category_ids]": str(ids["salary"]),
+        "terms[1][sign]": "+",
+        "terms[1][coefficient_percent]": "5",
+        "terms[1][source_category_ids]": str(ids["salary"]),
+    }
+    r = client.post("/recurring", data=_formula_post(ids, data), headers=FROM_DIALOG)
+    assert r.status_code == 200, r.text
+    assert _stored_terms(db, ids["tax"]) == [
+        {"coefficient_bps": 1200, "sign": "+", "source_category_ids": [ids["salary"]]},
+        {"coefficient_bps": 200, "sign": "-", "source_category_ids": [ids["salary"]]},
+    ]
