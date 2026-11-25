@@ -366,6 +366,6 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR40a [S] Operator decisions 2026-11-25: docs and CI checkout
 - Applies four operator decisions from [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md), docs first, no code logic:
   - Q1: `csrf.js` and vendored `htmx-2.0.11.min.js` are KEEP: rows in [removal.md](removal.md) and an ADR-0107 §2 amendment.
-  - Q2: blocked: needs a push with workflow scope; operator applies [q2-ci-checkout.patch](q2-ci-checkout.patch) (`git apply`): `.github/workflows/ci.yml` `ci` job (the job that runs the guards) checkout gets `fetch-depth: 0` and `filter: blob:none`.
+  - Q2: blocked: needs a push with workflow scope; operator applies [q2-ci-checkout.md](q2-ci-checkout.md): `.github/workflows/ci.yml` `ci` job (the job that runs the guards) checkout gets `fetch-depth: 0` and `filter: blob:none`.
   - Q16: ADR-0152 confirmed by the operator (Status line).
   - Q9: ADR-0134 amendment: invite email NO-GO for v1 (T-UR18 and requirements wording aligned).
