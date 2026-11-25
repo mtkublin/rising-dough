@@ -33,3 +33,7 @@ Note on console: the only console entries in the run are the browser's own "Fail
 ## Findings
 
 None. Status: CLEAN.
+
+## UR04f
+
+See docs/audits/2026-11-25-t-ur04f-dialog-output-hero.md (static output hero, reconcile variant). Status: CLEAN.
