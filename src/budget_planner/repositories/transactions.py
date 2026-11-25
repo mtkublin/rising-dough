@@ -421,10 +421,10 @@ def account_last_used(conn: sqlite3.Connection, user_id: int) -> dict[int, date]
         """
         SELECT t.account_id AS account_id, MAX(t.operation_date) AS d
         FROM transactions t
-        JOIN categories c ON c.id = t.category_id
+        JOIN categories c ON c.id = t.category_id AND c.user_id = ?
         WHERE t.user_id = ? AND t.deleted_at IS NULL AND c.direction != 'adjustment'
         GROUP BY t.account_id
         """,
-        (user_id,),
+        (user_id, user_id),
     ).fetchall()
     return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows}

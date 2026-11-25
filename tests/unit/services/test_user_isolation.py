@@ -115,6 +115,15 @@ def _case_last_checked(conn: sqlite3.Connection, world: World) -> None:
     assert world.owner.account_id not in _checked_accounts(conn, OTHER_ID)
 
 
+@covers("accounts.list_by_last_use")
+def _case_list_by_last_use(conn: sqlite3.Connection, world: World) -> None:
+    own = {a.id for a in accounts.list_by_last_use(conn, OWNER_ID)}
+    other = {a.id for a in accounts.list_by_last_use(conn, OTHER_ID)}
+    assert world.owner.account_id in own
+    assert world.other.account_id in other
+    assert not own & other
+
+
 @covers("accounts.archive_account")
 def _case_archive_account(conn: sqlite3.Connection, world: World) -> None:
     # The owner cannot archive (or even see) the other user's account: a no-op, nothing leaks or changes.

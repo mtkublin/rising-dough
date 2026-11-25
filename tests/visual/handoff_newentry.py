@@ -91,7 +91,8 @@ def _repeats_formula(page: Page) -> None:
     page.wait_for_selector("#modal-root .rd-msel", state="hidden", timeout=_TIMEOUT_MS)
     page.fill("#modal-root input[name=day_of_month]", "31")
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)  # the formula preview settles
-    page.locator(f"{_DIALOG} .rd-dialog__hero").scroll_into_view_if_needed()  # the dialog scrolls back up
+    # The dialog scrolled while the fields were filled; the user scrolls back to the amount.
+    page.locator(f"{_DIALOG} .rd-dialog__hero").scroll_into_view_if_needed()
 
 
 NEWENTRY_RECIPES: Final[dict[str, Recipe]] = {

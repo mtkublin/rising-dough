@@ -434,7 +434,8 @@ def test_hero_follows_the_account_currency_and_the_category_sign(
     assert r.status_code == 200
     assert "HX-Retarget" not in r.headers
     assert _hero_text(r.text) == "+ Amount EUR"
-    assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.50"  # typed, at the exponent
+    typed = _html.resolve_one(r.text, entries.hero_amount).get("value")
+    assert typed == "12.50"  # shown at the currency exponent
     r = client.get(
         f"{base}&account_id={ids['acc']}&category={ids['groc']}&amount=13000", headers=_HX
     )
