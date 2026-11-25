@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 from playwright.sync_api import expect
 
@@ -30,19 +31,20 @@ def open_new_entry(page: Any) -> None:
     expect(to_playwright(page, entries.dialog)).to_be_visible()
 
 
-def submit_ok(page: Any, button: Locator, *, path_suffix: str | None = None) -> None:
-    """Click ``button`` and wait for the server's answer to the post, which must be 2xx.
+def submit_ok(page: Any, button: Locator, *, path: str) -> None:
+    """Click ``button`` and wait for the server's answer to the post to ``path``, which must be 2xx.
 
     The dialog going away is not a barrier for the database (a reload or a swap can remove it
     around the request); the post's response is: the row is committed before the server answers.
-    A click that never posts times out here, and a rejected post (422, 409, 500) fails with its
+    ``path`` is the exact URL path of the committing post (query string ignored): any other post
+    (a formula or limit preview, an undo) would release the barrier before the row exists. A click
+    that never posts there times out here, and a rejected post (422, 409, 500) fails with its
     body instead of surfacing later as an empty probe. Hero refresh GETs never match.
     """
 
     def is_post(response: Any) -> bool:
-        if response.request.method != "POST":
-            return False
-        return path_suffix is None or response.url.split("?")[0].endswith(path_suffix)
+        posted = response.request.method == "POST"
+        return bool(posted and urlsplit(response.url).path.rstrip("/") == path)
 
     with page.expect_response(is_post) as answer:
         to_playwright(page, button).click()
@@ -51,9 +53,16 @@ def submit_ok(page: Any, button: Locator, *, path_suffix: str | None = None) -> 
     )
 
 
-def save_entry(page: Any) -> None:
-    """Save the new-entry dialog and wait for the committed answer (see :func:`submit_ok`)."""
-    submit_ok(page, entries.save)
+ENTRY_PATHS = {"happened": "/transactions", "planned": "/planned", "repeats": "/recurring"}
+
+
+def save_entry(page: Any, tab: str = "happened") -> None:
+    """Save the new-entry dialog's ``tab`` (happened, planned, repeats) and wait for its commit.
+
+    Only the entry's own post (``/transactions``, ``/planned`` or ``/recurring``) releases the
+    barrier (see :func:`submit_ok`).
+    """
+    submit_ok(page, entries.save, path=ENTRY_PATHS[tab])
 
 
 def choose_category(page: Any, name: str) -> None:
