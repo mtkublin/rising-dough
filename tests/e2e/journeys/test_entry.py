@@ -10,7 +10,7 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World, days_from_today
-from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry
+from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry, save_entry
 from tests.ui_map import entries, ledger
 from tests.ui_map.locator import label
 
@@ -36,7 +36,7 @@ def test_new_happened_entry_lands_in_actual(world: World) -> None:
     choose_account(world.page, "Checking")
     world.find(entries.hero_amount).fill("12.50")
     world.find(entries.field_note.inside(entries.dialog)).fill("happened-entry")
-    world.find(entries.save).click()
+    save_entry(world.page)
 
     txn = world.wait_rows("SELECT * FROM transactions WHERE description = 'happened-entry'")
     assert len(txn) == 1
@@ -60,7 +60,7 @@ def test_new_planned_entry_lands_in_planned(world: World) -> None:
     world.find(entries.hero_amount).fill("33.00")
     world.find(entries.field_due).fill(days_from_today(3))
     world.find(entries.field_note.inside(entries.dialog)).fill("planned-entry")
-    world.find(entries.save).click()
+    save_entry(world.page)
 
     found = world.wait_rows(
         "SELECT * FROM planned_transactions WHERE description = 'planned-entry'"

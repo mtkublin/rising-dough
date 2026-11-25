@@ -9,7 +9,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.e2e.ui_actions import choose_category, open_new_entry
+from tests.e2e.ui_actions import choose_category, open_new_entry, save_entry
 from tests.ui_map import entries
 from tests.ui_map.locator import to_playwright
 
@@ -57,7 +57,7 @@ def test_amount_typed_during_the_hero_refresh_is_kept_and_stored(
     expect(amount).to_have_value("1234")
     expect(amount).to_have_attribute("placeholder", "0")
     to_playwright(page, entries.field_note).fill("race-added")
-    to_playwright(page, entries.save).click()
+    save_entry(page)
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()
     assert db_probe.txn_amounts(db_path, "race-added") == [1234]
 
@@ -131,7 +131,7 @@ def test_save_wins_over_a_hero_refresh_in_flight(live_server: tuple[str, Path], 
     _wait_for(page, held, 1)
     to_playwright(page, entries.hero_amount).fill("777")
     to_playwright(page, entries.field_note).fill("save-wins")
-    to_playwright(page, entries.save).click()
+    save_entry(page)
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()
     assert db_probe.txn_amounts(db_path, "save-wins") == [777]
 

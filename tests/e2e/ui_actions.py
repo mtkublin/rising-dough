@@ -30,6 +30,20 @@ def open_new_entry(page: Any) -> None:
     expect(to_playwright(page, entries.dialog)).to_be_visible()
 
 
+def save_entry(page: Any) -> None:
+    """Click Save in the new-entry dialog and wait for the server's answer to the post.
+
+    The dialog going away is not a barrier for the database (a reload or a swap can remove it
+    around the request); the post's response is: the row is committed before the server answers.
+    """
+    with page.expect_response(_is_entry_post):
+        to_playwright(page, entries.save).click()
+
+
+def _is_entry_post(response: Any) -> bool:
+    return response.request.method == "POST" and not _is_hero_refresh(response)
+
+
 def choose_category(page: Any, name: str) -> None:
     """Pick ``name`` in the new-entry dialog's category search (recent radios are not needed)."""
     to_playwright(page, entries.category_search).click()
