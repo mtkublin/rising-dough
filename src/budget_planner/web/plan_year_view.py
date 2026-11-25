@@ -194,6 +194,18 @@ def year_period(selected: int) -> BudgetPeriod:
     )
 
 
+def _split_rows(
+    rows: tuple[budget_service.YearlyRow, ...], usage: Mapping[int, CategoryUsage]
+) -> tuple[tuple[budget_service.YearlyRow, ...], tuple[budget_service.YearlyRow, ...]]:
+    """``(grid rows, disclosure rows)``: budgeted, then unset ones only a rule or plan uses."""
+    entries = {cid: u.entry_count for cid, u in usage.items()}
+    with_budget = tuple(r for r in rows if r.total_minor)
+    unset = tuple(r for r in rows if not r.total_minor)
+    grid_unset = tuple(r for r in unset if entries.get(r.category_id) == 0)
+    listed = tuple(r for r in unset if entries.get(r.category_id))
+    return (*with_budget, *grid_unset), listed
+
+
 def year_page(
     rows: tuple[budget_service.YearlyRow, ...],
     selected: int,
@@ -210,10 +222,7 @@ def year_page(
     column heading and picks the month a "set budget" link opens on.
     """
     current_year, current_month = current
-    used = {cid: u.entry_count for cid, u in usage.items()}
-    with_budget = tuple(r for r in rows if r.total_minor)
-    unset_rows = tuple(r for r in rows if not r.total_minor and used.get(r.category_id) == 0)
-    on_grid = (*with_budget, *unset_rows)
+    on_grid, listed = _split_rows(rows, usage)
     budgeted = tuple(_row(r, selected, currency) for r in on_grid)
     unset = tuple(
         Unbudgeted(
@@ -224,8 +233,7 @@ def year_page(
                 TIER_DEFAULT
             ),
         )
-        for r in rows
-        if r not in on_grid and used.get(r.category_id)
+        for r in listed
     )
     noun = "category" if len(unset) == 1 else "categories"
     return YearPage(
