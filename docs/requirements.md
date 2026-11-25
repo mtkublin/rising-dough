@@ -170,6 +170,7 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), 
 - `just test-fast` — testmon-selected tests (what the pre-commit hook runs); `just lint-changed` / `just test-changed` run the same selection on demand (ADR-0120).
 - `just worktree-init` — seed a new worktree's `.testmondata` from the main checkout.
 - `just set-password` — set a user's password on an explicit `--db=<path>` (no default DB).
+- Orchestrated runs: `.claude/settings.json` hooks run `scripts/ci/agent_guard.py`, which holds the role agents to their test scope, background waits and runtime budget, and refuses an orchestrator stop without a `RUN-STATE:` line (ADR-0150 amendment 2026-11-25).
 
 Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) through `just install`.
 
