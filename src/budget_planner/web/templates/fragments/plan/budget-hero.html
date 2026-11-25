@@ -9,7 +9,7 @@
       <span class="rd-hero__figure rd-hero__figure--plan"
             data-digits="{{ (budget.summary.totals.remaining_minor|hero_fit(base_ccy)).digits }}"
             data-marks="{{ (budget.summary.totals.remaining_minor|hero_fit(base_ccy)).marks }}"
-            data-signs="{{ (budget.summary.totals.remaining_minor|hero_fit(base_ccy)).signs }}">{{ budget.summary.totals.remaining_minor|money_num(base_ccy) }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
+            data-signs="{{ (budget.summary.totals.remaining_minor|hero_fit(base_ccy)).signs }}">{{ budget.left_text }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
     </p>
     <p class="rd-hero__note">
       <span class="u-hide-below-md">{{ budget.summary.totals.budgeted_minor|money_num(base_ccy) }} budgeted · {{ budget.summary.totals.spent_minor|money_num(base_ccy) }} spent · {{ budget.summary.totals.committed_minor|money_num(base_ccy) }} committed{% if budget.over_count %} · {{ budget.over_count }} {{ "category" if budget.over_count == 1 else "categories" }} over{% endif %}{% if budget.summary.totals.unbudgeted_committed_minor > 0 %} · {{ budget.summary.totals.unbudgeted_committed_minor|money_num(base_ccy) }} planned in unbudgeted categories{% endif %}</span><span class="u-hide-from-md">{{ budget.summary.totals.committed_minor|money_num(base_ccy) }} committed{% if budget.over_count %} · {{ budget.over_count }} over{% endif %}</span>
