@@ -12,6 +12,12 @@
     },
     {
       "kind": "hx-get",
+      "name": "Accounts",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/accounts"
+    },
+    {
+      "kind": "hx-get",
       "name": "net worth \u00b7 2 accountsnet worth",
       "skipped": "triggered by input or form event, not a click",
       "target": "/accounts"
@@ -81,20 +87,20 @@
     },
     {
       "kind": "button",
-      "name": "Cancel",
+      "name": "Close",
       "target": "",
       "via": "+ new account"
     },
     {
       "kind": "button",
-      "name": "Close",
+      "name": "cancel",
       "target": "",
       "via": "+ new account"
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Name Currency AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BB...",
+      "name": "new account Opening balance PLN opening balance name currenc...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/accounts",
       "via": "+ new account"
@@ -102,9 +108,15 @@
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Create account \u21a9",
+      "name": "[ create account ]",
       "target": "/accounts",
       "via": "+ new account"
+    },
+    {
+      "kind": "hx-get",
+      "name": "delete",
+      "target": "/accounts/{id}/edit?intent=delete",
+      "via": "Row menu"
     },
     {
       "kind": "hx-get",
@@ -113,28 +125,36 @@
       "via": "Row menu"
     },
     {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "delete",
-      "target": "/accounts/{id}/delete",
-      "via": "Row menu"
-    },
-    {
-      "kind": "button",
-      "name": "Cancel",
-      "target": "",
-      "via": "reconcile"
-    },
-    {
       "kind": "button",
       "name": "Close",
       "target": "",
       "via": "reconcile"
     },
     {
+      "kind": "button",
+      "name": "cancel",
+      "target": "",
+      "via": "reconcile"
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
-      "name": "\u2460 Open your bank \u2461 Enter its balance \u2462 Review Compare this a...",
+      "name": "preview",
+      "target": "/accounts/{id}/reconcile?preview={n}",
+      "via": "reconcile"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "reconcile \u00b7 Checking 0.00 PLN difference in rising dough 3,9...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/accounts/{id}/reconcile",
+      "via": "reconcile"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "reconcile \u00b7 Savings 0.00 PLN difference in rising dough 5,00...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/accounts/{id}/reconcile",
       "via": "reconcile"
@@ -142,23 +162,31 @@
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Record \u21a9",
+      "name": "[ reconcile ]",
       "target": "/accounts/{id}/reconcile",
       "via": "reconcile"
     }
   ],
   "/auth/sessions": [
     {
+      "kind": "button",
+      "name": "Keyboard shortcuts",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": ""
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Current password New password At least 12 characters, up to ...",
+      "name": "current password new password 12+ characters, up to 72 bytes...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password"
     },
     {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "sign out",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/auth/sessions/{handle}/revoke"
     },
     {
       "kind": "link",
@@ -174,16 +202,6 @@
     },
     {
       "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
-    },
-    {
-      "kind": "link",
       "name": "Preferences",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/settings?tab=prefs"
@@ -191,6 +209,7 @@
     {
       "kind": "link",
       "name": "Rising Dough",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/today"
     },
     {
@@ -201,58 +220,97 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
-      "target": "/settings"
-    },
-    {
-      "kind": "link",
-      "name": "Skip to content",
-      "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "#main"
-    },
-    {
-      "kind": "link",
-      "name": "Today g o",
-      "target": "/today"
-    },
-    {
-      "kind": "link",
       "name": "Users",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/settings/users"
     },
     {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Change password",
-      "target": "/settings/password"
+      "kind": "link",
+      "name": "[ new entry ]",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/transactions/new"
     },
     {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Sign out",
-      "skipped": "ends the crawler's own session",
-      "target": "/auth/logout"
+      "kind": "link",
+      "name": "accounts",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "today",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/today"
     },
     {
       "destructive": true,
       "kind": "submit",
       "name": "Sign out this device",
+      "skipped": "ends the crawler's own session",
       "target": "/auth/sessions/{handle}/revoke"
     },
     {
+      "destructive": true,
+      "kind": "submit",
+      "name": "change password",
+      "target": "/settings/password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "sign out",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/auth/logout"
+    },
+    {
       "kind": "submit-get",
-      "name": "Add passkey",
+      "name": "add passkey",
       "skipped": "needs a WebAuthn authenticator",
       "target": ""
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Fix the highlighted fields. Current password Enter your curr...",
+      "name": "2 fields need attention current password: Enter your current...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password",
-      "via": "Change password"
+      "via": "change password"
+    },
+    {
+      "kind": "link",
+      "name": "current password",
+      "target": "#current-password",
+      "via": "change password"
+    },
+    {
+      "kind": "link",
+      "name": "new password",
+      "target": "#new-password",
+      "via": "change password"
     }
   ],
   "/budget": [
@@ -1115,16 +1173,24 @@
   ],
   "/settings/password": [
     {
+      "kind": "button",
+      "name": "Keyboard shortcuts",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": ""
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Current password New password At least 12 characters, up to ...",
+      "name": "current password new password 12+ characters, up to 72 bytes...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password"
     },
     {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "sign out",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/auth/sessions/{handle}/revoke"
     },
     {
       "kind": "link",
@@ -1140,16 +1206,6 @@
     },
     {
       "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
-    },
-    {
-      "kind": "link",
       "name": "Preferences",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/settings?tab=prefs"
@@ -1157,6 +1213,7 @@
     {
       "kind": "link",
       "name": "Rising Dough",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/today"
     },
     {
@@ -1167,72 +1224,118 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
-      "target": "/settings"
-    },
-    {
-      "kind": "link",
-      "name": "Skip to content",
-      "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "#main"
-    },
-    {
-      "kind": "link",
-      "name": "Today g o",
-      "target": "/today"
-    },
-    {
-      "kind": "link",
       "name": "Users",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/settings/users"
     },
     {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Change password",
-      "target": "/settings/password"
+      "kind": "link",
+      "name": "[ new entry ]",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/transactions/new"
     },
     {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Sign out",
-      "skipped": "ends the crawler's own session",
-      "target": "/auth/logout"
+      "kind": "link",
+      "name": "accounts",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "today",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/today"
     },
     {
       "destructive": true,
       "kind": "submit",
       "name": "Sign out this device",
+      "skipped": "ends the crawler's own session",
       "target": "/auth/sessions/{handle}/revoke"
     },
     {
+      "destructive": true,
+      "kind": "submit",
+      "name": "change password",
+      "target": "/settings/password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "sign out",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/auth/logout"
+    },
+    {
       "kind": "submit-get",
-      "name": "Add passkey",
+      "name": "add passkey",
       "skipped": "needs a WebAuthn authenticator",
       "target": ""
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Fix the highlighted fields. Current password Enter your curr...",
+      "name": "2 fields need attention current password: Enter your current...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password",
-      "via": "Change password"
+      "via": "change password"
+    },
+    {
+      "kind": "link",
+      "name": "current password",
+      "target": "#current-password",
+      "via": "change password"
+    },
+    {
+      "kind": "link",
+      "name": "new password",
+      "target": "#new-password",
+      "via": "change password"
     }
   ],
   "/settings/security": [
     {
+      "kind": "button",
+      "name": "Keyboard shortcuts",
+      "target": ""
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Current password New password At least 12 characters, up to ...",
+      "name": "current password new password 12+ characters, up to 72 bytes...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password"
     },
     {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "sign out",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/auth/sessions/{handle}/revoke"
     },
     {
       "kind": "link",
@@ -1243,16 +1346,6 @@
       "kind": "link",
       "name": "Currency & FX",
       "target": "/settings?tab=fx"
-    },
-    {
-      "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
     },
     {
       "kind": "link",
@@ -1271,100 +1364,97 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "Users",
+      "target": "/settings/users"
+    },
+    {
+      "kind": "link",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
-    },
-    {
-      "kind": "link",
-      "name": "Users",
-      "target": "/settings/users"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Change password",
-      "target": "/settings/password"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Sign out",
-      "skipped": "ends the crawler's own session",
-      "target": "/auth/logout"
     },
     {
       "destructive": true,
       "kind": "submit",
       "name": "Sign out this device",
+      "skipped": "ends the crawler's own session",
       "target": "/auth/sessions/{handle}/revoke"
     },
     {
+      "destructive": true,
+      "kind": "submit",
+      "name": "change password",
+      "target": "/settings/password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
       "kind": "submit-get",
-      "name": "Add passkey",
+      "name": "add passkey",
       "skipped": "needs a WebAuthn authenticator",
       "target": ""
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Fix the highlighted fields. Current password Enter your curr...",
+      "name": "2 fields need attention current password: Enter your current...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password",
-      "via": "Change password"
+      "via": "change password"
+    },
+    {
+      "kind": "link",
+      "name": "current password",
+      "target": "#current-password",
+      "via": "change password"
+    },
+    {
+      "kind": "link",
+      "name": "new password",
+      "target": "#new-password",
+      "via": "change password"
     }
   ],
   "/settings/users": [
     {
-      "kind": "hx-get",
-      "name": "Edit admin@local.test",
-      "target": "/settings/users/{id}/edit"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Edit owner@example.test",
-      "target": "/settings/users/{id}/edit"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Email Name Admin Can manage users. Still can't see their dat...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/settings/users"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Remove",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/settings/users/{id}/delete"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Reset password",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/settings/users/{id}/reset-password"
-    },
-    {
-      "kind": "link",
-      "name": "+ Add user",
-      "target": "#user-add"
-    },
-    {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
+      "kind": "button",
+      "name": "Keyboard shortcuts",
+      "target": ""
     },
     {
       "kind": "link",
@@ -1375,16 +1465,6 @@
       "kind": "link",
       "name": "Currency & FX",
       "target": "/settings?tab=fx"
-    },
-    {
-      "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
     },
     {
       "kind": "link",
@@ -1403,139 +1483,74 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "Users",
+      "target": "/settings/users"
+    },
+    {
+      "kind": "link",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
     },
     {
-      "kind": "link",
-      "name": "Users",
-      "target": "/settings/users"
+      "kind": "popover",
+      "name": "Row menu",
+      "target": "#user-menu-2"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Create user",
-      "target": "/settings/users"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Remove admin@local.test",
-      "target": "/settings/users/{id}/delete"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Reset password for admin@local.test",
-      "target": "/settings/users/{id}/reset-password"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Reset password for owner@example.test",
-      "target": "/settings/users/{id}/reset-password"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Sign out",
+      "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
     },
     {
-      "kind": "button",
-      "name": "Close",
-      "target": "",
-      "via": "Edit admin@local.test"
+      "kind": "hx-get",
+      "name": "delete user",
+      "target": "/settings/users/{id}/delete",
+      "via": "Row menu"
     },
     {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Email Name Admin Can manage users. Still can't see their dat...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/settings/users/{id}",
-      "via": "Edit admin@local.test"
+      "kind": "hx-get",
+      "name": "edit user",
+      "target": "/settings/users/{id}/edit",
+      "via": "Row menu"
     },
     {
-      "kind": "link",
-      "name": "Cancel",
-      "target": "/settings/users",
-      "via": "Edit admin@local.test"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save changes",
-      "target": "/settings/users/{id}",
-      "via": "Edit admin@local.test"
-    },
-    {
-      "kind": "button",
-      "name": "Close",
-      "target": "",
-      "via": "Edit owner@example.test"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Email Name Admin Removing your own admin rights takes effect...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/settings/users/{id}",
-      "via": "Edit owner@example.test"
-    },
-    {
-      "kind": "link",
-      "name": "Cancel",
-      "target": "/settings/users",
-      "via": "Edit owner@example.test"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save changes",
-      "target": "/settings/users/{id}",
-      "via": "Edit owner@example.test"
-    },
-    {
-      "kind": "button",
-      "name": "Dismiss message",
-      "target": "",
-      "via": "Remove admin@local.test"
-    },
-    {
-      "kind": "button",
-      "name": "Copy",
-      "target": "",
-      "via": "Reset password for admin@local.test"
-    },
-    {
-      "kind": "button",
-      "name": "Dismiss password",
-      "target": "",
-      "via": "Reset password for admin@local.test"
-    },
-    {
-      "kind": "button",
-      "name": "Copy",
-      "target": "",
-      "via": "Reset password for owner@example.test"
-    },
-    {
-      "kind": "button",
-      "name": "Dismiss password",
-      "target": "",
-      "via": "Reset password for owner@example.test"
+      "kind": "hx-get",
+      "name": "reset password",
+      "target": "/settings/users/{id}/reset-password",
+      "via": "Row menu"
     }
   ],
   "/today": [

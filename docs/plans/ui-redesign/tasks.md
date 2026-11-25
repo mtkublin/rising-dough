@@ -303,6 +303,9 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR28 [P] Ledger export menu and credit-limit line → T-UR09
 - `export` menu beside the Ledger Actual and Planned tabs (csv, parquet, current tab and filters, kept on phone, none on Recurring); credit-limit line under the account in new entry, edit and phone sheet (pink with `role=alert` over limit, saving allowed). ADR-0134 §2, §6.
 
+### ◻ T-UR28b [P] Hero figures through `format_figure` → T-UR09
+- The static hero figure (the formula's next amount, shown in the new-entry repeats tab and the edit-recurring dialog) is formatted by `domain.money.format_figure` (thousands separator), like the edit-transaction hero. The amount inputs of the new-entry, edit-planned and edit-recurring heroes keep `format_major` (a bare decimal the parser reads back; `parse_amount_str` takes no grouping).
+
 ---
 
 ## Phase 3 — Cutover

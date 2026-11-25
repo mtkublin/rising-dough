@@ -56,7 +56,22 @@ promote_date = label("date", exact=True)
 promote_note = label("note", exact=True)
 promote_submit = role("button", "[ promote ]", exact=True)
 
+# --- edit-transaction dialog (T-UR09b; handoff overlays/edit-transaction*.html) ---
+# Same field names as the new-entry dialog (account, date, note, save, cancel); these are the ones
+# that differ: its title carries the category, the destination label is "destination".
+edit_dialog = role("dialog", "edit transaction")
+edit_amount = role("textbox", "Amount", exact=True).inside(edit_dialog)
+edit_category_group = role("group", "category", exact=True).inside(edit_dialog)
+edit_category_search = role("button").inside(edit_category_group)
+edit_category_query = role("combobox", "Search categories", exact=True).inside(edit_dialog)
+edit_dest = label("destination", exact=True)
+edit_save = role("button", "[ save ]", exact=True).inside(edit_dialog)
+edit_dialog_title = role("heading", "edit transaction").inside(edit_dialog)
+toast_undo = role("button", "undo", exact=True)  # the toast after a delete (T-UR09b)
+edit_hero_error = by_id("field-amount-error")
+
 # --- app only: ids the server renders ---
+edit_opener = role("region", "Edit transaction", exact=True)  # plain page load: asks the edit route
 opener = role("region", "New entry", exact=True)  # plain page load: asks /add for the dialog
 credit_line = by_id("credit-line")
 summary = by_id("error-summary")

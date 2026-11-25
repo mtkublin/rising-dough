@@ -23,6 +23,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from budget_planner.web.field_labels import field_label
 from tests.contract.conftest import covers
 from tests.contract.web_helpers_t_ut04b import (
     OTHER_USER_ID,
@@ -218,7 +219,7 @@ def test_create_validation_errors_are_422_and_write_nothing(
 ) -> None:
     r = client.post("/accounts", data=data)
     assert r.status_code == 422
-    assert field in _html.text_of(r.text, accounts.form_errors)
+    assert field_label(field) in _html.text_of(r.text, accounts.form_errors)
     assert _account_rows(_migrated) == []
     assert audit_ops(_migrated, "account") == []
     assert "HX-Refresh" not in r.headers
@@ -334,7 +335,7 @@ def test_update_validation_errors_are_422_and_change_nothing(
         f"/accounts/{acc_id}", data={"name": "V", "is_liability": "on", "credit_limit": ""}
     )
     assert no_limit.status_code == 422
-    assert "credit_limit" in _html.text_of(no_limit.text, accounts.form_errors)
+    assert field_label("credit_limit") in _html.text_of(no_limit.text, accounts.form_errors)
     assert _account_rows(_migrated)[0]["name"] == "Main"
     assert audit_ops(_migrated, "account") == [("create", acc_id)]
 
@@ -555,7 +556,7 @@ def test_reconcile_liability_by_available_credit(client: TestClient, _migrated: 
     card = _make_account(_migrated, liability=True, limit=500_000, opening=-123_456, name="Visa")
     r = client.post(f"/accounts/{card}/reconcile", data={"actual_balance": "4000.00"})
     assert r.status_code == 200
-    assert "Available 4,000.00 ·" in _html.text_of(r.text, accounts.row(card))
+    assert "available 4,000.00 of 5,000.00" in _html.text_of(r.text, accounts.row(card))
     assert _adjustments(_migrated, card) == [23_456]
 
 

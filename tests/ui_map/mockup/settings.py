@@ -1,8 +1,8 @@
 """Settings surface against the handoff markup (``pages/settings/*``, category overlays; T-UR13).
 
 Same function names as ``tests.ui_map.settings``. The handoff has fixed sample rows and no row ids,
-so the id-parameterised builders return a sample row. Security and users names (T-UR14) keep the
-app locator.
+so the id-parameterised builders return a sample row. Security and users names resolve on
+the handoff pages and overlays (T-UR14).
 """
 
 from __future__ import annotations
@@ -39,7 +39,18 @@ _SAMPLE_ROW = "Groceries"
 
 # Names the handoff pages and category overlays do not render (ids, wrappers, live regions).
 NO_HANDOFF_TWIN = frozenset(
-    {"fx_table", "fx_row", "category_slot", "tabs", "form_errors", "modal_root"}
+    {
+        "fx_table",
+        "fx_row",
+        "category_slot",
+        "tabs",
+        "form_errors",
+        "modal_root",
+        "password_summary",
+        "forced_banner",
+        "save_and_continue",
+        "sign_out_instead",
+    }
 )
 
 tabs = _app.tabs
@@ -55,34 +66,43 @@ edit_form_save = role("button", "save").inside(category_form)
 edit_form_name = category_name.inside(category_form)
 fx_table = _app.fx_table
 
-# security and users (T-UR14): app locators until that item
+# security and users (T-UR14: pages/settings/security, security--error, users; overlays/edit-user,
+# delete-user, one-time-password)
 security_heading = _app.security_heading
 users_heading = _app.users_heading
-password_form = _app.password_form
+password_form = role("region", "Password", exact=True)
 current_password = _app.current_password
 new_password = _app.new_password
 confirm_password = _app.confirm_password
 change_password_button = _app.change_password_button
-save_and_continue = _app.save_and_continue
-sign_out_instead = _app.sign_out_instead
-password_summary = _app.password_summary
-forced_banner = _app.forced_banner
 passkeys = _app.passkeys
 sessions = _app.sessions
 session_signout = _app.session_signout
 passkey_label = _app.passkey_label
 add_passkey = _app.add_passkey
-users_table = _app.users_table
-new_password_toast = _app.new_password_toast
-new_password_value = _app.new_password_value
+users_table = role("table", "Users")
+new_password_toast = role("dialog", "one-time password")
+new_password_value = role("status", "One-time password")
 edit_form = _app.edit_form
+edit_save = _app.edit_save
+reset_dialog = _app.reset_dialog
+reset_confirm = _app.reset_confirm
+delete_confirm = _app.delete_confirm
+one_time_dialog = _app.one_time_dialog
+one_time_done = _app.one_time_done
 user_email = _app.user_email
 user_name = _app.user_name
 user_is_admin = _app.user_is_admin
-create_user = _app.create_user
+delete_dialog = _app.delete_dialog
+delete_blocked = _app.delete_blocked
 add_errors = _app.add_errors
 flash_success = _app.flash_success
 flash_error = _app.flash_error
+# no handoff twin: the forced rotation page (T-UR20) and the 422 / throttle summary
+save_and_continue = _app.save_and_continue
+sign_out_instead = _app.sign_out_instead
+password_summary = _app.password_summary
+forced_banner = _app.forced_banner
 
 
 def theme_option(value: str) -> Locator:
@@ -114,7 +134,7 @@ def password_error(field_name: str) -> Locator:
 
 
 def user_row(user_id: int) -> Locator:
-    return _app.user_row(user_id)
+    return role("row", "partner@example.test")
 
 
 def remove_user(name: str) -> Locator:
@@ -123,6 +143,14 @@ def remove_user(name: str) -> Locator:
 
 def reset_user(name: str) -> Locator:
     return _app.reset_user(name)
+
+
+def user_menu(name: str) -> Locator:
+    return _app.user_menu(name)
+
+
+def edit_user_item(name: str) -> Locator:
+    return _app.edit_user_item(name)
 
 
 def passkey_remove(name: str) -> Locator:

@@ -1,23 +1,24 @@
-"""Admin-only user roster at ``/settings/users`` (T-D17, ADR-0061 §4, ADR-0073).
+"""Admin-only user roster at ``/settings/users`` (T-D17, T-UR14; ADR-0061, ADR-0073, ADR-0152).
 
 Thin layer over :mod:`budget_planner.services.users`. ``AdminRequiredMiddleware``
 already answers 404 to non-admins. The :func:`~budget_planner.web.auth_deps.current_admin`
 dependency repeats that check in case the router is ever mounted without it.
 Renderers live in :mod:`budget_planner.web.users_admin` (T-Q267).
 
-HTMX contract (``static/js/users-admin.js`` + ``templates/settings/users/*``):
+HTMX contract (``fragments/dialogs/*``, ``fragments/rows/user-row``):
 
-- Add / reset swap the one-shot password toast into ``#user-feedback`` and
-  re-render ``#users-table`` out of band. The response is ``no-store``.
-- Edit / remove re-render ``#users-table`` (``outerHTML``) and flash a
-  success message out of band.
-- 422 (invalid / duplicate email, or an edit that changes the email)
-  re-renders the add errors, or the edit form via ``HX-Retarget``. 409 (last
-  admin, self-demotion, self-removal) is a flash with ``HX-Reswap: none``.
+- Edit, reset password and delete open dialogs in ``#modal-root`` (``GET .../edit``,
+  ``.../reset-password``, ``.../delete``); delete shows the blocked variant when a service
+  guard (own account, last admin) would refuse.
+- Edit swaps the saved row and flashes success; delete removes the row and flashes.
+- Reset (and the create route kept for T-UR20's add dialog) answer with the one-time password
+  dialog and the refreshed table out of band. The response is ``no-store``.
+- 422 (invalid / duplicate email, or an edit that changes the email) re-renders the dialog
+  with the field summary. 409 (last admin, self-demotion, self-removal) is a flash with
+  ``HX-Reswap: none`` and closes the dialog.
 
-Non-HTMX fallbacks: add / reset re-render the full page with the toast (no
-redirect, so the password is not lost); edit / remove redirect 303 back
-to the list.
+Non-HTMX fallbacks: create / reset re-render the full page with the password inline (no
+redirect, so the password is not lost); edit / delete redirect 303 back to the list.
 """
 
 from __future__ import annotations
@@ -40,21 +41,28 @@ from budget_planner.web.deps import (
     get_token_source,
     require_recent_auth,
 )
+from budget_planner.web.dialogs import invalid_dialog_response, saved_response
+from budget_planner.web.field_labels import field_summary
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render, render_context
 from budget_planner.web.users_admin import (
-    ADD_ERRORS_TEMPLATE,
+    DELETE_DIALOG,
+    EDIT_DIALOG,
     LIST_PATH,
     LIST_TEMPLATE,
+    RESET_DIALOG,
+    ROW_TEMPLATE,
+    SUMMARY_TEMPLATE,
     checkbox,
     conflict,
-    edit_response,
+    dialog_view,
     not_found,
     page_context,
     password_toast,
     render_toast,
+    row_context,
     see_other,
-    table_with_flash,
+    user_dialog,
 )
 
 router = APIRouter(prefix=LIST_PATH, tags=["settings-users"])
@@ -66,8 +74,8 @@ def list_users(
     conn: sqlite3.Connection = Depends(get_db),
     admin: CurrentUser = Depends(current_admin),
 ) -> HTMLResponse:
-    """Roster page: every live user with Edit / Reset password / Remove."""
-    return render_context(request, LIST_TEMPLATE, page_context(conn, admin))
+    """Roster page: every live user; other users' rows carry the edit / reset / delete menu."""
+    return render_context(request, LIST_TEMPLATE, page_context(request, conn, admin))
 
 
 @router.post("", response_class=HTMLResponse, dependencies=[Depends(require_recent_auth)])
@@ -83,22 +91,23 @@ def create_user(
     tokens: TokenSource = Depends(get_token_source),
     hasher: PasswordHasher = Depends(get_password_hasher),
 ) -> HTMLResponse:
-    """Create a user; show the generated password once."""
+    """Create a user; show the generated password once (the add dialog is T-UR20)."""
     try:
         draft = users_service.build_draft(email=email, name=name, is_admin=checkbox(is_admin))
         user, password = users_service.create_user(
             conn, admin.id, draft, tokens=tokens, hasher=hasher, request_ctx=request_ctx
         )
     except UserInputError as exc:
+        rows = field_summary(exc.fields)
         if is_hx_request(request):
             return render(
-                request, ADD_ERRORS_TEMPLATE, HTTPStatus.UNPROCESSABLE_ENTITY, errors=exc.fields
+                request,
+                SUMMARY_TEMPLATE,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                field_count=len(rows),
+                field_errors=rows,
             )
-        context = {
-            **page_context(conn, admin),
-            "form_errors": exc.fields,
-            "form_values": {"email": email, "name": name, "is_admin": checkbox(is_admin)},
-        }
+        context = {**page_context(request, conn, admin), "form_summary": rows}
         return render(request, LIST_TEMPLATE, HTTPStatus.UNPROCESSABLE_ENTITY, **context)
     return render_toast(request, conn, admin, password_toast(user, password, kind="created"))
 
@@ -110,12 +119,42 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     admin: CurrentUser = Depends(current_admin),
 ) -> HTMLResponse:
-    """Edit slide-over (email, name, admin toggle)."""
+    """Edit dialog (name and role; the email is read-only)."""
     try:
         user = users_service.get_live_user(conn, user_id)
     except UserNotFound:
         return not_found(request)
-    return edit_response(request, user, me_id=admin.id, errors={})
+    return user_dialog(request, conn, admin, EDIT_DIALOG, user)
+
+
+@router.get("/{user_id}/reset-password", response_class=HTMLResponse)
+def reset_form(
+    request: Request,
+    user_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(current_admin),
+) -> HTMLResponse:
+    """Reset-password confirm dialog."""
+    try:
+        user = users_service.get_live_user(conn, user_id)
+    except UserNotFound:
+        return not_found(request)
+    return user_dialog(request, conn, admin, RESET_DIALOG, user)
+
+
+@router.get("/{user_id}/delete", response_class=HTMLResponse)
+def delete_form(
+    request: Request,
+    user_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(current_admin),
+) -> HTMLResponse:
+    """Delete confirm dialog; the blocked variant when a service guard would refuse."""
+    try:
+        user = users_service.get_live_user(conn, user_id)
+    except UserNotFound:
+        return not_found(request)
+    return user_dialog(request, conn, admin, DELETE_DIALOG, user)
 
 
 @router.post("/{user_id}", response_model=None, dependencies=[Depends(require_recent_auth)])
@@ -137,30 +176,24 @@ def save_user(
         return not_found(request)
     # A missing field means "unchanged" (Q-063); the edit form always sends it.
     admin_flag = None if is_admin is None else checkbox(is_admin)
-    values = {
-        "email": email,
-        "name": name,
-        "is_admin": target.is_admin if admin_flag is None else admin_flag,
-    }
     try:
         draft = users_service.build_draft(email=email, name=name, is_admin=admin_flag)
         updated = users_service.edit_user(conn, admin.id, user_id, draft, request_ctx=request_ctx)
     except UserInputError as exc:
-        return edit_response(
-            request,
-            target,
-            me_id=admin.id,
-            errors=exc.fields,
-            values=values,
-            status=HTTPStatus.UNPROCESSABLE_ENTITY,
-        )
+        view = dialog_view(conn, admin, target, name=name, is_admin=admin_flag)
+        return invalid_dialog_response(request, EDIT_DIALOG, {"view": view}, exc.fields)
     except UserConflict as exc:
         return conflict(request, exc)
     except UserNotFound:
         return not_found(request)
     if not is_hx_request(request):
         return see_other()
-    return table_with_flash(request, conn, admin, f"Saved {updated.email or updated.name}.")
+    return saved_response(
+        request,
+        ROW_TEMPLATE,
+        row_context(request, conn, admin, user_id),
+        message=f"Saved {updated.email or updated.name}.",
+    )
 
 
 @router.post(
@@ -205,4 +238,4 @@ def delete_user(
         return not_found(request)
     if not is_hx_request(request):
         return see_other()
-    return table_with_flash(request, conn, admin, f"Removed {removed.email or removed.name}.")
+    return saved_response(request, None, {}, message=f"Removed {removed.email or removed.name}.")

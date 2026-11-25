@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 
 import pytest
@@ -52,7 +53,7 @@ def test_get_renders_form(client: TestClient) -> None:
     r = client.get("/settings/security")
     assert r.status_code == 200
     html = r.text
-    assert "Change password" in html
+    assert _html.exists(html, ui.change_password_button)
     for name in ("current_password", "new_password", "confirm_password"):
         assert f'name="{name}"' in html
     assert 'autocomplete="new-password"' in html
@@ -61,8 +62,9 @@ def test_get_renders_form(client: TestClient) -> None:
 
 def test_get_forced_shows_banner(forced: TestClient) -> None:
     html = forced.get("/settings/password").text
-    assert "Your password needs rotating" in html
-    assert "Sign out instead" in html
+    assert _html.exists(html, ui.forced_banner)
+    assert _html.exists(html, ui.sign_out_instead)
+    assert _html.exists(html, ui.save_and_continue)
 
 
 def test_get_htmx_returns_fragment(forced: TestClient) -> None:
@@ -274,3 +276,30 @@ def test_unflagged_user_is_not_redirected(client: TestClient) -> None:
 def test_anonymous_not_affected_by_rotation_gate(anon_client: TestClient) -> None:
     r = anon_client.get("/accounts", follow_redirects=False)
     assert r.headers["location"].startswith("/auth/login")
+
+
+def test_wrong_current_password_prints_the_summary_and_attempts_left(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    before = _user(conn)["password_hash"]
+    r = client.post("/settings/password", data=_form(current="definitely-wrong"))
+    assert r.status_code == 422
+    summary = _html.text_of(r.text, ui.password_summary)
+    assert "1 field needs attention" in summary
+    assert "current password" in summary
+    assert re.search(
+        r"\d+ attempts? left\.", _html.text_of(r.text, ui.password_error("current_password"))
+    )
+    assert _user(conn)["password_hash"] == before
+
+
+def test_policy_errors_name_every_field_in_the_summary(client: TestClient) -> None:
+    r = client.post(
+        "/settings/password", data=_form(new="short", confirm="something-else-entirely")
+    )
+    assert r.status_code == 422
+    summary = _html.text_of(r.text, ui.password_summary)
+    assert "2 fields need attention" in summary
+    assert "new password" in summary
+    assert "confirm new password" in summary
+    assert "attempts" not in _html.text_of(r.text, ui.password_error("new_password"))

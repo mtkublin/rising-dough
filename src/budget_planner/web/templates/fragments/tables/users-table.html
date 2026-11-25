@@ -1,0 +1,28 @@
+{# fragment: tables/users-table (T-UR14, handoff pages/settings/users). Input: rows (UserRowView); oob_table (out-of-band swap after a reset).
+   The wrapper keeps id users-table so a one-time password response can refresh the roster. #}
+<div id="users-table"
+     class="rd-table-scroll rd-table-scroll--flush"
+     tabindex="0"
+     role="region"
+     aria-label="Users (scrolls sideways)"
+     {% if oob_table|default(false) %}hx-swap-oob="true"{% endif %}>
+  <table class="rd-ledger rd-ledger--users">
+    <caption class="u-visually-hidden">Users</caption>
+    <thead>
+      <tr class="rd-row rd-row--head rd-row--user">
+        <th scope="col">EMAIL</th>
+        <th scope="col">ROLE</th>
+        <th scope="col">LAST SEEN</th>
+        <th scope="col">STATUS</th>
+        <th scope="col">
+          <span class="u-visually-hidden">Actions</span>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        {% include "fragments/rows/user-row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

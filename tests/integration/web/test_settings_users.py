@@ -20,12 +20,14 @@ from budget_planner.db.connection import get_connection
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
     EMAIL_LOCKED_MESSAGE,
+    INVALID_EMAIL_MESSAGE,
     LAST_ADMIN_DEMOTE_MESSAGE,
     SELF_DELETE_MESSAGE,
     SELF_DEMOTE_MESSAGE,
 )
 from tests.auth_support import FAST_HASHER, issue_session
 from tests.ui_map import _html, settings as ui
+from tests.ui_map.locator import Locator, role
 
 HX = {"HX-Request": "true"}
 ADMIN_PATHS_GET = ("/settings/users", "/settings/users/1/edit")
@@ -47,9 +49,14 @@ def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
 
 
 def _password_from(html: str) -> str:
-    pre = BeautifulSoup(html, "html.parser").find("pre", id="new-password-value")
-    assert pre is not None, html
-    return pre.get_text().strip()
+    return _html.text_of(html, ui.new_password_value).strip()
+
+
+def _dialog_form(html: str, dialog: Locator) -> Tag:
+    """The form inside a dialog (the macro puts the form inside the ``<dialog>``)."""
+    form = _html.resolve_one(html, dialog).find("form")
+    assert isinstance(form, Tag), html
+    return form
 
 
 def _tag(node: object) -> Tag:
@@ -142,11 +149,32 @@ def test_admin_lists_live_users(admin_client: TestClient, db: sqlite3.Connection
     soup = BeautifulSoup(resp.text, "html.parser")
     assert soup.find(id="user-row-1") is not None
     assert "gone@x.test" not in _html.text_of(resp.text, ui.users_table)
-    assert _tag(soup.find(id="tab-users"))["aria-selected"] == "true"
+    assert _html.resolve_one(resp.text, ui.tab("Users"))["aria-selected"] == "true"
     assert _tag(soup.find(id="user-row-1")).find(string=re.compile("You")) is not None
-    # No Remove action on your own row (ADR-0073 §4).
-    assert soup.find("form", attrs={"action": "/settings/users/1/delete"}) is None
-    assert soup.find("script", src=re.compile("users-admin.js")) is not None
+    # Your own row has no menu at all (ADR-0073 §4, ADR-0134 §11): no delete, edit or reset.
+    for item in (ui.remove_user, ui.reset_user, ui.edit_user_item):
+        assert not _html.exists(resp.text, item("owner@example.test"))
+    assert (
+        soup.find("script", src=re.compile("users-admin.js")) is None
+    )  # deleted with the old shell
+
+
+def test_other_users_rows_carry_edit_reset_and_delete(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "menu@example.test")
+    uid = _user_row(db, "menu@example.test")["id"]
+    html = admin_client.get("/settings/users").text
+    assert _html.resolve_one(html, ui.edit_user_item("menu@example.test"))["href"] == (
+        f"/settings/users/{uid}/edit"
+    )
+    assert _html.resolve_one(html, ui.reset_user("menu@example.test"))["hx-get"] == (
+        f"/settings/users/{uid}/reset-password"
+    )
+    assert _html.resolve_one(html, ui.remove_user("menu@example.test"))["hx-get"] == (
+        f"/settings/users/{uid}/delete"
+    )
+    assert "password required" in _html.text_of(html, ui.user_row(uid))
 
 
 # --- create ---------------------------------------------------------------
@@ -242,7 +270,7 @@ def test_create_invalid_email_non_htmx_rerenders_page(admin_client: TestClient) 
     assert resp.status_code == 422
     soup = BeautifulSoup(resp.text, "html.parser")
     assert _tag(soup.find("h1")).get_text() == "Users"
-    assert _tag(soup.find("input", attrs={"name": "email"}))["value"] == "nope"
+    assert INVALID_EMAIL_MESSAGE in _html.text_of(resp.text, ui.add_errors)
 
 
 def test_create_non_htmx_renders_page_with_toast(admin_client: TestClient) -> None:
@@ -261,11 +289,16 @@ def test_create_non_htmx_renders_page_with_toast(admin_client: TestClient) -> No
 def test_edit_form_htmx_and_full_page(admin_client: TestClient) -> None:
     frag = admin_client.get("/settings/users/1/edit", headers=HX)
     assert frag.status_code == 200
-    form = _tag(BeautifulSoup(frag.text, "html.parser").find(id="user-edit-form"))
+    assert frag.headers["hx-retarget"] == "#modal-root"
+    form = _dialog_form(frag.text, ui.edit_form)
     assert form["hx-post"] == "/settings/users/1"
-    page = admin_client.get("/settings/users/1/edit")
+    assert form["hx-target"] == "#user-row-1"
+    assert _html.resolve_one(frag.text, ui.user_email)["readonly"] is not None
+    assert _html.resolve_one(frag.text, ui.user_email)["value"] == "owner@example.test"
+    page = admin_client.get("/settings/users/1/edit")  # the dialog is the answer without HX too
     assert page.status_code == 200
-    assert not _html.resolve_one(page.text, ui.edit_form).has_attr("hx-post")
+    assert page.headers["hx-retarget"] == "#modal-root"
+    assert _html.exists(page.text, ui.edit_form)
 
 
 def test_edit_missing_user_is_404(admin_client: TestClient) -> None:
@@ -282,7 +315,8 @@ def test_edit_updates_and_audits(admin_client: TestClient, db: sqlite3.Connectio
         headers=HX,
     )
     assert resp.status_code == 200
-    assert "bob@example.test" in _html.text_of(resp.text, ui.users_table)
+    assert "bob@example.test" in _html.text_of(resp.text, ui.user_row(uid))
+    assert "admin" in _html.text_of(resp.text, ui.user_row(uid))
     assert _html.exists(resp.text, ui.flash_success)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert (row["email"], row["name"], row["is_admin"]) == ("bob@example.test", "Robert", 1)
@@ -316,8 +350,9 @@ def test_edit_email_change_refused_htmx_retargets_form(
         headers=HX,
     )
     assert resp.status_code == 422
-    assert resp.headers["hx-retarget"] == "#user-edit-form"
+    assert resp.headers["hx-retarget"] == "#modal-root"
     assert EMAIL_LOCKED_MESSAGE in _html.text_of(resp.text, ui.add_errors)
+    assert _html.resolve_one(resp.text, ui.user_name)["value"] == "Changed"
     row = db.execute("SELECT email, name FROM users WHERE id = ?", (uid,)).fetchone()
     assert (row["email"], row["name"]) == ("carol@example.test", "Alice")
     assert (
@@ -430,11 +465,8 @@ def test_remove_user_soft_deletes_and_revokes(
 
     resp = admin_client.post(f"/settings/users/{uid}/delete", headers=HX)
     assert resp.status_code == 200
-    assert (
-        "erin@example.test"
-        not in _tag(BeautifulSoup(resp.text, "html.parser").find(id="users-table")).get_text()
-    )
-    assert _html.exists(resp.text, ui.flash_success)
+    assert not _html.exists(resp.text, ui.user_row(uid))  # the row is swapped for nothing
+    assert "Removed erin@example.test." in _html.text_of(resp.text, ui.flash_success)
     row = db.execute("SELECT deleted_at FROM users WHERE id = ?", (uid,)).fetchone()
     assert row["deleted_at"] is not None
     assert _live_sessions(db, uid) == 0
@@ -552,7 +584,12 @@ def test_edit_form_sends_hidden_zero_so_unchecked_box_demotes(
     _add(admin_client, "second@example.test", admin=True)
     second = _user_row(db, "second@example.test")["id"]
     form = admin_client.get(f"/settings/users/{second}/edit", headers=HX)
-    assert ("is_admin", "0") in _html.submitted_fields(_html.form_of(form.text, ui.edit_form))
+    assert ("is_admin", "on") in _html.submitted_fields(_dialog_form(form.text, ui.edit_form))
+    member = _add(admin_client, "member@example.test")
+    assert member
+    member_id = _user_row(db, "member@example.test")["id"]
+    member_form = admin_client.get(f"/settings/users/{member_id}/edit", headers=HX)
+    assert ("is_admin", "0") in _html.submitted_fields(_dialog_form(member_form.text, ui.edit_form))
     resp = admin_client.post(
         f"/settings/users/{second}",
         data={"email": "second@example.test", "name": "s", "is_admin": "0"},
@@ -574,3 +611,64 @@ def test_hidden_zero_then_checked_box_keeps_admin(
     )
     assert resp.status_code == 200
     assert db.execute("SELECT is_admin FROM users WHERE id = ?", (second,)).fetchone()[0] == 1
+
+
+# --- T-UR14: reset and delete dialogs, the guards as the blocked variant --------
+
+
+def test_delete_dialog_confirms_for_another_user(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "gone-soon@example.test")
+    uid = _user_row(db, "gone-soon@example.test")["id"]
+    resp = admin_client.get(f"/settings/users/{uid}/delete", headers=HX)
+    assert resp.status_code == 200
+    assert resp.headers["hx-retarget"] == "#modal-root"
+    assert _html.exists(resp.text, ui.delete_dialog)
+    assert not _html.exists(resp.text, ui.delete_blocked)
+    form = _dialog_form(resp.text, ui.delete_dialog)
+    assert form["hx-post"] == f"/settings/users/{uid}/delete"
+    assert form["hx-target"] == f"#user-row-{uid}"
+    assert db.execute("SELECT deleted_at FROM users WHERE id = ?", (uid,)).fetchone()[0] is None
+
+
+def test_delete_dialog_for_yourself_is_the_blocked_variant(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    resp = admin_client.get("/settings/users/1/delete", headers=HX)
+    assert resp.status_code == 200
+    assert _html.exists(resp.text, ui.delete_blocked)
+    assert SELF_DELETE_MESSAGE in _html.text_of(resp.text, ui.delete_blocked)
+    assert _html.resolve_one(resp.text, ui.delete_blocked).find("form") is None
+    assert _html.exists(resp.text, role("button", "ok").inside(ui.delete_blocked))
+    assert db.execute("SELECT deleted_at FROM users WHERE id = 1").fetchone()[0] is None
+
+
+def test_reset_dialog_posts_to_the_reset_route(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "reset-me@example.test")
+    uid = _user_row(db, "reset-me@example.test")["id"]
+    resp = admin_client.get(f"/settings/users/{uid}/reset-password", headers=HX)
+    assert resp.status_code == 200
+    form = _dialog_form(resp.text, role("alertdialog", "reset"))
+    assert form["hx-post"] == f"/settings/users/{uid}/reset-password"
+    assert admin_client.get("/settings/users/999/reset-password").status_code == 404
+    assert admin_client.get("/settings/users/999/delete", headers=HX).status_code == 404
+
+
+def test_edit_dialog_422_keeps_the_typed_name_and_role(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "typed@example.test")
+    uid = _user_row(db, "typed@example.test")["id"]
+    resp = admin_client.post(
+        f"/settings/users/{uid}",
+        data={"email": "other@example.test", "name": "Typed", "is_admin": "on"},
+        headers=HX,
+    )
+    assert resp.status_code == 422
+    assert _html.resolve_one(resp.text, ui.user_name)["value"] == "Typed"
+    assert ("is_admin", "on") in _html.submitted_fields(_dialog_form(resp.text, ui.edit_form))
+    row = db.execute("SELECT email, name, is_admin FROM users WHERE id = ?", (uid,)).fetchone()
+    assert (row["email"], row["name"], row["is_admin"]) == ("typed@example.test", "Alice", 0)

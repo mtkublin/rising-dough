@@ -20,16 +20,28 @@ from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
-from budget_planner.domain.money import format_major, format_money, sign_glyph
+from budget_planner.domain.money import (
+    format_figure,
+    format_major,
+    format_money,
+    parse_amount_minor,
+    sign_glyph,
+)
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
     PatchPlannedTransaction,
     PlannedTransaction,
 )
-from budget_planner.domain.transactions import NewTransaction, Transaction, signed_legs
+from budget_planner.domain.transactions import (
+    NewTransaction,
+    PatchTransaction,
+    Transaction,
+    signed_legs,
+)
 from budget_planner.services import (
     accounts as accounts_service,
     categories as categories_service,
+    limit_preview as limit_preview_service,
     planned as planned_service,
     recurring_formula as formula_svc,
     transactions as transactions_service,
@@ -293,6 +305,11 @@ TAB_ACTIONS = MappingProxyType(
 )
 
 
+_TRANSIT_GLYPH = (
+    "\N{RIGHTWARDS ARROW OVER LEFTWARDS ARROW}"  # the hero sign of a transit (handoff edit)
+)
+
+
 def _direction_sign(direction: Direction) -> str | None:
     """Hero sign of a category by the canonical direction rule; none for transit, adjustment."""
     if direction not in (Direction.EXPENSE, Direction.INCOME):
@@ -366,6 +383,106 @@ def new_entry_context(
         ),
         "errors": {},
     }
+
+
+def edit_context(
+    conn: sqlite3.Connection,
+    user_id: int,
+    txn: Transaction,
+    *,
+    today: date,
+    base_currency: str,
+    posted: Mapping[str, str] | None = None,
+    errors: Mapping[str, str] | None = None,
+) -> dict[str, object]:
+    """Everything ``fragments/dialogs/edit-transaction.html`` renders: stored or posted values.
+
+    The amount is shown in the account's currency (``format_major``). A posted value (a 422, the
+    hero refresh) wins over the stored one, field by field. The new-entry context supplies the
+    picker, accounts and hero; this adds the edit action, the title, the transit destination and
+    the credit line for the stored account.
+    """
+    values = {**_stored_values(conn, user_id, txn, base_currency), **(posted or {})}
+    context = new_entry_context(
+        conn,
+        user_id,
+        tab="happened",
+        today=today,
+        base_currency=base_currency,
+        posted=values,
+        errors=errors,
+    )
+    category = _picked(
+        categories_service.list_all(conn, user_id, include_deleted=True),
+        parse_int(values.get("category", "")),
+    )
+    transit = category is not None and category.direction == Direction.TRANSIT
+    context["hero"] = _edit_hero(context, values["amount"], transit=transit)
+    account_id = context["selected_account_id"]
+    preview = _edit_preview(
+        conn, user_id, txn, category=category, account_id=account_id, amount=values["amount"]
+    )
+    return {
+        **context,
+        "txn_id": txn.id,
+        "action": f"{TAB_ACTIONS['happened']}/{txn.id}",
+        "title": f"edit transaction \N{MIDDLE DOT} {category.name if category else ''}",
+        "selected_dest_id": parse_int(values.get("dest_account_id", "")),
+        "dest_visible": transit,
+        "preview": preview,
+    }
+
+
+def _edit_hero(context: Mapping[str, object], amount: str, *, transit: bool) -> object:
+    """The hero with the transit sign and a posted zero shown as ``0.00`` (the placeholder form)."""
+    hero = context["hero"]
+    currency = str(context["currency"])
+    if not isinstance(hero, dict):
+        return hero
+    shown = dict(hero)
+    if transit:
+        shown["sign"] = _TRANSIT_GLYPH
+    if parse_amount_minor(amount, currency) == 0:
+        shown["amount_value"] = format_major(0, currency)
+    return shown
+
+
+def _stored_values(
+    conn: sqlite3.Connection, user_id: int, txn: Transaction, base_currency: str
+) -> dict[str, str]:
+    """The stored transaction as form text (the amount in the account's currency)."""
+    account = accounts_service.find_by_id(conn, user_id, txn.account_id, include_deleted=True)
+    currency = account.currency if account else base_currency
+    return {
+        "category": str(txn.category_id),
+        "account_id": str(txn.account_id),
+        "amount": format_major(txn.amount, currency),
+        "operation_date": txn.operation_date.isoformat(),
+        "description": txn.description,
+        "dest_account_id": str(txn.dest_account_id or ""),
+    }
+
+
+def _edit_preview(
+    conn: sqlite3.Connection,
+    user_id: int,
+    txn: Transaction,
+    *,
+    category: Category | None,
+    account_id: object,
+    amount: str,
+) -> limit_preview_service.LimitPreview | None:
+    """The credit line of the edit dialog: the edited row is left out of the balance (ADR-0024)."""
+    if category is None or not isinstance(account_id, int):
+        return None
+    return limit_preview_service.compute_limit_preview(
+        conn,
+        user_id,
+        account_id=account_id,
+        category_id=category.id,
+        amount_raw=amount,
+        exclude_txn_id=txn.id,
+    )
 
 
 def _dependent_fields(
@@ -453,7 +570,7 @@ def draft_hero(
     """(figure, note) of the formula hero for already parsed terms."""
     result = formula_svc.preview(conn, user_id, today, rule_id, drafts, fx=fx, target_ccy=currency)
     if isinstance(result, formula_svc.PreviewOk):
-        figure = format_major(result.amount_minor, currency)
+        figure = format_figure(result.amount_minor, currency)
         return (
             figure,
             f"\N{RIGHTWARDS ARROW} next amount {format_money(result.amount_minor, currency)}",
@@ -581,6 +698,26 @@ def save_txn(
         conn,
         user_id,
         NewTransaction(
+            operation_date=op_date,
+            category_id=require_present(check.category, "validated category").id,
+            account_id=require_present(check.account, "validated account").id,
+            amount=minor,
+            description=description,
+            dest_account_id=check.dest_id,
+        ),
+    )
+
+
+def save_txn_update(
+    conn: sqlite3.Connection, user_id: int, txn_id: int, check: EntryCheck, description: str
+) -> Transaction:
+    """Apply the edit a valid update check describes."""
+    op_date, minor = check.valid_values()
+    return transactions_service.update(
+        conn,
+        user_id,
+        txn_id,
+        PatchTransaction(
             operation_date=op_date,
             category_id=require_present(check.category, "validated category").id,
             account_id=require_present(check.account, "validated account").id,

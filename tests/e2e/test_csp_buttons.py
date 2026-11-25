@@ -7,6 +7,8 @@ only need to drive the UI and assert its visible result.
 
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -24,7 +26,6 @@ from tests.e2e.ui_actions import (
     choose_category,
     open_add_slide_over,
     open_new_entry,
-    pick,
 )
 from tests.ui_map import (
     accounts,
@@ -121,6 +122,75 @@ def test_add_from_today_invalid_amount_rerenders_form(
     expect(to_playwright(page, entries.hero_amount)).to_have_value("0")
     expect(to_playwright(page, entries.category_search)).to_have_text("Groceries")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM transactions") == 0
+
+
+def test_edit_saved_from_today_keeps_the_flash(live_server: tuple[str, Path], page: Page) -> None:
+    """A save off the ledger keeps the flash: no HX-Refresh, the stale events refetch (F3)."""
+    base_url, db_path = live_server
+    account_id, category_id = _seed(base_url, db_path, page)
+    assert page.request.post(
+        f"{base_url}/transactions",
+        form={
+            "operation_date": datetime.now(tz=UTC).date().isoformat(),
+            "category_id": category_id,
+            "account_id": account_id,
+            "amount": "12.34",
+            "description": "today-edit",
+        },
+    ).ok
+    txn = db_probe.txn_id(db_path, "today-edit")
+    page.goto(f"{base_url}/today")
+    expect(to_playwright(page, rd_shell.main)).to_contain_text("487.66")
+    page.evaluate(
+        "id => window.htmx.ajax('GET', `/transactions/${id}/edit`, {target: '#modal-root'})", txn
+    )
+    expect(to_playwright(page, entries.edit_dialog)).to_be_visible()
+    to_playwright(page, entries.edit_amount).fill("45.67")
+    to_playwright(page, entries.edit_save).click()
+    expect(to_playwright(page, entries.edit_dialog)).to_have_count(0)
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("transaction saved")
+    # No reload: the page is the same document, so the flash survived the save.
+    assert page.evaluate("document.querySelector('#flash-region .rd-flash') !== null")
+    # Net worth refetched on ledger-stale: 500.00 opening minus the edited 45.67.
+    expect(to_playwright(page, rd_shell.main)).to_contain_text("454.33")
+    expect(to_playwright(page, rd_shell.main)).not_to_contain_text("487.66")
+    assert db_probe.txn_amounts(db_path, "today-edit") == [4567]
+
+
+def test_edit_dialog_saves_under_csp(live_server: tuple[str, Path], page: Page) -> None:
+    """The shell page that opens the edit dialog, the category pick and the save (T-UR09b)."""
+    base_url, db_path = live_server
+    account_id, category_id = _seed(base_url, db_path, page)
+    assert page.request.post(
+        f"{base_url}/categories", form={"name": "Transport", "direction": "expense"}
+    ).ok
+    assert page.request.post(
+        f"{base_url}/transactions",
+        form={
+            "operation_date": datetime.now(tz=UTC).date().isoformat(),
+            "category_id": category_id,
+            "account_id": account_id,
+            "amount": "12.34",
+            "description": "csp-edit",
+        },
+    ).ok
+    txn = db_probe.txn_id(db_path, "csp-edit")
+    page.goto(f"{base_url}/transactions/{txn}/edit")
+    expect(to_playwright(page, entries.edit_dialog)).to_be_visible()
+    expect(to_playwright(page, entries.edit_amount)).to_have_value("12.34")
+    to_playwright(page, entries.edit_category_search).click()
+    query = to_playwright(page, entries.edit_category_query)
+    query.fill("Transport")
+    with page.expect_response(lambda r: "hero=1" in r.url):  # the hero follows the category
+        query.press("Enter")
+    page.wait_for_timeout(300)
+    to_playwright(page, entries.edit_amount).fill("45.67")
+    to_playwright(page, entries.edit_save).click()
+    expect(to_playwright(page, entries.edit_dialog)).to_have_count(0)
+    assert db_probe.txn_amounts(db_path, "csp-edit") == [4567]
+    assert db_probe.scalar(
+        db_path, "SELECT category_id FROM transactions WHERE description = 'csp-edit'"
+    ) == db_probe.category_id(db_path, "Transport")
 
 
 def test_add_from_ledger_submits_under_csp(live_server: tuple[str, Path], page: Page) -> None:
@@ -264,9 +334,6 @@ def _open_new_account_form(page: Page, base_url: str) -> None:
     expect(to_playwright(page, accounts.account_form)).to_be_visible()
 
 
-@pytest.mark.skip(
-    reason="T-UR08b: the new-account form currency combobox is not wired in the new shell"
-)
 def test_create_account_from_accounts_submits_under_csp(
     live_server: tuple[str, Path], page: Page
 ) -> None:
@@ -283,9 +350,9 @@ def test_create_account_from_accounts_submits_under_csp(
         conn.close()
     _open_new_account_form(page, base_url)
     _fill(page, accounts.form_name, "Travel wallet", accounts.account_form)
-    pick(page, accounts.form_currency, "EUR", scope=accounts.account_form)
-    _submit(page, accounts.create_account, accounts.account_form)
-    expect(to_playwright(page, accounts.account_form)).to_have_count(0)
+    _fill(page, accounts.form_currency, "EUR", accounts.account_form)
+    _submit(page, accounts.create_account, accounts.new_dialog)
+    expect(to_playwright(page, accounts.new_dialog)).to_have_count(0)
     account_id = db_probe.account_id(db_path, "Travel wallet")
     assert (
         db_probe.scalar(db_path, "SELECT currency FROM accounts WHERE id = ?", account_id) == "EUR"
@@ -293,18 +360,15 @@ def test_create_account_from_accounts_submits_under_csp(
     expect(to_playwright(page, accounts.row(account_id))).to_contain_text("Travel wallet")
 
 
-@pytest.mark.skip(
-    reason="T-UR08b: the new-account form currency combobox is not wired in the new shell"
-)
 def test_create_account_invalid_rerenders_form(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _open_new_account_form(page, base_url)
     # ``required`` blocks an empty name in the browser; whitespace passes it.
     _fill(page, accounts.form_name, "   ", accounts.account_form)
-    pick(page, accounts.form_currency, "EUR", scope=accounts.account_form)
-    _submit(page, accounts.create_account, accounts.account_form)
-    expect(to_playwright(page, accounts.account_form)).to_have_count(1)
-    expect(to_playwright(page, accounts.account_form)).to_contain_text("name required")
+    _fill(page, accounts.form_currency, "EUR", accounts.account_form)
+    _submit(page, accounts.create_account, accounts.new_dialog)
+    expect(to_playwright(page, accounts.new_dialog)).to_have_count(1)
+    expect(to_playwright(page, accounts.form_errors)).to_contain_text("name required")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM accounts") == 0
 
 
@@ -338,3 +402,33 @@ def test_create_category_blank_name_rerenders_form(
     expect(to_playwright(page, settings.category_form)).to_have_count(1)
     expect(to_playwright(page, settings.category_form)).to_contain_text("name required")
     assert db_probe.rows(db_path, "SELECT id FROM categories WHERE name = ''") == []
+
+
+def test_user_menu_edit_and_delete_dialogs_work_under_csp(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    # T-UR14: the row menu opens the edit and delete dialogs in #modal-root; saving swaps the row,
+    # deleting removes it. Both are HTMX swaps the prod CSP must let through.
+    base_url, db_path = live_server
+    with closing(sqlite3.connect(db_path)) as conn, conn:
+        conn.execute("UPDATE users SET is_admin = 1 WHERE id = 1")
+        conn.execute(
+            "INSERT INTO users (name, email, password_hash, must_change_password) "
+            "VALUES ('Sam', 'sam@example.test', 'seeded-hash', 0)"
+        )
+    user = db_probe.scalar(db_path, "SELECT id FROM users WHERE email = 'sam@example.test'")
+    page.goto(f"{base_url}/settings/users")
+    to_playwright(page, settings.user_menu("sam@example.test")).click()
+    to_playwright(page, settings.edit_user_item("sam@example.test")).click()
+    expect(to_playwright(page, settings.edit_form)).to_be_visible()
+    to_playwright(page, settings.user_name).fill("Samantha")
+    to_playwright(page, settings.edit_save).click()
+    expect(to_playwright(page, settings.edit_form)).to_have_count(0)
+    expect(to_playwright(page, settings.user_row(user))).to_contain_text("Samantha")
+    assert db_probe.scalar(db_path, "SELECT name FROM users WHERE id = ?", user) == "Samantha"
+
+    to_playwright(page, settings.user_menu("sam@example.test")).click()
+    to_playwright(page, settings.remove_user("sam@example.test")).click()
+    to_playwright(page, settings.delete_confirm).click()
+    expect(to_playwright(page, settings.user_row(user))).to_have_count(0)
+    assert db_probe.scalar(db_path, "SELECT deleted_at IS NOT NULL FROM users WHERE id = ?", user)

@@ -51,6 +51,18 @@ promote_date = label("date", exact=True)
 promote_note = label("note", exact=True)
 promote_submit = role("button", "[ promote ]", exact=True)
 
+# --- edit-transaction dialog (T-UR09b) ---
+edit_dialog = role("dialog", "edit transaction")
+edit_amount = role("textbox", "Amount", exact=True).inside(edit_dialog)
+edit_category_group = role("group", "category", exact=True).inside(edit_dialog)
+edit_category_search = role("button").inside(edit_category_group)
+edit_category_query = role("combobox", "Search categories", exact=True).inside(edit_dialog)
+edit_dest = label("destination", exact=True)
+edit_save = role("button", "[ save ]", exact=True).inside(edit_dialog)
+edit_hero_error = by_id("hero-amount-error")
+edit_dialog_title = role("heading", "edit transaction").inside(edit_dialog)
+toast_undo = role("button", "undo", exact=True)
+
 # Server-rendered ids with no handoff twin (the credit line is a plain paragraph there).
 NO_HANDOFF_TWIN = frozenset(
     {
@@ -65,10 +77,14 @@ NO_HANDOFF_TWIN = frozenset(
         "category_chosen",
         "category_query",  # the handoff search panel is hidden until opened
         "field_dest",
+        "edit_opener",
+        "edit_category_query",  # the handoff search panel is hidden until opened
+        "toast_undo",
         "hero_refresh",
     }
 )
 opener = role("region", "New entry", exact=True)
+edit_opener = role("region", "Edit transaction", exact=True)
 credit_line = by_id("credit-line")
 summary = by_id("error-summary")
 hero_refresh = by_id("hero-refresh")

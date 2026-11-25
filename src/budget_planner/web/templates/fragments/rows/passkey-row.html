@@ -1,0 +1,19 @@
+{# fragment: rows/passkey-row (T-UR14, derived from rows/session-row: the handoff shows only the empty passkey state).
+   Input: pk (settings_view.PasskeyRowView). Remove posts the existing /auth/passkeys/<id>/revoke. #}
+<tr class="rd-row rd-row--session">
+  <td class="rd-session__device">{{ pk.label }}</td>
+  <td>{{ pk.added }}</td>
+  <td>{{ pk.last_used }}</td>
+  <td class="rd-row__actions">
+    <form method="post"
+          action="/auth/passkeys/{{ pk.id }}/revoke"
+          hx-post="/auth/passkeys/{{ pk.id }}/revoke"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <button type="submit"
+              class="rd-btn"
+              aria-label="Remove passkey {{ pk.label }}">remove</button>
+    </form>
+  </td>
+</tr>

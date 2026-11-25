@@ -13,28 +13,29 @@ from typing import Any
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.money import parse_amount_minor
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.services import (
-    account_reconcile as reconcile_service,
     accounts as accounts_service,
     balance as balance_service,
-    reconciliation as reconciliation_service,
 )
 from budget_planner.web import accounts_data, form_responses
 from budget_planner.web.account_forms import (
     parse_account_patch,
-    parse_category_id,
     parse_new_account,
     parse_save_snapshot,
 )
+from budget_planner.web.accounts_view import (
+    account_dialog,
+    delete_dialog,
+    snapshot_line,
+)
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
 from budget_planner.web.paths import NEW_PATH
-from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
+from budget_planner.web.rendering import render, render_context
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -50,27 +51,25 @@ def index(
     return render(request, "pages/accounts/index.html", nav_current="accounts", **data)
 
 
+_ACCOUNT_DIALOG = "pages/accounts/dialog-account.html"
+_DELETE_DIALOG = "pages/accounts/dialog-delete.html"
+_RECONCILE_DIALOG = "pages/accounts/dialog-reconcile.html"
+_ROW = "fragments/rows/account-row.html"
+_NOT_FOUND = "account not found"
+
+
 @router.get(NEW_PATH, response_class=HTMLResponse)
-def new_form(request: Request) -> HTMLResponse:
-    # ADR-0030 §4 — wrap in shared slide-over so the New-account form inherits
-    # the visible close affordance + Esc/backdrop dismissal.
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="New account",
-        form_include="partials/accounts/_form.html",
-        account=None,
-        action="/accounts",
-        errors={},
-    )
+def new_form(request: Request, settings: Settings = Depends(get_settings_dep)) -> HTMLResponse:
+    dlg = account_dialog(None, base_currency=settings.base_currency)
+    return dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
 
 
 @router.post("")
 def create_account(
     request: Request,
     *,
-    name: str = Form(...),
-    currency: str = Form(...),
+    name: str = Form(""),
+    currency: str = Form(""),
     opening_balance: str = Form("0"),
     type: str = Form(""),
     is_liability: str = Form(""),
@@ -88,23 +87,23 @@ def create_account(
         credit_limit=credit_limit,
     )
     if parsed.command is None:
-        return render(
-            request,
-            "partials/accounts/_form.html",
-            account=None,
-            action="/accounts",
-            errors=parsed.errors,
-            status_code=422,
+        values = {
+            "name": name,
+            "currency": currency,
+            "opening_balance": opening_balance,
+            "type": type,
+            "is_liability": is_liability,
+            "credit_limit": credit_limit,
+        }
+        dlg = account_dialog(
+            None, values=values, base_currency=settings.base_currency, errors=parsed.errors
         )
+        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
     acc = accounts_service.create(conn, user_id, parsed.command)
-    html = render(
-        request,
-        "partials/accounts/_card.html",
-        card=accounts_data.single_card(conn, user_id, acc.id, settings),
-    )
+    html = render_context(request, _ROW, accounts_data.row_context(conn, user_id, acc.id, settings))
     trigger(html, Event.BALANCE_STALE)
-    # T-D150: the form targets itself and the accounts list has no region that
-    # refetches on a trigger, so skip the swap and reload to show the new item.
+    # T-D150: the accounts list has no region that refetches on a trigger for a new row,
+    # so skip the swap and reload to show the new item (the reload also closes the dialog).
     html.headers[HX_RESWAP] = "none"
     html.headers[HX_REFRESH] = "true"
     return html
@@ -114,28 +113,23 @@ def create_account(
 def edit_form(
     account_id: int,
     request: Request,
+    *,
+    intent: str = "",
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
+    """The edit dialog; ``?intent=delete`` opens the delete confirm (or its blocked variant)."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return render(
-            request,
-            "partials/accounts/_form.html",
-            account=None,
-            action="",
-            errors={"account": "not found"},
-            status_code=404,
-        )
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="Edit account",
-        form_include="partials/accounts/_form.html",
-        account=acc,
-        action=f"/accounts/{account_id}",
-        errors={},
-    )
+        return Response(status_code=404, content=_NOT_FOUND)
+    refs = accounts_service.account_references(conn, user_id, account_id)
+    if intent == "delete":
+        balance = balance_service.derive_balance(conn, user_id, account_id)
+        ctx: dict[str, object] = {"dlg": delete_dialog(acc, refs, balance)}
+        return dialog_response(request, _DELETE_DIALOG, ctx)
+    dlg = account_dialog(acc, base_currency=settings.base_currency, txn_count=refs.transactions)
+    return dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
 
 
 @router.post("/{account_id}")
@@ -143,7 +137,7 @@ def update_account(
     account_id: int,
     request: Request,
     *,
-    name: str = Form(...),
+    name: str = Form(""),
     type: str = Form(""),
     is_liability: str = Form(""),
     credit_limit: str = Form(""),
@@ -153,34 +147,29 @@ def update_account(
 ) -> Response:
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return render(
-            request,
-            "partials/accounts/_form.html",
-            account=None,
-            action="",
-            errors={"account": "not found"},
-            status_code=404,
-        )
+        return Response(status_code=404, content=_NOT_FOUND)
     parsed = parse_account_patch(
         acc, name=name, account_type=type, is_liability=is_liability, credit_limit=credit_limit
     )
     if parsed.patch is None:
-        return render(
-            request,
-            "partials/accounts/_form.html",
-            account=acc,
-            action=f"/accounts/{account_id}",
-            errors=parsed.errors,
-            status_code=422,
+        values = {
+            "name": name,
+            "type": type,
+            "is_liability": is_liability,
+            "credit_limit": credit_limit,
+        }
+        dlg = account_dialog(
+            acc, values=values, base_currency=settings.base_currency, errors=parsed.errors
         )
+        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
     accounts_service.update(conn, user_id, account_id, parsed.patch)
-    html = render(
+    return saved_response(
         request,
-        "partials/accounts/_card.html",
-        card=accounts_data.single_card(conn, user_id, account_id, settings),
+        _ROW,
+        accounts_data.row_context(conn, user_id, account_id, settings),
+        message=f"{name.strip()} saved",
+        events=(Event.BALANCE_STALE,),
     )
-    trigger(html, Event.BALANCE_STALE)
-    return html
 
 
 @router.post("/{account_id}/delete")
@@ -189,6 +178,8 @@ def delete_account(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    # The delete dialog swaps this empty body into #modal-root (closing it); the accounts
+    # panel refetches on balance-stale, which drops the row.
     accounts_service.archive_account(conn, user_id, account_id)
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(
@@ -216,9 +207,9 @@ def take_snapshot(
     )
     resp = render(
         request,
-        "partials/accounts/_snapshot_item.html",
-        snapshot=snap,
-        account=acc,
+        "fragments/rows/reconcile-snapshot.html",
+        snapshot=snapshot_line(snap),
+        currency=acc.currency,
     )
     trigger(resp, toast=toast_payload("success", "Snapshot saved"))
     return resp
@@ -231,35 +222,12 @@ def reconcile_form(
     actual_balance: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return render(
-            request,
-            "partials/accounts/_reconcile_modal.html",
-            account=None,
-            derived=0,
-            errors={"account": "not found"},
-            status_code=404,
-        )
-    derived = balance_service.derive_balance(conn, user_id, account_id)
-    errors: dict[str, str] = {}
-    entered = parse_amount_minor(actual_balance, acc.currency) if actual_balance.strip() else None
-    if actual_balance.strip() and entered is None:
-        errors["actual_balance"] = "invalid number"
-    try:
-        modal: dict[str, Any] = accounts_data.reconcile_modal_context(
-            conn, user_id, acc, derived, entered
-        )
-    except reconciliation_service.InvalidAvailableError as exc:
-        errors["actual_balance"] = str(exc)
-        modal = accounts_data.reconcile_modal_context(conn, user_id, acc, derived)
-    return render(
-        request,
-        "partials/accounts/_reconcile_modal.html",
-        snapshots=accounts_data.recent_snapshots(conn, user_id, account_id),
-        errors=errors,
-        **modal,
+        return Response(status_code=404, content=_NOT_FOUND)
+    return form_responses.reconcile_dialog_response(
+        request, conn, user_id, acc, actual_text=actual_balance
     )
 
 
@@ -268,45 +236,34 @@ def reconcile_submit(
     account_id: int,
     request: Request,
     *,
-    actual_balance: str = Form(...),
+    actual_balance: str = Form(""),
     category_id: str = Form(""),
     save_snapshot: str = Form(""),
+    preview: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    """Book the reconcile adjustment; ``?preview=1`` only re-renders the dialog's difference."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return Response(status_code=404, content="not found")
-    derived = balance_service.derive_balance(conn, user_id, account_id)
-
-    entered = parse_amount_minor(actual_balance, acc.currency)
-    if entered is None:
+    typed: dict[str, Any] = {
+        "actual_text": actual_balance,
+        "category_id": category_id,
+        "save_snapshot": parse_save_snapshot(save_snapshot),
+    }
+    if preview:
+        return form_responses.reconcile_dialog_response(request, conn, user_id, acc, **typed)
+    refused = accounts_data.book_reconcile(conn, user_id, acc, settings, **typed)
+    if refused is not None:
         return form_responses.reconcile_modal_error(
-            request, conn, user_id, acc=acc, derived=derived, message="invalid number"
+            request, conn, user_id, acc=acc, message=refused, **typed
         )
-    try:
-        reconcile_service.reconcile_account(
-            conn,
-            user_id,
-            account_id=account_id,
-            actual_balance_minor=reconcile_service.target_balance_minor(acc, entered),
-            today=clock.today_local(settings),
-            category_id=parse_category_id(category_id),
-            save_snapshot=parse_save_snapshot(save_snapshot),
-        )
-    except (
-        reconciliation_service.InvalidAvailableError,
-        reconciliation_service.ValidationError,
-    ) as exc:
-        return form_responses.reconcile_modal_error(
-            request, conn, user_id, acc=acc, derived=derived, message=str(exc)
-        )
-    html = render(
+    return saved_response(
         request,
-        "partials/accounts/_row.html",
-        card=accounts_data.single_card(conn, user_id, account_id, settings),
-        today_date=clock.today_local(settings),
+        _ROW,
+        accounts_data.row_context(conn, user_id, account_id, settings),
+        message=f"{acc.name} reconciled",
+        events=(Event.BALANCE_STALE, Event.FORECAST_STALE),
     )
-    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE)
-    return html

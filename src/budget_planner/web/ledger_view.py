@@ -33,6 +33,7 @@ from budget_planner.services.ledger_totals import (
 )
 from budget_planner.web.ledger_export import filter_query
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
+from budget_planner.web.paths import EDIT_PATH
 from budget_planner.web.view_models import MONTH_SHORT, HeroFit, hero_fit
 
 if TYPE_CHECKING:
@@ -242,7 +243,7 @@ def _txn_row_view(row: TxnRow) -> TxnRowView:
         menu_title=f"{title}{_SEP}{amount} {row.currency}",
         menu_sub=f"{_short_date(row.operation_date)}{_SEP}{sub}",
         menu_items=(
-            {"label": "edit", "hx_get": f"{base}/edit"},
+            {"label": "edit", "hx_get": f"{base}{EDIT_PATH}"},
             {
                 "label": "delete",
                 "hx_post": f"{base}/delete",

@@ -133,7 +133,8 @@ def test_create_transit_with_destination(
 def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     ok = client.get(f"/transactions/{seeded['txn']}/edit", headers=HTMX)
     assert ok.status_code == 200
-    assert _html.exists(ok.text, ledger.form)
+    assert _html.count(ok.text, entries.edit_dialog) == 1
+    assert ok.headers["HX-Retarget"] == "#modal-root"
     missing = client.get("/transactions/99999/edit")
     assert missing.status_code == 404
 
@@ -171,7 +172,8 @@ def test_delete_then_restore_round_trip(
 ) -> None:
     deleted = client.post(f"/transactions/{seeded['txn']}/delete")
     assert deleted.status_code == 200
-    assert deleted.text == ""
+    assert deleted.headers["HX-Reswap"] == "delete"
+    assert _html.count(deleted.text, entries.toast_undo) == 1
     assert hx_events(deleted) == STALE
     assert (
         scalar(
