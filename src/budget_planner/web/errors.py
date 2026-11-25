@@ -12,11 +12,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from http import HTTPStatus
 from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from budget_planner.domain.errors import (
     ConflictError,
@@ -130,6 +133,28 @@ async def handle_not_found(request: Request, exc: Exception) -> HTMLResponse:
     )
 
 
+def _wants_html(request: Request) -> bool:
+    return "text/html" in request.headers.get("accept", "")
+
+
+async def handle_http_exception(request: Request, exc: Exception) -> Response:
+    """Q12 (ADR-0106 amendment): an unknown route is an HTML 404 page for browsers.
+
+    Only the router's own "Not Found" qualifies; HTMX callers and every explicit
+    ``detail`` (``not_found`` on the revoke routes) keep the JSON body.
+    """
+    if not isinstance(exc, StarletteHTTPException):  # registered for HTTP errors only
+        raise InvariantError(f"unexpected exception type {type(exc).__name__}")
+    if (
+        exc.status_code == HTTPStatus.NOT_FOUND
+        and exc.detail == "Not Found"
+        and _wants_html(request)
+        and not _is_htmx(request)
+    ):
+        return _render(request, "pages/errors/404.html", status=404, entity="page", entity_id=0)
+    return await http_exception_handler(request, exc)
+
+
 async def handle_conflict(request: Request, exc: Exception) -> HTMLResponse:
     cf = exc if isinstance(exc, ConflictError) else ConflictError(message="conflict")
     if _is_htmx(request):
@@ -220,6 +245,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     unhandled errors inside sync endpoints, so we don't need a try/except in
     every router.
     """
+    app.add_exception_handler(StarletteHTTPException, handle_http_exception)
     app.add_exception_handler(ReauthRequired, handle_reauth_required)
     app.add_exception_handler(NotFoundError, handle_not_found)
     app.add_exception_handler(ConflictError, handle_conflict)

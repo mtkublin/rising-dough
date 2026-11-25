@@ -233,6 +233,9 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 #### T-UR08c Account delete of an unknown or foreign id returns 404 (operator decision Q15, audit F5)
 - `POST /accounts/{id}/delete` for an unknown, foreign or archived id: 404, no `HX-Trigger` toast, no DB or audit change, same response for every case. Contract test renamed `test_delete_unknown_or_foreign_is_404`. ADR-0152 §5 amended; no new ADR; no template change. Files: `web/routers/accounts.py`, `tests/contract/test_accounts.py`.
 
+#### T-UR41a Unknown routes: HTML 404 page for browsers, JSON 404 for API clients (operator decision Q12)
+- A request to an unknown route with `Accept: text/html` and no `HX-Request` gets the existing `pages/errors/404.html` page (status 404, heading "Not found", `X-Request-Id`). Every other caller (JSON, `*/*`, HTMX) keeps `{"detail": "Not Found"}`. Handler in `web/errors.py`; contract test `test_unknown_route_is_404_html_for_browsers_json_for_api_clients` replaces the JSON-for-every-caller pin. ADR-0106 §1 amended; no new ADR. Template item (reuses the T-UR06 404 template; the orchestrator dispatches the visual-auditor). Files: `web/errors.py`, `tests/contract/test_errors.py`, `docs/adr/0106-ui-behaviour-test-harness.md`.
+
 ### ◻ T-UR09 [P] Ledger · actual → T-UR07
 - Handoff: `pages/ledger/actual` (+ `--empty`, `--no-matches`, `--long`); overlays `edit-transaction*`, `row-menu--transaction`, `category-picker*`.
 - Fragments: `ledger/filter-bar`, `ledger/bulk-bar`, `rows/transaction-row`, `rows/transaction-day`.
