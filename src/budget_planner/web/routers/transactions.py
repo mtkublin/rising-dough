@@ -58,7 +58,7 @@ def limit_preview(
     cat_id = query_int("category_id", category_id)
     cat_id = cat_id if cat_id is not None else query_int("category", category)
     preview = None
-    if acc_id is not None and cat_id is not None:
+    if acc_id is not None:
         preview = compute_limit_preview(
             conn,
             user_id,

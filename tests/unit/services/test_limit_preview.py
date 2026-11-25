@@ -82,6 +82,21 @@ def test_a_zero_amount_previews_no_change_and_a_negative_one_nothing(
     )
 
 
+def test_no_category_previews_only_a_zero_amount(
+    conn: sqlite3.Connection, world_with_two_users: World
+) -> None:
+    """The new-entry 422 for a zero amount with no category keeps its line (handoff, F8)."""
+    card = _card(conn)
+    _spend(conn, world_with_two_users, card, 120_000)
+    zero = compute_limit_preview(conn, OWNER_ID, account_id=card, category_id=None, amount_raw="0.00")
+    assert zero is not None
+    assert (zero.available_before, zero.available_after, zero.over_by) == (380_000, 380_000, 0)
+    assert (
+        compute_limit_preview(conn, OWNER_ID, account_id=card, category_id=None, amount_raw="5")
+        is None
+    )
+
+
 def test_over_limit_reports_exact_over_by_and_zero_left_after(
     conn: sqlite3.Connection, world_with_two_users: World
 ) -> None:

@@ -148,6 +148,29 @@ def test_bad_amount_marks_the_hero_and_keeps_the_picked_category(
     assert (chosen.get("value"), chosen.has_attr("checked")) == (str(ids["groc"]), True)
 
 
+def test_zero_amount_422_keeps_the_credit_line_of_a_card(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    """The handoff's error dialog still prints the card's line (F8: before = after for zero)."""
+    card = accounts_repo.create(
+        db,
+        USER_ID,
+        NewAccount(
+            name="Card", currency="PLN", is_liability=True, credit_limit_minor=500_000
+        ),
+    )
+    r = client.post(
+        "/transactions",
+        data={"account_id": str(card.id), "amount": "0.00", "operation_date": "2026-11-20"},
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    assert _html.text_of(r.text, entries.credit_line) == (
+        "Card \N{MIDDLE DOT} 5,000.00 of 5,000.00 left \N{RIGHTWARDS ARROW} 5,000.00 after this"
+    )
+    assert _count(db, "transactions") == 0
+
+
 def test_planned_posted_with_the_picker_category_is_stored(
     client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
 ) -> None:
@@ -489,6 +512,9 @@ def test_repeats_formula_hero_shows_the_service_next_amount(
     assert row is not None
     assert row.get_text(" ", strip=True) == "\N{MINUS SIGN} 1,200.00 PLN"  # signed like a typed one
     assert "\N{RIGHTWARDS ARROW} next amount 1,200.00 PLN" in _html.all_text(r.text, entries.dialog)
+    # the figure sits once, in the formula line: the hero has no note (handoff)
+    assert r.text.count("next amount") == 1
+    assert "rd-dialog__hero-note" not in r.text
     # the figure is derived, never posted: the hero has no named amount input in formula mode
     assert not _html.exists(r.text, entries.hero_amount)
 

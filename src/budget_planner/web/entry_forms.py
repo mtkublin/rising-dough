@@ -373,6 +373,7 @@ def new_entry_context(
         **category_view,
         "hero": hero,
         "accounts": accounts,
+        "credit_preview": _credit_preview(conn, user_id, tab, account, category_view, values),
         "selected_account_id": account.id if account else None,
         "currency": currency,
         "values": values,
@@ -505,6 +506,27 @@ def _dependent_fields(
     }
 
 
+def _credit_preview(
+    conn: sqlite3.Connection,
+    user_id: int,
+    tab: str,
+    account: Account | None,
+    category_view: Mapping[str, object],
+    values: Mapping[str, str],
+) -> limit_preview_service.LimitPreview | None:
+    """The credit line of a dialog answering posted values (the 422 keeps it, as the handoff)."""
+    if tab != "happened" or account is None or not values:
+        return None
+    picked = category_view["selected_category_id"]
+    return limit_preview_service.compute_limit_preview(
+        conn,
+        user_id,
+        account_id=account.id,
+        category_id=picked if isinstance(picked, int) else None,
+        amount_raw=values.get("amount", ""),
+    )
+
+
 def _typed_amount(raw: str, currency: str) -> str:
     """The amount the user typed, shown back grouped (``13,000.00``) when it is a plain figure.
 
@@ -526,13 +548,17 @@ def _hero(
     """The dialog hero: the amount input (account currency, category sign) or the formula result."""
     if tab == "repeats" and values.get("amount_source") == "formula":
         figure, note = formula or ("\N{EM DASH}", "")
+        prefix = "\N{RIGHTWARDS ARROW} next amount "
+        next_amount = note.removeprefix(prefix) if note.startswith(prefix) else None
         return {
             "currency": currency,
             "sign": sign,  # the handoff signs the computed amount like the typed one
             "amount_id": "seg-amount-source",
             "output": True,
             "amount_value": figure,
-            "note": note,
+            # The handoff shows "next amount" under "+ add component", not in the hero band.
+            "note": "" if next_amount else note,
+            "next_amount": next_amount,
         }
     name = "default_amount" if tab == "repeats" else "amount"
     return {

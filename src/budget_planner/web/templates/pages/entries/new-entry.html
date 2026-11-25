@@ -50,7 +50,7 @@
     </div>
   {% endif %}
   {% if tab == "happened" %}
-    {% with preview=none %}
+    {% with preview=credit_preview|default(none) %}
       {% include "fragments/fields/credit-line.html" %}
     {% endwith %}
   {% endif %}
@@ -82,7 +82,7 @@
          hx-include="closest form"
          hx-target="find .rd-formula__result"
          hx-swap="innerHTML">
-      {% with formula_id="formula-new-entry", options=source_categories, next_amount=none %}
+      {% with formula_id="formula-new-entry", options=source_categories, next_amount=hero.next_amount|default(none) %}
         {% include "fragments/fields/formula.html" %}
       {% endwith %}
       {{ field_error("formula", errors) }}
