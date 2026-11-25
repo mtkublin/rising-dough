@@ -24,8 +24,11 @@ from typing import Any
 import pytest
 from playwright.sync_api import Browser
 
+from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.visual import handoff
+from tests.visual.handoff_openers import OPENERS, opener_url
 
 pytestmark = pytest.mark.visual
 
@@ -57,60 +60,42 @@ OVERLAY_DIALOGS: dict[str, str] = {
     "pages/overlays/new-entry--planned.html": "/add?dialog=1&when=planned",
     "pages/overlays/new-entry--repeats-fixed.html": "/add?dialog=1&when=repeats",
 }
-# Overlay pages with no app route that opens their dialog yet (id-bound edit/promote/menu
-# dialogs, request states, not-yet-ported forms): compared against plain /today.
+# Overlay pages whose dialog the app opens from a dialog route (id-bound ones resolved from
+# the seed): `handoff_openers.OPENERS`; the test loads /today and fetches it into #modal-root.
+# Overlay pages with no way to open their dialog yet (row menus, palette and pickers, POST
+# error states, settings/users dialogs, formula editor states): compared against plain /today.
 UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
         "add-user--error",
         "add-user",
-        "archive-category",
         "category-picker--no-match",
         "category-picker",
         "command-palette--filtered",
         "command-palette--no-match",
         "command-palette",
         "delete-account--blocked-planned",
-        "delete-account--blocked",
         "delete-account",
         "delete-user",
-        "edit-account--liability",
-        "edit-account",
-        "edit-category",
-        "edit-planned",
         "edit-recurring--empty",
-        "edit-recurring--fixed",
-        "edit-recurring--formula",
         "edit-recurring--incomplete",
         "edit-recurring--picking",
         "edit-transaction--error",
-        "edit-transaction--transit",
-        "edit-transaction",
         "edit-user",
         "invite-user--error",
         "invite-user",
         "new-account--error",
         "new-account--filled",
-        "new-account",
         "new-category--error",
         "new-category--filled",
-        "new-category",
         "new-entry--error",
         "new-entry--over-limit",
         "new-entry--phone-sheet",
         "new-entry--repeats-formula",
         "one-time-password",
-        "override--budget-default",
-        "override--budget-every",
-        "override--budget-month",
-        "override--occurrence",
         "override--remove",
         "override--year-cell",
         "period-picker--year",
         "period-picker",
-        "promote--planned",
-        "promote--recurring",
-        "reconcile--liability",
-        "reconcile",
         "reset-password",
         "revoke-invite",
         "row-menu--account",
@@ -122,6 +107,7 @@ UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
         "shortcuts",
     }
 )
+OPENER_PAGES: frozenset[str] = frozenset(f"pages/overlays/{n}.html" for n in OPENERS)
 # Pages that need the base seed plus named modifiers (handoff_seed.MODIFIER_NAMES).
 PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
     "pages/ledger/recurring.html": ("recurring-board",),
@@ -211,6 +197,7 @@ def test_app_matches_handoff(
 ) -> None:
     route = route_for(handoff_page)
     modifiers = modifiers_for(handoff_page)
+    opener: str | None = None
     with contextlib.ExitStack() as stack:
         if modifiers:
             server, token = stack.enter_context(
@@ -220,6 +207,7 @@ def test_app_matches_handoff(
         else:
             server = request.getfixturevalue("live_server")
             cookies = request.getfixturevalue("session_cookies")
+            opener = _opener_for(handoff_page, request.getfixturevalue("scratch_db")[0])
         _compare_app(
             handoff_page,
             route,
@@ -228,7 +216,19 @@ def test_app_matches_handoff(
             browser=browser,
             live_server=server,
             cookies=cookies,
+            opener=opener,
         )
+
+
+def _opener_for(handoff_page: str, db_path: Path) -> str | None:
+    """Dialog route of an overlay page, ids resolved from the seeded scratch DB (read-only)."""
+    if handoff_page not in OPENER_PAGES:
+        return None
+    conn = get_connection(Settings(_env_file=None, database_url=f"sqlite:///{db_path.as_posix()}"))
+    try:
+        return opener_url(handoff_page, conn)
+    finally:
+        conn.close()
 
 
 def _compare_app(
@@ -240,6 +240,7 @@ def _compare_app(
     browser: Browser,
     live_server: str,
     cookies: list[Any],
+    opener: str | None = None,
 ) -> None:
     width, height = handoff.VIEWPORTS[viewport]
     context = browser.new_context(
@@ -253,6 +254,12 @@ def _compare_app(
         context.clock.set_fixed_time(handoff.HANDOFF_FIXED_TIME)
         pg = context.new_page()
         pg.goto(f"{live_server}{route}", wait_until="networkidle", timeout=15000)
+        if opener:
+            pg.evaluate(
+                "url => window.htmx.ajax('GET', url, {target: '#modal-root', swap: 'innerHTML'})",
+                opener,
+            )
+            pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
         pg.add_style_tag(content=handoff.FREEZE_CSS)
         pg.evaluate("document.fonts.ready.then(() => undefined)")
         with tempfile.TemporaryDirectory() as tmp:
