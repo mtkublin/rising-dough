@@ -80,6 +80,14 @@ old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
 value = "Credit Card · 12,557.13 of 14,977.37 left → 12,521.63 after this"
 reason = "value-inventory 5 row 19, ADR-0151: the 35.50 entry is already in 12,521.63 left, so before = 12,521.63 + 35.50 and after = 12,521.63"
 
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = "p.rd-credit-line"
+field = "text"
+old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
+value = "Credit Card · 12,557.13 of 14,977.37 left → 12,557.13 after this"
+reason = "handoff inconsistent, app right (ADR-0151 section 1, as the row above): the edited 35.50 entry is left out of \"before\" (12,521.63 + 35.50 = 12,557.13) and the typed zero amount changes nothing, so after = before"
+
 # --- Seed-dependent rows (T-UR00b remainder, ADR-0147 section 4): the handoff value is
 # replaced by what the seed + app produce. Generated from the cases of
 # tests/visual/test_overlay_values.py, which asserts every value equals its service
@@ -189,6 +197,26 @@ select = ".rd-hero__figure"
 field = "data-digits"
 old = "6"
 value = "7"
+reason = "digit count of the hero figure above (19,417.18 has seven digits)"
+
+# --- T-UR00b F6: the ledger board behind the transaction dialogs and menu is the actual board.
+
+[[row]]
+page = "pages/overlays/*-transaction*.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "19,417.18"
+optional = true  # edit-transaction, --transit, --error and row-menu--transaction
+reason = "handoff inconsistent, app right: the same figure as the actual board's hero (pages/ledger/actual.html above); the overlay's board lists the same entries, so the hero is the whole pay window's expense (ADR-0151 section 2)"
+
+[[row]]
+page = "pages/overlays/*-transaction*.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "7"
+optional = true
 reason = "digit count of the hero figure above (19,417.18 has seven digits)"
 
 [[row]]

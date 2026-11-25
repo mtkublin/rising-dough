@@ -370,7 +370,6 @@ def new_entry_context(
     return {
         "tab": tab,
         "action": TAB_ACTIONS[tab],
-        "picker": picker,
         **category_view,
         "hero": hero,
         "accounts": accounts,
@@ -581,15 +580,20 @@ def draft_hero(
 def _category_view(
     cats: Sequence[Category], picker: categories_service.CategoryPicker, wanted: int | None
 ) -> dict[str, object]:
-    """The chosen category: its id, the hero sign, and its name when it is not a recent radio."""
+    """The chosen category: its id, the hero sign and the picker whose first chip it is.
+
+    The handoff edit dialogs lead the recent chips with the selected category (checked), so
+    the search button never carries a picked name on first render (``combobox.js`` sets it when
+    the user picks from the list).
+    """
     category = _picked(cats, wanted)
     if category is None:
-        return {"selected_category_id": None, "picked_name": None, "sign": None}
-    recent = {c.id for c in picker.recent}
+        return {"selected_category_id": None, "picked_name": None, "sign": None, "picker": picker}
     return {
         "selected_category_id": category.id,
-        "picked_name": None if category.id in recent else category.name,
+        "picked_name": None,
         "sign": _direction_sign(category.direction),
+        "picker": categories_service.lead_with_selected(picker, category),
     }
 
 

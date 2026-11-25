@@ -55,7 +55,7 @@ def compute_limit_preview(
     if cat is None:
         return None
     dec = parse_amount_str(amount_raw, acc.currency)
-    if dec is None or dec <= 0:
+    if dec is None or dec < 0:
         return None
     amount_minor = to_minor_units(dec, acc.currency)
     current = balance_service.derive_balance(conn, user_id, account_id) - _edited_effect(

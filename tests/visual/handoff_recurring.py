@@ -39,6 +39,24 @@ STATE_SOURCE: Final[dict[str, tuple[str, str]]] = {
 }
 
 
+def settle(page: Page) -> None:
+    """Keep the focused amount, drop its text selection: the handoff files show no selection.
+
+    A handoff overlay is a static capture of a dialog whose amount carries the focus style (the
+    thick underline) but no selection; the app focuses the first field of an opened dialog and
+    ``amount-input.js`` selects its value. Two frames first, so that select has run before the
+    selection is collapsed (the focus stays: the screenshot keeps the focus underline).
+    """
+    page.evaluate("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+    page.evaluate(
+        """() => {
+            const a = document.activeElement;
+            if (a && a.setSelectionRange && a.type !== 'date') a.setSelectionRange(a.value.length, a.value.length);
+            getSelection()?.removeAllRanges();
+        }"""
+    )
+
+
 def _drop_second_component(page: Page) -> None:
     """The handoff's Taxes formula of these states has one component (the 19 % income one)."""
     page.locator(_COMPONENT).nth(1).locator("[data-js='formula-remove']").click()
@@ -90,6 +108,8 @@ def _transaction_error(page: Page) -> None:
     page.wait_for_selector(
         f"{_DIALOG} .rd-dialog__hero-error, {_DIALOG} .rd-field__error", timeout=_TIMEOUT_MS
     )
+    page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
+    settle(page)
 
 
 # Overlay stem -> recipe run once the sourced dialog is open.
@@ -99,6 +119,21 @@ STATE_RECIPES: Final[dict[str, Recipe]] = {
     "edit-recurring--picking": _picking,
     "edit-transaction--error": _transaction_error,
 }
+
+
+# Ledger dialogs opened by a plain GET (``handoff_openers``) that only need ``settle``.
+SETTLED_DIALOGS: Final[frozenset[str]] = frozenset(
+    {
+        "edit-transaction",
+        "edit-transaction--transit",
+        "edit-planned",
+        "promote--planned",
+        "promote--recurring",
+        "edit-recurring--fixed",
+        "edit-recurring--formula",
+        "override--occurrence",
+    }
+)
 
 
 def _stem(page: str) -> str:
@@ -119,4 +154,5 @@ def state_opener_url(page: str, conn: sqlite3.Connection) -> str | None:
 
 def state_recipe(page: str) -> Recipe | None:
     """The user actions that bring the opened dialog into the handoff state, None when none."""
-    return STATE_RECIPES.get(_stem(page))
+    stem = _stem(page)
+    return STATE_RECIPES.get(stem) or (settle if stem in SETTLED_DIALOGS else None)
