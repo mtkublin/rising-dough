@@ -11,11 +11,17 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import cast
 
 from budget_planner.domain.accounts import Account, AccountReferences, AccountStats
-from budget_planner.domain.money import format_figure, format_major, format_money, percent_of
+from budget_planner.domain.money import (
+    ISO_4217_CURRENCIES,
+    format_figure,
+    format_major,
+    format_money,
+    percent_of,
+)
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services.account_planned import AccountPlanned
 from budget_planner.services.balance import sparkline_points
@@ -154,11 +160,9 @@ def type_label(account_type: str | None) -> str:
     return (account_type or "").replace("_", " ")
 
 
-def checked_label(snapshots: list[AccountSnapshot]) -> str:
-    """Date of the newest snapshot as ``01 APR``; ``never`` when the account has none."""
-    if not snapshots:
-        return "never"
-    return snapshot_line(snapshots[0]).taken
+def checked_label(checked_at: datetime | None) -> str:
+    """Newest snapshot or reconciliation as ``01 APR``; ``never`` when the account has none."""
+    return "never" if checked_at is None else checked_at.strftime("%d %b").upper()
 
 
 def account_row(card: Mapping[str, object]) -> AccountRow:
@@ -182,7 +186,7 @@ def account_row(card: Mapping[str, object]) -> AccountRow:
         balance_text=format_figure(balance, acc.currency),
         negative=balance < 0,
         txn_count=stats.txn_count,
-        checked=checked_label(cast(list[AccountSnapshot], card["snapshots"])),
+        checked=checked_label(cast("datetime | None", card["checked_at"])),
         trend=trend_view(cast(list[tuple[date, int]], card["series"]), balance),
         credit=credit_line(util) if util is not None else None,
         after_text=(
@@ -279,10 +283,12 @@ class AccountDialog:
     is_liability: bool
     credit_limit: str
     liability_hint: str
+    as_of: str  # ISO date the opening balance is as of (the day of creation); "" when editing
 
 
 def _type_options(selected: str) -> tuple[TypeOption, ...]:
-    values = list(ACCOUNT_TYPES)
+    """Type choices; a stored ``credit_card`` is the one ``credit card`` option, value kept."""
+    values = [selected if v == type_label(selected) else v for v in ACCOUNT_TYPES]
     if selected and selected not in values:
         values.append(selected)
     options = [TypeOption(v, type_label(v), v == selected) for v in values]
@@ -292,11 +298,13 @@ def _type_options(selected: str) -> tuple[TypeOption, ...]:
 
 
 def _new_dialog(
-    entered: Mapping[str, str], problems: Mapping[str, str], base: str
+    entered: Mapping[str, str], problems: Mapping[str, str], base: str, today: date
 ) -> AccountDialog:
     currency = entered.get("currency", "")
+    typed = currency.strip().upper()
     hero: dict[str, object] = {
-        "currency": currency.upper() or base,
+        # the chip follows a known typed code (an unknown one shows in the field error)
+        "currency": typed if typed in ISO_4217_CURRENCIES else base,
         "amount_value": entered.get("opening_balance", "0.00"),
         "amount_label": "Opening balance",
         "amount_id": "field-opening_balance",
@@ -319,17 +327,16 @@ def _new_dialog(
         is_liability=entered.get("is_liability", "") == "on",
         credit_limit=entered.get("credit_limit", ""),
         liability_hint="",
+        as_of=today.isoformat(),
     )
 
 
-def _edit_dialog(acc: Account, entered: Mapping[str, str], txn_count: int) -> AccountDialog:
+def _edit_dialog(
+    acc: Account, entered: Mapping[str, str], txn_count: int, *, rejected: bool
+) -> AccountDialog:
     limit = format_major(acc.credit_limit_minor, acc.currency) if acc.credit_limit_minor else ""
     plural = "" if txn_count == 1 else "s"
-    hint = (
-        f"\u25b2 {txn_count} transaction{plural}: this balance will count against net worth."
-        if txn_count
-        else ""
-    )
+    hint = f"\u25b2 {txn_count} transaction{plural}: this balance will count against net worth."
     return AccountDialog(
         editing=True,
         dialog_id="edit-account",
@@ -344,7 +351,8 @@ def _edit_dialog(acc: Account, entered: Mapping[str, str], txn_count: int) -> Ac
         type_options=_type_options(entered.get("type", acc.type or "")),
         is_liability=entered.get("is_liability", "on" if acc.is_liability else "") == "on",
         credit_limit=entered.get("credit_limit", limit),
-        liability_hint=hint,
+        liability_hint="" if rejected else hint,  # a 422 shows its errors, not the note
+        as_of="",
     )
 
 
@@ -353,14 +361,15 @@ def account_dialog(
     *,
     values: Mapping[str, str] | None = None,
     base_currency: str,
+    today: date,
     txn_count: int = 0,
     errors: Mapping[str, str] | None = None,
 ) -> AccountDialog:
     """New (``acc`` is ``None``) or edit dialog values; ``values`` refill a rejected submit."""
     entered = values or {}
     if acc is None:
-        return _new_dialog(entered, errors or {}, base_currency)
-    return _edit_dialog(acc, entered, txn_count)
+        return _new_dialog(entered, errors or {}, base_currency, today)
+    return _edit_dialog(acc, entered, txn_count, rejected=bool(errors))
 
 
 @dataclass(frozen=True, slots=True)
@@ -379,15 +388,22 @@ def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
+def _blocking_phrases(refs: AccountReferences) -> list[str]:
+    """The planned and recurring part of a blocked delete: one phrase for both kinds together."""
+    if refs.planned and refs.recurring:
+        return [f"{refs.planned + refs.recurring} planned or recurring items"]
+    if refs.planned:
+        return [_count(refs.planned, "planned item")]
+    if refs.recurring:
+        return [_count(refs.recurring, "recurring rule")]
+    return []
+
+
 def _blocked(acc: Account, refs: AccountReferences, balance_minor: int) -> DeleteDialog:
     action = f"/accounts/{acc.id}{DELETE_PATH}"
     ledger = f"/ledger?account_id={acc.id}"
     title = f"Can\u2019t delete {acc.name}"
-    items = []
-    if refs.planned:
-        items.append(_count(refs.planned, "planned item"))
-    if refs.recurring:
-        items.append(_count(refs.recurring, "recurring rule"))
+    items = _blocking_phrases(refs)
     if refs.transactions:
         extra = f" and {' and '.join(items)}" if items else ""
         text = f"It still has {_count(refs.transactions, 'transaction')}{extra}."

@@ -113,7 +113,7 @@ def test_blocked_by_planned_links_to_the_planned_items(
     _rule(db, acc, cat)
     r = client.get(f"/accounts/{acc}/edit?intent=delete")
     assert (
-        "It has no transactions, but 1 planned item and 1 recurring rule still use it."
+        "It has no transactions, but 2 planned or recurring items still use it."
         " Move or delete them first." in _html.text_of(r.text, accounts.blocked_dialog("Plans"))
     )
     link = _html.resolve_one(r.text, accounts.blocked_link)

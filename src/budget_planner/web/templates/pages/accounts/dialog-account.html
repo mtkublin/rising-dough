@@ -63,7 +63,20 @@
     <datalist id="iso-codes">
       {% for code in iso_4217_currencies %}<option value="{{ code }}"></option>{% endfor %}
     </datalist>
-    <p class="rd-field__hint rd-field__hint--solo">currency is fixed after creation</p>
+    {% if not errors.currency|default(none) %}<p class="rd-field__hint rd-field__hint--solo">currency is fixed after creation</p>{% endif %}
+    {# The opening balance is as of the day the account is created (no stored opening date): min = max = today. #}
+    <div class="rd-field">
+      <label class="rd-field__label" for="field-as_of">as of</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="field-as_of"
+               name="as_of"
+               type="date"
+               value="{{ dlg.as_of }}"
+               min="{{ dlg.as_of }}"
+               max="{{ dlg.as_of }}">
+      </span>
+    </div>
   {% endif %}
   <div class="rd-field rd-field--seg"
        role="radiogroup"
@@ -80,6 +93,7 @@
        {% if dlg.is_liability %} checked{% endif %}>liability</label>
     </div>
   </div>
+  {# A liability needs a positive credit limit (parse_account_patch); the handoff dialogs omit the field. #}
   <label class="rd-field"
          data-show-when="is_liability=on"
          {% if not dlg.is_liability %}hidden{% endif %}>
@@ -102,6 +116,7 @@
   {% if dlg.liability_hint %}
     <p class="rd-field__hint rd-field__hint--solo rd-field__hint--ink"
        role="status"
-       data-show-when="is_liability=on">{{ dlg.liability_hint }}</p>
+       data-show-when="is_liability=on"
+       {% if not dlg.is_liability %}hidden{% endif %}>{{ dlg.liability_hint }}</p>
   {% endif %}
 {% endcall %}

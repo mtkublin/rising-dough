@@ -89,6 +89,7 @@ class Vals:
     rec_figure: str
     rec_note: str
     txns: dict[str, int]
+    refs: dict[str, tuple[int, int, int]]  # transactions, planned, recurring per account
     checked: dict[str, dt.datetime]
     session_created: dt.datetime
     phone_created: dt.datetime
@@ -171,6 +172,11 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
         rec_figure=hero.figure,
         rec_note=hero.note,
         txns={a.name: stats[a.id].txn_count for a in accounts},
+        refs={
+            a.name: (r.transactions, r.planned, r.recurring)
+            for a in accounts
+            for r in [accounts_service.account_references(conn, USER, a.id)]
+        },
         checked=checked,
         session_created=current.session.created_at,
         session_expires=current.absolute_expires_at,
@@ -256,6 +262,7 @@ _ACCOUNTS = {  # handoff order on accounts.html: index -> (name, TXNS, checked)
 _TXN_ROWS = (1, 2, 3, 4, 5, 7, 8, 9, 10)  # Investments D: 0 in both
 _CHECKED_ROWS = (3, 7)  # Investments C and Cash Wallet carry the 29 Oct reconciliation
 ARROW = "→"
+WARN = "\u25b2"
 UP = "▲"
 
 # plan/forecast.html monthly table as the handoff prints it (cell texts without " PLN"):
@@ -471,6 +478,39 @@ _LISTED_CASES: tuple[Case, ...] = (
             f"{_SEED} accounts.last_checked: {_ACCOUNTS[i][0]} counts the 29 Oct reconciliation",
         )
         for i in _CHECKED_ROWS
+    ),
+    # Accounts dialogs: the reference counts behind the edit hint and the blocked delete.
+    Case(
+        "pages/overlays/edit-account*.html",
+        "p.rd-field__hint--ink",
+        f"{WARN} 2 transactions: this balance will count against net worth.",
+        lambda v: (
+            f"{WARN} {v.refs['Investments A'][0]} transactions: "
+            "this balance will count against net worth."
+        ),
+        f"{_SEED} accounts.account_references: Investments A has no transactions",
+        count=1,
+        optional=False,
+    ),
+    Case(
+        "pages/overlays/delete-account--blocked.html",
+        ".rd-dialog__confirm > p",
+        "It still has 84 transactions and 3 planned or recurring items. Move or delete them first.",
+        lambda v: (
+            f"It still has {v.refs['Checking'][0]} transactions and "
+            f"{v.refs['Checking'][1] + v.refs['Checking'][2]} planned or recurring items. "
+            "Move or delete them first."
+        ),
+        f"{_SEED} accounts.account_references: Checking transactions, planned items and rules",
+        optional=False,
+    ),
+    Case(
+        "pages/overlays/delete-account--blocked.html",
+        ".rd-dialog__actions > a.rd-btn",
+        "view 84 transactions",
+        lambda v: f"view {v.refs['Checking'][0]} transactions",
+        f"{_SEED} accounts.account_references: Checking transactions",
+        optional=False,
     ),
     # Security sessions, users, forecast strip.
     Case(

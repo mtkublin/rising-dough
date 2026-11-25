@@ -7,7 +7,7 @@ Moved out of the accounts router. No business logic of its own: services supply 
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 
 from budget_planner import clock
 from budget_planner.config import Settings
@@ -35,6 +35,11 @@ from budget_planner.web.accounts_view import (
 _RECENT_SNAPSHOTS = 5
 
 
+def last_checked_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, datetime | None]:
+    """Newest snapshot or reconciliation per account (``accounts.last_checked``)."""
+    return {r.account_id: r.last_checked_at for r in accounts_service.last_checked(conn, user_id)}
+
+
 def planned_now(
     conn: sqlite3.Connection, user_id: int, settings: Settings
 ) -> planned_service.AccountsPlanned:
@@ -55,6 +60,7 @@ def card_context(
     stats: AccountStats | None = None,
     series: list[tuple[date, int]] | None = None,
     snapshots: list[AccountSnapshot] | None = None,
+    checked: dict[int, datetime | None] | None = None,
 ) -> dict[str, object]:
     """Build the full context dict a single `_card.html` / `_row.html` needs.
 
@@ -73,9 +79,12 @@ def card_context(
         series = balance_service.balance_series(conn, user_id, account_id, today=today)
     if snapshots is None:
         snapshots = accounts_service.list_snapshots_for_account(conn, user_id, account_id)
+    if checked is None:
+        checked = last_checked_by_account(conn, user_id)
     return {
         "account": acc,
         "balance": bal,
+        "checked_at": checked.get(account_id),
         "stats": stats,
         "series": series,
         **sparkline_fields(series),
@@ -108,6 +117,7 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
     stats = balance_service.account_stats_many(conn, user_id, accs)
     series = balance_service.balance_series_many(conn, user_id, accs, today=today)
     snapshots = accounts_service.list_snapshots_for_user(conn, user_id)
+    checked = last_checked_by_account(conn, user_id)
     # ADR-0056 section 7: sort by balance desc; liabilities (negative balance) move to the bottom.
     # Assets land first, biggest first; liabilities land last, smallest-liability-first so the
     # credit card with the largest balance sits closer to the assets block visually.
@@ -124,6 +134,7 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
             stats=stats[a.id],
             series=series[a.id],
             snapshots=snapshots.get(a.id, []),
+            checked=checked,
         )
         for a in ordered
     ]

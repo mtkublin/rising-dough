@@ -27,6 +27,7 @@ class DialogSubmit:
     answer: str  # "" = wait for the server's response only (it may carry no error element)
     checks: tuple[str, ...] = ()  # radio inputs to check (CSS selector)
     skip_validation: bool = False  # submit past the browser's ``required`` check
+    refocus: str = ""  # input the handoff file has focused on load (value not selected)
     keep_focus: bool = False  # the handoff shows the typed field focused (thick hero underline)
 
 
@@ -50,9 +51,12 @@ DIALOG_SUBMITS: Final[dict[str, DialogSubmit]] = {
         press="#modal-root dialog[open] button[name=reset]",
         answer="#modal-root .rd-secret__value",
     ),
-    # T-UR00b W3. The app's dialogs differ from the handoff's (no "as of" field, the currency
-    # chip stays the base currency, a duplicate category name answers 500): the comparison shows
-    # those, the recipes only type what the handoff file shows.
+    # T-UR00b W3, F4b. The recipes only type what the handoff file shows (a duplicate category
+    # name still answers 500: the comparison shows it). The amount is the focused input of the
+    # file, its value not selected (the app selects it on focus, the file's script loads later).
+    "pages/overlays/new-account.html": DialogSubmit(
+        fills=(), press="", answer="", refocus="#modal-root input[name=opening_balance]"
+    ),
     "pages/overlays/new-account--filled.html": DialogSubmit(
         fills=(
             ("#modal-root input[name=opening_balance]", "1,250.00"),
@@ -61,12 +65,14 @@ DIALOG_SUBMITS: Final[dict[str, DialogSubmit]] = {
         ),
         press="",
         answer="",
+        refocus="#modal-root input[name=opening_balance]",
     ),
     "pages/overlays/new-account--error.html": DialogSubmit(
         fills=(("#modal-root input[name=currency]", "XYZ"),),
         press=_SUBMIT,
         answer="",
         skip_validation=True,
+        refocus="#modal-root input[name=opening_balance]",
     ),
     "pages/overlays/new-category--filled.html": DialogSubmit(
         fills=(("#modal-root input[name=name]", "Pets"),),
@@ -110,6 +116,17 @@ def submit_dialog(page: Any, handoff_page: str) -> None:
             page.wait_for_selector(recipe.answer, timeout=15000)
         else:
             page.wait_for_load_state("networkidle", timeout=15000)
+    if recipe.refocus:
+        page.mouse.move(0, 0)  # no hover on the submit control that was pressed
+        page.evaluate("sel => document.querySelector(sel).focus()", recipe.refocus)
+        page.wait_for_timeout(150)  # the focus handler selects the value one frame later
+        page.evaluate(
+            "sel => { const el = document.querySelector(sel);"
+            " el.setSelectionRange(el.value.length, el.value.length);"
+            " getSelection()?.removeAllRanges(); }",
+            recipe.refocus,
+        )
+        return
     # No focus ring or text selection: the handoff files show neither.
     if not recipe.keep_focus:
         page.evaluate("() => document.activeElement?.blur()")

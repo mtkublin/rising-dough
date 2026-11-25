@@ -8,6 +8,7 @@ router parses + renders.
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -30,7 +31,7 @@ from budget_planner.web.accounts_view import (
     delete_dialog,
     snapshot_line,
 )
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
@@ -59,8 +60,12 @@ _NOT_FOUND = "account not found"
 
 
 @router.get(NEW_PATH, response_class=HTMLResponse)
-def new_form(request: Request, settings: Settings = Depends(get_settings_dep)) -> HTMLResponse:
-    dlg = account_dialog(None, base_currency=settings.base_currency)
+def new_form(
+    request: Request,
+    settings: Settings = Depends(get_settings_dep),
+    today: date = Depends(get_today),
+) -> HTMLResponse:
+    dlg = account_dialog(None, base_currency=settings.base_currency, today=today)
     return dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
 
 
@@ -77,6 +82,7 @@ def create_account(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> Response:
     parsed = parse_new_account(
         name=name,
@@ -96,7 +102,11 @@ def create_account(
             "credit_limit": credit_limit,
         }
         dlg = account_dialog(
-            None, values=values, base_currency=settings.base_currency, errors=parsed.errors
+            None,
+            values=values,
+            base_currency=settings.base_currency,
+            today=today,
+            errors=parsed.errors,
         )
         return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
     acc = accounts_service.create(conn, user_id, parsed.command)
@@ -118,6 +128,7 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> Response:
     """The edit dialog; ``?intent=delete`` opens the delete confirm (or its blocked variant)."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
@@ -128,7 +139,9 @@ def edit_form(
         balance = balance_service.derive_balance(conn, user_id, account_id)
         ctx: dict[str, object] = {"dlg": delete_dialog(acc, refs, balance)}
         return dialog_response(request, _DELETE_DIALOG, ctx)
-    dlg = account_dialog(acc, base_currency=settings.base_currency, txn_count=refs.transactions)
+    dlg = account_dialog(
+        acc, base_currency=settings.base_currency, today=today, txn_count=refs.transactions
+    )
     return dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
 
 
@@ -144,6 +157,7 @@ def update_account(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> Response:
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
@@ -159,7 +173,11 @@ def update_account(
             "credit_limit": credit_limit,
         }
         dlg = account_dialog(
-            acc, values=values, base_currency=settings.base_currency, errors=parsed.errors
+            acc,
+            values=values,
+            base_currency=settings.base_currency,
+            today=today,
+            errors=parsed.errors,
         )
         return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
     accounts_service.update(conn, user_id, account_id, parsed.patch)
