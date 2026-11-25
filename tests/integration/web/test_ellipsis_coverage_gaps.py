@@ -301,7 +301,7 @@ def test_update_account_blank_name_rerenders_form_with_error(
     r = client.post(f"/accounts/{ctx['acc']}", data={"name": "   ", "currency": "PLN"})
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-name-error": "▲ name required",
+        "field-name-error": "▲ Name is required",
     }
     conn = get_connection(_migrated)
     try:

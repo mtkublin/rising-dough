@@ -392,14 +392,23 @@ _HISTORY: Final = tuple(
 TRANSACTIONS: Final = (*reversed(_LISTED), *_lumps(), *_HISTORY)
 
 # Today's upcoming list reads "showing 6 of 23" (handoff today.html; operator decision
-# 2026-11-25, PAR-D): one row per recurring rule (12 due in the 30-day window) plus 3 listed
-# planned items make 15, so eight more planned items dated 21 to 28 Nov bring it to 23. They
-# sort after the six rows the board shows, so the visible rows are unchanged. They are transfers
-# from Everyday Spending to Savings (Checking's planned count stays 3), so the forecast, budget
-# and income/expense figures the overlay pins do not move.
-_FILLER_PLANNED: Final = tuple(
-    PlannedSeed(
-        f"2026-11-{day}", "Transit", "Everyday Spending", amount, description, None, "Savings"
+# 2026-11-25, PAR-D): one row per recurring rule (12 due in the 30-day window) plus the 2 listed
+# planned items due by 31 Oct make 14, so nine more yearly rules dated 20 to 28 Nov bring it to
+# 23. They are rules, not planned items, because Ledger planned lists exactly the handoff's 3
+# planned items (T-UR00b, F2); the ledger recurring board drops them (`_recurring_board`). They
+# sort after the six rows the board shows. Eight are transfers from Everyday Spending to Savings,
+# so the forecast, budget and income/expense figures the overlay pins do not move. The 25,000.00
+# "Annual bonus" lifts the 12-month projection to the board's five-gridline axis (peak above 80k;
+# ADR-0147 section 4 amendment 2026-11-25), dated after the 7 Nov payday, so Today is unchanged.
+_FILLER_RULES: Final = tuple(
+    RuleSeed(
+        Cadence.YEARLY,
+        f"2026-11-{day}",
+        "Transit",
+        "Everyday Spending",
+        amount,
+        description,
+        dest_account="Savings",
     )
     for day, amount, description in (
         ("21", 4_500, "Dentist"),
@@ -412,16 +421,13 @@ _FILLER_PLANNED: Final = tuple(
         ("28", 1_900, "Stationery"),
     )
 )
+_BOARD_HIDDEN_RULES: Final = frozenset({"Annual bonus", *(r.description for r in _FILLER_RULES)})
 
 PLANNED: Final[tuple[PlannedSeed, ...]] = (
     PlannedSeed("2026-12-15", "Car", "Checking", 223_980, "Car"),
     PlannedSeed("2026-10-28", "Other", "Checking", 41_200, "Annual insurance"),
     PlannedSeed("2026-10-31", "VAT Refund", "Checking EUR", 112_045, "Tax refund"),
-    # Lifts the 12-month projection to the board's five-gridline axis (peak above 80k; ADR-0147
-    # section 4 amendment 2026-11-25). Dated after the 7 Nov payday, so Today is unchanged.
-    PlannedSeed("2026-11-20", "Side Income", "Checking", 2_500_000, "Annual bonus"),
     PlannedSeed("2026-12-15", "Car", "Checking", 230_635, "Car", _local("2026-10-29", "20:30")),
-    *_FILLER_PLANNED,
 )
 
 M, Q, Y = Cadence.MONTHLY, Cadence.QUARTERLY, Cadence.YEARLY
@@ -465,6 +471,8 @@ RULES: Final[tuple[RuleSeed, ...]] = (
     RuleSeed(Q, "2027-01-15", "Car", "Checking", 41_200, "Car insurance"),
     RuleSeed(Y, "2027-03-07", "Salary", "Checking EUR", 3_053_619, "Salary", formula=True),
     RuleSeed(Y, "2027-03-10", "Car", "Checking", 405_682, "Car"),
+    RuleSeed(Y, "2026-11-20", "Profit Share", "Checking", 2_500_000, "Annual bonus"),
+    *_FILLER_RULES,
 )
 
 OVERRIDES: Final[tuple[OverrideSeed, ...]] = (
@@ -486,8 +494,14 @@ BASE: Final = SeedData(
     accounts=ACCOUNTS,
     categories=CATEGORIES,
     deleted_categories=(
-        (CategorySeed("VAT Refund #6", Direction.INCOME, "#a855f7"), _local("2026-10-29", "20:06")),
-        (CategorySeed("Bank Fees", Direction.EXPENSE, "#f43f5e"), _local("2026-10-28", "11:03")),
+        (
+            CategorySeed("VAT Refund #6", Direction.INCOME, _PRESET_HEX["mint"]),
+            _local("2026-10-29", "20:06"),
+        ),
+        (
+            CategorySeed("Bank Fees", Direction.EXPENSE, _PRESET_HEX["sky"]),
+            _local("2026-10-28", "11:03"),
+        ),
         (
             CategorySeed("Opłaty bankowe i prowizje", Direction.EXPENSE, None),
             _local("2026-10-28", "10:58"),
@@ -507,8 +521,7 @@ BASE: Final = SeedData(
 )
 
 LONG_DESCRIPTION: Final = (
-    "Quarterly reimbursement for the shared apartment renovation, including the "
-    "contractor invoice, materials and the delivery surcharge agreed in September"
+    "Wyjścia na miasto ze znajomymi z pracy po kwartalnym podsumowaniu wyników"
 )
 
 
@@ -535,7 +548,12 @@ _TODAY_ONLY_RULES: Final = frozenset(
 
 def _recurring_board(d: SeedData) -> SeedData:
     """Ledger recurring board: only the 12 rules it lists (Today's three 07 NOV rules dropped)."""
-    keep = tuple(r for r in d.rules if (r.category, r.amount_minor) not in _TODAY_ONLY_RULES)
+    keep = tuple(
+        r
+        for r in d.rules
+        if (r.category, r.amount_minor) not in _TODAY_ONLY_RULES
+        and r.description not in _BOARD_HIDDEN_RULES
+    )
     return replace(d, rules=keep)
 
 
@@ -552,11 +570,31 @@ def _empty(d: SeedData) -> SeedData:
 
 
 def _long(d: SeedData) -> SeedData:
+    """Ledger actual `--long`: the handoff's three 1,234,567.89 rows of 31 Oct and nothing else.
+
+    Written oldest first (a day lists newest first): the long expense, the groceries entry and
+    the transfer. The handoff prints the groceries amount with a plus sign; the app signs it
+    from the category (overlay row, T-UR00b F2).
+    """
     stress = (
-        TxnSeed("2026-10-31", "Big Purchases", "Checking", 123_456_789, LONG_DESCRIPTION),
-        TxnSeed("2026-10-31", "Salary", "Checking", 123_456_789, LONG_DESCRIPTION),
+        TxnSeed(
+            "2026-10-31",
+            "Transit",
+            "Savings",
+            123_456_789,
+            "Transit",
+            "Investments C",
+        ),
+        TxnSeed("2026-10-31", "Groceries", "Credit Card", 123_456_789, "Zakupy spożywcze · Żabka"),
+        TxnSeed(
+            "2026-10-31",
+            "Opłaty bankowe i prowizje",
+            "Savings",
+            123_456_789,
+            LONG_DESCRIPTION,
+        ),
     )
-    return replace(d, transactions=(*stress, *d.transactions))
+    return replace(d, transactions=stress)
 
 
 def _invite_expired(d: SeedData) -> SeedData:

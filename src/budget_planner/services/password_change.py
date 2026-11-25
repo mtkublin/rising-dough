@@ -40,7 +40,7 @@ FailureReason = Literal["bad_current_password", "no_password"]
 
 MSG_CURRENT_REQUIRED: Final = "Enter your current password."
 MSG_CURRENT_WRONG: Final = "That isn't your current password."
-MSG_TOO_SHORT: Final = f"Use at least {MIN_PASSWORD_LENGTH} characters."
+MSG_TOO_SHORT: Final = f"Use at least {MIN_PASSWORD_LENGTH} characters"
 MSG_TOO_LONG: Final = f"Use at most {MAX_PASSWORD_BYTES} bytes (bcrypt limit)."
 MSG_SAME_AS_CURRENT: Final = "Pick a password different from your current one."
 MSG_MISMATCH: Final = "The two new passwords don't match."

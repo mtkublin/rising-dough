@@ -82,6 +82,20 @@ def test_create_rejects_bad_currency(client: TestClient) -> None:
     assert r.headers["HX-Retarget"] == "#modal-root"
 
 
+def test_create_rejects_unknown_currency_code(client: TestClient, db: sqlite3.Connection) -> None:
+    """A well-formed code outside ISO 4217 (XYZ) is a 422 under the field; nothing is written."""
+    before = _count(db, "accounts")
+    r = client.post(
+        "/accounts",
+        data={"name": "Mystery", "currency": "xyz", "opening_balance": "0"},
+    )
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-currency-error": "▲ Unknown currency code",
+    }
+    assert _count(db, "accounts") == before
+
+
 def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
     before = _count(db, "accounts")
     r = client.post(
@@ -90,7 +104,7 @@ def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -
     )
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-name-error": "▲ name required",
+        "field-name-error": "▲ Name is required",
     }
     assert _count(db, "accounts") == before
 
@@ -134,7 +148,7 @@ def test_update_blank_name(client: TestClient, acc_id: int, db: sqlite3.Connecti
     r = client.post(f"/accounts/{acc_id}", data={"name": "   "})
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-name-error": "▲ name required",
+        "field-name-error": "▲ Name is required",
     }
     stored = accounts_repo.find_by_id(db, USER_ID, acc_id)
     assert stored is not None

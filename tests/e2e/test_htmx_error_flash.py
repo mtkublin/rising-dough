@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.ui_map import shell
+from tests.ui_map import rd_shell, shell
 from tests.ui_map.locator import by_id, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -77,15 +77,19 @@ def test_form_rerender_on_422_still_swaps(live_server: tuple[str, Path], page: P
     expect(to_playwright(page, _PROBE_TARGET)).to_have_text("bad value")
 
 
-def test_network_failure_shows_offline_banner_alone(
+def test_network_failure_shows_offline_card_alone(
     live_server: tuple[str, Path], page: Page
 ) -> None:
-    """Outside a form the offline banner shows alone; no assertive flash (Q29, T-UR02e)."""
+    """Outside a form the handoff offline card shows in <main>; no assertive flash (F4)."""
     base_url, _ = live_server
     _open(page, base_url)
     page.route("**/__probe", lambda route: route.abort())
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.flash_region)).to_contain_text("You\u2019re offline")
+    expect(to_playwright(page, rd_shell.offline_card_title)).to_be_visible()
+    expect(to_playwright(page, rd_shell.offline_card)).to_contain_text(
+        "Changes can\u2019t be saved right now. We\u2019ll retry when you\u2019re back online."
+    )
+    expect(to_playwright(page, rd_shell.offline_card_retry)).to_be_visible()
     page.wait_for_timeout(200)
     expect(to_playwright(page, shell.flash_region_assertive)).not_to_contain_text(
         "Could not reach the server"

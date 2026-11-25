@@ -45,6 +45,8 @@ def _row_menu(page: Page) -> None:
     """The first row menu on the page (the handoff opens the first row's menu or Export)."""
     page.locator(_ROW_MENU).first.click()
     page.wait_for_selector(".rd-menu:popover-open", timeout=_TIMEOUT_MS)
+    # The handoff shows the kebab with no hover or pressed background: park the pointer away.
+    page.mouse.move(0, 0)
 
 
 def _category_picker(page: Page, query: str = "") -> None:

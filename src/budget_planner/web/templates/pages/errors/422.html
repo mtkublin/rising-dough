@@ -1,5 +1,7 @@
 {# pages/errors/422 (T-UR06): validation failed on a full-page request.
    Inputs: field_count, field_errors (web/errors.validation_summary), back_url.
+   The summary is the handoff's ("▲ N fields need fixing", one message link per field), not the
+   dialog fragment's ("N fields need attention").
    Handoff: pages/errors/422.html. #}
 {% extends "layouts/base.html" %}
 {% block title %}422 · Can’t save that · Rising Dough{% endblock %}
@@ -8,7 +10,22 @@
     <p class="rd-caption">ERROR 422</p>
     <h1 class="rd-error__title" id="err-title">Can’t save that</h1>
     <p class="rd-error__msg">Some fields need fixing. Your changes are still in the form.</p>
-    {% include "fragments/forms/error-summary.html" %}
+    <div class="rd-error-summary"
+         id="error-summary"
+         role="alert"
+         tabindex="-1"
+         data-js="error-summary">
+      <p class="rd-error-summary__title">
+        ▲ {{ field_count }} field{{ "" if field_count == 1 else "s" }} need{{ "s" if field_count == 1 else "" }} fixing
+      </p>
+      <ul>
+        {% for name, label, message in field_errors %}
+          <li>
+            <a href="{{ back_url }}#field-{{ name }}">{{ message }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
     <div class="rd-error__actions">
       <a class="rd-btn rd-btn--primary" href="{{ back_url }}">[ back to the form ]</a>
     </div>

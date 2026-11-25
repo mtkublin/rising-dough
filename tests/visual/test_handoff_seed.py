@@ -76,7 +76,7 @@ def _built(tmp_path: Path, *modifiers: str) -> sqlite3.Connection:
 def test_entity_counts() -> None:
     assert (len(seed.ACCOUNTS), len(seed.CATEGORIES)) == (10, 23)
     assert len(seed.TRANSACTIONS) == 42
-    assert (len(seed.PLANNED), len(seed.RULES), len(seed.BUDGETS)) == (13, 15, 13)
+    assert (len(seed.PLANNED), len(seed.RULES), len(seed.BUDGETS)) == (4, 24, 13)
 
 
 def test_refuses_existing_db(tmp_path: Path) -> None:
@@ -276,15 +276,6 @@ def test_planned_and_recurring(base: Built) -> None:
     assert sorted((p.operation_date.isoformat(), p.amount, p.description) for p in planned) == [
         ("2026-10-28", 41_200, "Annual insurance"),
         ("2026-10-31", 112_045, "Tax refund"),
-        ("2026-11-20", 2_500_000, "Annual bonus"),
-        ("2026-11-21", 4_500, "Dentist"),
-        ("2026-11-22", 2_500, "Gym pass"),
-        ("2026-11-23", 8_900, "Pharmacy"),
-        ("2026-11-24", 3_300, "Parking"),
-        ("2026-11-25", 12_000, "Tickets"),
-        ("2026-11-26", 5_500, "Haircut"),
-        ("2026-11-27", 7_000, "Books"),
-        ("2026-11-28", 1_900, "Stationery"),
         ("2026-12-15", 223_980, "Car"),
     ]
     deleted = planned_repo.list_recently_deleted(conn, USER, days=_ALL_TIME_DAYS)
@@ -292,7 +283,9 @@ def test_planned_and_recurring(base: Built) -> None:
         (230_635, dt.datetime(2026, 10, 29, 19, 30, tzinfo=dt.UTC))
     ]
     rules = recurring_repo.list_rules(conn, USER)
-    assert len(rules) == 15  # handoff says 27 rules; it lists 12 + 3 on Today: overlay
+    # the handoff says 27 rules; it lists 12 on the board + 3 on Today; nine yearly rules dated
+    # 20 to 28 Nov make Today's "6 of 23" (F2): overlay
+    assert len(rules) == 24
     assert min(r.next_due for r in rules) == dt.date(2026, 11, 1)
     formulas = sorted(r.default_description for r in rules if r.amount_formula is not None)
     assert formulas == ["Salary", "Taxes", "Transit", "VAT Refund"]

@@ -201,7 +201,7 @@ def test_create_credit_card_stores_limit_and_shows_it(
     ("data", "field", "message"),
     [
         ({"name": "X", "currency": "EURO"}, "currency", "ISO 4217 code required"),
-        ({"name": "   ", "currency": "PLN"}, "name", "name required"),
+        ({"name": "   ", "currency": "PLN"}, "name", "Name is required"),
         (
             {"name": "A", "currency": "PLN", "opening_balance": "nan!"},
             "opening_balance",

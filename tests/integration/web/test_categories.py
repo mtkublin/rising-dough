@@ -102,7 +102,7 @@ def test_create_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
     r = client.post("/categories", data={"name": "   ", "direction": "expense"})
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-name-error": "▲ name required",
+        "field-name-error": "▲ Name is required",
     }
     assert _names(db) == before
 
@@ -165,7 +165,7 @@ def test_update_blank(client: TestClient, cat_id: int, db: sqlite3.Connection) -
     r = client.post(f"/categories/{cat_id}", data={"name": "  "})
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-name-error": "▲ name required",
+        "field-name-error": "▲ Name is required",
     }
     stored = categories_repo.find_by_id(db, USER_ID, cat_id)
     assert stored is not None

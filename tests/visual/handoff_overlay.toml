@@ -35,23 +35,17 @@ value = "t"
 count = 2  # desktop and phone copies of the cheatsheet
 reason = "ADR-0147 section 5: cheatsheet key for Go to Today is g t"
 
-# --- row 5: filter inputs disagree with the filter summary.
+# --- row 5: filter inputs disagree with the filter summary (value-inventory section 5 row 5).
+# The inputs are the truth: the board's request is the Oct pay window, so the summary names it
+# (F2, T-UR00b; the category chip needs an id the harness route does not carry).
 
 [[row]]
 page = "pages/ledger/actual--no-matches.html"
-select = "input#f-from"
-field = "value"
-old = "2026-10-07"
-value = "2026-01-01"
-reason = "value-inventory 5 row 5: summary reads 01/01/2026 - 31/01/2026, the inputs must agree"
-
-[[row]]
-page = "pages/ledger/actual--no-matches.html"
-select = "input#f-to"
-field = "value"
-old = "2026-10-31"
-value = "2026-01-31"
-reason = "value-inventory 5 row 5: summary reads 01/01/2026 - 31/01/2026, the inputs must agree"
+select = ".rd-empty__sub"
+field = "text"
+old = "Transport · 01/01/2026 – 31/01/2026 · “pizza”"
+value = "07/10/2026 – 31/10/2026 · “pizza”"
+reason = "handoff inconsistent, app right: the summary reads Transport and 01/01/2026 – 31/01/2026 while the inputs and selects read the Oct window and all categories; the request is the inputs' (value-inventory section 5 row 5), so the summary names only the window and the search"
 
 # --- row 7: credit card bar, 12,521.63 of 14,977.37 available is 84%.
 
@@ -208,6 +202,7 @@ reason = "handoff inconsistent, app right: the same board names the category \"B
 
 [[row]]
 page = "pages/*.html"
+exclude = ["pages/ledger/actual--empty.html", "pages/ledger/actual--long.html"]
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
 old = "actual 616"
@@ -217,40 +212,13 @@ reason = "seed value via ledger_data tab_counts (transactions.count_filtered)"
 
 [[row]]
 page = "pages/*.html"
+exclude = ["pages/ledger/recurring.html", "pages/ledger/recurring--empty.html", "pages/overlays/edit-recurring*.html", "pages/overlays/override--[or]*.html", "pages/overlays/promote--recurring.html", "pages/overlays/row-menu--recurring.html"]
 select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
 field = "text"
 old = "recurring 27"
-value = "recurring 15"
+value = "recurring 24"
 optional = true
 reason = "seed value via ledger_data tab_counts (recurring.list_rules, active)"
-
-[[row]]
-page = "pages/*.html"
-select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
-field = "text"
-old = "−13,755.41"
-value = "−10,726.62"
-optional = true
-reason = "seed value via ledger_totals.recurring_monthly_totals: monthly out"
-
-[[row]]
-page = "pages/*.html"
-select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
-field = "text"
-old = "in +23,253.18 · 27 rules · next due 01 nov"
-value = "in +19,548.13 · 15 rules · next due 01 nov"
-optional = true
-reason = "seed value via ledger_totals.recurring_monthly_totals: monthly in, rule count, next due"
-
-[[row]]
-page = "pages/*.html"
-select = ".rd-formula__next"
-field = "text"
-old = "→ next amount 1,836.93 PLN"
-value = "→ next amount 3,077.69 PLN"
-count = 4
-optional = true
-reason = "seed value via recurring_formula.resolve_rule_amount: the seed's formula rules all evaluate to one amount for their next occurrence"
 
 [[row]]
 page = "pages/*.html"
@@ -2069,3 +2037,935 @@ old = "net +2,923.92"
 value = "net −3,596.22"
 reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
 source = "geometry"
+
+# --- Ledger planned, recurring and empty boards (T-UR00b, F2).
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "−1,531.35"
+value = "0.00"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__figure"
+field = "data-signs"
+old = "1"
+value = "0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__note"
+field = "text"
+old = "3 items · 1 overdue · 1 due today"
+value = "0 items · 0 overdue · 0 due today"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"planned 3\")"
+field = "text"
+old = "planned 3"
+value = "planned 0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__figure--wide"
+field = "text"
+old = "−13,755.41"
+value = "0.00"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__figure--wide"
+field = "data-signs"
+old = "1"
+value = "0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__note"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in 0.00 · 0 rules"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "0.00"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
+field = "text"
+old = "actual 616"
+value = "actual 0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: with no entries there is no income anchor to derive the pay window from, so the date fields stay empty"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: with no entries there is no income anchor to derive the pay window from, so the date fields stay empty"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 JAN 2027), so the recurring view applies no date window and leaves the fields empty"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 JAN 2027), so the recurring view applies no date window and leaves the fields empty"
+
+# --- Ledger --long and --no-matches boards (T-UR00b, F2).
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "2,469,135.78"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "9"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
+field = "text"
+old = "actual 616"
+value = "actual 3"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-row__net"
+field = "text"
+old = "NET −1,234,567.89"
+value = "NET −2,469,135.78"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-row__sub:-soup-contains-own(\"Konto oszczędnościowe EUR →\")"
+field = "text"
+old = "Konto oszczędnościowe EUR → Investments C"
+value = "Savings → Investments C"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-row__sub:-soup-contains-own(\"Konto oszczędnościowe EUR\"):not(:-soup-contains-own(\"→\"))"
+field = "text"
+old = "Konto oszczędnościowe EUR"
+value = "Savings"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-amount:-soup-contains-own(\"+1,234,567.89\")"
+field = "text"
+old = "+1,234,567.89 "
+value = "−1,234,567.89 "
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = "input[aria-label^=\"Select Zakupy\"]"
+field = "aria-label"
+old = "Select Zakupy spożywcze · Żabka, +1,234,567.89 PLN"
+value = "Select Zakupy spożywcze · Żabka, −1,234,567.89 PLN"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "19,417.18"
+optional = true
+reason = "handoff inconsistent, app right: the board repeats Today's budgeted-category spend while ADR-0151 section 2 defines the figure as every expense in the pay window (19,417.18, as the actual board's overlay row)"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "7"
+optional = true
+reason = "handoff inconsistent, app right: the board repeats Today's budgeted-category spend while ADR-0151 section 2 defines the figure as every expense in the pay window (19,417.18, as the actual board's overlay row)"

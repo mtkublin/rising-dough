@@ -78,3 +78,10 @@ flash_saved = role("status").inside(flash_region)
 # Error flash shown inside an open modal dialog (T-UR02c): app-toast.js adds the region.
 in_dialog_flash = by_testid("flash-in-dialog")
 in_dialog_flash_box = role("alert").inside(in_dialog_flash)
+
+# Offline card (F4, handoff errors/offline): a request outside a form shows it in <main>.
+offline_card = role("alert").inside(main)
+offline_card_title = role("heading", "You\u2019re offline", level=1, exact=True).inside(
+    offline_card
+)
+offline_card_retry = role("button", "retry now").inside(offline_card)

@@ -45,6 +45,7 @@
   function setStatus(el, message, isError) {
     if (!el) return;
     el.textContent = message;
+    el.hidden = !message; /* an empty status takes no room (the handoff pages have none) */
     el.classList.toggle("rd-auth__status--error", Boolean(isError));
   }
 
@@ -235,6 +236,20 @@
     if (reauth) bindReauth(reauth);
     var register = document.querySelector("form[data-passkey-register]");
     if (register) bindRegister(register);
+    var forgot = document.querySelector("[data-forgot-password]");
+    if (forgot) bindForgot(forgot);
+  }
+
+  /* ── Forgot password: no email loop (ADR-0061); the admin resets it ─── */
+  function bindForgot(link) {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      setStatus(
+        document.querySelector("[data-passkey-status]"),
+        "Ask the admin to reset your password.",
+        false
+      );
+    });
   }
 
   if (document.readyState === "loading") {

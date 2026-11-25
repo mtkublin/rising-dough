@@ -25,7 +25,7 @@ reauth_cancel = role("link", "cancel", exact=True)
 reauth_error = role("alert")
 
 # First-run /setup (T-UR21; no handoff page, derived from force-password).
-setup_heading = role("heading", "Set up Rising Dough", level=1, exact=True)
+setup_heading = role("heading", "Create the first account", level=1, exact=True)
 setup_name = label("name", exact=True)
 setup_email = label("email", exact=True)
 setup_password = label("password", exact=True)
