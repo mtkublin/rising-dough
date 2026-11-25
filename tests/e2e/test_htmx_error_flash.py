@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.ui_map import shell
+from tests.ui_map import rd_shell, shell
 from tests.ui_map.locator import by_id, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -85,11 +85,11 @@ def test_network_failure_shows_offline_card_alone(
     _open(page, base_url)
     page.route("**/__probe", lambda route: route.abort())
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.offline_card_title)).to_be_visible()
-    expect(to_playwright(page, shell.offline_card)).to_contain_text(
+    expect(to_playwright(page, rd_shell.offline_card_title)).to_be_visible()
+    expect(to_playwright(page, rd_shell.offline_card)).to_contain_text(
         "Changes can\u2019t be saved right now. We\u2019ll retry when you\u2019re back online."
     )
-    expect(to_playwright(page, shell.offline_card_retry)).to_be_visible()
+    expect(to_playwright(page, rd_shell.offline_card_retry)).to_be_visible()
     page.wait_for_timeout(200)
     expect(to_playwright(page, shell.flash_region_assertive)).not_to_contain_text(
         "Could not reach the server"
