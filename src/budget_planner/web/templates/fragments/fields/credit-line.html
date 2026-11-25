@@ -8,7 +8,7 @@
 <div id="credit-line"
      {% if not preview|default(none) %}hidden{% endif %}
      hx-get="/transactions/_limit_preview"
-     hx-trigger="change from:closest form, keyup changed delay:400ms from:#field-amount"
+     hx-trigger="change from:closest form, keyup delay:400ms from:#field-amount"
      hx-include="closest form"
      hx-target="#credit-line"
      hx-swap="outerHTML">
