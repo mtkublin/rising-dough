@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page
 
-from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry
+from tests.e2e.ui_actions import choose_account, choose_category, fill_stable, open_new_entry
 from tests.ui_map import entries, shell
 from tests.ui_map.locator import to_playwright
 
@@ -27,9 +27,9 @@ def add_happened(
     open_new_entry(page)
     choose_category(page, category)
     choose_account(page, account)
-    to_playwright(page, entries.hero_amount).fill(amount)
-    to_playwright(page, entries.field_date.inside(entries.dialog)).fill(day)
-    to_playwright(page, entries.field_note.inside(entries.dialog)).fill(note)
+    fill_stable(to_playwright(page, entries.hero_amount), amount)
+    fill_stable(to_playwright(page, entries.field_date.inside(entries.dialog)), day)
+    fill_stable(to_playwright(page, entries.field_note.inside(entries.dialog)), note)
     with page.expect_response(
         lambda r: r.url.endswith("/transactions") and r.request.method == "POST"
     ) as resp:

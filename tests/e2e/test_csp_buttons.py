@@ -24,6 +24,7 @@ from tests.e2e import db_probe
 from tests.e2e.ui_actions import (
     choose_account,
     choose_category,
+    fill_stable,
     open_add_slide_over,
     open_new_entry,
     save_entry,
@@ -97,8 +98,8 @@ def test_add_from_today_submits_under_csp(live_server: tuple[str, Path], page: P
     open_new_entry(page)
     choose_category(page, "Groceries")
     choose_account(page, "Checking")
-    to_playwright(page, entries.hero_amount).fill("12.34")
-    to_playwright(page, entries.field_note).fill("today-added")
+    fill_stable(to_playwright(page, entries.hero_amount), "12.34")
+    fill_stable(to_playwright(page, entries.field_note), "today-added")
     save_entry(page)
     # Today reloads: the 500.00 opening balance drops by 12.34.
     expect(to_playwright(page, rd_shell.main)).to_contain_text("487.66")
@@ -201,8 +202,8 @@ def test_add_from_ledger_submits_under_csp(live_server: tuple[str, Path], page: 
     open_new_entry(page)
     choose_category(page, "Groceries")
     choose_account(page, "Checking")
-    to_playwright(page, entries.hero_amount).fill("12.34")
-    to_playwright(page, entries.field_note).fill("csp-added")
+    fill_stable(to_playwright(page, entries.hero_amount), "12.34")
+    fill_stable(to_playwright(page, entries.field_note), "csp-added")
     save_entry(page)
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()  # ledger-stale closes it
     expect(to_playwright(page, ledger.view_table("actual"))).to_contain_text("csp-added")
@@ -285,9 +286,9 @@ def test_add_planned_from_today_submits_under_csp(
     choose_category(page, "Groceries")
     choose_account(page, "Checking")
     soon = datetime.now(tz=UTC).date() + timedelta(days=2)
-    to_playwright(page, entries.field_due).fill(soon.isoformat())
-    to_playwright(page, entries.hero_amount).fill("25.00")
-    to_playwright(page, entries.field_note).fill("today-planned")
+    fill_stable(to_playwright(page, entries.field_due), soon.isoformat())
+    fill_stable(to_playwright(page, entries.hero_amount), "25.00")
+    fill_stable(to_playwright(page, entries.field_note), "today-planned")
     posted = save_entry(page, "planned")
     expect(to_playwright(page, entries.dialog)).to_have_count(0)  # saved: Today reloaded
     stored = db_probe.rows(db_path, "SELECT id, description, deleted_at FROM planned_transactions")
@@ -321,8 +322,8 @@ def test_add_recurring_from_today_submits_under_csp(
     _open_today_tab(page, base_url, entries.tab_repeats)
     choose_category(page, "Groceries")
     choose_account(page, "Checking")
-    to_playwright(page, entries.hero_amount).fill("40.00")
-    to_playwright(page, entries.field_note).fill("today-rule")
+    fill_stable(to_playwright(page, entries.hero_amount), "40.00")
+    fill_stable(to_playwright(page, entries.field_note), "today-rule")
     save_entry(page, "repeats")
     expect(to_playwright(page, entries.dialog)).to_have_count(0)  # saved: Today reloaded
     rule = ledger.recurring_row(db_probe.rule_id(db_path, "today-rule"))

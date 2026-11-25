@@ -8,7 +8,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry
+from tests.e2e.ui_actions import choose_account, choose_category, fill_stable, open_new_entry
 from tests.ui_map import entries
 from tests.ui_map.locator import to_playwright
 
@@ -29,7 +29,7 @@ def test_same_source_and_dest_shows_error_in_open_panel(
     choose_category(page, "Transit")  # a transit shows its destination account
     choose_account(page, "Checking")
     to_playwright(page, entries.field_dest).select_option(label="Checking")
-    to_playwright(page, entries.hero_amount).fill("10.00")
+    fill_stable(to_playwright(page, entries.hero_amount), "10.00")
     to_playwright(page, entries.save).click()
     dialog = to_playwright(page, entries.dialog)
     expect(to_playwright(page, entries.field_error("dest_account_id"))).to_contain_text(

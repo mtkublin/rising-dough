@@ -30,6 +30,7 @@ from budget_planner.web.middleware.csrf import (
     CSRF_HEADER_NAME,
 )
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.e2e import ui_actions
 from tests.e2e.mockup_target import journey, mockup_base_url, target  # noqa: F401
 
 # Loaded machines can take well over 15s to boot uvicorn. Override with
@@ -231,6 +232,16 @@ document.addEventListener('htmx:targetError', (e) => {
 """
 
 
+def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
+    """QFIX13: say how often ``fill_stable`` needed a retry (a swap beat the fill)."""
+    retries = ui_actions.FILL_RETRIES
+    if retries:
+        detail = "; ".join(f"{what} x{n}" for what, n in retries)
+        terminalreporter.write_line(f"e2e fill_stable retries: {len(retries)} ({detail})")
+    else:
+        terminalreporter.write_line("e2e fill_stable retries: 0")
+
+
 @pytest.fixture
 def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     """A Playwright ``Page`` with the CSRF token wired into ``page.request``.
@@ -300,6 +311,7 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
 
     context.expose_function("__reportCspViolation", _record)
     context.add_init_script(_CSP_LISTENER_JS)
+    context.add_init_script(ui_actions.HTMX_PENDING_JS)
     target_errors: list[str] = []
 
     def _record_target_error(message: str) -> None:

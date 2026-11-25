@@ -9,7 +9,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.e2e.ui_actions import choose_category, open_new_entry, save_entry
+from tests.e2e.ui_actions import choose_category, fill_stable, open_new_entry, save_entry
 from tests.ui_map import entries
 from tests.ui_map.locator import to_playwright
 
@@ -56,7 +56,7 @@ def test_amount_typed_during_the_hero_refresh_is_kept_and_stored(
     expect(to_playwright(page, entries.dialog)).to_contain_text("JPY")
     expect(amount).to_have_value("1234")
     expect(amount).to_have_attribute("placeholder", "0")
-    to_playwright(page, entries.field_note).fill("race-added")
+    fill_stable(to_playwright(page, entries.field_note), "race-added")
     save_entry(page)
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()
     assert db_probe.txn_amounts(db_path, "race-added") == [1234]
