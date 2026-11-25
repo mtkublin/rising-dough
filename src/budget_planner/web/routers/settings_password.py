@@ -34,7 +34,6 @@ from budget_planner.web.deps import (
 from budget_planner.web.htmx import wants_json
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.password_flow import (
-    attempts_text,
     default_target,
     landing_target,
     render_form,
@@ -102,8 +101,5 @@ def change_password(
             user,
             next_path=target,
             outcome=outcome,
-            attempts=attempts_text(request, conn, settings, user)
-            if outcome.message_for("current_password")
-            else None,
         )
     return success_response(request, settings, outcome, target)

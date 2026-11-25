@@ -177,16 +177,9 @@
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "current password new password 12+ characters...",
+      "name": "current password new password 12+ characters confirm new pas...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "sign out",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/auth/sessions/{handle}/revoke"
     },
     {
       "kind": "link",
@@ -269,13 +262,6 @@
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out this device",
-      "skipped": "ends the crawler's own session",
-      "target": "/auth/sessions/{handle}/revoke"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
       "name": "change password",
       "target": "/settings/password"
     },
@@ -295,21 +281,9 @@
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "2 fields need attention current password: Enter your current...",
+      "name": "current password \u25b2 Enter your current password. new password...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password",
-      "via": "change password"
-    },
-    {
-      "kind": "link",
-      "name": "current password",
-      "target": "#current-password",
-      "via": "change password"
-    },
-    {
-      "kind": "link",
-      "name": "new password",
-      "target": "#new-password",
       "via": "change password"
     }
   ],
@@ -1019,16 +993,9 @@
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "current password new password 12+ characters...",
+      "name": "current password new password 12+ characters confirm new pas...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "sign out",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/auth/sessions/{handle}/revoke"
     },
     {
       "kind": "link",
@@ -1111,13 +1078,6 @@
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out this device",
-      "skipped": "ends the crawler's own session",
-      "target": "/auth/sessions/{handle}/revoke"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
       "name": "change password",
       "target": "/settings/password"
     },
@@ -1137,21 +1097,9 @@
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "2 fields need attention current password: Enter your current...",
+      "name": "current password \u25b2 Enter your current password. new password...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password",
-      "via": "change password"
-    },
-    {
-      "kind": "link",
-      "name": "current password",
-      "target": "#current-password",
-      "via": "change password"
-    },
-    {
-      "kind": "link",
-      "name": "new password",
-      "target": "#new-password",
       "via": "change password"
     }
   ],
@@ -1164,16 +1112,9 @@
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "current password new password 12+ characters...",
+      "name": "current password new password 12+ characters confirm new pas...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "sign out",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/auth/sessions/{handle}/revoke"
     },
     {
       "kind": "link",
@@ -1244,13 +1185,6 @@
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out this device",
-      "skipped": "ends the crawler's own session",
-      "target": "/auth/sessions/{handle}/revoke"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
       "name": "change password",
       "target": "/settings/password"
     },
@@ -1270,21 +1204,9 @@
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "2 fields need attention current password: Enter your current...",
+      "name": "current password \u25b2 Enter your current password. new password...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password",
-      "via": "change password"
-    },
-    {
-      "kind": "link",
-      "name": "current password",
-      "target": "#current-password",
-      "via": "change password"
-    },
-    {
-      "kind": "link",
-      "name": "new password",
-      "target": "#new-password",
       "via": "change password"
     }
   ],

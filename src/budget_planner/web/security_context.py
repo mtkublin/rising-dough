@@ -44,7 +44,5 @@ def security_context(
         "forced": False,
         "next_path": SECURITY_PATH,
         "errors": {},
-        "summary_rows": (),
-        "attempts_text": None,
         "throttle_error": None,
     }

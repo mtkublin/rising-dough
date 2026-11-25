@@ -75,6 +75,71 @@ def test_create(client: TestClient) -> None:
     assert "budget-stale" in r.headers["HX-Trigger"]
 
 
+# -- a live category name is unique per user (T-UR00b, requirements F1.6) --
+
+_DUPLICATE = "▲ A category with this name already exists"
+
+
+def _audit_count(db: sqlite3.Connection) -> int:
+    db.commit()  # end any read snapshot so the app's writes are visible
+    return int(db.execute("SELECT count(*) FROM audit_log").fetchone()[0])
+
+
+def test_create_duplicate_name_is_422_under_the_name_field_and_writes_nothing(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    names, audits = _names(db), _audit_count(db)
+    r = client.post("/categories", data={"name": "Groceries", "direction": "expense"})
+    assert r.status_code == 422
+    assert _html.error_lines(r.text)["field-name-error"] == _DUPLICATE
+    assert _names(db) == names
+    assert _audit_count(db) == audits
+
+
+def test_rename_onto_another_categorys_name_is_422_and_changes_nothing(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    rent = categories_repo.create(
+        db, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
+    names, audits = _names(db), _audit_count(db)
+    r = client.post(f"/categories/{rent}", data={"name": "Groceries"})
+    assert r.status_code == 422
+    assert _html.error_lines(r.text)["field-name-error"] == _DUPLICATE
+    assert _names(db) == names
+    assert _audit_count(db) == audits
+
+
+def test_resaving_the_own_name_with_a_new_colour_is_not_a_duplicate(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    r = client.post(f"/categories/{cat_id}", data={"name": "Groceries", "color": "#ef4444"})
+    assert r.status_code == 200
+    assert _color(db, cat_id) == "#ef4444"
+
+
+def test_another_users_same_name_does_not_block_create(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    db.execute("INSERT INTO users (id, name) VALUES (2, 'other')")
+    db.commit()
+    categories_repo.create(db, 2, NewCategory(name="Pets", direction=Direction.EXPENSE))
+    r = client.post("/categories", data={"name": "Pets", "direction": "expense"})
+    assert r.status_code == 200
+    assert _names(db).count("Pets") == 1  # the caller's own; the other user's row is not listed
+    assert [c.name for c in categories_repo.list_all(db, 2)].count("Pets") == 1
+
+
+def test_an_archived_same_name_does_not_block_create(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    """Archive is a soft delete; the unique index covers live rows only (ADR-0136)."""
+    categories_repo.soft_delete(db, USER_ID, cat_id)
+    r = client.post("/categories", data={"name": "Groceries", "direction": "expense"})
+    assert r.status_code == 200
+    assert _names(db).count("Groceries") == 2
+
+
 def test_create_bad_direction(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories", data={"name": "X", "direction": "bogus"})

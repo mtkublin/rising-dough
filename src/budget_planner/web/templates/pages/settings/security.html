@@ -1,6 +1,6 @@
 {# Settings · security (T-UR14, ADR-0107, ADR-0075). Handoff: pages/settings/security.html and security--error.html.
    Context: active_tab, current_user, session_rows (SessionRow), passkeys (WebAuthnCredential), label_max_length,
-   and the password form inputs (forms/password-form: outcome, summary_rows, throttle_error, attempts_text, min_length, next_path).
+   and the password form inputs (forms/password-form: outcome, throttle_error, min_length, next_path).
    The add-passkey form keeps the hooks of rd/js/passkeys.js: form[data-passkey-register], input name=label,
    button[type=submit], [data-passkey-status]. #}
 {% extends "layouts/base.html" %}
