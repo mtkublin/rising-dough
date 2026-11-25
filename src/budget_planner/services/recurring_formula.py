@@ -421,13 +421,27 @@ def rt_expand(
             # mark it, and keep the page that lists it alive.
             logger.warning("formula cycle in recurring rule %s: amount skipped", rule.id)
             occs = tuple(
-                dataclasses.replace(occ, amount=0, description=_cycle_label(occ.description))
+                dataclasses.replace(occ, amount=0, description=cycle_label(occ.description))
                 for occ in occs
             )
     return apply_overrides(occs, overrides)
 
 
-def _cycle_label(description: str) -> str:
+def live_rule_amount(
+    conn: sqlite3.Connection, user_id: int, rule: RecurringRule, on: dt.date, fx: FormulaFx
+) -> tuple[int, bool]:
+    """What the rule posts on ``on`` and whether it is a stored formula cycle (Q25, ADR-0047).
+
+    A cyclic stored formula posts 0 and is flagged, exactly like :func:`rt_expand`; the saved
+    snapshot is never shown for it.
+    """
+    try:
+        return resolve_rule_amount(conn, user_id, rule, on, fx=fx), False
+    except FormulaCycleError:
+        return 0, True
+
+
+def cycle_label(description: str) -> str:
     """The occurrence's description with the "formula cycle" marker (Today shows it)."""
     if not description:
         return FORMULA_CYCLE_MARK
@@ -773,9 +787,11 @@ __all__ = [
     "build_term",
     "compute_formula_amount",
     "compute_savable_amount",
+    "cycle_label",
     "formula_fx",
     "formula_fx_for",
     "invalid_source_ids",
+    "live_rule_amount",
     "parse_percent_to_bps",
     "preview",
     "resolve_rule_amount",
