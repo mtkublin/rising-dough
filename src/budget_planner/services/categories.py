@@ -13,7 +13,7 @@ import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from budget_planner.domain.categories import (
@@ -36,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 RECENT_CATEGORY_LIMIT = 4
 """Handoff category picker shows four recent categories (T-UR34g, value-inventory G6)."""
+
+RECENT_WINDOW_DAYS = 90
+"""The recent chips rank entry counts over this many days up to today (R1, ADR-0151 amendment)."""
 
 
 class CategoryNotFoundError(LookupError):
@@ -190,18 +193,25 @@ def entry_count(conn: sqlite3.Connection, user_id: int, category_id: int) -> int
 
 
 def picker_summary(
-    conn: sqlite3.Connection, user_id: int, *, limit: int = RECENT_CATEGORY_LIMIT
+    conn: sqlite3.Connection, user_id: int, *, today: date, limit: int = RECENT_CATEGORY_LIMIT
 ) -> CategoryPicker:
-    """Recent categories (latest live transaction date desc, id asc on ties) and picker list.
+    """Recent categories (most entries in the last 90 days, ties by latest use, then id).
 
-    The picker lists live categories (:func:`list_all`), so archived ones are neither
-    recent nor counted. The system Reconciliation (``Direction.ADJUSTMENT``) category is
-    not in recent, not in the search list and not in N; Transit stays (ADR-0151 §2).
+    The window is ``[today - RECENT_WINDOW_DAYS, today]`` over live transactions; a category
+    with no entry in it is not recent (R1, ADR-0151 amendment 2026-11-25). The picker lists
+    live categories (:func:`list_all`), so archived ones are neither recent nor counted. The
+    system Reconciliation (``Direction.ADJUSTMENT``) category is not in recent, not in the
+    search list and not in N; Transit stays (ADR-0151 §2).
     """
     searchable = [c for c in list_all(conn, user_id) if c.direction is not Direction.ADJUSTMENT]
-    usage = usage_by_category(conn, user_id)
-    used = [c for c in searchable if c.id in usage and usage[c.id].last_used is not None]
-    used.sort(key=lambda c: (-_last_ordinal(usage[c.id]), c.id))
+    window = {
+        category_id: (count, last)
+        for category_id, count, last in transactions_repo.category_usage(
+            conn, user_id, since=today - timedelta(days=RECENT_WINDOW_DAYS), until=today
+        )
+    }
+    used = [c for c in searchable if c.id in window]
+    used.sort(key=lambda c: (-window[c.id][0], -window[c.id][1].toordinal(), c.id))
     return CategoryPicker(
         recent=tuple(used[:limit]), searchable=tuple(searchable), total_count=len(searchable)
     )
@@ -220,10 +230,6 @@ def lead_with_selected(picker: CategoryPicker, selected: Category | None) -> Cat
     return CategoryPicker(
         recent=recent, searchable=picker.searchable, total_count=picker.total_count
     )
-
-
-def _last_ordinal(usage: CategoryUsage) -> int:
-    return usage.last_used.toordinal() if usage.last_used is not None else 0
 
 
 def _live_rule_refs(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
