@@ -6,36 +6,27 @@ No business logic: services compute, this module only names the template keys.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Sequence
 from datetime import date
 from typing import get_args
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.money import major_float
 from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
+    categories as categories_service,
     forecast as forecast_service,
     fortune as fortune_service,
     fx as fx_service,
 )
-from budget_planner.services.analytics import AnalyticsBundle
 from budget_planner.services.forecast import MonthlyProjectionPoint
-from budget_planner.web import charts, view_models
+from budget_planner.web import plan_views, view_models
 from budget_planner.web.params import query_choice
 
 BUDGET_TAB_URL = "/plan?tab=budget"
 """Base of the budget tab's period links (``&year=&month=`` follow)."""
-
-
-def forecast_chart_points(
-    projection: Sequence[MonthlyProjectionPoint], base_ccy: str
-) -> tuple[tuple[float, float], ...]:
-    """(index, major-unit balance) pairs for the forecast line chart (geometry only)."""
-    return tuple(
-        (float(i), major_float(p.end_balance_minor, base_ccy)) for i, p in enumerate(projection)
-    )
+FORECAST_TAB_URL = "/plan?tab=forecast&horizon="
+"""Base of the forecast tab's horizon links (the months follow)."""
 
 
 def forecast_summary(
@@ -52,22 +43,27 @@ def forecast_summary(
     return forecast_service.projection_summary(projection, now_value=net_worth)
 
 
-def forecast_context(
-    conn: sqlite3.Connection, user_id: int, settings: Settings, today: date, horizon: int
-) -> dict[str, object]:
-    """Template keys of the Forecast tab: series, chart and the summary strip."""
+def forecast_page_for(
+    conn: sqlite3.Connection,
+    user_id: int,
+    settings: Settings,
+    today: date,
+    *,
+    horizon: int,
+    choices: tuple[int, ...],
+) -> plan_views.ForecastPageView:
+    """Hero, chart and table values of Plan · forecast for ``horizon`` months."""
     projection = forecast_service.monthly_projection(
         conn, user_id, settings, today, horizon=horizon
     )
-    return {
-        "forecast_points": projection,
-        "forecast_horizon": horizon,
-        "forecast_chart": charts.line_area(
-            forecast_chart_points(projection, settings.base_currency),
-            x_labels=tuple(p.label for p in projection),
-        ),
-        "forecast_summary": forecast_summary(conn, user_id, settings, today, projection),
-    }
+    return plan_views.forecast_page(
+        projection,
+        forecast_summary(conn, user_id, settings, today, projection),
+        horizon=horizon,
+        choices=choices,
+        currency=settings.base_currency,
+        base_url=FORECAST_TAB_URL,
+    )
 
 
 def base_context(
@@ -137,32 +133,27 @@ def year_context(
     }
 
 
-def analytics_bundle(
+def analytics_page_for(
     conn: sqlite3.Connection,
     user_id: int,
     picked: budget_service.PickerMonth,
     period_raw: str | None,
     *,
     settings: Settings,
-) -> tuple[AnalyticsBundle, dict[str, object]]:
-    """Return the analytics bundle for the picked month and the keys derived from it."""
+) -> plan_views.AnalyticsPageView:
+    """Plan · analytics values for the picked month and the requested range."""
     today = clock.today_local(settings)
     period = analytics_service.normalize_period(
         query_choice("period", period_raw, get_args(analytics_service.Period))
     )
-    ref_today = analytics_service.reference_today(today, picked.year, picked.month)
     bundle = analytics_service.bundle(
         conn,
         user_id,
         fx_service.converter_for(conn, settings, today),
-        today=ref_today,
+        today=analytics_service.reference_today(today, picked.year, picked.month),
         period=period,
     )
-    return bundle, {
-        "bundle": bundle,
-        "period": period,
-        "spend_rows": view_models.spend_rows(
-            bundle, analytics_service.twelve_month_avg_by_category(bundle)
-        ),
-        "spend_total_minor": analytics_service.spend_total_minor(bundle),
+    colors = {
+        c.id: c.color for c in categories_service.list_all(conn, user_id, include_deleted=True)
     }
+    return plan_views.analytics_page(bundle, picked, colors, settings.base_currency)

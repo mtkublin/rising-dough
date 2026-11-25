@@ -120,7 +120,7 @@ def test_line_area_negative_values() -> None:
     # All y-axis ticks are numeric labels.
     for tick in chart.y_axis:
         assert isinstance(tick, AxisTick)
-        float(tick.label.replace(",", ""))
+        float(tick.label.replace(",", "").replace("\N{MINUS SIGN}", "-"))
 
 
 def test_line_area_flat_line() -> None:

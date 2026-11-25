@@ -234,6 +234,8 @@ def _match_one(el: Tag, loc: Locator) -> bool:  # noqa: PLR0911
         level = int(m.group(1)) if m else int(str(el.get("aria-level", "0")) or 0)
         if level != loc.level:
             return False
+    if loc.pressed is not None and (el.get("aria-pressed") == "true") != loc.pressed:
+        return False
     if loc.name is None:
         return True
     return _matches(accessible_name(el), loc.name, exact=loc.exact)

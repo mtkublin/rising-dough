@@ -80,5 +80,8 @@ def test_percent_of_and_axis_and_float() -> None:
     assert percent_of(5, 0) == 0
     assert format_axis_number(1200.0) == "1,200"
     assert format_axis_number(1.5) == "1.50"
+    assert format_axis_number(-20000.0) == "\N{MINUS SIGN}20,000"
+    assert format_axis_number(-1.5) == "\N{MINUS SIGN}1.50"
+    assert format_axis_number(0.0) == "0"
     assert major_float(250, "PLN") == 2.5
     assert major_float(250, "JPY") == 250.0

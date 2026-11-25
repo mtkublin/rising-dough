@@ -1,0 +1,9 @@
+{# fragment: charts/tooltip
+   Inputs: tip (charts.Tooltip). The SVG tooltip box shared by the forecast and income-vs-expense
+   charts: a rounded rectangle and three text lines (caption, value, detail). #}
+<g class="rd-chart__tip">
+<rect class="rd-chart__tip-box" x="{{ tip.x }}" y="{{ tip.y }}" width="{{ tip.width }}" height="{{ tip.height }}" rx="12" />
+<text class="rd-chart__tick" x="{{ tip.text_x }}" y="{{ tip.line_y[0] }}">{{ tip.title }}</text>
+<text class="rd-chart__tip-value" x="{{ tip.text_x }}" y="{{ tip.line_y[1] }}">{{ tip.value }}</text>
+<text class="rd-chart__tick" x="{{ tip.text_x }}" y="{{ tip.line_y[2] }}">{{ tip.detail }}</text>
+</g>

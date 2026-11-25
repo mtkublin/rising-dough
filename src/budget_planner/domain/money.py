@@ -325,11 +325,13 @@ _INT_LABEL_EPSILON: Final = 1e-9
 
 
 def format_axis_number(value: float) -> str:
-    """Chart axis label: grouped integer when whole, else two decimals."""
-    rounded = round(value)
-    if abs(value - rounded) < _INT_LABEL_EPSILON:
-        return f"{int(rounded):,}"
-    return f"{value:,.2f}"
+    """Chart axis label: grouped integer when whole, else two decimals; negatives take U+2212."""
+    sign = _MINUS if value < 0 else ""
+    magnitude = abs(value)
+    rounded = round(magnitude)
+    if abs(magnitude - rounded) < _INT_LABEL_EPSILON:
+        return f"{sign}{int(rounded):,}"
+    return f"{sign}{magnitude:,.2f}"
 
 
 def percent_of(part_minor: int, total_minor: int) -> int:
