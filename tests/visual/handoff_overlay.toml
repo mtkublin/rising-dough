@@ -192,11 +192,12 @@ value = "7"
 reason = "digit count of the hero figure above (19,417.18 has seven digits)"
 
 [[row]]
-page = "pages/today.html"
+page = "pages/*.html"
 select = ".rd-upcoming__cat .rd-chip:-soup-contains-own(\"Bank fees\")"
 field = "text"
 old = "Bank fees"
 value = "Bank Fees #18"
+optional = true  # only the Today board and the overlays over it list this chip
 reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages (the rule description too); the seed has one such category"
 
 [[row]]
@@ -1020,6 +1021,96 @@ field = "text"
 old = "Fixed Costs "
 value = "Fixed costs "
 reason = "handoff data inconsistency: this board names the category Fixed Costs, every other board and the category list say Fixed costs"
+
+# --- row 4: Today --empty keeps totals the empty state cannot have (the seed has nothing upcoming).
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "text"
+old = "141.13"
+value = "1,434.53"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "data-digits"
+old = "5"
+value = "6"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "data-marks"
+old = "1"
+value = "2"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__note > .u-hide-below-md"
+field = "text"
+old = "7 days until next income (Salary, 7 nov)"
+value = "1 day until next income (1 nov)"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__note > .u-hide-from-md"
+field = "text"
+old = "7 days until salary (7 nov)"
+value = "1 day until next income (1 nov)"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period > p.rd-caption"
+field = "text"
+old = "PERIOD · 7 OCT → 7 NOV · DAY 25 OF 31"
+value = "PERIOD · 7 OCT → 1 NOV · DAY 25 OF 25"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg"
+field = "text"
+old = "████████████████▒"
+value = "████████████████"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg > .rd-bar__left"
+field = "text"
+old = "░░░"
+value = "░░░░"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg"
+field = "aria-label"
+old = "77 percent spent, 23 percent left"
+value = "77 percent spent, 22 percent left"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-stats__value:-soup-contains-own(\"446.60\")"
+field = "text"
+old = "446.60"
+value = "0.00"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-stats__value:-soup-contains-own(\"987.93\")"
+field = "text"
+old = "987.93"
+value = "1,434.53"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
 
 # --- generated geometry rows (do not edit; regenerate, see below) ---
 

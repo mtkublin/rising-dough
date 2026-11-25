@@ -563,8 +563,11 @@ def _empty_accounts(d: SeedData) -> SeedData:
 
 
 def _empty(d: SeedData) -> SeedData:
-    """Today `--empty`: no accounts, ledger, planned or recurring; budgets stay."""
-    return _empty_accounts(d)
+    """Today `--empty`: nothing upcoming (no planned items or rules); the rest stays.
+
+    The handoff board keeps its totals, net worth and "all 10 accounts" with an empty list.
+    """
+    return _empty_planned(_empty_recurring(d))
 
 
 def _long(d: SeedData) -> SeedData:

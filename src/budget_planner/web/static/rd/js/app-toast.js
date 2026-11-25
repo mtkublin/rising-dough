@@ -159,6 +159,19 @@
      an em dash, because it may no longer match the account select. */
   const HERO = '.rd-dialog__hero';
   let typed = null;
+  /* The element whose request failed last: "retry" in the error flash re-issues it. */
+  let failedElt = null;
+
+  document.addEventListener('click', (event) => {
+    const retry = event.target.closest('[data-js="flash-retry"]');
+    if (!retry) return;
+    const elt = failedElt;
+    const flash = retry.closest('.rd-flash');
+    if (flash) flash.remove();
+    if (!elt || !elt.isConnected || !window.htmx) return;
+    if (elt instanceof HTMLFormElement) elt.requestSubmit();
+    else window.htmx.trigger(elt, 'click');
+  });
 
   function isHeroRefresh(detail) {
     const path = (detail.pathInfo && detail.pathInfo.requestPath) || '';
@@ -180,6 +193,7 @@
     }
     const xhr = detail.xhr;
     if (!xhr || xhr.status < 400) return;
+    failedElt = detail.elt || null;
     if (String((detail.pathInfo && detail.pathInfo.requestPath) || '').includes('hero=1')) markHeroStale();
     const body = xhr.responseText || '';
     if (FLASH_OOB.test(body)) {
