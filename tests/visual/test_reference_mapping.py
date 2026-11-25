@@ -23,7 +23,19 @@ from budget_planner.web.middleware.csrf import csrf_cookie_name
 from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS
+from tests.visual.handoff_newentry import (
+    NEWENTRY_RECIPES,
+    PHONE_SHEET_DIALOGS,
+    newentry_recipe,
+)
 from tests.visual.handoff_openers import OPENERS, opener_url
+from tests.visual.handoff_recurring import (
+    STATE_PAGES,
+    STATE_RECIPES,
+    STATE_SOURCE,
+    state_opener_url,
+    state_recipe as dialog_state_recipe,
+)
 from tests.visual.handoff_states import (
     NO_USER_PAGES,
     RECIPES,
@@ -39,6 +51,7 @@ from tests.visual.test_reference import (
     LEDGER_BOARD,
     OPENER_PAGES,
     OVERLAY_DIALOGS,
+    OVERLAY_MODIFIERS,
     PAGE_MODIFIERS,
     PAGE_ROUTES,
     SURFACE_ROUTES,
@@ -51,6 +64,7 @@ from tests.visual.test_reference import (
 )
 
 CLICK_PAGES = {f"pages/overlays/{n}.html" for n in CLICK_RECIPES}
+NEWENTRY_PAGES = set(NEWENTRY_RECIPES)
 
 
 def test_recurring_reference_uses_board_modifier() -> None:
@@ -62,12 +76,14 @@ def test_recurring_reference_uses_board_modifier() -> None:
 
 def test_every_overlay_page_is_mapped_or_listed_unmapped() -> None:
     overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
-    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES
+    mapped = set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES | NEWENTRY_PAGES | STATE_PAGES
     unmapped = {f"pages/overlays/{n}.html" for n in UNMAPPED_OVERLAYS}
     assert mapped | unmapped == overlays
     assert not mapped & unmapped
     assert not set(OVERLAY_DIALOGS) & OPENER_PAGES
     assert not CLICK_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES)
+    assert not NEWENTRY_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES)
+    assert not STATE_PAGES & (set(OVERLAY_DIALOGS) | OPENER_PAGES | CLICK_PAGES | NEWENTRY_PAGES)
     for page in overlays:
         assert base_page_of(page).startswith("pages/")
         assert handoff.surface_of(base_page_of(page)) != "overlays"
@@ -88,12 +104,31 @@ def test_click_recipes_name_handoff_overlays_and_leave_the_unmapped_set() -> Non
     assert "override--year-cell" in UNMAPPED_OVERLAYS
 
 
+def test_new_entry_input_states_are_mapped() -> None:
+    names = ("error", "over-limit", "phone-sheet", "repeats-formula")
+    assert not {f"new-entry--{n}" for n in names} & UNMAPPED_OVERLAYS
+    pages = {f"pages/overlays/new-entry--{n}.html" for n in names}
+    assert pages == NEWENTRY_PAGES | set(PHONE_SHEET_DIALOGS)
+    # The phone sheet is the happened dialog (identical handoff markup), fetched from its route.
+    assert OVERLAY_DIALOGS["pages/overlays/new-entry--phone-sheet.html"] == "/add?when=happened"
+    for page in NEWENTRY_PAGES:
+        assert newentry_recipe(page) is NEWENTRY_RECIPES[page]
+        assert click_recipe(page) is None
+    assert newentry_recipe("pages/overlays/new-entry--happened.html") is None
+
+
 # Overlay page -> (route of its own base page, seed modifiers), derived from the handoff file.
 _BASES = {
     "edit-account": ("/accounts", ()),
     "edit-account--liability": ("/accounts", ()),
     "reconcile": ("/accounts", ()),
     "new-account": ("/accounts", ()),
+    "new-account--filled": ("/accounts", ()),
+    "new-account--error": ("/accounts", ()),
+    "delete-account": ("/accounts", ("unreferenced-account",)),
+    "delete-account--blocked-planned": ("/accounts", ("account-with-rules",)),
+    "new-category--filled": ("/settings", ()),
+    "new-category--error": ("/settings", ()),
     "edit-category": ("/settings", ()),
     "archive-category": ("/settings", ()),
     "new-category": ("/settings", ()),
@@ -109,6 +144,10 @@ _BASES = {
     "new-entry--happened": ("/today", ()),
     "new-entry--planned": ("/today", ()),
     "new-entry--repeats-fixed": ("/today", ()),
+    "new-entry--error": ("/today", ()),
+    "new-entry--over-limit": ("/today", ()),
+    "new-entry--phone-sheet": ("/today", ()),
+    "new-entry--repeats-formula": ("/today", ()),
     "add-user": ("/settings/users", ()),
     "add-user--error": ("/settings/users", ()),
     "edit-user": ("/settings/users", ()),
@@ -132,6 +171,12 @@ def test_overlay_renders_over_its_own_base_page(stem: str) -> None:
 # Text each dialog must show once opened from its resolved route (the handoff names).
 _DIALOG_TEXT = {
     "new-account": "new account",
+    "new-account--filled": "new account",
+    "new-account--error": "new account",
+    "delete-account": "Delete Investments E?",
+    "delete-account--blocked-planned": "It has no transactions, but 2 recurring rules still use it",
+    "new-category--filled": "new category",
+    "new-category--error": "new category",
     "edit-account": "Investments A",
     "edit-account--liability": "Investments A",
     "delete-account--blocked": "Checking",
@@ -170,7 +215,8 @@ def test_every_opener_has_an_expected_dialog_text() -> None:
 @pytest.fixture(scope="module")
 def seeded(tmp_path_factory: pytest.TempPathFactory) -> tuple[Settings, str]:
     path = tmp_path_factory.mktemp("openers") / "seed.sqlite"
-    token = handoff_seed.build_seed(path).session_token
+    modifiers = tuple(m for names in OVERLAY_MODIFIERS.values() for m in names)
+    token = handoff_seed.build_seed(path, modifiers=modifiers).session_token
     settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
     return settings, token
 
@@ -427,7 +473,12 @@ def test_post_state_recipes_type_what_the_handoff_shows() -> None:
         "pages/overlays/add-user--error.html",
         "pages/overlays/invite-user--error.html",
         "pages/overlays/one-time-password.html",
+        "pages/overlays/new-account--filled.html",
+        "pages/overlays/new-account--error.html",
+        "pages/overlays/new-category--filled.html",
+        "pages/overlays/new-category--error.html",
     }
+    assert not {p for p in DIALOG_SUBMITS if p.split("/")[-1][:-5] in UNMAPPED_OVERLAYS}
     for page, recipe in DIALOG_SUBMITS.items():
         assert page in {f"pages/overlays/{n}.html" for n in OPENERS}
         text = (handoff.HANDOFF_ROOT / page).read_text(encoding="utf-8")
@@ -459,3 +510,79 @@ def test_used_email_posts_answer_422_with_the_typed_values(seeded: tuple[Setting
         text = " ".join(re.sub(r"<[^>]+>", " ", response.text).split())
         assert error in text, stem
         assert 'value="partner@example.test"' in response.text
+
+
+_STATES = {
+    "edit-recurring--empty": "Taxes",
+    "edit-recurring--incomplete": "Taxes",
+    "edit-recurring--picking": "Taxes",
+    "edit-transaction--error": "Takeaway",
+    "override--remove": "Big Purchases",
+}
+
+
+def test_state_overlays_are_mapped_with_their_base_pages() -> None:
+    assert {p.split("/")[-1][:-5] for p in STATE_PAGES} == set(_STATES) == set(STATE_SOURCE)
+    assert not {n for n in STATE_SOURCE if f"pages/overlays/{n}.html" in OPENER_PAGES}
+    assert set(STATE_RECIPES) == set(STATE_SOURCE) - {"override--remove"}
+    for stem in ("edit-recurring--empty", "edit-recurring--incomplete", "edit-recurring--picking"):
+        page = f"pages/overlays/{stem}.html"
+        assert route_for(page) == "/ledger?view=recurring"
+        assert modifiers_for(page) == ("recurring-board",)
+        assert dialog_state_recipe(page) is STATE_RECIPES[stem]
+    assert route_for("pages/overlays/edit-transaction--error.html") == LEDGER_BOARD
+    assert route_for("pages/overlays/override--remove.html") == "/ledger?view=recurring"
+    assert dialog_state_recipe("pages/overlays/override--remove.html") is None
+    assert dialog_state_recipe("pages/today.html") is None
+
+
+def test_state_openers_resolve_the_dialog_each_state_starts_from(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    path = tmp_path_factory.mktemp("states") / "seed.sqlite"
+    token = handoff_seed.build_seed(path, modifiers=("recurring-board",)).session_token
+    settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
+    conn = get_connection(settings)
+    try:
+        urls = {s: state_opener_url(f"pages/overlays/{s}.html", conn) for s in _STATES}
+        assert state_opener_url("pages/today.html", conn) is None
+        taxes = opener_url("pages/overlays/edit-recurring--formula.html", conn)
+        takeaway = opener_url("pages/overlays/edit-transaction.html", conn)
+        month = opener_url("pages/overlays/override--budget-month.html", conn)
+    finally:
+        conn.close()
+    assert urls["edit-recurring--empty"] == urls["edit-recurring--picking"] == taxes
+    assert urls["edit-recurring--incomplete"] == taxes
+    assert urls["edit-transaction--error"] == takeaway
+    assert urls["override--remove"] == f"{month}&remove=1"
+    for stem, text in _STATES.items():
+        url = urls[stem]
+        assert url is not None
+        status, body, retarget = _get(settings, token, url)
+        assert status == 200, stem
+        assert text in body, stem
+        assert retarget == "#modal-root"
+
+
+def test_remove_override_confirm_names_the_default_it_falls_back_to(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    path = tmp_path_factory.mktemp("remove") / "seed.sqlite"
+    token = handoff_seed.build_seed(path).session_token
+    settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
+    conn = get_connection(settings)
+    try:
+        url = state_opener_url("pages/overlays/override--remove.html", conn)
+    finally:
+        conn.close()
+    assert url is not None
+    _, body, _ = _get(settings, token, url)
+    text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
+    assert "Remove override?" in text
+    assert "Big Purchases \u00b7 Oct 2026 goes back to the default 604.35 PLN." in text
+
+
+def test_overlay_modifiers_name_overlays_and_known_modifiers() -> None:
+    overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
+    assert set(OVERLAY_MODIFIERS) <= overlays
+    assert all(set(m) <= set(handoff_seed.MODIFIER_NAMES) for m in OVERLAY_MODIFIERS.values())
