@@ -54,12 +54,12 @@ _RECORDER = """
 """
 
 
-@pytest.mark.parametrize("i", range(int(os.environ.get("DIAG_N", "25"))))
+@pytest.mark.parametrize("i", range(int(os.environ.get("DIAG_N", "40"))))
 def test_diag_planned_note_stress(live_server: tuple[str, Path], page: Page, i: int) -> None:
     base_url, db_path = live_server
-    if os.environ.get("DIAG_THROTTLE"):
+    if True:
         cdp = page.context.new_cdp_session(page)
-        cdp.send("Emulation.setCPUThrottlingRate", {"rate": int(os.environ["DIAG_THROTTLE"])})
+        cdp.send("Emulation.setCPUThrottlingRate", {"rate": 6})
     steps: list[tuple[int, str]] = []
     t0 = time.monotonic()
 
