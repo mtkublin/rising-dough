@@ -126,22 +126,22 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/forecast/_table.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete |  |
-| `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR10 | delete |  |
+| `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | delete |  |
 | `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/planned/_table.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_formula_preview.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_override_form.html` | T-UR10 | delete |  |
-| `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR10 | delete |  |
+| `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR24 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_promote_modal.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_empty.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_filter_form.html` | T-UR09 | delete |  |
-| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_limit_preview.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_row.html` | T-UR09 | delete |  |
-| `src/budget_planner/web/templates/partials/transactions/_table.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/partials/transactions/_table.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/plan/_analytics_bundle.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/plan/_analytics_tab.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/plan/_budget_tab.html` | T-UR11 | deleted | UR11a: `GET /plan?tab=budget` renders `pages/plan/budget.html`; `plan/index.html:67` still names it in a dead branch (T-UR15 removes the hub) |

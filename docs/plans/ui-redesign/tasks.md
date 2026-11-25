@@ -158,6 +158,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - Progress (2026-11-24): seed `tests/visual/handoff_seed.py` (`build_seed`, 10 modifiers; `test_reference.py` uses it, `test_snapshots.py` keeps demo.sqlite; fixture choice keys on the module name, harden later) and overlay `tests/visual/handoff_overlay.toml` + `overlay.py` + guard `test_handoff_overlay.py` (12 rows) merged. The overlay rewrites the handoff to what seed + app produce (ADR-0147 §4): the handoff is internally inconsistent on Today (overdue "Annual insurance" 412.00 shown while left is 1,399.93); the app gives left 987.93 and afford -116.01 per day / 812.07 over, so the afford row 9 value moves from the ADR-0151 board figure to the seed figure in the follow-up. Remaining: seed-dependent overlay rows (Today/Plan headline, tab counts 616/27, checked dates, future session times, formula next amount, EUR-named PLN accounts, invite `used` modifier), CI-rendered references (`visual.yml`, remove the 156 committed PNGs), tolerance + cluster cap. Open decisions: `placeholder` attribute in the overlay allow-list (ADR-0147 §4), budget-row bar labels (row 8), empty/future values (rows 2-4, 13), 22nd picker entry (needs an element).
 - Progress (2026-11-24, wave 3): references rendered in CI (`visual.yml` advisory job `handoff reference comparison`, `continue-on-error`, not in `visual-gate`; 106 pages x 3 widths x 2 themes from the overlaid handoff; `SURFACE_ROUTES` + `PAGE_ROUTES` map pages to app routes); 156 committed reference PNGs removed, guard `tests/architecture/test_no_committed_reference_png.py`; `just visual-reference` / `test-visual` run in the pinned container. Overlay now 40 rows; 31 seed-value rows checked against services by `tests/visual/test_overlay_values.py`; `invite-used` modifier. Remaining: tolerance + cluster cap (calibrated from CI self-comparison), seed parity follow-ups (owner Safari session, forecast per-month rows, recurring rule rows vs the board), the red-run record. Gate the reference job (add to `visual-gate` needs, drop `continue-on-error`) as surfaces migrate.
 - Progress (2026-11-24, wave 4): seed parity: owner `Safari · iPhone` session in the base seed (board times after the frozen day overlaid to seed times), 57 of 60 forecast per-month cells overlaid with service-checked CASES (overlay 100 rows), modifier `recurring-board` (drops the 3 Today-only rules so ledger/recurring shows the board's 12; to be wired per page with page-specific tab-count and hero rows). Reference job sharded into 6 jobs (`REFERENCE_SHARD=<viewport>:<theme>`, 212 tests each; the unsharded job hit the 45-minute timeout, run 45480373605). Known: forecast net cells Dec 2026 and Sep 2027 keep the board's loss class while the seed projects positive (overlay is text-only). Harness gaps for the tolerance item: `SURFACE_ROUTES["auth"]` points at `/login` (route is `/auth/login`); every overlay page compares against plain `/today` (no dialog opened); `SURFACE_TOLERANCE` still per surface.
+- Progress (2026-11-25): reference job sharded 6 ways (UR00bE, 9a4c4c61); strict tolerance, max diff pixel ratio 0.001 plus cluster cap (UR00bD, 93471206); cap calibrated to 52 px = 2 × 26 px, the largest handoff-vs-itself cluster over visual.yml runs 45496302019, 45496318944, 45498452834 (UR00bF, 5fd4c3af); red run 45493474608: 106 failed / 106 passed per shard on the old app. Open: dialog overlay pages open their dialog, 409/500 page routes, recurring-board modifier wiring.
 
 ---
 
@@ -179,11 +180,13 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - **Acceptance**: a placeholder page extending the new base passes shell journeys (navigation, palette, shortcuts, theme switch); unmigrated pages still use the old base; crawler green on both.
 - From T-UR01: link `/static/rd/css/app.bundle.css`; `<script type="module">` for `/static/rd/js/*`; `theme.js` as a classic `<head>` script; the palette is static markup today (`templates/partials/_palette.html`, 15 entries, first `g o`), there is no palette route: port the entries and use `g t` for Today (ADR-0147 §5).
 - Done (2026-11-24): `templates/layouts/{base,_palette,_shortcuts}.html` per the handoff shell (top bar `rd-mainnav` >= 768 px, `rd-tabbar` below; the handoff has no side rail), `fragments/flash/{success,error}`, `fragments/toast/undo`, nine `fragments/states/*`; dev-gated placeholder `GET /dev/shell` (`routers/dev_components.py`, contract-covered, 404 in production); new-shell UI map `tests/ui_map/rd_shell.py` (old `tests/ui_map/shell.py` kept for unmigrated pages), journeys `tests/e2e/test_rd_shell.py` on mockup and app targets. Palette has the handoff's 7 entries (not 15); Today is `g t` in app, `g o` on the mockup (ADR-0147 §5). Icons use the external sprite path `/static/rd/icons/sprite.svg#icon-…`. Old `csrf.js` / `htmx-csrf.js` still load from `static/` until T-UR04. Pages pass `nav_current`. Fragment link defaults are placeholders; wiring items pass real URLs. Audit: `docs/audits/2026-11-24-t-ur02-base-layout.md` (clean).
+- Follow-up done 2026-11-25 (UR02b, 98366386; audit docs/audits/2026-11-25-t-ur02b-shell-flash-toast.md): assertive live region, toast renderer (static/rd/js/app-toast.js), visible 4xx/5xx flashes, signed-in email in the topbar (designer to confirm placement).
 
 ### ✅ T-UR03 [P] Server-side value helpers → T-UR01
 - **Deliverables** (pure functions + Jinja filters, unit-tested, ADR-0107 §5): category colour to `data-color` preset or nonce'd rule with the `--cat-edge` 3:1 contrast computation; block-character bar spans (20 / 10 cells, `--over`, `--none`); hero figure fit counts (`data-digits`, `data-marks`, `data-signs`); year-cell `data-state`; bar `aria-label` text.
 - **Acceptance**: 100 % branch coverage on the helpers; every preset in `category-colors.css` round-trips.
 - Done (2026-11-24): `domain/category_colors.py` (29 hex presets = `category-colors.css`, grey is a CSS var; `preset_for`, `category_color` -> `data-color` name or `c-<hex>` plus a rule for a nonce'd `<style>`, edge >= 3:1 against `#faf7f3` light panel; registered canonical row); `web/view_models.py` `bar_spans`, `bar_aria_label` ("N percent spent, M percent left"; "no budget" is our wording, designer list), `year_cell_state`; Jinja filters `category_color`, `bar_spans`, `bar_aria_label`, `year_cell_state`, `aria_current_date`. Reused T-UR34k `hero_fit` / `bar_cells`. Follow-up: the money-scope guard flags `//` / `round` in all of `domain/`, so colour math uses `>>`; narrow the guard to money code.
+- Follow-up 2026-11-25 (UR03c, d54b2941): domain.money.format_figure is the one signed-figure formatter.
 
 ### ✅ T-UR04 [P] Shared fragments and dialog plumbing → T-UR02
 - **Deliverables**:
@@ -202,11 +205,11 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 
 **Each item also deletes its old files** as the last step before handoff: every `removal.md` row owned by the surface (old page templates, partials only it includes, its old CSS sheet, its old JS, its old visual baselines, old-markup `id` / `data-testid` hooks go with the templates), plus Python left dead by the switch (view-model fields, router helpers or template filters only the old templates used; confirmed by `vulture` and coverage). Rows are flipped to `deleted` in the same commit. A file still referenced by an unmigrated surface stays, and its row moves to T-UR15.
 
-### ◻ T-UR05 [P] Auth
+### ✅ T-UR05 [P] Auth
 - Handoff: `pages/auth/login`, `login--error`, `reauth`, `reauth--error`; `register`, `invite`, `invite--expired` only if T-UR00 decided to wire them.
 - Routes: login, logout, re-auth, passkey login.
 
-### ◻ T-UR06 [P] Errors
+### ✅ T-UR06 [P] Errors
 - Handoff: `pages/errors/404`, `409`, `422`, `500`; `offline` per the T-UR00 decision.
 - Error handlers render the new pages for full-page requests and the error summary fragment for HTMX requests.
 
@@ -214,10 +217,12 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Handoff: `pages/today` and its states (`--empty`, `--loading`, `--afford-over`, `--afford-invalid`, `--flash`); overlays `new-entry*` (happened, planned, repeats fixed, repeats formula, error, phone sheet), `promote--planned`, `promote--recurring`, `row-menu--upcoming`.
 - Fragments: `today/upcoming-list`, `today/afford-result`, `rows/upcoming-row`, hero.
 - The new-entry dialog is owned here; Ledger reuses it.
+- Page part done 2026-11-25 (UR07a, 10cf35bb; audit docs/audits/2026-11-24-t-ur07a-today.md). Open (UR07b): new-entry dialog /add, promote and override dialogs; re-enable the T-UR07b skips.
 
 ### ◻ T-UR08 [P] Accounts
 - Handoff: `pages/accounts`, `accounts--empty`; overlays `new-account*`, `edit-account*`, `delete-account*`, `reconcile*`, `row-menu--account`.
 - Fragments: `rows/account-row` (including the credit-limit line), `rows/reconcile-snapshot`, sparkline chart.
+- Page part done 2026-11-25 (UR08a, 40f1ff1f; audit docs/audits/2026-11-24-t-ur08a-accounts.md). Open (UR08b): new/edit/delete/reconcile dialogs, ISO currency combobox in the new-account form (currently dead in the new shell), unknown-id POST /accounts/<id>/delete reports success (audit F5); re-enable the T-UR08b skips and the /accounts KNOWN_BUGS xfail.
 
 ### ◻ T-UR09 [P] Ledger · actual → T-UR07
 - Handoff: `pages/ledger/actual` (+ `--empty`, `--no-matches`, `--long`); overlays `edit-transaction*`, `row-menu--transaction`, `category-picker*`.
@@ -230,6 +235,7 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 ### ◻ T-UR11 [P] Plan · budget and year
 - Handoff: `pages/plan/budget`, `year`; overlays `override--budget-*`, `override--year-cell`, `period-picker*`, `row-menu--budget`.
 - Fragments: `rows/budget-line`, `plan/unbudgeted-disclosure`, `rows/year-grid-row`, `rows/year-cell-editor`.
+- Budget tab done 2026-11-25 (UR11a, 22a3dc57; audit docs/audits/2026-11-24-t-ur11a-plan-budget.md). Open (UR11b): year tab, override dialogs, year-cell editor; re-enable the T-UR11b skips.
 
 ### ◻ T-UR12 [P] Plan · forecast and analytics
 - Handoff: `pages/plan/forecast`, `analytics`; `charts/forecast`, `charts/income-vs-expense`, `charts/spend-by-category`.
