@@ -197,7 +197,7 @@ page = "pages/*.html"
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
 old = "actual 616"
-value = "actual 26"
+value = "actual 32"
 optional = true
 reason = "seed value via ledger_data tab_counts (transactions.count_filtered)"
 
@@ -270,7 +270,7 @@ page = "pages/*.html"
 select = ".rd-row--account:nth-of-type(4) .rd-account__txns"
 field = "text"
 old = "84"
-value = "17"
+value = "23"
 optional = true
 reason = "seed value via balance.account_stats_many: Checking txn_count"
 
@@ -396,7 +396,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-hero__figure--wide"
 field = "text"
 old = "79,047.79"
-value = "58,761.15"
+value = "83,761.15"
 reason = "seed value via forecast.projection_summary: end balance of the 12-month projection"
 
 [[row]]
@@ -404,7 +404,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-hero__note"
 field = "text"
 old = "+46,320.57 PLN over 12 months · peak 86,239.67 in aug 2027"
-value = "+24,321.46 PLN over 12 months · peak 58,761.15 in sep 2027"
+value = "+49,321.46 PLN over 12 months · peak 83,761.15 in sep 2027"
 reason = "seed value via forecast.projection_summary: delta from net worth (NOW), peak month"
 
 [[row]]
@@ -428,7 +428,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(1)"
 field = "text"
 old = "20,707.93"
-value = "19,291.66"
+value = "44,291.66"
 reason = "seed value via forecast.monthly_projection: Nov 2026 income"
 
 [[row]]
@@ -452,7 +452,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(4)"
 field = "text"
 old = "1,952.57"
-value = "2,558.56"
+value = "27,558.56"
 reason = "seed value via forecast.monthly_projection: Nov 2026 net"
 
 [[row]]
@@ -460,7 +460,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(5)"
 field = "text"
 old = "34,679.79"
-value = "35,285.78"
+value = "60,285.78"
 reason = "seed value via forecast.monthly_projection: Nov 2026 end balance"
 
 [[row]]
@@ -500,7 +500,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(5)"
 field = "text"
 old = "32,955.77"
-value = "36,026.09"
+value = "61,026.09"
 reason = "seed value via forecast.monthly_projection: Dec 2026 end balance"
 
 [[row]]
@@ -540,7 +540,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(5)"
 field = "text"
 old = "34,574.88"
-value = "38,594.20"
+value = "63,594.20"
 reason = "seed value via forecast.monthly_projection: Jan 2027 end balance"
 
 [[row]]
@@ -580,7 +580,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(5)"
 field = "text"
 old = "42,555.38"
-value = "41,170.15"
+value = "66,170.15"
 reason = "seed value via forecast.monthly_projection: Feb 2027 end balance"
 
 [[row]]
@@ -620,7 +620,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(5)"
 field = "text"
 old = "67,789.79"
-value = "43,121.13"
+value = "68,121.13"
 reason = "seed value via forecast.monthly_projection: Mar 2027 end balance"
 
 [[row]]
@@ -660,7 +660,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(5)"
 field = "text"
 old = "70,356.82"
-value = "45,689.24"
+value = "70,689.24"
 reason = "seed value via forecast.monthly_projection: Apr 2027 end balance"
 
 [[row]]
@@ -700,7 +700,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(5)"
 field = "text"
 old = "78,176.35"
-value = "48,315.19"
+value = "73,315.19"
 reason = "seed value via forecast.monthly_projection: May 2027 end balance"
 
 [[row]]
@@ -740,7 +740,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(5)"
 field = "text"
 old = "81,013.51"
-value = "50,941.14"
+value = "75,941.14"
 reason = "seed value via forecast.monthly_projection: Jun 2027 end balance"
 
 [[row]]
@@ -780,7 +780,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(5)"
 field = "text"
 old = "83,626.59"
-value = "53,509.25"
+value = "78,509.25"
 reason = "seed value via forecast.monthly_projection: Jul 2027 end balance"
 
 [[row]]
@@ -820,7 +820,7 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(5)"
 field = "text"
 old = "86,239.67"
-value = "56,135.20"
+value = "81,135.20"
 reason = "seed value via forecast.monthly_projection: Aug 2027 end balance"
 
 [[row]]
@@ -860,5 +860,988 @@ page = "pages/plan/forecast.html"
 select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(5)"
 field = "text"
 old = "79,047.79"
-value = "58,761.15"
+value = "83,761.15"
 reason = "seed value via forecast.monthly_projection: Sep 2027 end balance"
+
+# --- generated geometry rows (do not edit; regenerate, see below) ---
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(48)"
+field = "points"
+old = "72.0,262 72.0,222.9 170.0,216.9 268.0,222.2 366.0,217.2 464.0,192.6 562.0,115.0 660.0,107.2 758.0,83.1 856.0,74.4 954.0,66.3 1052.0,58.3 1150.0,80.4 1150.0,262"
+value = "72.000,262 72.000,222.864 170.000,138.121 268.000,135.845 366.000,127.948 464.000,120.027 562.000,114.028 660.000,106.131 758.000,98.056 856.000,89.981 954.000,82.084 1052.000,74.009 1150.000,65.934 1150.000,262"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(49)"
+field = "points"
+old = "72.0,222.9 170.0,216.9 268.0,222.2 366.0,217.2 464.0,192.6 562.0,115.0 660.0,107.2 758.0,83.1 856.0,74.4 954.0,66.3 1052.0,58.3 1150.0,80.4"
+value = "72.000,222.864 170.000,138.121 268.000,135.845 366.000,127.948 464.000,120.027 562.000,114.028 660.000,106.131 758.000,98.056 856.000,89.981 954.000,82.084 1052.000,74.009 1150.000,65.934"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51)"
+field = "aria-label"
+old = "Nov 2026: 34,679.79 PLN, net +1,952.57"
+value = "Nov 2026: 60,285.78 PLN, net +27,558.56"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(2)"
+field = "cy"
+old = "216.9"
+value = "138.121"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(3)"
+field = "cy"
+old = "216.9"
+value = "138.121"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "138.9"
+value = "60.121"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "156.9"
+value = "78.121"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "174.9"
+value = "96.121"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "34,679.79 PLN"
+value = "60,285.78 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "192.9"
+value = "114.121"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +1,952.57"
+value = "net +27,558.56"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52)"
+field = "aria-label"
+old = "Dec 2026: 32,955.77 PLN, net −1,724.02"
+value = "Dec 2026: 61,026.09 PLN, net +740.31"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(2)"
+field = "cy"
+old = "222.2"
+value = "135.845"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(3)"
+field = "cy"
+old = "222.2"
+value = "135.845"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "144.2"
+value = "57.845"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "162.2"
+value = "75.845"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "180.2"
+value = "93.845"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "32,955.77 PLN"
+value = "61,026.09 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "198.2"
+value = "111.845"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net −1,724.02"
+value = "net +740.31"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53)"
+field = "aria-label"
+old = "Jan 2027: 34,574.88 PLN, net +1,619.11"
+value = "Jan 2027: 63,594.20 PLN, net +2,568.11"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(2)"
+field = "cy"
+old = "217.2"
+value = "127.948"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(3)"
+field = "cy"
+old = "217.2"
+value = "127.948"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "139.2"
+value = "49.948"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "157.2"
+value = "67.948"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "175.2"
+value = "85.948"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "34,574.88 PLN"
+value = "63,594.20 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "193.2"
+value = "103.948"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +1,619.11"
+value = "net +2,568.11"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54)"
+field = "aria-label"
+old = "Feb 2027: 42,555.38 PLN, net +7,980.50"
+value = "Feb 2027: 66,170.15 PLN, net +2,575.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(2)"
+field = "cy"
+old = "192.6"
+value = "120.027"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(3)"
+field = "cy"
+old = "192.6"
+value = "120.027"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "114.6"
+value = "42.027"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "132.6"
+value = "60.027"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "150.6"
+value = "78.027"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "42,555.38 PLN"
+value = "66,170.15 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "168.6"
+value = "96.027"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +7,980.50"
+value = "net +2,575.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55)"
+field = "aria-label"
+old = "Mar 2027: 67,789.79 PLN, net +25,234.41"
+value = "Mar 2027: 68,121.13 PLN, net +1,950.98"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(2)"
+field = "cy"
+old = "115.0"
+value = "114.028"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(3)"
+field = "cy"
+old = "115.0"
+value = "114.028"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "37.0"
+value = "36.028"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "55.0"
+value = "54.028"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "73.0"
+value = "72.028"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "67,789.79 PLN"
+value = "68,121.13 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "91.0"
+value = "90.028"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +25,234.41"
+value = "net +1,950.98"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56)"
+field = "aria-label"
+old = "Apr 2027: 70,356.82 PLN, net +2,567.03"
+value = "Apr 2027: 70,689.24 PLN, net +2,568.11"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(2)"
+field = "cy"
+old = "107.2"
+value = "106.131"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(3)"
+field = "cy"
+old = "107.2"
+value = "106.131"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "29.2"
+value = "28.131"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "47.2"
+value = "46.131"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "65.2"
+value = "64.131"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "70,356.82 PLN"
+value = "70,689.24 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "83.2"
+value = "82.131"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,567.03"
+value = "net +2,568.11"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57)"
+field = "aria-label"
+old = "May 2027: 78,176.35 PLN, net +7,819.53"
+value = "May 2027: 73,315.19 PLN, net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(2)"
+field = "cy"
+old = "83.1"
+value = "98.056"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(3)"
+field = "cy"
+old = "83.1"
+value = "98.056"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "5.1"
+value = "20.056"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "23.1"
+value = "38.056"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "41.1"
+value = "56.056"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "78,176.35 PLN"
+value = "73,315.19 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "59.1"
+value = "74.056"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +7,819.53"
+value = "net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58)"
+field = "aria-label"
+old = "Jun 2027: 81,013.51 PLN, net +2,837.16"
+value = "Jun 2027: 75,941.14 PLN, net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(2)"
+field = "cy"
+old = "74.4"
+value = "89.981"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(3)"
+field = "cy"
+old = "74.4"
+value = "89.981"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "88.4"
+value = "11.981"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "106.4"
+value = "29.981"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "124.4"
+value = "47.981"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "81,013.51 PLN"
+value = "75,941.14 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "142.4"
+value = "65.981"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,837.16"
+value = "net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59)"
+field = "aria-label"
+old = "Jul 2027: 83,626.59 PLN, net +2,613.08"
+value = "Jul 2027: 78,509.25 PLN, net +2,568.11"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(2)"
+field = "cy"
+old = "66.3"
+value = "82.084"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(3)"
+field = "cy"
+old = "66.3"
+value = "82.084"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "80.3"
+value = "4.084"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "98.3"
+value = "22.084"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "116.3"
+value = "40.084"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "83,626.59 PLN"
+value = "78,509.25 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "134.3"
+value = "58.084"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,613.08"
+value = "net +2,568.11"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60)"
+field = "aria-label"
+old = "Aug 2027: 86,239.67 PLN, net +2,613.08"
+value = "Aug 2027: 81,135.20 PLN, net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(2)"
+field = "cy"
+old = "58.3"
+value = "74.009"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(3)"
+field = "cy"
+old = "58.3"
+value = "74.009"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "72.3"
+value = "88.009"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "90.3"
+value = "106.009"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "108.3"
+value = "124.009"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "86,239.67 PLN"
+value = "81,135.20 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "126.3"
+value = "142.009"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,613.08"
+value = "net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61)"
+field = "aria-label"
+old = "Sep 2027: 79,047.79 PLN, net −7,191.88"
+value = "Sep 2027: 83,761.15 PLN, net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(2)"
+field = "cy"
+old = "80.4"
+value = "65.934"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(3)"
+field = "cy"
+old = "80.4"
+value = "65.934"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "2.4"
+value = "79.934"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "20.4"
+value = "97.934"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "38.4"
+value = "115.934"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "79,047.79 PLN"
+value = "83,761.15 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "56.4"
+value = "133.934"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net −7,191.88"
+value = "net +2,625.95"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12)"
+field = "aria-label"
+old = "Oct 2026: income 22,341.10 PLN, expense 19,417.18 PLN"
+value = "Oct 2026: income 15,820.96 PLN, expense 19,417.18 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(2)"
+field = "d"
+old = "M424.0,246.0 Q424.0,250.0 428.0,250.0 L454.0,250.0 Q458.0,250.0 458.0,246.0 L458.0,92.7 A17.0,17.0 0 0 0 424.0,92.7 Z"
+value = "M424.000,246.000 Q424.000,250.000 428.000,250.000 L454.000,250.000 Q458.000,250.000 458.000,246.000 L458.000,143.597 A17.000,17.000 0 0 0 424.000,143.597 Z"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(1)"
+field = "y"
+old = "89.7"
+value = "112.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(2)"
+field = "y"
+old = "107.7"
+value = "130.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(3)"
+field = "y"
+old = "125.7"
+value = "148.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(3)"
+field = "text"
+old = "in 22,341.10 · out 19,417.18"
+value = "in 15,820.96 · out 19,417.18"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(4)"
+field = "y"
+old = "143.7"
+value = "166.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(4)"
+field = "text"
+old = "net +2,923.92"
+value = "net −3,596.22"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
