@@ -203,7 +203,9 @@ def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str
         },
     )
     assert r.status_code == 422
-    assert "amount" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }
 
 
 def test_create_rejects_cross_currency_transit(client: TestClient, _migrated: Settings) -> None:
@@ -227,7 +229,9 @@ def test_create_rejects_cross_currency_transit(client: TestClient, _migrated: Se
         },
     )
     assert r.status_code == 422
-    assert "cross-currency" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-dest_account_id-error": "▲ cross-currency transit not supported",
+    }
 
 
 def test_edit_and_update(client: TestClient, seeded: dict[str, int], _migrated: Settings) -> None:
@@ -301,7 +305,10 @@ def test_create_rejects_unknown_account_and_category(
         },
     )
     assert r.status_code == 422
-    assert "unknown account" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "catpick-new-entry-error": "▲ unknown category",
+        "field-account_id-error": "▲ unknown account",
+    }
 
 
 def test_create_rejects_bad_date(client: TestClient, seeded: dict[str, int]) -> None:
@@ -315,7 +322,9 @@ def test_create_rejects_bad_date(client: TestClient, seeded: dict[str, int]) -> 
         },
     )
     assert r.status_code == 422
-    assert "Date : invalid date" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-operation_date-error": "▲ invalid date",
+    }
 
 
 def test_create_rejects_bad_amount_string(client: TestClient, seeded: dict[str, int]) -> None:
@@ -573,4 +582,6 @@ def test_update_invalid_amount_rerenders_form_in_place(
     )
     assert r.status_code == 422
     assert _html.exists(r.text, entries.edit_dialog)
-    assert "Amount" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }

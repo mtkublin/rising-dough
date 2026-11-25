@@ -48,7 +48,7 @@ def test_a_bad_edit_keeps_the_dialog_open_with_the_error(world: World) -> None:
     world.find(entries.edit_amount).fill("0")
     world.find(entries.edit_save).click()
 
-    expect(world.find(entries.summary)).to_be_visible()
+    expect(world.find(entries.edit_hero_error)).to_be_visible()
     expect(world.find(entries.edit_dialog)).to_be_visible()
     assert world.rows("SELECT 1 FROM transactions WHERE id = ? AND amount = 1234", (txn,))
     assert world.audit_ops("transaction", txn) == ["create"]

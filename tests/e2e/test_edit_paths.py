@@ -185,7 +185,7 @@ def test_override_invalid_month_shows_error_in_the_dialog(
     # A month with no quarterly occurrence.
     to_playwright(page, edit_dialogs.month_next(dialog)).click()
     _save_override(page, dialog, "77.00")
-    expect(to_playwright(page, edit_dialogs.summary.inside(dialog))).to_contain_text(
+    expect(to_playwright(page, edit_dialogs.field_error(dialog, "month"))).to_contain_text(
         "no occurrence"
     )
     expect(to_playwright(page, dialog)).to_be_visible()

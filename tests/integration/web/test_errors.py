@@ -29,7 +29,7 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.web.app import create_app
 from tests.auth_support import login_cookie
-from tests.ui_map import _html, entries, errors
+from tests.ui_map import _html, errors
 from tests.ui_map.locator import by_id, role
 
 
@@ -187,8 +187,10 @@ def test_validation_inline_form_render_on_transactions_post(client: TestClient) 
     # Form partial re-renders inline (no Location redirect).
     assert "Location" not in r.headers
     # Server-side error listing is present.
-    listed = _html.text_of(r.text, entries.summary)
-    assert "unknown account" in listed or "unknown category" in listed
+    assert _html.error_lines(r.text) == {
+        "catpick-new-entry-error": "▲ unknown category",
+        "field-account_id-error": "▲ unknown account",
+    }
 
 
 @pytest.mark.parametrize(

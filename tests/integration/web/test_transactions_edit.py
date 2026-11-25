@@ -336,8 +336,11 @@ def test_missing_fields_give_a_human_422_and_write_nothing(
     assert r.status_code == 422
     assert r.headers["content-type"].startswith("text/html")
     assert r.headers["HX-Retarget"] == "#modal-root"
-    summary = _html.all_text(r.text, entries.summary)
-    assert "Category : pick a category" in summary
+    assert _html.error_lines(r.text) == {
+        "catpick-edit-transaction-error": "▲ pick a category",
+        "field-account_id-error": "▲ unknown account",
+        "field-operation_date-error": "▲ invalid date",
+    }
     assert _html.count(r.text, entries.edit_dialog) == 1
     assert _row(db, txn_id) == before
     assert _ops(db, txn_id) == ["create"]
@@ -376,7 +379,9 @@ def test_a_bad_date_names_the_field_and_writes_nothing(
     )
 
     assert r.status_code == 422
-    assert "Date : invalid date" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-operation_date-error": "▲ invalid date",
+    }
     assert _row(db, txn_id) == before
 
 

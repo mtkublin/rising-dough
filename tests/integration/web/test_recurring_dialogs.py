@@ -268,7 +268,9 @@ def test_empty_formula_is_a_human_422_and_writes_nothing(
     r = client.post(f"/recurring/{ids['taxes_rule']}", data=form, headers=_FROM_DIALOG)
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert "Formula" in _html.all_text(r.text, edit_dialogs.summary)
+    assert _html.error_lines(r.text) == {
+        "field-formula": "▲ coefficient is required for formula rules",
+    }
     # the dialog comes back in the formula state with the posted note
     scope = edit_dialogs.recurring_dialog("Taxes")
     assert _html.resolve_one(r.text, edit_dialogs.amount_formula(scope)).has_attr("checked")
@@ -295,9 +297,12 @@ def test_update_with_nothing_posted_names_the_missing_fields(
 ) -> None:
     r = client.post(f"/recurring/{ids['rent_rule']}", data={}, headers=_FROM_DIALOG)
     assert r.status_code == 422
-    summary = _html.all_text(r.text, edit_dialogs.summary)
-    assert "pick a category" in _html.all_text(r.text, edit_dialogs.recurring_dialog("Rent"))
-    assert summary.startswith("fields need attention") or "need attention" in summary
+    assert _html.error_lines(r.text) == {
+        "catpick-edit-recurring-error": "▲ pick a category",
+        "field-account_id-error": "▲ unknown account",
+        "field-start_date-error": "▲ invalid date",
+        "field-cadence-error": "▲ invalid",
+    }
     stored = recurring_repo.find_rule(db, USER_ID, ids["rent_rule"])
     assert stored is not None
     assert stored.default_amount == 50_000
@@ -400,7 +405,9 @@ def test_override_in_a_month_without_an_occurrence_is_a_422(
         headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
-    assert "no occurrence in 2026-08" in _html.all_text(r.text, edit_dialogs.summary)
+    assert _html.error_lines(r.text) == {
+        "field-month-error": "▲ rule has no occurrence in 2026-08",
+    }
     assert db.execute("SELECT COUNT(*) FROM recurring_rule_overrides").fetchone()[0] == before
 
 
@@ -487,9 +494,9 @@ def test_create_with_a_formula_over_its_own_category_is_a_422_and_writes_nothing
     form = _formula_form(ids, **{"components[0][categories]": str(ids["taxes"])})
     r = client.post("/recurring", data=form, headers=_FROM_DIALOG)
     assert r.status_code == 422
-    assert "a formula cannot reference its own category" in _html.all_text(
-        r.text, edit_dialogs.summary
-    )
+    assert _html.error_lines(r.text) == {
+        "field-formula-error": "▲ a formula cannot reference its own category",
+    }
     assert db.execute("SELECT COUNT(*) FROM recurring_rules").fetchone()[0] == rules
     assert db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == audit
 
@@ -504,7 +511,9 @@ def test_create_with_an_indirect_cycle_is_a_422(
     )
     r = client.post("/recurring", data=form, headers=_FROM_DIALOG)
     assert r.status_code == 422
-    assert f"via rule {ids['taxes_rule']}" in _html.all_text(r.text, edit_dialogs.summary)
+    assert _html.error_lines(r.text) == {
+        "field-formula-error": "▲ formula would create a cycle via rule 3",
+    }
     assert db.execute("SELECT COUNT(*) FROM recurring_rules").fetchone()[0] == rules
 
 
@@ -586,7 +595,12 @@ def test_promoting_a_stored_cycle_is_a_human_422(
     txns = db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
     r = client.post(f"/recurring/{taxes_rule}/promote", data={}, headers=_FROM_DIALOG)
     assert r.status_code == 422
-    assert "formula cycle" in _html.all_text(r.text, edit_dialogs.summary)
+    assert _html.error_lines(r.text) == {
+        "field-promotion": (
+            "▲ formula cycle detected via rule 1 (ancestors: [1, 2])"
+            " — edit the formula or override this occurrence"
+        ),
+    }
     assert db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == txns
 
 
@@ -621,7 +635,9 @@ def test_editing_a_stored_cycle_that_keeps_it_is_a_422_and_writes_nothing(
     form = _formula_form(ids, **{"components[0][categories]": str(ids["rent"])})
     r = client.post(f"/recurring/{taxes_rule}", data=form, headers=_FROM_DIALOG)
     assert r.status_code == 422
-    assert "cycle" in _html.all_text(r.text, edit_dialogs.summary)
+    assert _html.error_lines(r.text) == {
+        "field-formula": "▲ formula would create a cycle via rule 2",
+    }
     stored = recurring_repo.find_rule(db, USER_ID, taxes_rule)
     assert stored is not None
     assert stored.amount_formula == _reads(ids["rent"])

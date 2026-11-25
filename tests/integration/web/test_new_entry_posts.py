@@ -118,7 +118,9 @@ def test_transaction_without_a_category_reopens_the_dialog_with_the_values(
     )
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert "Category : pick a category" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "catpick-new-entry-error": "▲ pick a category",
+    }
     assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.34"
     assert _html.resolve_one(r.text, entries.field_note).get("value") == "milk"
     assert _html.resolve_one(r.text, entries.field_date).get("value") == "2026-11-20"
@@ -184,7 +186,9 @@ def test_planned_without_a_date_reopens_the_planned_tab(
     )
     assert r.status_code == 422
     assert _html.resolve_one(r.text, entries.tab_planned).get("aria-current") == "page"
-    assert "Date : invalid date" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-operation_date-error": "▲ invalid date",
+    }
 
 
 def test_recurring_formula_posted_with_component_names_is_stored(
@@ -234,7 +238,9 @@ def test_recurring_fixed_failure_reopens_the_repeats_tab_with_the_values(
     )
     assert r.status_code == 422
     assert _html.resolve_one(r.text, entries.tab_repeats).get("aria-current") == "page"
-    assert "Default Amount : Enter an amount above 0.00" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-default_amount-error": "▲ Enter an amount above 0.00",
+    }
     assert _html.resolve_one(r.text, entries.field_start).get("value") == "2026-03-10"
     assert _html.resolve_one(r.text, entries.field_note).get("value") == "box"
     quarterly = _html.resolve_one(r.text, entries.cadence_quarterly)
@@ -313,9 +319,9 @@ def test_missing_amount_is_a_human_422_not_json(
     assert r.status_code == 422
     assert r.headers["content-type"].startswith("text/html")
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert "Amount : amount must be a decimal number within range" in _html.all_text(
-        r.text, entries.summary
-    )
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ amount must be a decimal number within range",
+    }
     assert _html.resolve_one(r.text, entries.dialog).find("form") is not None
     assert (
         _html.resolve_one(
@@ -331,9 +337,11 @@ def test_empty_post_lists_every_missing_field_in_the_dialog(
 ) -> None:
     r = client.post("/transactions", data={}, headers=FROM_DIALOG)
     assert r.status_code == 422
-    summary = _html.all_text(r.text, entries.summary)
-    for label in ("Date : invalid date", "Account : unknown account", "Category : pick a category"):
-        assert label in summary
+    assert _html.error_lines(r.text) == {
+        "catpick-new-entry-error": "▲ pick a category",
+        "field-account_id-error": "▲ unknown account",
+        "field-operation_date-error": "▲ invalid date",
+    }
     assert _count(db, "transactions") == 0
 
 
@@ -353,7 +361,9 @@ def test_recurring_post_without_amount_is_a_human_422(
     )
     assert r.status_code == 422
     assert r.headers["content-type"].startswith("text/html")
-    assert "Default Amount" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-default_amount-error": "▲ amount must be a decimal number within range",
+    }
     assert _count(db, "recurring_rules") == before
 
 
@@ -374,7 +384,9 @@ def test_planned_promote_with_a_bad_or_missing_amount_is_refused(
     r = client.post(f"/planned/{pl}/promote", data=data, headers=FROM_DIALOG)
     assert r.status_code == 422
     assert r.headers["content-type"].startswith("text/html")
-    assert "Amount" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ amount must be a decimal number within range",
+    }
     assert _count(db, "transactions") == 0
     promoted = db.execute(
         "SELECT promoted_to_txn_id FROM planned_transactions WHERE id = ?", (pl,)
@@ -389,7 +401,12 @@ def test_recurring_promote_with_a_bad_amount_is_refused(
     rule = db.execute("SELECT id, next_due FROM recurring_rules ORDER BY id LIMIT 1").fetchone()
     r = client.post(f"/recurring/{rule[0]}/promote", data={"amount": amount}, headers=FROM_DIALOG)
     assert r.status_code == 422
-    assert "Amount" in _html.all_text(r.text, entries.summary)
+    message = (
+        "amount must be a decimal number within range"
+        if amount == "abc"
+        else "Enter an amount above 0.00"
+    )
+    assert _html.error_lines(r.text) == {"field-amount-error": f"▲ {message}"}
     assert _count(db, "transactions") == 0
     assert (
         db.execute("SELECT next_due FROM recurring_rules WHERE id = ?", (rule[0],)).fetchone()[0]

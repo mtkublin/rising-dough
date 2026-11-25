@@ -74,7 +74,14 @@ edit_hero_error = by_id("field-amount-error")
 edit_opener = role("region", "Edit transaction", exact=True)  # plain page load: asks the edit route
 opener = role("region", "New entry", exact=True)  # plain page load: asks /add for the dialog
 credit_line = by_id("credit-line")
-summary = by_id("error-summary")
+hero_error = by_id("field-amount-error")  # the hero amount's ▲ line of a failed save (Q18)
+
+
+def field_error(name: str) -> Locator:
+    """The ▲ line under field ``name`` of a failed save (id ``field-<name>-error``, Q18)."""
+    return by_id(f"field-{name}-error")
+
+
 hero_refresh = by_id("hero-refresh")  # hidden: carries the hero refresh trigger (T-UR04g)
 
 # --- formula components (repeats tab, formula mode) ---
