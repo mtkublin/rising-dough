@@ -258,7 +258,7 @@ Router `web/routers/plan.py`; data `web/plan_data.py`, `web/view_models.py`, `se
 | reconcile--liability | "−121.63 difference", "12,521.63 remaining balance", `@value=12,400.00`, snapshots | `accounts_data.available_mode_context` (`available_minor`), snapshots; difference none | partial (G5) |
 | edit-account (+liability), new-account (+filled, +error) | Name/currency/type, `@value=0.00`/`1,250.00`, as-of `2026-10-31`, "▲ 2 transactions: this balance will count against net worth", "▲ Unknown currency code" | `Account`, `AccountStats` txn count, form errors | exists |
 | delete-account | "Delete Investments E?" (account missing from the list: section 5) | `Account.name` | exists |
-| delete-account--blocked, --blocked-planned | "84 transactions and 3 planned or recurring items", "2 recurring rules", "view 84 transactions" | counts returned by the account delete service | T-UR33 |
+| delete-account--blocked, --blocked-planned | "84 transactions and 3 planned or recurring items", "2 recurring rules", "view 84 transactions" | counts returned by the account delete service | exists (T-UR33, T-UR23) |
 | row-menu (account, budget, planned, recurring, transaction, upcoming), period-picker (+year) | No new values (static action lists; month and year names) | `view_models.month_options`, `plan_header` | exists |
 | command-palette (+filtered, +no-match) | Static commands, typed query echo "led" / "pizza" | static, request echo | exists |
 | shortcuts | Static key map | static | exists |
