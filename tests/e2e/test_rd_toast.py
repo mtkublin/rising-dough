@@ -35,7 +35,9 @@ def test_hx_trigger_toast_shows_message_and_undo_link(journey: Journey) -> None:
     journey.goto("/dev/shell")
     _loc(journey, _dev_toast_button).click()
 
-    _loc(journey, shell.toast_root).get_by_text("Dev toast saved").wait_for(state="visible")
+    _loc(journey, shell.toast_root).get_by_text(
+        "Takeaway \N{MIDDLE DOT} \N{MINUS SIGN}35.50 PLN deleted"
+    ).wait_for(state="visible")
     undo = _loc(journey, _toast_undo)
     undo.wait_for(state="visible")
     assert undo.evaluate("el => el.form.getAttribute('action')") == "/dev/shell/toast/undo"
@@ -65,7 +67,9 @@ def test_server_error_flashes_in_the_new_shell(journey: Journey) -> None:
         pytest.skip("the handoff mockup has no server to answer an error")
     journey.goto("/dev/shell")
     _loc(journey, _fail_500).click()
-    flash = _loc(journey, _flash_assertive).get_by_text("Something went wrong on our side.")
+    flash = _loc(journey, _flash_assertive).get_by_text(
+        "Couldn\u2019t save. Your changes are still in the form."
+    )
     flash.wait_for(state="visible")
 
 
@@ -75,9 +79,13 @@ def test_repeated_errors_keep_the_region_and_show_the_latest(journey: Journey) -
     journey.goto("/dev/shell")
     _loc(journey, _fail_500).click()
     region = _loc(journey, _flash_assertive)
-    region.get_by_text("Something went wrong on our side.").wait_for(state="visible")
+    region.get_by_text("Couldn\u2019t save. Your changes are still in the form.").wait_for(
+        state="visible"
+    )
     _loc(journey, _fail_500).click()
-    region.get_by_text("Something went wrong on our side.").wait_for(state="visible")
+    region.get_by_text("Couldn\u2019t save. Your changes are still in the form.").wait_for(
+        state="visible"
+    )
     assert region.get_attribute("role") == "alert"
     assert region.get_attribute("aria-live") == "assertive"
     assert "rd-flash-region" in (region.get_attribute("class") or "").split()

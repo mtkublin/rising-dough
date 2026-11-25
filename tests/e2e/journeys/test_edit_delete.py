@@ -80,7 +80,7 @@ def test_delete_transaction_then_undo_from_recently_deleted(world: World) -> Non
     world.wait_rows("SELECT 1 FROM transactions WHERE id = ? AND deleted_at IS NOT NULL", (txn,))
     assert world.audit_ops("transaction", txn) == ["create", "delete"]
 
-    world.find(ledger.recently_deleted_link).click()
+    world.goto("/ledger/recently-deleted")  # only the actual board links here (handoff)
     world.settle()
     expect(world.find(ledger.recently_deleted_heading)).to_be_visible()
     expect(world.find(ledger.deleted_row("txn", txn))).to_contain_text("delete-me")
@@ -102,7 +102,7 @@ def test_delete_planned_entry_then_undo(world: World) -> None:
     world.wait_rows(
         "SELECT 1 FROM planned_transactions WHERE id = ? AND deleted_at IS NOT NULL", (planned,)
     )
-    world.find(ledger.recently_deleted_link).click()
+    world.goto("/ledger/recently-deleted")  # only the actual board links here (handoff)
     world.settle()
     world.find(ledger.restore("planned", planned)).click()
 

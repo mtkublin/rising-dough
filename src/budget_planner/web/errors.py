@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Final
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
@@ -36,6 +36,8 @@ from budget_planner.web.http_headers import HX_REQUEST, HX_RESWAP
 from budget_planner.web.params import ParamError
 
 logger = logging.getLogger("budget_planner.web")
+
+SAVE_FAILED_MESSAGE: Final = "Couldn\u2019t save. Your changes are still in the form."
 
 # Handoff copy of the full-page 409 and 500 (pages/errors/409.html, 500.html); the HTMX flash
 # keeps the specific message (a toast has room for the reason, the page states the outcome).
@@ -93,14 +95,30 @@ def _back_url(request: Request) -> str:
     return "/today"
 
 
-def _flash_fragment(request: Request, kind: str, message: str, status: int) -> HTMLResponse:
+def _flash_fragment(
+    request: Request,
+    kind: str,
+    message: str,
+    status: int,
+    *,
+    retry: bool = False,
+    reference: str = "",
+) -> HTMLResponse:
     """Render ``fragments/flash/error.html`` as an OOB swap into the live flash region.
 
     The fragment carries `hx-swap-oob="true"` + the live-region target, so the body is
     otherwise empty and HTMX will not clobber the originating target.
     """
     region = "flash-region-assertive" if kind == "error" else "flash-region"
-    return _render(request, "fragments/flash/error.html", status, message=message, region=region)
+    return _render(
+        request,
+        "fragments/flash/error.html",
+        status,
+        message=message,
+        region=region,
+        retry=retry,
+        reference=reference,
+    )
 
 
 async def handle_not_found(request: Request, exc: Exception) -> HTMLResponse:
@@ -218,6 +236,17 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
         exc_info=exc,
     )
     message = exc.message if isinstance(exc, ServiceError) else "Something went wrong on our side."
+    if _is_htmx(request) and request.method != "GET" and not isinstance(exc, ServiceError):
+        # A failed write (handoff pages/today--flash): the form keeps its input, the flash offers
+        # a retry; the support reference moves to the tooltip.
+        return _flash_fragment(
+            request,
+            "error",
+            SAVE_FAILED_MESSAGE,
+            status=500,
+            retry=True,
+            reference=f"Reference: {rid}" if rid else "",
+        )
     if _is_htmx(request):
         reference = f"{message} Reference: {rid}" if rid else message
         return _flash_fragment(request, "error", reference, status=500)

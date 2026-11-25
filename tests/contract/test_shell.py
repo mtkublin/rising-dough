@@ -448,7 +448,7 @@ def test_dev_toast_answers_with_an_hx_trigger_toast(client: TestClient) -> None:
     assert json.loads(r.headers["hx-trigger"]) == {
         "toast": {
             "variant": "success",
-            "message": "Dev toast saved",
+            "message": "Takeaway \N{MIDDLE DOT} \N{MINUS SIGN}35.50 PLN deleted",
             "undo_url": "/dev/shell/toast/undo",
         }
     }

@@ -298,7 +298,7 @@ def test_update_with_nothing_posted_names_the_missing_fields(
     r = client.post(f"/recurring/{ids['rent_rule']}", data={}, headers=_FROM_DIALOG)
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "catpick-edit-recurring-error": "▲ pick a category",
+        "catpick-edit-recurring-error": "▲ Pick a category",
         "field-account_id-error": "▲ unknown account",
         "field-start_date-error": "▲ invalid date",
         "field-cadence-error": "▲ invalid",

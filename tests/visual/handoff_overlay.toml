@@ -35,23 +35,17 @@ value = "t"
 count = 2  # desktop and phone copies of the cheatsheet
 reason = "ADR-0147 section 5: cheatsheet key for Go to Today is g t"
 
-# --- row 5: filter inputs disagree with the filter summary.
+# --- row 5: filter inputs disagree with the filter summary (value-inventory section 5 row 5).
+# The inputs are the truth: the board's request is the Oct pay window, so the summary names it
+# (F2, T-UR00b; the category chip needs an id the harness route does not carry).
 
 [[row]]
 page = "pages/ledger/actual--no-matches.html"
-select = "input#f-from"
-field = "value"
-old = "2026-10-07"
-value = "2026-01-01"
-reason = "value-inventory 5 row 5: summary reads 01/01/2026 - 31/01/2026, the inputs must agree"
-
-[[row]]
-page = "pages/ledger/actual--no-matches.html"
-select = "input#f-to"
-field = "value"
-old = "2026-10-31"
-value = "2026-01-31"
-reason = "value-inventory 5 row 5: summary reads 01/01/2026 - 31/01/2026, the inputs must agree"
+select = ".rd-empty__sub"
+field = "text"
+old = "Transport · 01/01/2026 – 31/01/2026 · “pizza”"
+value = "07/10/2026 – 31/10/2026 · “pizza”"
+reason = "handoff inconsistent, app right: the summary reads Transport and 01/01/2026 – 31/01/2026 while the inputs and selects read the Oct window and all categories; the request is the inputs' (value-inventory section 5 row 5), so the summary names only the window and the search"
 
 # --- row 7: credit card bar, 12,521.63 of 14,977.37 available is 84%.
 
@@ -198,15 +192,74 @@ value = "7"
 reason = "digit count of the hero figure above (19,417.18 has seven digits)"
 
 [[row]]
-page = "pages/today.html"
+page = "pages/*.html"
 select = ".rd-upcoming__cat .rd-chip:-soup-contains-own(\"Bank fees\")"
 field = "text"
 old = "Bank fees"
 value = "Bank Fees #18"
+optional = true  # only the Today board and the overlays over it list this chip
 reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages (the rule description too); the seed has one such category"
 
 [[row]]
+page = "pages/settings/categories.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
+page = "pages/overlays/*category*.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+optional = true  # only the category dialogs sit over the categories board
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
+page = "pages/overlays/archive-category.html"
+select = "p:-soup-contains-own(\"Its 41 entries\")"
+field = "text"
+old = "It disappears from pickers. Its 41 entries and budget history stay, and you can restore it from recently deleted."
+value = "It disappears from pickers. Its 3 entries and budget history stay, and you can restore it from recently deleted."
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+
+[[row]]
+page = "pages/overlays/edit-category.html"
+select = "p:-soup-contains-own(\"locked by 41 entries\")"
+field = "text"
+old = "↓ expense · locked by 41 entries"
+value = "↓ expense · locked by 3 entries"
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 3 live entries in the seed, the board says 41"
+
+[[row]]
+page = "pages/overlays/reset-password.html"
+select = "p:-soup-contains-own(\"stops working now\")"
+field = "text"
+old = "Her current password stops working now. You get a one-time password to hand over, and she sets a new one at her next sign-in."
+value = "Their current password stops working now. You get a one-time password to hand over, and they set a new one at their next sign-in."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they (operator decision 2026-11-25, F3 answer a)"
+
+[[row]]
+page = "pages/overlays/one-time-password.html"
+select = "p.rd-dialog__lede"
+field = "text"
+old = "Shown once. Hand it to Ola; she sets her own at her next sign-in."
+value = "Shown once. Hand it to Ola; they set their own at their next sign-in. Their existing sessions have been signed out."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they; the app adds the signed-out note after a reset (F3 answer a)"
+
+[[row]]
+page = "pages/overlays/delete-user.html"
+select = "p:-soup-contains-own(\"loses access\")"
+field = "text"
+old = "partner@example.test loses access straight away and is signed out everywhere. Entries she made stay in the ledger."
+value = "partner@example.test loses access straight away and is signed out everywhere. Entries they made stay in the ledger."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they (F3 answer a)"
+
+[[row]]
 page = "pages/*.html"
+exclude = ["pages/ledger/actual--empty.html", "pages/ledger/actual--long.html"]
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
 old = "actual 616"
@@ -216,40 +269,13 @@ reason = "seed value via ledger_data tab_counts (transactions.count_filtered)"
 
 [[row]]
 page = "pages/*.html"
+exclude = ["pages/ledger/recurring.html", "pages/ledger/recurring--empty.html", "pages/overlays/edit-recurring*.html", "pages/overlays/override--[or]*.html", "pages/overlays/promote--recurring.html", "pages/overlays/row-menu--recurring.html"]
 select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
 field = "text"
 old = "recurring 27"
-value = "recurring 15"
+value = "recurring 24"
 optional = true
 reason = "seed value via ledger_data tab_counts (recurring.list_rules, active)"
-
-[[row]]
-page = "pages/*.html"
-select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
-field = "text"
-old = "−13,755.41"
-value = "−10,726.62"
-optional = true
-reason = "seed value via ledger_totals.recurring_monthly_totals: monthly out"
-
-[[row]]
-page = "pages/*.html"
-select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
-field = "text"
-old = "in +23,253.18 · 27 rules · next due 01 nov"
-value = "in +19,548.13 · 15 rules · next due 01 nov"
-optional = true
-reason = "seed value via ledger_totals.recurring_monthly_totals: monthly in, rule count, next due"
-
-[[row]]
-page = "pages/*.html"
-select = ".rd-formula__next"
-field = "text"
-old = "→ next amount 1,836.93 PLN"
-value = "→ next amount 3,077.69 PLN"
-count = 4
-optional = true
-reason = "seed value via recurring_formula.resolve_rule_amount: the seed's formula rules all evaluate to one amount for their next occurrence"
 
 [[row]]
 page = "pages/*.html"
@@ -1046,6 +1072,96 @@ field = "text"
 old = "view 84 transactions"
 value = "view 33 transactions"
 reason = "seed value via accounts.account_references: Checking transactions"
+
+# --- row 4: Today --empty keeps totals the empty state cannot have (the seed has nothing upcoming).
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "text"
+old = "141.13"
+value = "1,434.53"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "data-digits"
+old = "5"
+value = "6"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "data-marks"
+old = "1"
+value = "2"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__note > .u-hide-below-md"
+field = "text"
+old = "7 days until next income (Salary, 7 nov)"
+value = "1 day until next income (1 nov)"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__note > .u-hide-from-md"
+field = "text"
+old = "7 days until salary (7 nov)"
+value = "1 day until next income (1 nov)"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period > p.rd-caption"
+field = "text"
+old = "PERIOD · 7 OCT → 7 NOV · DAY 25 OF 31"
+value = "PERIOD · 7 OCT → 1 NOV · DAY 25 OF 25"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg"
+field = "text"
+old = "████████████████▒"
+value = "████████████████"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg > .rd-bar__left"
+field = "text"
+old = "░░░"
+value = "░░░░"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg"
+field = "aria-label"
+old = "77 percent spent, 23 percent left"
+value = "77 percent spent, 22 percent left"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-stats__value:-soup-contains-own(\"446.60\")"
+field = "text"
+old = "446.60"
+value = "0.00"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-stats__value:-soup-contains-own(\"987.93\")"
+field = "text"
+old = "987.93"
+value = "1,434.53"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
 
 # --- generated geometry rows (do not edit; regenerate, see below) ---
 

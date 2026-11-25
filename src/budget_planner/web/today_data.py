@@ -287,7 +287,9 @@ def _today_bar(budget: vm.BudgetView) -> TodayBar:
     committed_cells = 0
     if totals.committed_minor > 0:
         committed_cells = min(
-            vm.bar_cells(budget.committed_pct, vm.HERO_BAR_CELLS, min_one=True).filled,
+            vm.bar_cells_exact(
+                totals.committed_minor, totals.budgeted_minor, vm.HERO_BAR_CELLS, min_one=True
+            ).filled,
             budget.cells.empty,
         )
     left_pct = vm.clamped_percent(totals.remaining_minor, totals.budgeted_minor)

@@ -150,7 +150,7 @@ def test_admin_lists_live_users(admin_client: TestClient, db: sqlite3.Connection
     assert soup.find(id="user-row-1") is not None
     assert "gone@x.test" not in _html.text_of(resp.text, ui.users_table)
     assert _html.resolve_one(resp.text, ui.tab("Users"))["aria-selected"] == "true"
-    assert _tag(soup.find(id="user-row-1")).find(string=re.compile("You")) is not None
+    assert _tag(soup.find(id="user-row-1")).find(string=re.compile("you")) is not None
     # Your own row has no menu at all (ADR-0073 §4, ADR-0134 §11): no delete, edit or reset.
     for item in (ui.remove_user, ui.reset_user, ui.edit_user_item):
         assert not _html.exists(resp.text, item("owner@example.test"))

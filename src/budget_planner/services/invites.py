@@ -56,6 +56,7 @@ INVITE_MAIL_SUBJECT: Final = "You are invited to Rising Dough"
 
 logger = logging.getLogger(__name__)
 
+EXISTING_ACCOUNT_MESSAGE: Final = "This person already has an account"
 PENDING_INVITE_MESSAGE: Final = "This email already has a pending invite."
 INVITE_NOT_FOUND_MESSAGE: Final = "Invite not found."
 INVITE_FINAL_MESSAGE: Final = "This invite was already used or revoked. Create a new one."
@@ -177,7 +178,7 @@ def create_invite(
     token = tokens.new_token(INVITE_TOKEN_BYTES)
     with transaction(conn):
         if users_repo.get_by_email_live(conn, draft.email) is not None:
-            raise users_service.UserInputError({"email": users_service.DUPLICATE_EMAIL_MESSAGE})
+            raise users_service.UserInputError({"email": EXISTING_ACCOUNT_MESSAGE})
         if invites_repo.find_pending_for_email(conn, draft.email, now=now) is not None:
             raise users_service.UserInputError({"email": PENDING_INVITE_MESSAGE})
         invite = invites_repo.insert(

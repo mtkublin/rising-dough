@@ -683,9 +683,9 @@ def category_choice(category_id: str, category: str) -> int:
 
 
 def pick_category_error(errors: dict[str, str], category: int) -> dict[str, str]:
-    """A blank pick reads "pick a category" instead of "unknown category" (handoff error state)."""
+    """A blank pick reads "Pick a category" instead of "unknown category" (handoff error state)."""
     if category == 0 and "category_id" in errors:
-        return {**errors, "category_id": "pick a category"}
+        return {**errors, "category_id": "Pick a category"}
     return errors
 
 

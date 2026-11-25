@@ -202,8 +202,8 @@ _DIALOG_TEXT = {
     "delete-user": "Delete Ola?",
     "reset-password": "Reset Ola",  # pragma: allowlist secret - opener id, not a credential
     "one-time-password": "Reset Ola",  # pragma: allowlist secret - opener id, not a credential
-    "invite-user": "create invite",
-    "invite-user--error": "create invite",
+    "invite-user": "invite by email",
+    "invite-user--error": "invite by email",
     "revoke-invite": "accountant@example.test",
 }
 

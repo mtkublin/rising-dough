@@ -218,6 +218,7 @@ Router `web/routers/plan.py`; data `web/plan_data.py`, `web/view_models.py`, `se
 | users | LAST SEEN `30 OCT 21:12`, `now`, `—` | `UserListing.last_seen_at` | exists |
 | users | Status "● active", "◐ new password required at next sign-in" | `UserListing.must_change_password` | exists |
 | users | "✉ invited · expires 07 NOV", "pending invite", copy link / resend / revoke | invite service | T-UR30 (new `services/invites.py`) |
+| users, security (F3, 2026-11-25) | App values now equal the handoff: `you` / `now` / `—` in the roster, roster by id, `12+ characters`, `Current password is wrong`, current device `now` without a button, `This person already has an account`; the one-time password is random (the board's `kT4p-9wrx-Lomb` is not reproducible) | `settings_view`, `password_flow`, `services/invites` | exists |
 
 ### 2.6 Auth
 

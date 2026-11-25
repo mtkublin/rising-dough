@@ -129,7 +129,7 @@ def test_error_flash_shows_above_an_open_modal_dialog(journey: Journey) -> None:
     _loc(journey, role("button", "fail with 500").inside(shell.dev_dialog)).click()
 
     flash = _loc(journey, role("alert").inside(shell.dev_dialog)).get_by_text(
-        "Something went wrong on our side."
+        "Couldn\u2019t save. Your changes are still in the form."
     )
     flash.wait_for(state="visible")
     assert "▲" in flash.inner_text()

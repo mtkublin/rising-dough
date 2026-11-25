@@ -4,7 +4,7 @@
    POST names are unchanged: name, currency, opening_balance (the hero amount), type, is_liability
    (radio: "" asset, "on" liability), credit_limit. #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
-{% call dialog(dlg.dialog_id, dlg.title, action=dlg.action, hx_post=dlg.action, hx_target=dlg.target, hx_swap=dlg.swap, hero=dlg.hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": dlg.submit_label}], field_count=field_count|default(0), field_errors=field_errors|default(()), form_id="" if dlg.editing else "account-form", slim=dlg.editing) %}
+{% call dialog(dlg.dialog_id, dlg.title, action=dlg.action, hx_post=dlg.action, hx_target=dlg.target, hx_swap=dlg.swap, hero=dlg.hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": dlg.submit_label}], field_count=field_count|default(0), field_errors=field_errors|default(()), form_id="" if dlg.editing else "account-form") %}
   <div class="rd-field">
     <label class="rd-field__label" for="field-name">name</label>
     <span class="rd-input">
