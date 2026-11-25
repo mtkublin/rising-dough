@@ -9,17 +9,16 @@ from __future__ import annotations
 
 import sqlite3
 from http import HTTPStatus
+from typing import NoReturn
 
 from fastapi import HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import Response
 
 from budget_planner.domain.user_agent import device_label
 from budget_planner.services import auth as auth_service
 from budget_planner.web.dialogs import saved_response
 from budget_planner.web.http_headers import HX_REDIRECT
-from budget_planner.web.rendering import is_hx_request, render
-
-FLASH_TEMPLATE = "partials/_flash.html"
+from budget_planner.web.rendering import is_hx_request
 
 
 def session_device(conn: sqlite3.Connection, user_id: int, handle: str) -> str:
@@ -34,11 +33,13 @@ def session_device(conn: sqlite3.Connection, user_id: int, handle: str) -> str:
     )
 
 
-def stale(request: Request, message: str) -> HTMLResponse:
-    """404 for an unknown, foreign or already revoked id."""
-    if not is_hx_request(request):
-        raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
-    return render(request, FLASH_TEMPLATE, HTTPStatus.NOT_FOUND, level="error", message=message)
+def stale(message: str) -> NoReturn:
+    """404 JSON body for an unknown, foreign or already revoked id, whoever the caller is.
+
+    The body is pinned (``tests/contract/test_errors.py``); under HTMX ``app-toast.js`` turns the
+    flash-less 404 into the generic "not found" flash.
+    """
+    raise HTTPException(HTTPStatus.NOT_FOUND, detail=message)
 
 
 def revoked(request: Request, message: str, fallback: Response) -> Response:

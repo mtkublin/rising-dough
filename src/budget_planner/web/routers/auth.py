@@ -337,7 +337,7 @@ def revoke_session(
         return reauth_required_response(request)
     device = revoke_flow.session_device(conn, user.id, handle)
     if not auth_service.revoke_user_session(conn, user.id, handle, request_ctx=ctx):
-        return revoke_flow.stale(request, "Session not found")
+        return revoke_flow.stale("not_found")
     if is_current:
         response = redirect(LOGIN_PATH)
         clear_session_cookie(response, settings)
@@ -356,7 +356,7 @@ def revoke_passkey(
 ) -> Response:
     """Soft-delete one of the caller's own passkeys."""
     if not auth_service.revoke_passkey(conn, user.id, credential_id, request_ctx=ctx):
-        return revoke_flow.stale(request, "Passkey not found")
+        return revoke_flow.stale("not_found")
     return revoke_flow.revoked(request, "Passkey removed", redirect(SECURITY_PASSKEYS_URL))
 
 

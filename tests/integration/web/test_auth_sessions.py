@@ -251,15 +251,13 @@ def test_hx_session_revoke_swaps_the_row_out_and_flashes(
     assert _audit_rows(conn) > audits
 
 
-def test_hx_stale_session_revoke_is_a_404_flash_not_json(
+def test_hx_stale_session_revoke_keeps_the_pinned_json_404(
     client: TestClient, conn: sqlite3.Connection
 ) -> None:
     second = issue_session(conn)
     client.post(f"/auth/sessions/{session_handle(second)}/revoke", headers=HX)
     r = client.post(f"/auth/sessions/{session_handle(second)}/revoke", headers=HX)
-    assert r.status_code == 404
-    assert r.headers["content-type"].startswith("text/html")
-    assert "Session not found" in _html.text_of(r.text, ui.flash_error)
+    assert (r.status_code, r.json()) == (404, {"detail": "not_found"})  # the contract's shape
 
 
 def test_hx_cannot_revoke_another_users_session(
@@ -292,7 +290,7 @@ def test_hx_passkey_remove_flashes_and_stale_is_404(
     assert webauthn_repo.list_credentials(conn, 1) == ()
     assert _audit_rows(conn) > audits
     again = client.post(f"/auth/passkeys/{pk}/revoke", headers=HX)
-    assert again.status_code == 404
-    assert "Passkey not found" in _html.text_of(again.text, ui.flash_error)
-    assert client.post(f"/auth/passkeys/{foreign}/revoke", headers=HX).status_code == 404
+    assert (again.status_code, again.json()) == (404, {"detail": "not_found"})
+    foreign_try = client.post(f"/auth/passkeys/{foreign}/revoke", headers=HX)
+    assert (foreign_try.status_code, foreign_try.json()) == (404, {"detail": "not_found"})
     assert len(webauthn_repo.list_credentials(conn, other_user)) == 1

@@ -10,6 +10,9 @@ import re
 import pytest
 from playwright.sync_api import expect
 
+from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.repositories import sessions as sessions_repo
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD
 from tests.e2e.journeys._world import World
 from tests.e2e.mockup_target import Journey
@@ -147,3 +150,22 @@ def test_throttled_password_change_shows_the_wait_message_in_the_form(world: Wor
             break
     expect(world.find(settings.password_summary)).to_contain_text("Too many attempts")
     assert world.scalar("SELECT password_hash FROM users WHERE id = 1") == before
+
+
+def test_stale_session_revoke_shows_the_generic_not_found_flash(world: World) -> None:
+    """Revoked in another tab: the JSON 404 is pinned, the shell turns it into a visible flash."""
+    settings_ = Settings(_env_file=None, database_url=f"sqlite:///{world.db_path.as_posix()}")
+    conn = get_connection(settings_)
+    try:
+        sessions_repo.create_session(conn, 1, ip="9.9.9.9", user_agent="Mozilla/5.0 Firefox/121.0")
+    finally:
+        conn.close()
+    world.goto("/settings/security")
+    button = world.page.get_by_role("button", name="Sign out Firefox")
+    expect(button).to_have_count(1)
+    world.write(
+        "UPDATE sessions SET revoked_at = '2026-01-01T00:00:00.000000Z' WHERE ip = '9.9.9.9'"
+    )
+    button.click()
+    expect(world.find(settings.flash_error)).to_contain_text("That item was not found")
+    expect(button).to_have_count(1)  # the row stays: nothing was swapped
