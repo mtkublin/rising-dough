@@ -122,7 +122,9 @@ def test_add_from_today_invalid_amount_rerenders_form(
     # The dialog stays open with the field error and the posted values.
     expect(to_playwright(page, entries.hero_error)).to_contain_text("Enter an amount above 0.00")
     expect(to_playwright(page, entries.hero_amount)).to_have_value("0")
-    expect(to_playwright(page, entries.category_search)).to_have_text("Groceries")
+    # The chosen category leads the recent chips, checked (it was not among them: derived.md).
+    expect(page.get_by_role("radio", name="Groceries", checked=True)).to_have_count(1)
+    expect(to_playwright(page, entries.category_search)).to_have_text("search all 2 categories")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM transactions") == 0
 
 

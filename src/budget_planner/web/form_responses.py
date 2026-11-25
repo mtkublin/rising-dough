@@ -227,7 +227,7 @@ def _planned_values(planned: PlannedTransaction, account: Account | None) -> dic
     return {
         "category": str(planned.category_id),
         "account_id": str(planned.account_id),
-        "amount": format_major(planned.amount, account.currency) if account else "",
+        "amount": format_major(planned.amount, account.currency, grouped=True) if account else "",
         "operation_date": planned.operation_date.isoformat(),
         "description": planned.description,
         "dest_account_id": str(planned.dest_account_id or ""),

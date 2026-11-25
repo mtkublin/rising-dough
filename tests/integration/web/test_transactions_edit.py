@@ -27,7 +27,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from tests.auth_support import seed_login_user
-from tests.ui_map import _html, entries, ledger, rd_shell
+from tests.ui_map import _html, entries, ledger, rd_fragments, rd_shell
 
 USER_ID = 1
 FROM_DIALOG = {"HX-Request": "true", "HX-Target": "modal-root"}
@@ -458,3 +458,102 @@ def test_delete_offers_undo_and_restore_brings_the_row_back(
     assert back.fetchone()[0] == 1
     assert _ops(db, txn_id)[0] == "create"
     assert len(_ops(db, txn_id)) == 3
+
+
+def _recent_chips(html: str) -> list[tuple[str, bool]]:
+    """The picker's recent chips in order: (category id, checked)."""
+    return [
+        (str(r.get("value")), r.has_attr("checked"))
+        for r in _html.resolve(html, rd_fragments.category_recent_radios)
+    ]
+
+
+def _used_categories(db: sqlite3.Connection, account: int) -> dict[str, tuple[int, int]]:
+    """Five categories used on 1..5 Oct, name -> (category id, transaction id); Ee is latest."""
+    out: dict[str, tuple[int, int]] = {}
+    for day, name in enumerate(("Aa", "Bb", "Cc", "Dd", "Ee"), start=1):
+        cat = categories_repo.create(
+            db, USER_ID, NewCategory(name=name, direction=Direction.EXPENSE)
+        )
+        txn = transactions_repo.create(
+            db,
+            USER_ID,
+            NewTransaction(
+                operation_date=date(2026, 10, day),
+                category_id=cat.id,
+                account_id=account,
+                amount=100,
+            ),
+        )
+        out[name] = (cat.id, txn.id)
+    return out
+
+
+def test_the_edit_dialog_leads_its_recent_chips_with_the_stored_category(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    used = _used_categories(db, ids["pln"])
+    cat = {name: str(c) for name, (c, _) in used.items()}
+
+    # Aa is outside the four recents (Ee, Dd, Cc, Bb): chip 1, checked; the fourth recent drops.
+    r = client.get(f"/transactions/{used['Aa'][1]}/edit", headers=HX)
+    assert _recent_chips(r.text) == [
+        (cat["Aa"], True),
+        (cat["Ee"], False),
+        (cat["Dd"], False),
+        (cat["Cc"], False),
+    ]
+    # Cc is among them: it moves to the front, the others keep their order.
+    r = client.get(f"/transactions/{used['Cc'][1]}/edit", headers=HX)
+    assert _recent_chips(r.text) == [
+        (cat["Cc"], True),
+        (cat["Ee"], False),
+        (cat["Dd"], False),
+        (cat["Bb"], False),
+    ]
+
+
+def test_new_entry_with_a_preselected_category_leads_with_it(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    used = _used_categories(db, ids["pln"])
+    cat = {name: str(c) for name, (c, _) in used.items()}
+
+    plain = client.get("/add?when=happened", headers=HX)
+    assert _recent_chips(plain.text) == [
+        (cat["Ee"], False),
+        (cat["Dd"], False),
+        (cat["Cc"], False),
+        (cat["Bb"], False),
+    ]
+    picked = client.get(f"/add?when=happened&hero=1&category={cat['Aa']}", headers=HX)
+    assert _recent_chips(picked.text) == [
+        (cat["Aa"], True),
+        (cat["Ee"], False),
+        (cat["Dd"], False),
+        (cat["Cc"], False),
+    ]
+
+
+def test_the_edit_dialog_answering_a_zero_amount_keeps_its_credit_line(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    card = accounts_repo.create(
+        db,
+        USER_ID,
+        NewAccount(name="Card", currency="PLN", is_liability=True, credit_limit_minor=500_000),
+    )
+    txn_id = _txn(db, card.id, ids["groc"], 20_000)
+
+    r = client.post(
+        f"/transactions/{txn_id}",
+        data=_form(ids, account_id=card.id, amount="0"),
+        headers=FROM_DIALOG,
+    )
+
+    assert r.status_code == 422
+    line = _html.resolve_one(r.text, entries.credit_line)
+    assert not line.has_attr("hidden")
+    assert _html.all_text(r.text, entries.credit_line).strip() == (
+        "Card · 5,000.00 of 5,000.00 left → 5,000.00 after this"
+    )
