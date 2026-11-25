@@ -19,11 +19,18 @@ from budget_planner.web.auth_cookies import session_cookie_name
 from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.test_reference import (
+    ANONYMOUS_PAGES,
+    FORM_SUBMITS,
+    LEDGER_BOARD,
     OPENER_PAGES,
     OVERLAY_DIALOGS,
     PAGE_MODIFIERS,
+    PAGE_ROUTES,
+    SURFACE_ROUTES,
     UNMAPPED_OVERLAYS,
+    UNMAPPED_PAGES,
     base_page_of,
+    is_anonymous,
     modifiers_for,
     route_for,
 )
@@ -33,7 +40,7 @@ def test_recurring_reference_uses_board_modifier() -> None:
     assert modifiers_for("pages/ledger/recurring.html") == ("recurring-board",)
     assert route_for("pages/ledger/recurring.html") == "/ledger?view=recurring"
     assert modifiers_for("pages/ledger/planned.html") == ()
-    assert set(PAGE_MODIFIERS.values()) <= {(m,) for m in handoff_seed.MODIFIER_NAMES}
+    assert all(set(m) <= set(handoff_seed.MODIFIER_NAMES) for m in PAGE_MODIFIERS.values())
 
 
 def test_every_overlay_page_is_mapped_or_listed_unmapped() -> None:
@@ -67,8 +74,8 @@ _BASES = {
     "override--occurrence": ("/ledger?view=recurring", ("recurring-board",)),
     "override--budget-default": ("/plan", ()),
     "override--budget-month": ("/plan", ()),
-    "edit-transaction": ("/ledger", ()),
-    "edit-transaction--transit": ("/ledger", ()),
+    "edit-transaction": (LEDGER_BOARD, ()),
+    "edit-transaction--transit": (LEDGER_BOARD, ()),
     "new-entry--happened": ("/today", ()),
     "new-entry--planned": ("/today", ()),
     "new-entry--repeats-fixed": ("/today", ()),
@@ -180,3 +187,90 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
     text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
     assert "Can\u2019t delete Checking It still has" in text
     assert "23 transactions and 3 planned items and 7 recurring rules." in text
+
+
+def _non_overlay_pages() -> set[str]:
+    return {p for p in handoff.pages() if handoff.surface_of(p) != "overlays"}
+
+
+def test_every_page_is_mapped_or_listed_unmapped() -> None:
+    pages = _non_overlay_pages()
+    auth = {p for p in pages if handoff.surface_of(p) == "auth"}
+    errors = {p for p in pages if handoff.surface_of(p) == "errors"}
+    assert auth <= set(PAGE_ROUTES) | set(UNMAPPED_PAGES)
+    assert errors <= set(PAGE_ROUTES) | set(UNMAPPED_PAGES) | {"pages/errors/404.html"}
+    assert set(UNMAPPED_PAGES) <= pages
+    assert not set(UNMAPPED_PAGES) & (set(PAGE_ROUTES) | set(FORM_SUBMITS))
+    for page in pages:
+        assert handoff.surface_of(page) in SURFACE_ROUTES
+    for page in set(PAGE_ROUTES) | set(PAGE_MODIFIERS) | set(FORM_SUBMITS) | ANONYMOUS_PAGES:
+        assert page in pages
+
+
+@pytest.mark.parametrize(
+    ("page", "route", "modifiers"),
+    [
+        ("pages/auth/login.html", "/auth/login", ()),
+        ("pages/auth/login--error.html", "/auth/login", ("form-error",)),
+        ("pages/auth/invite.html", "/invite/handoff-invite-accountant", ()),
+        (
+            "pages/auth/invite--expired.html",
+            "/invite/handoff-invite-accountant",
+            ("invite-expired",),
+        ),
+        ("pages/auth/invite--used.html", "/invite/handoff-invite-accountant", ("invite-used",)),
+        ("pages/auth/invite--invalid.html", "/invite/not-a-real-invite-token", ()),
+        ("pages/auth/reauth.html", "/auth/reauth", ()),
+        ("pages/auth/reauth--error.html", "/auth/reauth", ("form-error",)),
+        ("pages/today--empty.html", "/today", ("empty",)),
+        ("pages/accounts--empty.html", "/accounts", ("empty-accounts",)),
+        ("pages/ledger/actual--empty.html", LEDGER_BOARD, ("empty-ledger",)),
+        ("pages/ledger/actual--long.html", LEDGER_BOARD, ("long",)),
+        ("pages/ledger/actual.html", LEDGER_BOARD, ()),
+        (
+            "pages/ledger/actual--no-matches.html",
+            LEDGER_BOARD + "&q=pizza",
+            ("no-matches",),
+        ),
+        ("pages/ledger/planned--empty.html", "/ledger?view=planned", ("empty-planned",)),
+        ("pages/ledger/recurring--empty.html", "/ledger?view=recurring", ("empty-recurring",)),
+        ("pages/settings/categories.html", "/settings", ()),
+        ("pages/settings/preferences.html", "/settings?tab=prefs", ()),
+        ("pages/settings/currency-fx.html", "/settings?tab=fx", ()),
+        ("pages/settings/security.html", "/settings/security", ()),
+        ("pages/settings/security--error.html", "/settings/security", ()),
+        ("pages/settings/users.html", "/settings/users", ()),
+        ("pages/errors/422.html", "/budget?month=zz", ()),
+    ],
+)
+def test_page_route_and_modifiers(page: str, route: str, modifiers: tuple[str, ...]) -> None:
+    assert route_for(page) == route
+    assert modifiers_for(page) == modifiers
+    assert set(modifiers) <= set(handoff_seed.MODIFIER_NAMES)
+
+
+def test_only_signed_out_auth_pages_are_anonymous() -> None:
+    assert all(p.startswith("pages/auth/") for p in ANONYMOUS_PAGES)
+    assert is_anonymous("pages/auth/login.html")
+    assert is_anonymous("pages/auth/invite--used.html")
+    assert not is_anonymous("pages/auth/reauth.html")
+    assert not is_anonymous("pages/auth/reauth--error.html")
+    assert not is_anonymous("pages/today.html")
+
+
+def test_unmapped_pages_carry_a_reason() -> None:
+    assert set(UNMAPPED_PAGES) == {
+        "pages/auth/register.html",
+        "pages/auth/register--error.html",
+        "pages/auth/force-password.html",
+        "pages/auth/force-password--error.html",
+        "pages/errors/409.html",
+        "pages/errors/500.html",
+        "pages/errors/offline.html",
+        "pages/today--afford-invalid.html",
+        "pages/today--afford-over.html",
+        "pages/today--flash.html",
+        "pages/today--loading.html",
+    }
+    assert all(len(reason) > 20 for reason in UNMAPPED_PAGES.values())
+    assert set(FORM_SUBMITS) == {"pages/auth/login--error.html", "pages/auth/reauth--error.html"}
