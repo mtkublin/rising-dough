@@ -219,54 +219,6 @@ epic = "E16"
 owner = "T-UR15"
 
 [[entry]]
-path = "src/budget_planner/web/templates/ledger/_recently_deleted.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/_recently_deleted.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/_table.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/_table.html"
-rule = "tpl-domain-if"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/_table.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/_table.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/_flash.html"
 rule = "tpl-set"
 count = 1
@@ -449,14 +401,6 @@ count = 1
 finding = "Q-039"
 epic = "E16"
 owner = "T-UR09"
-
-[[entry]]
-path = "src/budget_planner/web/templates/recurring/index.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
 
 [[entry]]
 path = "src/budget_planner/web/templates/settings/_password_form.html"

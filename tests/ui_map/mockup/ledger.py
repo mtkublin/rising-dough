@@ -34,6 +34,7 @@ NO_HANDOFF_TWIN = frozenset(
     {
         "bulk_bar",
         "hero_figure",
+        "schedule_hero",
         "menu_items",
         "txn_row_ids",
         "day_heads",
@@ -70,6 +71,7 @@ NO_HANDOFF_TWIN = frozenset(
 )
 bulk_bar = _app.bulk_bar  # hidden until a row is selected; no twin
 hero_figure = _app.hero_figure
+schedule_hero = _app.schedule_hero
 
 
 def row(tx_id: int) -> Locator:

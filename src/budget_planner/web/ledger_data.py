@@ -11,8 +11,9 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Final
+from zoneinfo import ZoneInfo
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -50,6 +51,7 @@ _DIRECTIONS: Final = tuple(d.value for d in Direction)
 _SCOPES: Final = ("all", "unpromoted")
 _PLANNED_LOOKBACK: Final = timedelta(days=30)
 _PLANNED_LOOKAHEAD: Final = timedelta(days=180)
+_DELETED_DAYS: Final = 90
 
 Row = Mapping[str, object]
 
@@ -500,6 +502,33 @@ def _actual_keys(
     }
 
 
+def _sched_keys(
+    conn: sqlite3.Connection,
+    user_id: int,
+    view: ViewKind,
+    filters: LedgerFilters,
+    rows: Sequence[Row],
+) -> dict[str, object]:
+    """Keys of ``fragments/ledger/{planned,recurring}-table.html``: row views, hues, empty state."""
+    cats, accts = _lookups(conn, user_id)
+    summary = filter_summary(filters, cats, accts)
+    shown = [c for r in rows if isinstance(c := r.get("category"), Category)]
+    keys: dict[str, object] = {
+        "color_rules": ledger_view.hue_rules(shown),
+        "no_matches": not rows and summary.is_active,
+        "summary_text": ledger_view.no_matches_text(summary),
+    }
+    if view == "planned":
+        keys["planned_rows"] = ledger_view.planned_views(rows)
+    else:
+        keys["groups"] = ledger_view.recurring_groups(rows, cats)
+    return keys
+
+
+def _view_template(view: ViewKind) -> str:
+    return f"fragments/ledger/{view}-table.html"
+
+
 def table_context(
     conn: sqlite3.Connection,
     user_id: int,
@@ -512,23 +541,26 @@ def table_context(
     """Template keys for the ``/ledger/table`` fragment."""
     rows: Sequence[object]
     day_nets: dict[str, int | None] = {}
-    actual: list[TxnRow] | None = None
+    view_keys: dict[str, object]
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
-    elif view == "planned":
-        rows = _planned_rows(conn, user_id, filters, today)
+        view_keys = _actual_keys(
+            conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets
+        )
     else:
-        fx = fx_service.converter_for(conn, settings, today)
-        rows = _recurring_rows(conn, user_id, filters, fx)
+        sched = (
+            _planned_rows(conn, user_id, filters, today)
+            if view == "planned"
+            else _recurring_rows(
+                conn, user_id, filters, fx_service.converter_for(conn, settings, today)
+            )
+        )
+        rows, view_keys = sched, _sched_keys(conn, user_id, view, filters, sched)
     cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
     return {
         **_page_keys(view, rows, filters, today),
-        **(
-            _actual_keys(conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets)
-            if actual is not None
-            else {}
-        ),
+        **view_keys,
         "day_nets": day_nets,
         "categories_by_id": cats,
         "export": export_links(view, filters),
@@ -548,12 +580,68 @@ def render_table_for(
     """Render the ledger table fragment for ``view`` (shared by the legacy fragment aliases)."""
     filters = parse_filters(request)
     ctx = table_context(conn, user_id, settings=settings, view=view, filters=filters, today=today)
-    template = "fragments/ledger/actual-table.html" if view == "actual" else "ledger/_table.html"
-    response = render_context(request, template, ctx)
+    response = render_context(request, _view_template(view), ctx)
     if request.headers.get(HX_TRIGGER) == FILTER_FORM_ID:
         # A filter change keeps the URL in step, so a reload or Back reopens the same filters.
         response.headers[HX_PUSH_URL] = ledger_view.ledger_url(view, filters)
     return response
+
+
+def _deleted_stamp(deleted_at: datetime | None, tz_name: str) -> str:
+    """``29 OCT 20:30`` in the display timezone (a naive stamp is UTC, ADR-0007)."""
+    if deleted_at is None:
+        return ""
+    aware = deleted_at if deleted_at.tzinfo else deleted_at.replace(tzinfo=UTC)
+    return aware.astimezone(ZoneInfo(tz_name)).strftime("%d %b %H:%M").upper()
+
+
+def deleted_context(
+    conn: sqlite3.Connection, user_id: int, settings: Settings
+) -> dict[str, object]:
+    """Template keys of the Recently deleted page: soft-deleted rows of the last 90 days."""
+    cats, accts = _lookups(conn, user_id)
+    tz = settings.display_timezone
+    txns = transactions_service.list_recently_deleted(conn, user_id, days=_DELETED_DAYS)
+    planned = planned_service.list_recently_deleted(conn, user_id, days=_DELETED_DAYS)
+    archived = categories_service.list_recently_deleted(conn, user_id, days=_DELETED_DAYS)
+    return {
+        "nav_current": "ledger",
+        "txn_rows": tuple(
+            ledger_view.deleted_money_row(
+                "txn",
+                t.id,
+                deleted_at=_deleted_stamp(t.deleted_at, tz),
+                day=t.operation_date,
+                description=t.description,
+                amount=t.amount,
+                category=cats.get(t.category_id),
+                account=accts.get(t.account_id),
+            )
+            for t in txns
+        ),
+        "planned_rows": tuple(
+            ledger_view.deleted_money_row(
+                "planned",
+                p.id,
+                deleted_at=_deleted_stamp(p.deleted_at, tz),
+                day=p.operation_date,
+                description=p.description,
+                amount=p.amount,
+                category=cats.get(p.category_id),
+                account=accts.get(p.account_id),
+            )
+            for p in planned
+        ),
+        "category_rows": tuple(
+            ledger_view.deleted_category_row(c, deleted_at=_deleted_stamp(c.deleted_at, tz))
+            for c in archived
+        ),
+        "color_rules": ledger_view.hue_rules(
+            [cats.get(t.category_id) for t in txns]
+            + [cats.get(p.category_id) for p in planned]
+            + list(archived)
+        ),
+    }
 
 
 def _lookup_keys(
@@ -613,12 +701,8 @@ def index_context(
     """Template keys for the ``/ledger`` page shell."""
     rows: Sequence[object]
     day_nets: dict[str, int | None] = {}
-    recurring_summary: ledger_totals.RecurringTotals | None = None
-    planned_summary: ledger_totals.PlannedTotals | None = None
     base_ccy = settings.base_currency
-    fx = fx_service.converter_for(conn, settings, today)
     spent: int | None = None
-    page_keys: dict[str, object] = {}
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
@@ -626,27 +710,48 @@ def index_context(
         page_keys = _actual_keys(
             conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets
         )
-    elif view == "planned":
-        planned = _planned_rows(conn, user_id, filters, today)
-        planned_summary = ledger_totals.planned_totals(
-            [r for r in planned if _on_live_account(r)],
-            base_ccy,
-            lambda amount, day, ccy: fx.to_base(amount, ccy, day),
-            today,
-        )
-        rows = planned
     else:
-        recurring = _recurring_rows(conn, user_id, filters, fx)
-        recurring_summary = ledger_totals.recurring_monthly_totals(
-            recurring, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
+        sched, hero = _sched_page(
+            conn, user_id, settings=settings, view=view, filters=filters, today=today
         )
-        rows = recurring
+        rows, page_keys = sched, _sched_keys(conn, user_id, view, filters, sched)
+    chrome = _chrome_keys(conn, user_id, view=view, filters=filters, spent=spent, base_ccy=base_ccy)
+    if view != "actual":
+        chrome["hero"] = hero
     return {
         **_page_keys(view, rows, filters, today),
-        **_chrome_keys(conn, user_id, view=view, filters=filters, spent=spent, base_ccy=base_ccy),
+        **chrome,
         **page_keys,
         "spent_minor": spent,
         "day_nets": day_nets,
-        "recurring_summary": recurring_summary,
-        "planned_summary": planned_summary,
     }
+
+
+def _sched_page(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    settings: Settings,
+    view: ViewKind,
+    filters: LedgerFilters,
+    today: date,
+) -> tuple[Sequence[Row], ledger_view.LedgerHero | None]:
+    """Rows and hero of the Planned (pending net) or Recurring (monthly in and out) view."""
+    base_ccy = settings.base_currency
+    fx = fx_service.converter_for(conn, settings, today)
+
+    def base_of(amount: int, day: date, ccy: str) -> int:
+        return fx.to_base(amount, ccy, day)
+
+    if view == "planned":
+        planned = _planned_rows(conn, user_id, filters, today)
+        live = [r for r in planned if _on_live_account(r)]
+        totals = ledger_totals.planned_totals(live, base_ccy, base_of, today)
+        return planned, ledger_view.schedule_hero(
+            view, planned=totals, recurring=None, currency=base_ccy
+        )
+    recurring = _recurring_rows(conn, user_id, filters, fx)
+    monthly = ledger_totals.recurring_monthly_totals(recurring, base_ccy, base_of)
+    return recurring, ledger_view.schedule_hero(
+        view, planned=None, recurring=monthly, currency=base_ccy
+    )

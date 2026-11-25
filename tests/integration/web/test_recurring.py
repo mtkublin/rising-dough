@@ -543,7 +543,8 @@ def test_delete_override(client: TestClient, ctx: dict[str, int], db: sqlite3.Co
     assert len(recurring_repo.list_overrides_all(db, USER_ID, ctx["rule"])) == 1
     r = client.post(f"/recurring/{ctx['rule']}/overrides/2026-05-01/delete")
     assert r.status_code == 200
-    assert _html.exists(r.text, ledger.recurring_row(ctx["rule"]))
+    payload = json.loads(r.headers["HX-Trigger"])
+    assert payload["ledger-stale"] is not None and payload["forecast-stale"] is not None
     assert recurring_repo.list_overrides_all(db, USER_ID, ctx["rule"]) == []
 
 
@@ -736,20 +737,21 @@ def test_recurring_row_renders_next_due_column(
     # Table headers include the mockup column set (manual-audit #25 removed
     # the separate Cadence + Active columns — Cadence is now a group header
     # and Active status folds into the description column).
-    for header in ("Next due", "Rule", "Category", "Amount", "Overrides"):
+    for header in ("NEXT DUE", "DESCRIPTION · ACCOUNT", "CATEGORY", "AMOUNT", "OVERRIDES"):
         assert _html.exists(r.text, ledger.column_header(header)), header
     # The skip action names the rule's next_due date (not start_date).
     expected_next = _get_rule_next_due(_migrated, ctx["rule"]).isoformat()
     actions = ledger.menu_actions(r.text, ledger.recurring_row(ctx["rule"]))
-    assert actions["Skip next"].get("hx-confirm") == f"Skip {expected_next}?"
+    assert actions["skip next"].get("hx-confirm") == f"Skip {expected_next}?"
     # Five action buttons (promote / override-next / skip-next / edit / delete).
     rid = ctx["rule"]
     assert {label: (b.get("hx-get") or b.get("hx-post")) for label, b in actions.items()} == {
-        "Promote": f"/recurring/{rid}/promote",
-        "Override": f"/recurring/{rid}/overrides/new",
-        "Skip next": f"/recurring/{rid}/skip-next",
-        "Edit": f"/recurring/{rid}/edit",
-        "Delete": f"/recurring/{rid}/deactivate",
+        "promote": f"/recurring/{rid}/promote?dialog=1",
+        "override": f"/recurring/{rid}/overrides/new",
+        "skip next": f"/recurring/{rid}/skip-next",
+        "edit": f"/recurring/{rid}/edit",
+        "delete": f"/recurring/{rid}/deactivate",
+        "cancel": None,
     }
 
 

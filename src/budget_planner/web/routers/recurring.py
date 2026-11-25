@@ -21,7 +21,6 @@ from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import recurring_forms as forms, recurring_views as views
 from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, today_for
 from budget_planner.web.dialogs import saved_response
-from budget_planner.web.form_responses import from_dialog
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.params import parse_date, parse_int, query_date
@@ -263,7 +262,6 @@ def delete_override(
     *,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -272,11 +270,13 @@ def delete_override(
     if occ is None:
         return Response(status_code=422, content="invalid date")
     recurring_svc.delete_override(conn, user_id, rule_id, occ)
-    events = (Event.FORECAST_STALE, Event.LEDGER_STALE)
-    if from_dialog(request):
-        return saved_response(request, None, {}, message="Override removed", events=events)
-    # The ledger table's own remove button (old shell) swaps the row until T-UR10a ports it.
-    return views.render_rule_row(request, conn, user_id, rule, fx, *events)
+    return saved_response(
+        request,
+        None,
+        {},
+        message="Override removed",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
 
 
 # ---------------------------------------------------------------------------

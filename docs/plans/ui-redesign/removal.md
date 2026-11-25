@@ -96,8 +96,8 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/errors/500.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/errors/_shell.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/forecast/index.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
-| `src/budget_planner/web/templates/ledger/_recently_deleted.html` | T-UR10 | delete |  |
-| `src/budget_planner/web/templates/ledger/_table.html` | T-UR10 | delete | still renders the planned and recurring views until T-UR10a ports their rows; the Actual view moved to fragments/ledger/actual-table.html (T-UR09) |
+| `src/budget_planner/web/templates/ledger/_recently_deleted.html` | T-UR10 | deleted | UR10a: `GET /ledger/recently-deleted` renders `pages/ledger/recently-deleted.html` |
+| `src/budget_planner/web/templates/ledger/_table.html` | T-UR10 | deleted | UR10a: the planned and recurring views render `fragments/ledger/{planned,recurring}-table.html` (actual: T-UR09) |
 | `src/budget_planner/web/templates/ledger/index.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/partials/_add_entry_overlay.html` | T-UR15 | delete | still the old shell's "+ Add" overlay (ledger, forecast, settings) until T-UR09/T-UR10 port them; Today uses pages/entries/new-entry.html |
 | `src/budget_planner/web/templates/partials/_cheatsheet.html` | T-UR15 | delete |  |
@@ -128,14 +128,14 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15 |
 | `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | delete |  |
 | `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR15 | delete | still the old shell's promote slide-over (ledger) until T-UR09 / T-UR10; Today uses pages/entries/promote.html |
-| `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | delete |  |
-| `src/budget_planner/web/templates/partials/planned/_table.html` | T-UR10 | delete |  |
+| `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | delete | UR10a kept: `created_planned_response` (the old "+ Add" planned create) still renders it; goes with T-UR09 / T-UR15 |
+| `src/budget_planner/web/templates/partials/planned/_table.html` | T-UR10 | deleted | UR10a: orphaned (only planned/index.html included it) |
 | `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" repeats tab and the 422 of its create; goes with T-UR09 / T-UR15 |
 | `src/budget_planner/web/templates/partials/recurring/_formula_preview.html` | T-UR10 | deleted | UR10b: POST /recurring/formula/preview renders `fragments/dialogs/formula-result.html` |
 | `src/budget_planner/web/templates/partials/recurring/_override_form.html` | T-UR10 | deleted | UR10b: `GET /recurring/{id}/overrides/new` renders `fragments/dialogs/override-occurrence.html` |
 | `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR24 | delete |  |
 | `src/budget_planner/web/templates/partials/recurring/_promote_modal.html` | T-UR15 | delete | still the old shell's promote slide-over (ledger) until T-UR09 / T-UR10; Today uses pages/entries/promote.html |
-| `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | delete |  |
+| `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | delete | UR10a kept: `render_created_row` and `render_rule_row` (old "+ Add" repeats create, skip-next) still render it; goes with T-UR15 |
 | `src/budget_planner/web/templates/partials/transactions/_empty.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/partials/transactions/_filter_form.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR09 | delete |  |
@@ -148,8 +148,8 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/plan/_forecast_tab.html` | T-UR12 | deleted |  |
 | `src/budget_planner/web/templates/plan/_year_tab.html` | T-UR11 | deleted | UR11b: `GET /plan?tab=year` renders `pages/plan/year.html` |
 | `src/budget_planner/web/templates/plan/index.html` | T-UR15 | deleted | UR11b: every tab renders its own `pages/plan/*.html`; the hub template had no caller left |
-| `src/budget_planner/web/templates/planned/index.html` | T-UR10 | delete |  |
-| `src/budget_planner/web/templates/recurring/index.html` | T-UR10 | delete |  |
+| `src/budget_planner/web/templates/planned/index.html` | T-UR10 | deleted | UR10a: orphaned (no route rendered it) |
+| `src/budget_planner/web/templates/recurring/index.html` | T-UR10 | deleted | UR10a: orphaned (no route rendered it) |
 | `src/budget_planner/web/templates/settings/_categories.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/settings/_drawer.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/settings/_fx.html` | T-UR13 | deleted |  |

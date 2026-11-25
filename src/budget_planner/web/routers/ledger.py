@@ -15,17 +15,11 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from budget_planner.config import Settings
-from budget_planner.services import (
-    accounts as accounts_service,
-    categories as categories_service,
-    planned as planned_service,
-    transactions as transactions_service,
-)
 from budget_planner.web import ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.ledger_types import query_view
 from budget_planner.web.paths import LEDGER_PATH, TABLE_PATH
-from budget_planner.web.rendering import render, render_context
+from budget_planner.web.rendering import render_context
 
 router = APIRouter(prefix=LEDGER_PATH, tags=["ledger"])
 
@@ -64,23 +58,12 @@ def table_fragment(
 def recently_deleted(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """T-R70 — list soft-deleted transactions, planned, and categories (90-day cutoff).
 
     ADR-0019 (soft delete + audit); ADR-0022 (archived categories).
     """
-    txns = transactions_service.list_recently_deleted(conn, user_id, days=90)
-    planned_items = planned_service.list_recently_deleted(conn, user_id, days=90)
-    cats = categories_service.list_recently_deleted(conn, user_id, days=90)
-    accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
-    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
-    return render(
-        request,
-        "ledger/_recently_deleted.html",
-        txns=txns,
-        planned_items=planned_items,
-        categories=cats,
-        accounts_by_id=accounts_by_id,
-        categories_by_id=categories_by_id,
-    )
+    ctx = ledger_data.deleted_context(conn, user_id, settings)
+    return render_context(request, "pages/ledger/recently-deleted.html", ctx)

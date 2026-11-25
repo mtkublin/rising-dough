@@ -1,0 +1,24 @@
+{# fragment: rows/deleted-planned
+   Inputs: row (ledger_view.DeletedRowView). A soft-deleted planned item: when, due date, description,
+   category chip, signed amount, restore (POST, swaps the row out; the route toasts and announces ledger-stale). #}
+<tr class="rd-row rd-row--del-planned" id="{{ row.dom_id }}">
+  <td class="rd-del__when rd-muted">
+    <span class="u-hide-from-md">deleted </span>{{ row.deleted_at }}
+  </td>
+  <td class="rd-del__due">
+    <span class="u-hide-from-md">due </span>{{ row.due_text }}
+  </td>
+  <td class="rd-del__desc">{{ row.title }}</td>
+  <td class="rd-del__cat">
+    <span class="rd-chip"
+          {% if row.category_hue %} data-color="{{ row.category_hue }}"{% endif %}>{{ row.category_name }}</span>
+  </td>
+  <td class="rd-row__amount rd-num">{{ row.amount_text }}</td>
+  <td class="rd-row__actions">
+    <button type="button"
+            class="rd-btn"
+            hx-post="{{ row.restore_url }}"
+            hx-target="#{{ row.dom_id }}"
+            hx-swap="outerHTML">restore</button>
+  </td>
+</tr>

@@ -1,7 +1,7 @@
 {# pages/ledger/index.html: Ledger on the new shell (T-UR09, handoff pages/ledger/actual*.html).
    Context: view, title, hero (LedgerHero | none), tabs (LedgerTab list), bar (FilterBar), export
-   (ExportLinks | none), the Actual region keys (fragments/ledger/actual-table.html), and for the
-   transitional views (T-UR10a ports them) rows, day_nets, planned_summary, recurring_summary.
+   (ExportLinks | none), and the region keys of the view: fragments/ledger/actual-table.html (days, links),
+   planned-table.html (planned_rows) or recurring-table.html (groups). hero carries label unit and note.
    The "+ new entry" action is the shell's top bar button. #}
 {% extends "layouts/base.html" %}
 {% block title %}Ledger · Rising Dough{% endblock %}
@@ -20,28 +20,21 @@
           src="{{ url_for('static', path='rd/js/app-ledger.js') }}"></script>
 {% endblock %}
 {% block main %}
-  {% if view == "actual" %}
-    <section class="rd-hero" aria-labelledby="hero-label">
-      <div class="rd-hero__body">
-        <h1 class="rd-hero__label" id="hero-label">{{ title }}</h1>
-        {% if hero %}
-          <p class="rd-hero__figure-row">
-            <span class="rd-hero__figure"
-                  id="ledger-spent"
-                  data-digits="{{ hero.fit.digits }}"
-                  data-marks="{{ hero.fit.marks }}"
-                  data-signs="{{ hero.fit.signs }}">{{ hero.figure }}</span><span class="rd-hero__unit">{{ hero.currency }}</span>
-          </p>
-        {% endif %}
-      </div>
-    </section>
-  {% else %}
-    <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
-      <div class="rd-hero__body">
-        <h1 class="rd-hero__title" id="page-title">{{ title }}</h1>
-      </div>
-    </section>
-  {% endif %}
+  <section class="rd-hero" id="ledger-hero" aria-labelledby="hero-label">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__label" id="hero-label">{{ title }}</h1>
+      {% if hero %}
+        <p class="rd-hero__figure-row">
+          <span class="rd-hero__figure{% if hero.wide %} rd-hero__figure--wide{% endif %}"
+                {% if view == "actual" %}id="ledger-spent"{% else %}id="ledger-figure"{% endif %}
+                data-digits="{{ hero.fit.digits }}"
+                data-marks="{{ hero.fit.marks }}"
+                data-signs="{{ hero.fit.signs }}">{{ hero.figure }}</span><span class="rd-hero__unit">{{ hero.unit }}</span>
+        </p>
+        {% if hero.note %}<p class="rd-hero__note">{{ hero.note }}</p>{% endif %}
+      {% endif %}
+    </div>
+  </section>
   <section class="rd-panel rd-ledger-panel" aria-label="Transactions">
     <div class="rd-ledger-head">
       <nav class="rd-tabs" aria-label="Ledger view">
@@ -56,33 +49,12 @@
       {% endif %}
     </div>
     {% include "fragments/ledger/filter-bar.html" %}
-    {% if view == "recurring" and recurring_summary %}
-      <aside class="rd-recurring-strip" aria-label="Monthly cash flow summary">
-        <div>
-          <span class="rd-eyebrow">Monthly out</span>
-          <strong class="numeric rd-amount rd-amount--expense">{{ recurring_summary.monthly_out_display }}</strong>
-        </div>
-        <div>
-          <span class="rd-eyebrow">Monthly in</span>
-          <strong class="numeric rd-amount rd-amount--income">{{ recurring_summary.monthly_in_display }}</strong>
-        </div>
-      </aside>
-    {% endif %}
-    {% if view == "planned" and planned_summary and rows %}
-      <aside class="rd-planned-strip" aria-label="Planned items summary">
-        <strong>{{ planned_summary.count }}</strong> items ·
-        <strong class="numeric">{{ planned_summary.net_display }}</strong>
-        pending over the window.
-      </aside>
-    {% endif %}
     {% if view == "actual" %}
       {% include "fragments/ledger/actual-table.html" %}
+    {% elif view == "planned" %}
+      {% include "fragments/ledger/planned-table.html" %}
     {% else %}
-      {# transitional (T-UR10a): the old planned and recurring tables, until their rows are ported #}
-      {% include "ledger/_table.html" %}
-      <p class="rd-ledger-recently">
-        Deleted = archived; restorable from <a class="rd-link" href="/ledger/recently-deleted">Recently deleted →</a>
-      </p>
+      {% include "fragments/ledger/recurring-table.html" %}
     {% endif %}
   </section>
 {% endblock %}
