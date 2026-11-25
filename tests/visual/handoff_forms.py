@@ -57,3 +57,4 @@ def submit_dialog(page: Any, handoff_page: str) -> None:
         page.fill(selector, value)
     page.click(recipe.press)
     page.wait_for_selector(recipe.answer, timeout=15000)
+    page.mouse.move(0, 0)  # the pointer rests off the dialog, as in the handoff (no hover tint)
