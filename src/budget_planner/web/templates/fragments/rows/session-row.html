@@ -9,7 +9,11 @@
   <td>{{ row.last_seen }}</td>
   <td>{{ row.expires }}</td>
   <td class="rd-row__actions">
-    <form method="post" action="/auth/sessions/{{ row.handle }}/revoke">
+    <form method="post"
+          action="/auth/sessions/{{ row.handle }}/revoke"
+          hx-post="/auth/sessions/{{ row.handle }}/revoke"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
       <button type="submit" class="rd-btn" aria-label="{{ row.button_label }}">sign out</button>
     </form>

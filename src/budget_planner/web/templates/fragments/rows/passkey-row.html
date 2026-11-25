@@ -5,7 +5,11 @@
   <td>{{ pk.added }}</td>
   <td>{{ pk.last_used }}</td>
   <td class="rd-row__actions">
-    <form method="post" action="/auth/passkeys/{{ pk.id }}/revoke">
+    <form method="post"
+          action="/auth/passkeys/{{ pk.id }}/revoke"
+          hx-post="/auth/passkeys/{{ pk.id }}/revoke"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
       <button type="submit"
               class="rd-btn"

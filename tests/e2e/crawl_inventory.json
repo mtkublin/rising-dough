@@ -162,6 +162,13 @@
       "target": "/settings/password"
     },
     {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "sign out",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/auth/sessions/{handle}/revoke"
+    },
+    {
       "kind": "link",
       "name": "Categories",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
@@ -1116,6 +1123,13 @@
       "target": "/settings/password"
     },
     {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "sign out",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/auth/sessions/{handle}/revoke"
+    },
+    {
       "kind": "link",
       "name": "Categories",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
@@ -1252,6 +1266,13 @@
       "name": "current password new password 12+ characters, up to 72 bytes...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings/password"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "sign out",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/auth/sessions/{handle}/revoke"
     },
     {
       "kind": "link",

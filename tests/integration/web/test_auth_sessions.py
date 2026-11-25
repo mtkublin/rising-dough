@@ -227,3 +227,72 @@ def test_passkey_rows_list_own_label_and_post_to_the_revoke_route(
     assert register is not None
     assert register.has_attr("data-passkey-register")  # the hook rd/js/passkeys.js binds
     assert _html.resolve_one(html, ui.passkey_label)["name"] == "label"
+
+
+# --- T-UR14 F2: HTMX revoke on the new shell ---------------------------------------------------
+
+HX = {"HX-Request": "true"}
+
+
+def _audit_rows(conn: sqlite3.Connection) -> int:
+    return int(conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0])
+
+
+def test_hx_session_revoke_swaps_the_row_out_and_flashes(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    second = issue_session(conn)
+    audits = _audit_rows(conn)
+    r = client.post(f"/auth/sessions/{session_handle(second)}/revoke", headers=HX)
+    assert r.status_code == 200
+    assert "Signed out" in _html.text_of(r.text, ui.flash_success)
+    assert not _html.exists(r.text, ui.session_signout)  # empty row swap
+    assert sessions_repo.get_session(conn, second) is None
+    assert _audit_rows(conn) > audits
+
+
+def test_hx_stale_session_revoke_is_a_404_flash_not_json(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    second = issue_session(conn)
+    client.post(f"/auth/sessions/{session_handle(second)}/revoke", headers=HX)
+    r = client.post(f"/auth/sessions/{session_handle(second)}/revoke", headers=HX)
+    assert r.status_code == 404
+    assert r.headers["content-type"].startswith("text/html")
+    assert "Session not found" in _html.text_of(r.text, ui.flash_error)
+
+
+def test_hx_cannot_revoke_another_users_session(
+    client: TestClient, conn: sqlite3.Connection, other_user: int
+) -> None:
+    foreign = issue_session(conn, user_id=other_user)
+    r = client.post(f"/auth/sessions/{session_handle(foreign)}/revoke", headers=HX)
+    assert r.status_code == 404
+    assert sessions_repo.get_session(conn, foreign) is not None
+
+
+def test_hx_revoking_the_current_session_redirects_to_login(
+    client: TestClient, session_cookie: tuple[str, str], conn: sqlite3.Connection
+) -> None:
+    current = session_cookie[1]
+    r = client.post(f"/auth/sessions/{session_handle(current)}/revoke", headers=HX)
+    assert r.headers["hx-redirect"] == "/auth/login"
+    assert sessions_repo.get_session(conn, current) is None
+
+
+def test_hx_passkey_remove_flashes_and_stale_is_404(
+    client: TestClient, conn: sqlite3.Connection, other_user: int
+) -> None:
+    pk = _passkey(conn, 1, "Phone", b"cred-phone")
+    foreign = _passkey(conn, other_user, "Theirs", b"cred-theirs")
+    audits = _audit_rows(conn)
+    r = client.post(f"/auth/passkeys/{pk}/revoke", headers=HX)
+    assert r.status_code == 200
+    assert "Passkey removed" in _html.text_of(r.text, ui.flash_success)
+    assert webauthn_repo.list_credentials(conn, 1) == ()
+    assert _audit_rows(conn) > audits
+    again = client.post(f"/auth/passkeys/{pk}/revoke", headers=HX)
+    assert again.status_code == 404
+    assert "Passkey not found" in _html.text_of(again.text, ui.flash_error)
+    assert client.post(f"/auth/passkeys/{foreign}/revoke", headers=HX).status_code == 404
+    assert len(webauthn_repo.list_credentials(conn, other_user)) == 1
