@@ -13,7 +13,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from tests.e2e import db_probe
-from tests.ui_map import ledger, plan, shell, today
+from tests.ui_map import edit_dialogs, ledger, shell, today
 from tests.ui_map.locator import Locator as UiLocator, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -79,48 +79,56 @@ def _kebab_item(page: Page, row: UiLocator, name: str) -> None:
     to_playwright(page, ledger.row_menu_item(row, name)).click()
 
 
-def _fill_amount_and_save(
-    page: Page, panel_scope: UiLocator, amount: str, field: UiLocator = plan.override_amount
-) -> None:
-    to_playwright(page, field.inside(panel_scope)).fill(amount)
-    to_playwright(page, ledger.save.inside(panel_scope)).click()
+def _override_from_today(page: Page, row: UiLocator) -> None:
+    """Open the row menu of an Upcoming row and pick "override" (a link that opens the dialog)."""
+    to_playwright(page, edit_dialogs.row_menu_button(row)).click()
+    to_playwright(page, edit_dialogs.override_item(row)).click()
 
 
-@pytest.mark.skip(reason="T-UR10: override dialog not ported to the new shell")
+def _save_override(page: Page, dialog: UiLocator, amount: str) -> None:
+    to_playwright(page, edit_dialogs.hero_amount(dialog)).fill(amount)
+    to_playwright(page, edit_dialogs.save(dialog)).click()
+
+
 def test_today_override_recurring_saves_and_closes(
     live_server: tuple[str, Path], page: Page
 ) -> None:
     base_url, db_path = live_server
     _rule(base_url, page, _seed(base_url, db_path, page))
+    row = today.upcoming_recurring(db_probe.rule_id(db_path, "edit-rule"))
     page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, plan.override.inside(today.upcoming)).first.click()
-    expect(_panel(page)).to_be_visible()
-    _fill_amount_and_save(page, shell.slideover, "77.00")
-    expect(_panel(page)).to_have_count(0)
+    _override_from_today(page, row)
+    dialog = edit_dialogs.occurrence_dialog("Groceries")
+    expect(to_playwright(page, dialog)).to_be_visible()
+    # the dialog opens on the occurrence the row names, with the rule's amount
+    expect(to_playwright(page, edit_dialogs.hero_amount(dialog))).to_have_value("50.00")
+    _save_override(page, dialog, "77.00")
+    expect(to_playwright(page, dialog)).to_have_count(0)
     assert db_probe.scalar(db_path, "SELECT amount_override FROM recurring_rule_overrides") == 7700
-    page.goto(_ledger(base_url, "recurring"))
-    expect(to_playwright(page, ledger.table_container)).to_contain_text("77.00")
+    # Upcoming refetches itself: the row now shows the override
+    expect(to_playwright(page, row)).to_contain_text("77.00")
 
 
-@pytest.mark.skip(reason="T-UR10: override dialog not ported to the new shell")
 def test_today_override_planned_saves_and_closes(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _planned(base_url, page, _seed(base_url, db_path, page))
+    row = today.upcoming_planned(db_probe.planned_id(db_path, "edit-planned"))
     page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, plan.override.inside(today.upcoming)).first.click()
-    expect(_panel(page)).to_be_visible()
-    _fill_amount_and_save(page, shell.slideover, "33.00", ledger.field_amount)
-    expect(_panel(page)).to_have_count(0)
+    _override_from_today(page, row)
+    dialog = edit_dialogs.planned_dialog("Groceries")
+    expect(to_playwright(page, dialog)).to_be_visible()
+    expect(to_playwright(page, edit_dialogs.hero_amount(dialog))).to_have_value("25.00")
+    _save_override(page, dialog, "33.00")
+    expect(to_playwright(page, dialog)).to_have_count(0)
     assert (
         db_probe.scalar(
             db_path, "SELECT amount FROM planned_transactions WHERE description = 'edit-planned'"
         )
         == 3300
     )
-    page.goto(_ledger(base_url, "planned"))
-    expect(to_playwright(page, ledger.table_container)).to_contain_text("33.00")
+    expect(to_playwright(page, row)).to_contain_text("33.00")
 
 
 def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], page: Page) -> None:
@@ -163,19 +171,22 @@ def test_ledger_planned_promote_closes(live_server: tuple[str, Path], page: Page
     expect(to_playwright(page, ledger.table_container)).to_contain_text("edit-planned")
 
 
-def test_override_invalid_month_shows_error_in_panel(
+def test_override_invalid_month_shows_error_in_the_dialog(
     live_server: tuple[str, Path], page: Page
 ) -> None:
     base_url, db_path = live_server
     _rule(base_url, page, _seed(base_url, db_path, page), cadence="quarterly")
-    rule_row = ledger.recurring_row(db_probe.rule_id(db_path, "edit-rule"))
-    page.goto(_ledger(base_url, "recurring"))
+    row = today.upcoming_recurring(db_probe.rule_id(db_path, "edit-rule"))
+    page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
-    _kebab_item(page, rule_row, "Override")
-    expect(_panel(page)).to_be_visible()
+    _override_from_today(page, row)
+    dialog = edit_dialogs.occurrence_dialog("Groceries")
+    expect(to_playwright(page, dialog)).to_be_visible()
     # A month with no quarterly occurrence.
-    to_playwright(page, ledger.next_month_button.inside(shell.slideover)).click()
-    _fill_amount_and_save(page, shell.slideover, "77.00")
-    expect(_panel(page)).to_contain_text("no occurrence")
-    expect(to_playwright(page, rule_row)).to_be_visible()
+    to_playwright(page, edit_dialogs.month_next(dialog)).click()
+    _save_override(page, dialog, "77.00")
+    expect(to_playwright(page, edit_dialogs.summary.inside(dialog))).to_contain_text(
+        "no occurrence"
+    )
+    expect(to_playwright(page, dialog)).to_be_visible()
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM recurring_rule_overrides") == 0

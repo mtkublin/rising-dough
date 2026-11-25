@@ -111,6 +111,16 @@ def formula_percent(scope: Locator) -> Locator:
     return role("textbox", "Percentage", exact=True).inside(scope)
 
 
+def formula_pick(scope: Locator) -> Locator:
+    """The category picker of the first formula component (reads "pick categories" when empty)."""
+    return role("button", "pick categories", exact=True).inside(scope)
+
+
+def formula_option(scope: Locator, name: str) -> Locator:
+    """A category checkbox of a formula component's picker."""
+    return role("checkbox", name, exact=True).inside(scope)
+
+
 # --- occurrence override: the month stepper ---
 def month_group(scope: Locator) -> Locator:
     return role("group", "month", exact=True).inside(scope)
@@ -122,6 +132,15 @@ def month_prev(scope: Locator) -> Locator:
 
 def month_next(scope: Locator) -> Locator:
     return role("link", "Next month", exact=True).inside(scope)
+
+
+# --- opening from an Upcoming row (Today): the row menu holds "override" ---
+def row_menu_button(row: Locator) -> Locator:
+    return role("button", "Row menu", exact=True).inside(row)
+
+
+def override_item(row: Locator) -> Locator:
+    return role("menuitem", "override", exact=True).inside(row)
 
 
 # --- app only: ids the server renders (no handoff twin) ---

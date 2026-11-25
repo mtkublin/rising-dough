@@ -1,6 +1,6 @@
 {# fragment: rows/upcoming-row
-   Inputs: row (today_data.UpcomingRowView). Promote and override open the existing planned and
-   recurring dialogs (ported with T-UR07b / T-UR10); skip posts to the existing routes. #}
+   Inputs: row (today_data.UpcomingRowView). Promote and override open the planned and recurring dialogs
+   (T-UR07b, T-UR10); skip posts to the existing routes. #}
 <li class="{{ row.row_class }}"
     id="{{ row.item.row_id }}"
     data-status="{{ row.status }}">
@@ -66,6 +66,7 @@
            href="/planned/{{ row.item.row.planned_id }}/edit"
            hx-get="/planned/{{ row.item.row.planned_id }}/edit"
            hx-target="#modal-root"
+           hx-select="unset"
            hx-swap="innerHTML">override</a>
       {% else %}
         <button type="button"
@@ -78,6 +79,7 @@
            href="/recurring/{{ row.item.row.rule_id }}/overrides/new?occurrence_date={{ row.occurrence }}"
            hx-get="/recurring/{{ row.item.row.rule_id }}/overrides/new?occurrence_date={{ row.occurrence }}"
            hx-target="#modal-root"
+           hx-select="unset"
            hx-swap="innerHTML">override</a>
       {% endif %}
       <button type="button"
