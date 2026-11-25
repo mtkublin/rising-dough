@@ -35,8 +35,24 @@ def choose_category(page: Any, name: str) -> None:
     to_playwright(page, entries.category_search).click()
     query = to_playwright(page, entries.category_query)
     query.fill(name)
-    query.press("Enter")
+    with page.expect_response(_is_hero_refresh):  # the hero follows the category (sign)
+        query.press("Enter")
+    _settle(page)
 
 
 def choose_account(page: Any, name: str) -> None:
-    to_playwright(page, entries.field_account).select_option(label=name)
+    field = to_playwright(page, entries.field_account)
+    if field.evaluate("el => el.selectedOptions[0].label") == name:
+        return  # no change event, no refresh
+    with page.expect_response(_is_hero_refresh):  # the hero follows the account (currency)
+        field.select_option(label=name)
+    _settle(page)
+
+
+def _is_hero_refresh(response: Any) -> bool:
+    return "hero=1" in response.url
+
+
+def _settle(page: Any) -> None:
+    """Let the hero swap land before the amount is typed (it re-renders the amount input)."""
+    page.wait_for_timeout(300)

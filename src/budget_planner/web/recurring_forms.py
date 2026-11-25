@@ -13,7 +13,7 @@ from datetime import date
 from types import MappingProxyType
 from typing import Any
 
-from starlette.datastructures import FormData
+from starlette.datastructures import FormData, QueryParams
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
@@ -67,7 +67,7 @@ def formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[Ca
     ]
 
 
-def parse_terms_from_form(form: FormData) -> list[TermInput]:
+def parse_terms_from_form(form: FormData | QueryParams) -> list[TermInput]:
     """Group `terms[i][field]` form entries into a dense indexed list.
 
     Returns a list of ``{"sign", "coefficient_percent", "source_category_ids"}``
@@ -102,7 +102,7 @@ def parse_terms_from_form(form: FormData) -> list[TermInput]:
     ]
 
 
-def parse_draft_terms(form: FormData) -> list[formula_svc.DraftTerm] | None:
+def parse_draft_terms(form: FormData | QueryParams) -> list[formula_svc.DraftTerm] | None:
     """Posted terms as preview drafts; ``None`` when a source category id is not an integer."""
     drafts: list[formula_svc.DraftTerm] = []
     for row in parse_terms_from_form(form):

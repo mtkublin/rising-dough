@@ -407,6 +407,7 @@ class UpcomingRowView:
     date_text: str
     flag: str
     amount_text: str
+    currency: str
     cat_color: str
     color_rule: str
     menu_title: str
@@ -441,21 +442,27 @@ def _status_key(item: vm.UpcomingItem) -> str:
     return "due" if item.is_due_today else "upcoming"
 
 
+def _category_hue(category: Category | None) -> tuple[str, str]:
+    """(named hue, custom colour rule) of a category chip; empty when it has no colour."""
+    if category is None or not category.color:
+        return "", ""
+    colour = category_color(category.color)
+    rule = colour.rule if colour.custom and _HEX_COLOR.fullmatch(category.color.lower()) else ""
+    return colour.name or "", rule
+
+
 def _row_view(item: vm.UpcomingItem, today: date, base_currency: str) -> UpcomingRowView:
     status = ledger_totals.planned_status(item.row.operation_date, today)
     date_text = _day_month_upper(item.row.operation_date, padded=True)
     is_expense = item.direction == Direction.EXPENSE.value
+    # The account owns the currency; the base currency only stands in when the account is gone.
+    currency = item.account.currency if item.account else base_currency
     amount = format_figure(
         -item.row.amount_minor if is_expense else item.row.amount_minor,
-        base_currency,
+        currency,
         plus=item.is_income,
     )
-    cat_color, color_rule = "", ""
-    if item.category is not None and item.category.color:
-        colour = category_color(item.category.color)
-        cat_color = colour.name or ""
-        if colour.custom and _HEX_COLOR.fullmatch(item.category.color.lower()):
-            color_rule = colour.rule
+    cat_color, color_rule = _category_hue(item.category)
     account = item.account.name if item.account else ""
     return UpcomingRowView(
         item=item,
@@ -464,9 +471,10 @@ def _row_view(item: vm.UpcomingItem, today: date, base_currency: str) -> Upcomin
         date_text=date_text,
         flag=f"▲ overdue {_count_noun(status.days, 'day')}" if item.is_overdue else "",
         amount_text=amount,
+        currency=currency,
         cat_color=cat_color,
         color_rule=color_rule,
-        menu_title=f"{item.row.description} · {amount} {base_currency}",
+        menu_title=f"{item.row.description} · {amount} {currency}",
         menu_sub=f"{date_text} · {account}" if account else date_text,
         occurrence=item.row.operation_date.isoformat(),
     )

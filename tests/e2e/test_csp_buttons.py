@@ -239,7 +239,7 @@ def test_add_recurring_from_today_submits_under_csp(
     _open_today_tab(page, base_url, entries.tab_repeats)
     choose_category(page, "Groceries")
     choose_account(page, "Checking")
-    to_playwright(page, entries.field_fixed_amount).fill("40.00")
+    to_playwright(page, entries.hero_amount).fill("40.00")
     to_playwright(page, entries.field_note).fill("today-rule")
     to_playwright(page, entries.save).click()
     expect(to_playwright(page, entries.dialog)).to_have_count(0)  # saved: Today reloaded

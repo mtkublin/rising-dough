@@ -7,7 +7,7 @@
    (the category posts as "category", the name the vendored combobox.js owns; the routes accept it). #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
 {% from "fragments/fields/field.html" import text_field, select_field %}
-{% call dialog("new-entry-dialog", "new entry", action=action, hx_post=action, describedby="", hero=(none if tab == "repeats" else {"currency": currency, "amount_value": values.amount|default(""), "sign": sign, "amount_id": "field-amount", "error": errors.amount|default(none)}), actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+{% call dialog("new-entry-dialog", "new entry", action=action, hx_post=action, describedby="", hero=hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
   <nav class="rd-tabs rd-tabs--fill" aria-label="Entry type">
     {% for key in ["happened", "planned", "repeats"] %}
       <a class="rd-tabs__tab"
@@ -18,6 +18,15 @@
          {% if key == tab %}aria-current="page"{% endif %}>{{ key }}</a>
     {% endfor %}
   </nav>
+  {# The hero follows the account (currency), the category (sign) and the amount source: the server
+     re-renders it (GET /add?hero=1 with the form's values) and only .rd-dialog__hero is swapped. #}
+  <div hidden
+       hx-get="/add?when={{ tab }}&dialog=1&hero=1"
+       hx-trigger="change from:#field-account_id, change from:#field-category_id{% if tab == "repeats" %}, change from:#field-amount_source, change from:#formula-slot{% endif %}"
+       hx-include="closest form"
+       hx-target="#modal-root .rd-dialog__hero"
+       hx-select=".rd-dialog__hero"
+       hx-swap="outerHTML"></div>
   {% with field_id="catpick-new-entry", selected_id=selected_category_id, picked_name=picked_name, error=errors.category_id|default(none), anchor_id="field-category_id" %}
     {% include "fragments/fields/category-picker.html" %}
   {% endwith %}
@@ -45,6 +54,7 @@
   {% if tab == "repeats" %}
     <div class="rd-field-line">
       <div class="rd-field rd-field--seg rd-field--inline"
+           id="field-amount_source"
            role="radiogroup"
            aria-labelledby="seg-amount-source">
         <span class="rd-field__label" id="seg-amount-source">amount</span>
@@ -61,13 +71,7 @@
       </div>
     </div>
     <div class="rd-formula-slot"
-         data-show-when="amount_source=fixed"
-         {% if amount_source == "formula" %}hidden{% endif %}>
-      {% with field_id="field-default_amount", name="default_amount", value=values.default_amount|default(""), label="amount", error=errors.default_amount|default(none), required=true, variant="field" %}
-        {% include "fragments/fields/amount-input.html" %}
-      {% endwith %}
-    </div>
-    <div class="rd-formula-slot"
+         id="formula-slot"
          data-show-when="amount_source=formula"
          {% if amount_source != "formula" %}hidden{% endif %}
          hx-post="/recurring/formula/preview"

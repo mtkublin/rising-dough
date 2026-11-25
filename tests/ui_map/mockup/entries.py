@@ -31,7 +31,6 @@ amount_fixed = label("fixed value", exact=True)
 amount_formula = label("formula ƒ", exact=True)
 cadence_group = role("radiogroup", "cadence", exact=True)
 cadence_quarterly = label("quarterly", exact=True)
-field_fixed_amount = role("textbox", "amount", exact=True)
 field_dest = label("destination account", exact=True)
 formula_group = role("group", "formula", exact=True)
 save = role("button", "[ save ]", exact=True).inside(dialog)
@@ -60,7 +59,6 @@ NO_HANDOFF_TWIN = frozenset(
         "opener",
         "category_chosen",
         "category_query",  # the handoff search panel is hidden until opened
-        "field_fixed_amount",
         "field_dest",
     }
 )

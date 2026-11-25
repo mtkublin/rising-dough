@@ -13,23 +13,31 @@ from dataclasses import dataclass, field
 from datetime import date
 from types import MappingProxyType
 
+from starlette.datastructures import FormData, QueryParams
+
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
-from budget_planner.domain.money import format_major
+from budget_planner.domain.money import format_major, format_money
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedTransaction
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.services import (
     accounts as accounts_service,
     categories as categories_service,
     planned as planned_service,
+    recurring_formula as formula_svc,
     transactions as transactions_service,
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
+from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web.params import parse_date, parse_int, positive_amount
-from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
+from budget_planner.web.recurring_forms import (
+    EMPTY_TERM_INPUT,
+    formula_source_candidates,
+    parse_draft_terms,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,25 +315,59 @@ def new_entry_context(
     base_currency: str,
     posted: Mapping[str, str] | None = None,
     terms: Sequence[Mapping[str, object]] | None = None,
+    errors: Mapping[str, str] | None = None,
+    formula: tuple[str, str] | None = None,
 ) -> dict[str, object]:
-    """Everything ``pages/entries/new-entry.html`` renders: defaults or the posted values."""
+    """Everything ``pages/entries/new-entry.html`` renders: defaults or the posted values.
+
+    ``formula`` is the (figure, note) of the repeats hero in formula mode (``formula_hero``).
+    """
     values = posted or {}
     cats = categories_service.list_all(conn, user_id)
     accounts = accounts_service.list_all(conn, user_id)
     picker = categories_service.picker_summary(conn, user_id)
     account = _picked(accounts, parse_int(values.get("account_id", "")), accounts[:1])
+    category_view = _category_view(
+        cats, picker, parse_int(values.get("category", values.get("category_id", "")))
+    )
+    currency = account.currency if account else base_currency
+    hero = _hero(
+        tab,
+        values,
+        currency=currency,
+        sign=category_view["sign"],
+        errors=errors or {},
+        formula=formula,
+    )
     return {
         "tab": tab,
         "action": TAB_ACTIONS[tab],
         "picker": picker,
-        **_category_view(
-            cats, picker, parse_int(values.get("category", values.get("category_id", "")))
-        ),
+        **category_view,
+        "hero": hero,
         "accounts": accounts,
         "selected_account_id": account.id if account else None,
-        "currency": account.currency if account else base_currency,
+        "currency": currency,
         "values": values,
         "today_iso": today.isoformat(),
+        **_dependent_fields(
+            conn, user_id, cats=cats, accounts=accounts, values=values, terms=terms
+        ),
+        "errors": {},
+    }
+
+
+def _dependent_fields(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    cats: Sequence[Category],
+    accounts: Sequence[Account],
+    values: Mapping[str, str],
+    terms: Sequence[Mapping[str, object]] | None,
+) -> dict[str, object]:
+    """Conditions of the sections that show for a category or account, and the formula rows."""
+    return {
         "transit_when": _when("category", [c.id for c in cats if c.direction == Direction.TRANSIT]),
         "credit_when": _when(
             "account_id", [a.id for a in accounts if a.is_liability and a.credit_limit_minor]
@@ -333,8 +375,60 @@ def new_entry_context(
         "amount_source": values.get("amount_source", "fixed"),
         "components": _component_rows(terms or [dict(EMPTY_TERM_INPUT)]),
         "source_categories": formula_source_candidates(conn, user_id),
-        "errors": {},
     }
+
+
+def _hero(
+    tab: str,
+    values: Mapping[str, str],
+    *,
+    currency: str,
+    sign: object,
+    errors: Mapping[str, str],
+    formula: tuple[str, str] | None,
+) -> dict[str, object]:
+    """The dialog hero: the amount input (account currency, category sign) or the formula result."""
+    if tab == "repeats" and values.get("amount_source") == "formula":
+        figure, note = formula or ("\N{EM DASH}", "")
+        return {
+            "currency": currency,
+            "amount_id": "seg-amount-source",
+            "output": True,
+            "amount_value": figure,
+            "note": note,
+        }
+    name = "default_amount" if tab == "repeats" else "amount"
+    return {
+        "currency": currency,
+        "sign": sign,
+        "amount_id": f"field-{name}",
+        "amount_name": name,
+        "amount_value": values.get(name, ""),
+        "error": errors.get(name),
+    }
+
+
+def formula_hero(
+    conn: sqlite3.Connection,
+    user_id: int,
+    form: FormData | QueryParams,
+    *,
+    currency: str,
+    today: date,
+    fx: FormulaFx,
+) -> tuple[str, str]:
+    """(figure, note) of the formula hero: the service's next amount, or why there is none."""
+    drafts = parse_draft_terms(form)
+    if drafts is None:
+        return "\N{EM DASH}", "invalid source category"
+    result = formula_svc.preview(conn, user_id, today, None, drafts, fx=fx, target_ccy=currency)
+    if isinstance(result, formula_svc.PreviewOk):
+        figure = format_major(result.amount_minor, currency)
+        return (
+            figure,
+            f"\N{RIGHTWARDS ARROW} next amount {format_money(result.amount_minor, currency)}",
+        )
+    return "\N{EM DASH}", result.message
 
 
 def _category_view(
@@ -367,7 +461,7 @@ def _when(name: str, ids: Sequence[int]) -> str:
 
 def posted_entry(
     category: int,
-    account_id: int,
+    account_id: str,
     amount: str,
     *,
     operation_date: str,
@@ -377,7 +471,7 @@ def posted_entry(
     """The posted create form as the dialog re-renders it."""
     return {
         "category": str(category or ""),
-        "account_id": str(account_id),
+        "account_id": account_id,
         "amount": amount,
         "operation_date": operation_date,
         "description": description,
@@ -429,6 +523,11 @@ def promote_context(
         "notes": list(notes),
         "errors": {},
     }
+
+
+def account_choice(account_id: str) -> int:
+    """The posted account id; ``0`` (no such account) when blank or not a number."""
+    return parse_int(account_id) or 0
 
 
 def category_choice(category_id: str, category: str) -> int:

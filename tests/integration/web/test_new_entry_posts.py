@@ -27,6 +27,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
 )
 from tests.ui_map import _html, entries
+from tests.ui_map.locator import role
 
 USER_ID = 1
 FROM_DIALOG = {"HX-Request": "true", "HX-Target": "modal-root"}
@@ -274,3 +275,172 @@ def test_add_serves_the_dialog_to_the_new_shell_and_the_slide_over_to_the_old_on
     old = client.get("/add?when=planned", headers={"HX-Request": "true"})
     assert old.status_code == 200
     assert not _html.exists(old.text, entries.dialog)
+
+
+def _count(db: sqlite3.Connection, table: str) -> int:
+    return int(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])  # noqa: S608 - fixed names
+
+
+@pytest.mark.parametrize(
+    ("path", "table", "tab"),
+    [
+        ("/transactions", "transactions", "happened"),
+        ("/planned", "planned_transactions", "planned"),
+    ],
+)
+def test_missing_amount_is_a_human_422_not_json(
+    client: TestClient,
+    db: sqlite3.Connection,
+    ids: dict[str, int],
+    *,
+    path: str,
+    table: str,
+    tab: str,
+) -> None:
+    """A post without ``amount`` (native validation bypassed) answers the dialog, not JSON."""
+    before = _count(db, table)
+    r = client.post(
+        path,
+        data={
+            "category": str(ids["groc"]),
+            "account_id": str(ids["acc"]),
+            "operation_date": "2026-11-20",
+        },
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    assert r.headers["content-type"].startswith("text/html")
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert "Amount : amount must be a decimal number within range" in _html.all_text(
+        r.text, entries.summary
+    )
+    assert _html.resolve_one(r.text, entries.dialog).find("form") is not None
+    assert (
+        _html.resolve_one(
+            r.text, entries.tab_happened if tab == "happened" else entries.tab_planned
+        ).get("aria-current")
+        == "page"
+    )
+    assert _count(db, table) == before
+
+
+def test_empty_post_lists_every_missing_field_in_the_dialog(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    r = client.post("/transactions", data={}, headers=FROM_DIALOG)
+    assert r.status_code == 422
+    summary = _html.all_text(r.text, entries.summary)
+    for label in ("Date : invalid date", "Account : unknown account", "Category : pick a category"):
+        assert label in summary
+    assert _count(db, "transactions") == 0
+
+
+def test_recurring_post_without_amount_is_a_human_422(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    before = _count(db, "recurring_rules")
+    r = client.post(
+        "/recurring",
+        data={
+            "category": str(ids["groc"]),
+            "account_id": str(ids["acc"]),
+            "start_date": "2026-03-10",
+            "cadence": "monthly",
+        },
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    assert r.headers["content-type"].startswith("text/html")
+    assert "Default Amount" in _html.all_text(r.text, entries.summary)
+    assert _count(db, "recurring_rules") == before
+
+
+@pytest.mark.parametrize(
+    "data", [{"operation_date": "2026-10-20", "amount": "abc"}, {"operation_date": "2026-10-20"}]
+)
+def test_planned_promote_with_a_bad_or_missing_amount_is_refused(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int], data: dict[str, str]
+) -> None:
+    """The planned amount is never promoted for text that is not an amount."""
+    pl = db.execute(
+        "INSERT INTO planned_transactions"
+        " (user_id, operation_date, category_id, account_id, amount, description)"
+        " VALUES (1, '2026-10-15', ?, ?, 12345, 'rent') RETURNING id",
+        (ids["groc"], ids["acc"]),
+    ).fetchone()[0]
+    db.commit()
+    r = client.post(f"/planned/{pl}/promote", data=data, headers=FROM_DIALOG)
+    assert r.status_code == 422
+    assert r.headers["content-type"].startswith("text/html")
+    assert "Amount" in _html.all_text(r.text, entries.summary)
+    assert _count(db, "transactions") == 0
+    promoted = db.execute(
+        "SELECT promoted_to_txn_id FROM planned_transactions WHERE id = ?", (pl,)
+    ).fetchone()[0]
+    assert promoted is None
+
+
+@pytest.mark.parametrize("amount", ["abc", "-4"])
+def test_recurring_promote_with_a_bad_amount_is_refused(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int], amount: str
+) -> None:
+    rule = db.execute("SELECT id, next_due FROM recurring_rules ORDER BY id LIMIT 1").fetchone()
+    r = client.post(f"/recurring/{rule[0]}/promote", data={"amount": amount}, headers=FROM_DIALOG)
+    assert r.status_code == 422
+    assert "Amount" in _html.all_text(r.text, entries.summary)
+    assert _count(db, "transactions") == 0
+    assert (
+        db.execute("SELECT next_due FROM recurring_rules WHERE id = ?", (rule[0],)).fetchone()[0]
+        == rule[1]
+    )
+
+
+_HX = {"HX-Request": "true"}
+
+
+def _hero_text(html: str) -> str:
+    """The hero row as text: sign, label of the amount and the currency."""
+    row = _html.resolve_one(html, entries.hero_amount).parent
+    assert row is not None
+    return str(row.get_text(" ", strip=True))
+
+
+def test_hero_follows_the_account_currency_and_the_category_sign(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    eur = accounts_repo.create(db, USER_ID, NewAccount(name="Euro", currency="EUR"))
+    jpy = accounts_repo.create(db, USER_ID, NewAccount(name="Yen", currency="JPY"))
+    base = "/add?when=happened&dialog=1&hero=1"
+    r = client.get(f"{base}&account_id={eur.id}&category={ids['salary']}&amount=12.5", headers=_HX)
+    assert r.status_code == 200
+    assert "HX-Retarget" not in r.headers
+    assert _hero_text(r.text) == "+ Amount EUR"
+    assert (
+        _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.5"
+    )  # typed amount kept
+    r = client.get(f"{base}&account_id={jpy.id}&category={ids['groc']}", headers=_HX)
+    assert _hero_text(r.text) == "\N{MINUS SIGN} Amount JPY"
+    r = client.get(f"{base}&account_id={ids['acc']}", headers=_HX)
+    assert _hero_text(r.text) == "Amount PLN"
+
+
+def test_repeats_hero_is_the_fixed_amount_field(client: TestClient, ids: dict[str, int]) -> None:
+    r = client.get("/add?when=repeats&dialog=1", headers=_HX)
+    hero = _html.resolve_one(r.text, entries.hero_amount)
+    assert (hero.get("name"), hero.get("id")) == ("default_amount", "field-default_amount")
+
+
+def test_repeats_formula_hero_shows_the_service_next_amount(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    query = (
+        "/add?when=repeats&dialog=1&hero=1&amount_source=formula"
+        f"&account_id={ids['acc']}&category={ids['tax']}"
+        f"&components[0][sign]=%2B&components[0][percent]=12&components[0][categories]={ids['salary']}"
+    )
+    r = client.get(query, headers=_HX)
+    outputs = [o for o in _html.resolve(r.text, role("status")) if o.has_attr("for")]
+    assert [o.get_text(strip=True) for o in outputs] == ["1200.00"]
+    assert "\N{RIGHTWARDS ARROW} next amount 1,200.00 PLN" in _html.all_text(r.text, entries.dialog)
+    # the figure is derived, never posted: the hero has no named amount input in formula mode
+    assert not _html.exists(r.text, entries.hero_amount)

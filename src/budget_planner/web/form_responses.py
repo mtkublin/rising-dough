@@ -18,6 +18,7 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.planned import PlannedTransaction
 from budget_planner.domain.transactions import Transaction
 from budget_planner.services import accounts as accounts_service, categories as categories_service
+from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import accounts_data, entry_forms, ledger_data
 from budget_planner.web.deps import today_for
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response
@@ -128,8 +129,38 @@ def new_entry_errors(
         base_currency=request.app.state.settings.base_currency,
         posted=posted,
         terms=terms,
+        errors=errors,
     )
     return invalid_dialog_response(request, NEW_ENTRY_TEMPLATE, context, errors)
+
+
+def new_entry_hero(
+    request: Request, conn: sqlite3.Connection, user_id: int, *, tab: str, fx: FormulaFx
+) -> Response:
+    """The dialog rendered from the form's current values; the page swaps only its hero.
+
+    The hero follows the chosen account (currency) and category (sign); in formula mode it shows
+    the service's next amount. No retarget: the dialog's own refresh picks ``.rd-dialog__hero``.
+    """
+    values = dict(request.query_params)
+    today = today_for(request)
+    base = request.app.state.settings.base_currency
+    context = entry_forms.new_entry_context(
+        conn, user_id, tab=tab, today=today, base_currency=base, posted=values
+    )
+    if tab == "repeats" and values.get("amount_source") == "formula":
+        formula = entry_forms.formula_hero(
+            conn,
+            user_id,
+            request.query_params,
+            currency=str(context["currency"]),
+            today=today,
+            fx=fx,
+        )
+        context = entry_forms.new_entry_context(
+            conn, user_id, tab=tab, today=today, base_currency=base, posted=values, formula=formula
+        )
+    return render_context(request, NEW_ENTRY_TEMPLATE, context)
 
 
 def txn_not_found(request: Request) -> Response:
