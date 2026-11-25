@@ -267,7 +267,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR18 [S] Invite email: cost evaluation (operator)
 - Evaluate mail provider, Terraform and secret cost for sending invite email. Output: go or no-go recorded in ADR-0134 (amendment). On no-go the switch of T-UR19 stays off and the code is kept. ADR-0134 §1.
-- Decision 2026-11-25: no-go for v1 (operator QA Q9); switch stays off.
+- Decision 2026-11-25: NO-GO for v1 (operator QA Q9, recorded in the ADR-0134 amendment of 2026-11-25, §1/§10). `BUDGET_INVITE_EMAIL_ENABLED` stays off, admins copy the invite link by hand, the code stays.
 
 ### ◻ T-UR19 [moved] Invite email behind a config switch → T-UR31
 - **Moved whole to T-UR31** (Phase P, ADR-0148). Original scope kept for reference: send the invite email through an injected port (ADR-0021), behind a config switch, default off. No secret committed; Terraform and secret only if T-UR18 is go. ADR-0134 §1, ADR-0099.
@@ -349,3 +349,10 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
 - Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
+
+### ◻ T-UR40a [S] Operator decisions 2026-11-25: docs and CI checkout
+- Applies four operator decisions from [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md), docs first, no code logic:
+  - Q1: `csrf.js` and vendored `htmx-2.0.11.min.js` are KEEP: rows in [removal.md](removal.md) and an ADR-0107 §2 amendment.
+  - Q2: blocked: needs a push with workflow scope; operator applies [q2-ci-checkout.patch](q2-ci-checkout.patch) (`git apply`): `.github/workflows/ci.yml` `ci` job (the job that runs the guards) checkout gets `fetch-depth: 0` and `filter: blob:none`.
+  - Q16: ADR-0152 confirmed by the operator (Status line).
+  - Q9: ADR-0134 amendment: invite email NO-GO for v1 (T-UR18 and requirements wording aligned).
