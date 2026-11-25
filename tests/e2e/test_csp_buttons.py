@@ -121,7 +121,7 @@ def test_add_from_today_invalid_amount_rerenders_form(
     to_playwright(page, entries.save).click()
     # The dialog stays open with the field error and the posted values.
     expect(to_playwright(page, entries.hero_error)).to_contain_text("Enter an amount above 0.00")
-    expect(to_playwright(page, entries.hero_amount)).to_have_value("0")
+    expect(to_playwright(page, entries.hero_amount)).to_have_value("0.00")
     expect(to_playwright(page, entries.category_search)).to_have_text("Groceries")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM transactions") == 0
 
