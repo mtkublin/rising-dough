@@ -139,7 +139,8 @@ _MONTHS = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*"
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _MONTH = re.compile(r"\d{4}-\d{2}(?!\d)")
 _MONTH_YEAR = re.compile(rf"{_MONTHS}\.? \d{{4}}")
-_DAY_MONTH = re.compile(rf"\b\d{{1,2}} {_MONTHS}\b|\b{_MONTHS} \d{{1,2}}\b")
+# The redesigned pages upper-case dates ("29 NOV"), so match the month name case-insensitively.
+_DAY_MONTH = re.compile(rf"\b\d{{1,2}} {_MONTHS}\b|\b{_MONTHS} \d{{1,2}}\b", re.IGNORECASE)
 _HANDLE = re.compile(r"/sessions/[0-9a-f]{16}")
 _PATH_ID = re.compile(r"/\d+(?=/|$|\?)")
 _QUERY_NUM = re.compile(r"=\d+(?=&|$)")

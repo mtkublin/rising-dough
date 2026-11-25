@@ -67,7 +67,9 @@ def test_accounts_empty_state_offers_a_new_account(journey: Journey) -> None:
 
 def test_accounts_reconcile_opens_the_overlay(journey: Journey) -> None:
     if journey.target != "mockup":
-        pytest.skip("the reconcile dialog is UR08b; the click-through is a handoff flow here")
+        pytest.skip(
+            "T-UR08b: the reconcile dialog is not ported; the click-through is a handoff flow here"
+        )
     accounts = journey.ui("accounts")
     journey.goto("/accounts")
     page: Any = journey.page

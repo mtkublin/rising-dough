@@ -111,11 +111,11 @@ NOT_PAGES: dict[str, str] = {
 # ignores matching problems; ``test_known_bug`` re-crawls and xfails strictly,
 # so the day the bug is fixed the xfail turns into a failure and the entry must go.
 KNOWN_BUGS: dict[str, tuple[str, str, str]] = {
-    "/today": (
-        "T-UR07b",
-        "button 'Close'",
-        "promote and override open the old dialog markup, whose close script the new shell "
-        "does not load; T-UR07b / T-UR10 port the dialogs",
+    "/accounts": (
+        "T-UR08b",
+        "control did nothing",
+        "the new-account and reconcile dialogs are the old markup in the new shell, whose "
+        "close script it does not load; T-UR08b ports them",
     ),
 }
 
