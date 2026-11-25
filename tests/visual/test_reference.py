@@ -191,8 +191,10 @@ def test_handoff_matches_itself(
         handoff.shoot(browser, base, handoff_page, viewport=viewport, theme=theme, out=actual)
         result = handoff.compare(expected, actual, ratio_limit=handoff.SELF_TOLERANCE)
     _record_self_cluster(handoff_page, viewport, theme, result)
-    assert result.ratio <= handoff.SELF_TOLERANCE, (
-        f"{handoff_page} {viewport} {theme}: {result.ratio:.4%} pixels differ, "
+    assert not result.size_mismatch and result.ratio <= handoff.SELF_TOLERANCE, (
+        f"{handoff_page} {viewport} {theme}: "
+        f"sizes {result.expected_size} vs {result.actual_size}, "
+        f"{result.ratio:.4%} pixels differ, "
         f"largest cluster {result.cluster}px"
     )
 
@@ -262,9 +264,10 @@ def _compare_app(
                 ratio_limit=handoff.MAX_DIFF_PIXEL_RATIO,
                 cluster_cap=handoff.MAX_DIFF_CLUSTER_PX,
             )
-            ok = (
-                result.ratio <= handoff.MAX_DIFF_PIXEL_RATIO
-                and result.cluster <= handoff.MAX_DIFF_CLUSTER_PX
+            ok = handoff.passes(
+                result,
+                ratio_limit=handoff.MAX_DIFF_PIXEL_RATIO,
+                cluster_cap=handoff.MAX_DIFF_CLUSTER_PX,
             )
             if not ok:
                 stem = Path(handoff_page).with_suffix("").as_posix().replace("/", "_")
@@ -278,8 +281,14 @@ def _compare_app(
         if result.cluster > handoff.MAX_DIFF_CLUSTER_PX
         else f"{result.cluster}px"
     )
+    sizes = (
+        f"SIZE MISMATCH handoff {result.expected_size[0]}x{result.expected_size[1]}, "
+        f"app {result.actual_size[0]}x{result.actual_size[1]}; "
+        if result.size_mismatch
+        else ""
+    )
     assert ok, (
-        f"{route} {viewport} {theme}: {result.ratio:.4%} differ "
+        f"{route} {viewport} {theme}: {sizes}{result.ratio:.4%} differ "
         f"(max {handoff.MAX_DIFF_PIXEL_RATIO:.2%}), largest cluster {cluster} "
         f"(max {handoff.MAX_DIFF_CLUSTER_PX}px) at {result.box}"
     )
