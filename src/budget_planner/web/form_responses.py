@@ -22,8 +22,14 @@ from budget_planner.services import accounts as accounts_service, categories as 
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import accounts_data, entry_forms, ledger_data
 from budget_planner.web.deps import today_for
-from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
+from budget_planner.web.dialogs import (
+    dialog_response,
+    invalid_dialog_response,
+    removed_response,
+    saved_response,
+)
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
+from budget_planner.web.http_headers import HX_RESWAP
 from budget_planner.web.params import parse_int
 from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TRANSACTIONS_PATH
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
@@ -36,6 +42,9 @@ _LEGACY_PROMOTE = "partials/planned/_promote_modal.html"
 EDIT_PLANNED_TEMPLATE = "fragments/dialogs/edit-planned.html"
 _RECONCILE_MODAL = "partials/accounts/_reconcile_modal.html"
 _UNPROCESSABLE = 422
+_NOT_FOUND = 404
+EDIT_TXN_TEMPLATE = "fragments/dialogs/edit-transaction.html"
+_EDIT_PAGE = "pages/entries/open-edit.html"
 NEW_ENTRY_TEMPLATE = "pages/entries/new-entry.html"
 _NEW_ENTRY_PAGE = "pages/entries/open.html"
 _HX_TARGET = "HX-Target"
@@ -109,7 +118,7 @@ def entry_create_errors(
     if from_dialog(request):
         return new_entry_errors(request, conn, user_id, tab=tab, posted=posted, errors=shown)
     if tab == "happened":
-        return txn_form_errors(request, conn, user_id, txn=None, errors=shown)
+        return txn_form_errors(request, conn, user_id, errors=shown)
     return planned_form_errors(request, conn, user_id, planned=None, errors=shown)
 
 
@@ -166,39 +175,101 @@ def new_entry_hero(
     return render_context(request, NEW_ENTRY_TEMPLATE, context)
 
 
-def txn_not_found(request: Request) -> Response:
-    return render(
-        request,
-        _TXN_FORM,
-        action="",
-        method="post",
-        txn=None,
-        categories=[],
-        accounts=[],
-        errors={"txn": "not found"},
-        status_code=404,
-    )
+def txn_not_found() -> Response:
+    """An unknown or foreign transaction id: a plain 404 (the htmx error flash reads it)."""
+    return Response(status_code=_NOT_FOUND, content="not found")
 
 
 def txn_form_errors(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    *,
-    txn: Transaction | None,
-    errors: dict[str, str],
+    request: Request, conn: sqlite3.Connection, user_id: int, *, errors: dict[str, str]
 ) -> Response:
-    """Re-render the form; a ``None`` txn is the create form."""
+    """Re-render the old create form (the old shell's "+ Add" slide-over) with errors."""
     return render(
         request,
         _TXN_FORM,
-        action=f"{TRANSACTIONS_PATH}/{txn.id}" if txn else TRANSACTIONS_PATH,
+        action=TRANSACTIONS_PATH,
         method="post",
-        txn=txn,
+        txn=None,
         categories=categories_service.list_all(conn, user_id),
         accounts=accounts_service.list_all(conn, user_id),
         errors=errors,
         status_code=_UNPROCESSABLE,
+    )
+
+
+def open_edit_transaction(
+    request: Request, conn: sqlite3.Connection, user_id: int, txn: Transaction
+) -> Response:
+    """The edit dialog of ``txn``; a plain page load gets a shell page that opens it."""
+    if not is_hx_request(request):
+        return render(request, _EDIT_PAGE, nav_current="", txn_id=txn.id)
+    context = entry_forms.edit_context(
+        conn,
+        user_id,
+        txn,
+        today=today_for(request),
+        base_currency=request.app.state.settings.base_currency,
+    )
+    return dialog_response(request, EDIT_TXN_TEMPLATE, context)
+
+
+def edit_transaction_errors(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    txn: Transaction,
+    *,
+    posted: Mapping[str, str],
+    errors: Mapping[str, str],
+) -> Response:
+    """422: the edit dialog again with the posted values, the summary and field errors."""
+    context = entry_forms.edit_context(
+        conn,
+        user_id,
+        txn,
+        today=today_for(request),
+        base_currency=request.app.state.settings.base_currency,
+        posted=posted,
+        errors=errors,
+    )
+    return invalid_dialog_response(request, EDIT_TXN_TEMPLATE, context, errors)
+
+
+def edit_transaction_hero(
+    request: Request, conn: sqlite3.Connection, user_id: int, txn: Transaction
+) -> Response:
+    """The edit dialog rendered from the form's current values; the page swaps only its hero."""
+    context = entry_forms.edit_context(
+        conn,
+        user_id,
+        txn,
+        today=today_for(request),
+        base_currency=request.app.state.settings.base_currency,
+        posted=dict(request.query_params),
+    )
+    return render_context(request, EDIT_TXN_TEMPLATE, context)
+
+
+def updated_txn_response(request: Request) -> Response:
+    """A saved edit: close the dialog and flash it; the stale events refetch the page."""
+    html = saved_response(
+        request,
+        None,
+        {},
+        message="transaction saved",
+        events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
+    html.headers[HX_RESWAP] = "none"
+    return html
+
+
+def deleted_txn_response(request: Request, txn_id: int) -> Response:
+    """A deleted transaction: its row goes, the toast offers undo (restore keeps its route)."""
+    return removed_response(
+        request,
+        message="transaction deleted",
+        undo_url=f"{TRANSACTIONS_PATH}/{txn_id}/restore",
+        events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
     )
 
 

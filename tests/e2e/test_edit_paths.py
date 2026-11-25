@@ -13,7 +13,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from tests.e2e import db_probe
-from tests.ui_map import edit_dialogs, ledger, shell, today
+from tests.ui_map import edit_dialogs, entries, ledger, shell, today
 from tests.ui_map.locator import Locator as UiLocator, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -131,8 +131,7 @@ def test_today_override_planned_saves_and_closes(live_server: tuple[str, Path], 
     expect(to_playwright(page, row)).to_contain_text("33.00")
 
 
-@pytest.mark.skip(reason="T-UR09b: edit dialog not ported; the old slide-over sticks")
-def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], page: Page) -> None:
+def test_txn_edit_dialog_closes_and_row_updates(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     account_id, category_id = _seed(base_url, db_path, page)
     assert page.request.post(
@@ -146,16 +145,14 @@ def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], p
         },
     ).ok
     tx = ledger.row(db_probe.txn_id(db_path, "edit-txn"))
-    page.goto(_ledger(base_url, "actual"))
-    assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, ledger.row_menu(db_probe.txn_id(db_path, "edit-txn"))).click()
-    to_playwright(page, ledger.row_action("edit")).click()
-    expect(_panel(page)).to_be_visible()
-    to_playwright(page, ledger.field_amount.inside(shell.slideover)).fill("99.00")
-    to_playwright(page, ledger.save.inside(shell.slideover)).click()
-    expect(_panel(page)).to_have_count(0)
-    expect(to_playwright(page, tx)).to_contain_text("99.00")
+    page.goto(f"{base_url}/transactions/{db_probe.txn_id(db_path, 'edit-txn')}/edit")
+    expect(to_playwright(page, entries.edit_dialog)).to_be_visible()
+    to_playwright(page, entries.edit_amount).fill("99.00")
+    to_playwright(page, entries.edit_save).click()
+    expect(to_playwright(page, entries.edit_dialog)).to_have_count(0)
     assert db_probe.txn_amounts(db_path, "edit-txn") == [9900]
+    page.goto(_ledger(base_url, "actual"))
+    expect(to_playwright(page, tx)).to_contain_text("99.00")
 
 
 @pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
