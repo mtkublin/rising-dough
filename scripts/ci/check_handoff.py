@@ -58,6 +58,7 @@ _PAINT_ATTR: Final = re.compile(
 _CSS_URL: Final = re.compile(r"""url\(\s*(['"]?)([^'")]+)\1\s*\)|@import\s+(['"])([^'"]+)\3""")
 _CUSTOM_PROP: Final = re.compile(r"(--[a-z0-9-]+)\s*:", re.IGNORECASE)
 _CSS_COMMENT: Final = re.compile(r"/\*.*?\*/", re.DOTALL)
+_CSS_VALUE: Final = re.compile(r"[a-z-]+\s*:\s*([^;{}]+)", re.IGNORECASE)
 _HEADING: Final = re.compile(r"^#{2,3}\s+(.+?)\s*$", re.MULTILINE)
 _LINK_ATTRS: Final = {"href", "src", "srcset", "poster", "data", "action"}
 
@@ -177,8 +178,10 @@ def colour_literals(path: str, text: str) -> list[str]:
     if path.endswith("tokens.css"):
         return []
     if path.endswith(".css"):
-        chunks = [_CSS_COMMENT.sub(_blank, text)]
-        offsets = [0]
+        # Declaration values only, so an id selector such as #bed is not a colour.
+        values = list(_CSS_VALUE.finditer(_CSS_COMMENT.sub(_blank, text)))
+        chunks = [m.group(1) for m in values]
+        offsets = [m.start(1) for m in values]
     elif path.endswith((".html", ".svg")):
         found = [
             *_STYLE_ATTR.finditer(text),

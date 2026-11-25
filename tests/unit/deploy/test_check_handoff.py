@@ -170,7 +170,10 @@ def test_readme_needs_every_section() -> None:
 
 
 def test_colour_literals_outside_tokens_are_found_with_lines() -> None:
-    css = "/* #abc in a comment */\n.a { color: #fff; }\n.b { background: rgb(0 0 0 / 10%); }\n"
+    css = (
+        "/* #abc in a comment */\n.a { color: #fff; }\n"
+        ".b { background: rgb(0 0 0 / 10%); }\n#bed { color: var(--color-ink); }\n"
+    )
     assert check_handoff.colour_literals("static/css/a.css", css) == [
         "static/css/a.css:2 #fff",
         "static/css/a.css:3 rgb(",
