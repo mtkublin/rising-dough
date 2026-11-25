@@ -31,7 +31,11 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
 from budget_planner.domain.accounts import NewAccount, PatchAccount
-from budget_planner.domain.budgets import NewBudgetDefault
+from budget_planner.domain.budgets import (
+    NewBudgetDefault,
+    NewBudgetOneOffOverride,
+    NewBudgetRecurringOverride,
+)
 from budget_planner.domain.categories import NewCategory, PatchCategory
 from budget_planner.domain.category_colors import PRESETS
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
@@ -272,13 +276,23 @@ BUDGETS: Final[tuple[BudgetSeed, ...]] = (
     BudgetSeed("Gifts", 34_634),
     BudgetSeed("Groceries", 95_674),
     BudgetSeed("Health & Beauty", 37_937),
-    BudgetSeed("Nights Out", 78_311),
+    BudgetSeed("Nights Out", 52_526),
     BudgetSeed("Other", 34_461),
     BudgetSeed("Sport & Hobby", 31_918),
-    BudgetSeed("Subscriptions", 59_257),
+    BudgetSeed("Subscriptions", 12_291),
     BudgetSeed("Takeaway", 39_427),
     BudgetSeed("Transport", 15_547),
     BudgetSeed("Travel", 102_805),
+)
+
+# Budget overrides of the handoff year grid (plan/year).
+# October 2026 is the current month; its one-offs give the budget page's 783.11 and 592.57.
+BUDGET_ONE_OFFS: Final = (("Nights Out", 2026, 10, 78_311), ("Subscriptions", 2026, 10, 59_257))
+BUDGET_RECURRING: Final = (
+    ("Gifts", 12, 120_000),
+    ("Subscriptions", 11, 14_000),
+    ("Subscriptions", 12, 14_000),
+    ("Travel", 7, 250_000),
 )
 
 # Spent this period per budgeted category (handoff budget page), minus the rows the
@@ -325,8 +339,14 @@ def _lumps() -> tuple[TxnSeed, ...]:
         if total - listed.get(cat, 0) > 0
     ]
     # Unbudgeted categories (budget page): spent but no budget line.
-    lumps.append(TxnSeed("2026-10-10", "Fixed costs", "Checking", 579_081, "Fixed costs"))
-    lumps.append(TxnSeed("2026-10-10", "Taxes", "Checking", 861_182, "Taxes"))
+    # The analytics "Largest single items" board: Taxes 15 Oct 4,482.35 and 2,155.21, Fixed costs
+    # 7 Oct 2,883.97. The rest of each category is split so no other entry outranks them.
+    lumps.append(TxnSeed("2026-10-07", "Fixed costs", "Checking", 288_397, "Fixed costs"))
+    lumps.append(TxnSeed("2026-10-10", "Fixed costs", "Checking", 145_342, "Fixed costs"))
+    lumps.append(TxnSeed("2026-10-10", "Fixed costs", "Checking", 145_342, "Fixed costs"))
+    lumps.append(TxnSeed("2026-10-15", "Taxes", "Checking", 448_235, "Taxes"))
+    lumps.append(TxnSeed("2026-10-15", "Taxes", "Checking", 215_521, "Taxes"))
+    lumps.append(TxnSeed("2026-10-10", "Taxes", "Checking", 197_426, "Taxes"))
     # The income anchor's last payday opens the fiscal period (7 Oct to 7 Nov).
     lumps.append(TxnSeed("2026-10-07", "Salary", "Checking EUR", 1_580_000, "Salary"))
     return tuple(lumps)
@@ -341,13 +361,31 @@ _HISTORY_FLOW: Final = (
     ("2026-08", 2_201_840, 2_520_177),
     ("2026-09", 2_137_795, 2_604_012),
 )
+# The board's "vs 12-mo avg" arrows (plan/analytics) point down for nine categories, so the history
+# expense of each month is spread over three of them (an average above the period) and never over
+# the five whose arrows point up.
+_HISTORY_SPREAD: Final = (
+    ("Groceries", "Health & Beauty", "Car"),
+    ("Entertainment", "Other", "Big Purchases"),
+    ("Transport", "Travel", "Sport & Hobby"),
+)
+
+
+def _history_month(
+    month: str, income: int, expense: int, cats: tuple[str, ...]
+) -> tuple[TxnSeed, ...]:
+    share, rest = divmod(expense, len(cats))
+    spread = tuple(
+        TxnSeed(f"{month}-15", cat, "Checking", share + (rest if i == 0 else 0), cat)
+        for i, cat in enumerate(cats)
+    )
+    return (TxnSeed(f"{month}-10", "Side Income", "Checking", income, "Side Income"), *spread)
+
+
 _HISTORY: Final = tuple(
     entry
-    for month, income, expense in _HISTORY_FLOW
-    for entry in (
-        TxnSeed(f"{month}-10", "Side Income", "Checking", income, "Side Income"),
-        TxnSeed(f"{month}-15", "Fixed costs", "Checking", expense, "Fixed costs"),
-    )
+    for (month, income, expense), cats in zip(_HISTORY_FLOW, _HISTORY_SPREAD, strict=True)
+    for entry in _history_month(month, income, expense, cats)
 )
 
 # The ledger lists a day newest-first (id descending), so the listed rows are written in reverse.
@@ -713,6 +751,18 @@ def _write_entries(
     for b in data.budgets:
         budgets_repo.set_default(
             conn, OWNER_ID, NewBudgetDefault(category_id=cat[b.category], amount=b.amount_minor)
+        )
+    for name, year, month, amount in BUDGET_ONE_OFFS:
+        budgets_repo.set_one_off(
+            conn,
+            OWNER_ID,
+            NewBudgetOneOffOverride(category_id=cat[name], year=year, month=month, amount=amount),
+        )
+    for name, month, amount in BUDGET_RECURRING:
+        budgets_repo.set_recurring(
+            conn,
+            OWNER_ID,
+            NewBudgetRecurringOverride(category_id=cat[name], month=month, amount=amount),
         )
 
 

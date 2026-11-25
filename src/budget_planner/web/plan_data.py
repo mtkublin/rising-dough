@@ -6,6 +6,7 @@ No business logic: services compute, this module only names the template keys.
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 from datetime import date
 from typing import get_args
 
@@ -103,7 +104,14 @@ def budget_view_for(
         base_currency=settings.base_currency,
         display_timezone=settings.display_timezone,
     )
-    return view_models.budget_view(summary, today, settings.base_currency)
+    # A category without a budget is listed only while something uses it (handoff plan/budget).
+    used = categories_service.usage_by_category(conn, user_id)
+    lines = tuple(
+        line
+        for line in summary.lines
+        if line.budgeted_minor is not None or line.category_id in used
+    )
+    return view_models.budget_view(replace(summary, lines=lines), today, settings.base_currency)
 
 
 def budget_period_for(
@@ -127,7 +135,11 @@ def year_page_for(
         conn, user_id, selected, display_timezone=settings.display_timezone
     )
     return plan_year_view.year_page(
-        rows, selected, current=(today.year, today.month), currency=settings.base_currency
+        rows,
+        selected,
+        current=(today.year, today.month),
+        currency=settings.base_currency,
+        usage=categories_service.usage_by_category(conn, user_id),
     )
 
 

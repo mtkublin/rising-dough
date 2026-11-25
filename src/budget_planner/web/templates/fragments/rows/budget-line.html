@@ -10,7 +10,7 @@
   <td class="rd-budget__bar">
     <span class="rd-bar{% if line.bar.modifier %} {{ line.bar.modifier }}{% endif %}"
           role="img"
-          aria-label="{{ line.bar.label }}">{{ line.bar.filled }}{% if line.bar.remainder %}<span class="{{ line.bar.remainder_class }}">{{ line.bar.remainder }}</span>{% endif %}</span>
+          aria-label="{{ line.bar.label }}">{% if not line.has_budget %}{{ line.bar.remainder }}{% else %}{{ line.bar.filled }}{% if line.bar.remainder %}<span class="{{ line.bar.remainder_class }}">{{ line.bar.remainder }}</span>{% endif %}{% endif %}</span>
   </td>
   <td class="rd-budget__spent rd-num">
     {{ line.line.spent_minor|money_num(base_ccy) }} <span class="rd-muted">/ {% if line.has_budget %}{{ line.budgeted_minor|money_num(base_ccy) }}{% else %}—{% endif %}</span>
