@@ -170,6 +170,7 @@ _EXPECTED_ROUTER_MODULES = frozenset(
         "settings_password",
         "settings_security",
         "settings_users",
+        "setup",
         "today",
         "transactions",
     }
