@@ -1,0 +1,11 @@
+{# fragment: rows/forecast-month
+   Inputs: row (view_models.ForecastRowView), base_ccy. One month of the projected balance table;
+   a negative net carries the handoff's ▲ mark and class. #}
+<tr class="rd-row rd-row--forecast" data-month="{{ row.month|date_fmt }}">
+  <th scope="row" class="rd-fc__month">{{ row.label }}</th>
+  <td class="rd-fc__num">{{ row.income_minor|money_num(base_ccy) }}<span class="rd-amount__cur"> {{ base_ccy }}</span></td>
+  <td class="rd-fc__num">{{ row.expense_minor|money_num(base_ccy) }}<span class="rd-amount__cur"> {{ base_ccy }}</span></td>
+  <td class="rd-fc__num">{{ row.planned_budget_minor|money_num(base_ccy) }}<span class="rd-amount__cur"> {{ base_ccy }}</span></td>
+  <td class="rd-fc__num{% if row.net_negative %} rd-fc__net--negative{% endif %}">{% if row.net_negative %}▲ {% endif %}{{ row.net_text }}<span class="rd-amount__cur"> {{ base_ccy }}</span></td>
+  <td class="rd-fc__num rd-fc__bal">{{ row.end_balance_minor|money_num(base_ccy) }}<span class="rd-amount__cur"> {{ base_ccy }}</span></td>
+</tr>

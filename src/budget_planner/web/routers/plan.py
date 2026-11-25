@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.services import budget as budget_service, forecast as forecast_service
-from budget_planner.web import charts, plan_data
+from budget_planner.web import plan_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.params import query_choice, query_int, require_year_month
 from budget_planner.web.rendering import render
@@ -61,14 +61,13 @@ def plan(
         horizon = forecast_service.normalize_horizon(
             None if requested is None else str(requested), _FORECAST_HORIZON_CHOICES
         )
-        ctx.update(plan_data.forecast_context(conn, user_id, settings, today_d, horizon))
-        ctx["forecast_horizon_choices"] = _FORECAST_HORIZON_CHOICES
+        ctx["forecast"] = plan_data.forecast_page_for(
+            conn, user_id, settings, today_d, horizon=horizon, choices=_FORECAST_HORIZON_CHOICES
+        )
+        return render(request, "pages/plan/forecast.html", nav_current="plan", **ctx)
     else:
-        bundle, derived = plan_data.analytics_bundle(
+        ctx["analytics"] = plan_data.analytics_page_for(
             conn, user_id, picked, request.query_params.get("period"), settings=settings
         )
-        ctx.update(derived)
-        ctx["spend_chart"], ctx["flow_chart"] = charts.analytics_charts(
-            bundle, settings.base_currency
-        )
+        return render(request, "pages/plan/analytics.html", nav_current="plan", **ctx)
     return render(request, "plan/index.html", **ctx)

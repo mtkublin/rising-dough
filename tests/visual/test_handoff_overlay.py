@@ -141,10 +141,11 @@ def test_red_style_and_id_rows_are_refused() -> None:
     assert row_violations(replace(_BASE, field="id"))
 
 
-def test_red_geometry_row_is_refused_until_a_source_exists() -> None:
-    assert row_violations(replace(_BASE, field="points", source="geometry"))
+def test_red_geometry_row_needs_the_registered_generator_source() -> None:
+    assert row_violations(replace(_BASE, field="points", source="geometry")) == []
     assert row_violations(replace(_BASE, field="points"))
-    assert row_violations(replace(_BASE, source="geometry"))
+    assert row_violations(replace(_BASE, field="points", source="hand-written"))
+    assert row_violations(replace(_BASE, source="hand-written"))
 
 
 def test_red_row_without_reason_or_non_html_page() -> None:

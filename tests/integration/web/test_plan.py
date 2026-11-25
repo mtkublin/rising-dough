@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from bs4 import Tag
@@ -27,7 +28,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import budget as budget_service, forecast as forecast_service
-from tests.ui_map import _html, plan, plan_budget, rd_fragments
+from tests.ui_map import _html, plan, plan_budget, plan_forecast, rd_fragments
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -142,29 +143,74 @@ def test_forecast_tab_series_labels_and_end_balance(
     r = client.get("/plan?tab=forecast")
 
     assert r.status_code == 200
-    rows = _html.resolve(r.text, plan.forecast_projection_rows)[1:]  # [0] is the header row
+    rows = _html.resolve(r.text, plan_forecast.rows)[1:]  # [0] is the header row
     assert len(rows) == DEFAULT_HORIZON
     first, last = _month_start(today, 0), _month_start(today, DEFAULT_HORIZON - 1)
     assert rows[0]["data-month"] == first.isoformat()
     assert rows[-1]["data-month"] == last.isoformat()
-    assert _row_cells(rows[0])[0] == first.strftime("%b %Y")
-    assert _row_cells(rows[-1])[0] == last.strftime("%b %Y")
-    caption = _html.text_of(r.text, plan.forecast_caption)
-    assert f"{first.strftime('%b %Y')} — {last.strftime('%b %Y')}" in caption
+    month_of = role("columnheader")
+    assert _html.texts(rows[0], month_of) == [first.strftime("%b %Y")]
+    assert _html.texts(rows[-1], month_of) == [last.strftime("%b %Y")]
+    # opening 1,000.00; 300.00 budgeted every month; 500.00 payday from the second month
+    cells = [_row_cells(row) for row in rows]
+    assert cells[0] == [
+        "0.00 PLN",
+        "0.00 PLN",
+        "300.00 PLN",
+        "\u25b2 \u2212300.00 PLN",
+        "700.00 PLN",
+    ]
+    assert cells[1] == [
+        "500.00 PLN",
+        "0.00 PLN",
+        "300.00 PLN",
+        "200.00 PLN",
+        "900.00 PLN",
+    ]
+    assert cells[2][-2:] == ["\u25b2 \u2212300.00 PLN", "600.00 PLN"]
+    last_balance = OPENING_MINOR - DEFAULT_HORIZON * GROCERIES_BUDGET_MINOR + PAYDAY_MINOR
+    assert last_balance == -210_000
+    assert cells[-1][-1] == "-2,100.00 PLN"
     series = forecast_service.monthly_projection(
         db, USER_ID, _migrated, today, horizon=DEFAULT_HORIZON
     )
-    end_cells = [_row_cells(row)[-1] for row in rows]  # EOM is the last column
-    assert end_cells == [f"{p.end_balance_minor / 100:,.2f}" for p in series]
-    last_balance = OPENING_MINOR - DEFAULT_HORIZON * GROCERIES_BUDGET_MINOR + PAYDAY_MINOR
-    assert last_balance == -210_000
-    assert end_cells[-1] == "-2,100.00"
+    assert [c[-1] for c in cells] == [
+        f"{format(Decimal(p.end_balance_minor) / 100, ',.2f')} PLN" for p in series
+    ]
+
+
+def test_forecast_tab_chart_has_one_point_per_month(
+    client: TestClient, today: date, world: None
+) -> None:
+    r = client.get("/plan?tab=forecast")
+
+    points = [str(el["aria-label"]) for el in _html.resolve(r.text, plan_forecast.chart_points)]
+    assert len(points) == DEFAULT_HORIZON
+    assert points[0] == f"{today.strftime('%b %Y')}: 700.00 PLN, net \u2212300.00"
+    assert points[1].endswith(": 900.00 PLN, net +200.00")
+    assert points[-1].endswith(": \u22122,100.00 PLN, net \u2212300.00")
+    chart = _html.resolve_one(r.text, plan_forecast.chart)
+    assert str(chart["aria-label"]).startswith(
+        f"Projected balance by month, {today.strftime('%b %Y')} to "
+    )
 
 
 def test_forecast_tab_horizon_param(client: TestClient, world: None) -> None:
     r = client.get("/plan?tab=forecast&horizon=6")
 
-    assert len(_html.resolve(r.text, plan.forecast_projection_rows)[1:]) == 6
+    assert len(_html.resolve(r.text, plan_forecast.rows)[1:]) == 6
+    assert len(_html.resolve(r.text, plan_forecast.chart_points)) == 6
+    selected = _html.resolve_one(r.text, plan_forecast.horizon_selected)
+    assert (selected.get_text(strip=True), selected["value"]) == ("6", "6")
+    assert [b["hx-get"] for b in _html.resolve(r.text, plan_forecast.horizon_buttons)] == [
+        f"/plan?tab=forecast&horizon={h}" for h in (6, 12, 24, 60)
+    ]
+
+
+def test_forecast_tab_defaults_to_twelve_months(client: TestClient, world: None) -> None:
+    r = client.get("/plan?tab=forecast")
+
+    assert _html.text_of(r.text, plan_forecast.horizon_selected) == "12"
 
 
 @pytest.mark.parametrize(("delta", "label"), [(-2, "past"), (3, "future")])
@@ -255,7 +301,7 @@ def test_year_tab_grid_and_totals(
     assert _html.text_of(r.text, plan.year_heading) == f"Year · {today.year}"
 
 
-def test_forecast_summary_now_is_todays_net_worth_not_first_month_end(
+def test_forecast_hero_delta_is_measured_from_todays_net_worth(
     client: TestClient, db: sqlite3.Connection, _migrated: Settings, today: date, world: None
 ) -> None:
     series = forecast_service.monthly_projection(
@@ -265,6 +311,9 @@ def test_forecast_summary_now_is_todays_net_worth_not_first_month_end(
 
     r = client.get("/plan?tab=forecast")
 
-    text = _html.text_of(r.text, plan.forecast_summary)
-    assert text.startswith("Now 1,000 PLN"), text
-    assert f"End · {series[-1].label} -2,100 PLN" in text, text
+    last = series[-1]
+    text = _html.text_of(r.text, plan_forecast.hero)
+    assert text.startswith(f"projected balance \u00b7 end of {last.month.strftime('%b').lower()} ")
+    # net worth today 1,000.00; end -2,100.00; the strip says "-3,100.00 over 12 months"
+    assert "-2,100.00 PLN \u22123,100.00 PLN over 12 months" in text, text
+    assert " \u00b7 peak 900.00 in " in text, text
