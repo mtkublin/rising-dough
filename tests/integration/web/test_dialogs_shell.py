@@ -22,10 +22,6 @@ def _open(client: TestClient, variant: str) -> tuple[str, str]:
     return str(r.status_code), r.text
 
 
-def _attr(html: str, loc: object, name: str) -> object:
-    return _html.resolve_one(html, loc).get(name)  # type: ignore[arg-type]
-
-
 def test_standard_dialog_has_band_hero_body_and_actions(client: TestClient) -> None:
     status, html = _open(client, "standard")
     assert status == "200"
