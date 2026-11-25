@@ -6,11 +6,8 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from datetime import date
-from typing import Any
 
 import pytest
-from fastapi import Request
-from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -25,9 +22,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from budget_planner.web import rendering
-from budget_planner.web.routers import categories as categories_router
 from tests.ui_map import _html, settings as ui
+from tests.ui_map.locator import Locator
 
 USER_ID = 1
 
@@ -58,10 +54,18 @@ def cat_id(_migrated: Settings) -> int:
         conn.close()
 
 
+def _flat(html: str, loc: Locator) -> str:
+    return " ".join(_html.text_of(html, loc).split())
+
+
 def test_new_form(client: TestClient) -> None:
     r = client.get("/categories/new", headers={"HX-Request": "true"})
     assert r.status_code == 200
     assert _html.exists(r.text, ui.category_expense)
+    # Default: expense direction and the "default colour" radio are preselected.
+    fields = _html.submitted_fields(_html.form_of(r.text, ui.category_name))
+    assert ("direction", "expense") in fields
+    assert ("color", "") in fields
 
 
 def test_create(client: TestClient) -> None:
@@ -75,7 +79,7 @@ def test_create_bad_direction(client: TestClient, db: sqlite3.Connection) -> Non
     before = _names(db)
     r = client.post("/categories", data={"name": "X", "direction": "bogus"})
     assert r.status_code == 422
-    assert "direction: invalid direction" in _html.all_text(r.text, ui.form_errors)
+    assert "Direction : invalid direction" in _html.all_text(r.text, ui.form_errors)
     assert _names(db) == before
 
 
@@ -85,7 +89,7 @@ def test_create_rejects_transit_direction(client: TestClient, db: sqlite3.Connec
     for direction in ("transit", "adjustment"):
         r = client.post("/categories", data={"name": "Nope", "direction": direction})
         assert r.status_code == 422, direction
-        assert "direction: invalid direction" in _html.all_text(r.text, ui.form_errors), direction
+        assert "Direction : invalid direction" in _html.all_text(r.text, ui.form_errors), direction
     assert _names(db) == before
 
 
@@ -93,7 +97,7 @@ def test_create_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories", data={"name": "   ", "direction": "expense"})
     assert r.status_code == 422
-    assert "name: name required" in _html.all_text(r.text, ui.form_errors)
+    assert "Name : name required" in _html.all_text(r.text, ui.form_errors)
     assert _names(db) == before
 
 
@@ -105,23 +109,12 @@ def test_edit(client: TestClient, cat_id: int) -> None:
     assert ("name", "Groceries") in _html.submitted_fields(form)
 
 
-def test_edit_passes_usage_context(
-    client: TestClient,
-    cat_id: int,
-    db: sqlite3.Connection,
-    monkeypatch: pytest.MonkeyPatch,
+def test_edit_dialog_prints_the_usage_text(
+    client: TestClient, cat_id: int, db: sqlite3.Connection
 ) -> None:
-    captured: dict[str, object] = {}
-    real_render = rendering.render
-
-    def spy(request: Request, template: str, **ctx: Any) -> HTMLResponse:
-        captured.update(ctx)
-        return real_render(request, template, **ctx)
-
-    monkeypatch.setattr(categories_router, "render", spy)
-    assert client.get(f"/categories/{cat_id}/edit").status_code == 200
-    assert captured["usage_text"] is None
-    assert captured["entry_count"] == 0
+    plain = client.get(f"/categories/{cat_id}/edit")
+    assert plain.status_code == 200
+    assert "\u2193 expense \u00b7 fixed once created" in _flat(plain.text, ui.category_form)
 
     acc = accounts_repo.create(db, USER_ID, NewAccount(name="Main", currency="PLN")).id
     planned_repo.create(
@@ -131,14 +124,16 @@ def test_edit_passes_usage_context(
             operation_date=date(2026, 11, 10), category_id=cat_id, account_id=acc, amount=100
         ),
     )
-    assert client.get(f"/categories/{cat_id}/edit").status_code == 200
-    assert captured["usage_text"] == "1 planned"
+    used = client.get(f"/categories/{cat_id}/edit")
+    assert "\u2193 expense \u00b7 locked by 1 planned" in _flat(used.text, ui.category_form)
+    archive = client.get(f"/categories/{cat_id}/archive")
+    assert "Its 1 planned and budget history stay" in _flat(archive.text, ui.archive_dialog)
 
 
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/categories/9999/edit")
     assert r.status_code == 404
-    assert "category: not found" in _html.all_text(r.text, ui.form_errors)
+    assert r.text == "category: not found"
 
 
 def test_update(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
@@ -156,14 +151,14 @@ def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories/9999", data={"name": "X"})
     assert r.status_code == 404
-    assert "category: not found" in _html.all_text(r.text, ui.form_errors)
+    assert r.text == "category: not found"
     assert _names(db) == before
 
 
 def test_update_blank(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/categories/{cat_id}", data={"name": "  "})
     assert r.status_code == 422
-    assert "name: name required" in _html.all_text(r.text, ui.form_errors)
+    assert "Name : name required" in _html.all_text(r.text, ui.form_errors)
     stored = categories_repo.find_by_id(db, USER_ID, cat_id)
     assert stored is not None
     assert stored.name == "Groceries"
@@ -247,7 +242,9 @@ def test_create_invalid_hex_422(client: TestClient, db: sqlite3.Connection) -> N
         data={"name": "Bad", "direction": "expense", "color": "not-hex"},
     )
     assert r.status_code == 422
-    assert "invalid color 'not-hex'; expected 6-digit hex" in _html.all_text(r.text, ui.form_errors)
+    assert "Colour : invalid color 'not-hex'; expected 6-digit hex" in _html.all_text(
+        r.text, ui.form_errors
+    )
     assert _names(db) == before
 
 
@@ -361,8 +358,17 @@ def test_create_reloads_page_without_swap(client: TestClient) -> None:
     assert "budget-stale" in r.headers["HX-Trigger"]
 
 
-def test_new_form_targets_itself_and_resets_on_submit(client: TestClient) -> None:
+def test_new_form_posts_to_the_collection_through_the_dialog_shell(client: TestClient) -> None:
+    # ADR-0152: the old self-targeting form (reset on submit) is now the dialog shell.
     r = client.get("/categories/new", headers={"HX-Request": "true"})
-    form = _html.resolve_one(r.text, ui.category_form)
-    assert form["hx-target"] == "#category-form"
-    assert form.has_attr("data-reset-on-submit")
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    form = _html.form_of(r.text, ui.category_name)
+    assert form["hx-post"] == "/categories"
+    assert form["hx-target"] == "#modal-root"
+    assert not form.has_attr("data-reset-on-submit")
+
+
+def test_archive_dialog_closes_on_the_dialog_close_event(client: TestClient, cat_id: int) -> None:
+    r = client.post(f"/categories/{cat_id}/archive")
+    assert r.status_code == 204
+    assert json.loads(r.headers["HX-Trigger"])["dialog-close"] is True

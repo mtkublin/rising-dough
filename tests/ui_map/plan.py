@@ -62,7 +62,7 @@ plan_nav_link = role("link", "Plan", exact=True)
 analytics_bundle = by_id("analytics-bundle")
 
 # --- anchor select (rendered on settings, posted to /budget/preferences/income-anchor) ---
-anchor_select = by_id("anchor-select")
+anchor_select = by_id("income-anchor")  # settings categories page (T-UR13)
 
 
 def summary_row(category_name: str) -> Locator:

@@ -387,14 +387,6 @@ epic = "E16"
 owner = "T-UR08"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/categories/_form.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR13"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/planned/_form.html"
 rule = "tpl-set"
 count = 1
@@ -515,22 +507,6 @@ epic = "E16"
 owner = "T-UR10"
 
 [[entry]]
-path = "src/budget_planner/web/templates/settings/_drawer.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR13"
-
-[[entry]]
-path = "src/budget_planner/web/templates/settings/_fx.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR13"
-
-[[entry]]
 path = "src/budget_planner/web/templates/settings/_password_form.html"
 rule = "tpl-set"
 count = 1
@@ -544,7 +520,7 @@ rule = "tpl-arith"
 count = 1
 finding = "Q-039"
 epic = "E16"
-owner = "T-UR13"
+owner = "T-UR14"
 
 [[entry]]
 path = "src/budget_planner/web/templates/settings/_tabs.html"
@@ -552,15 +528,7 @@ rule = "tpl-set"
 count = 1
 finding = "Q-039"
 epic = "E16"
-owner = "T-UR13"
-
-[[entry]]
-path = "src/budget_planner/web/templates/settings/index.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR13"
+owner = "T-UR14"
 
 [[entry]]
 path = "src/budget_planner/web/templates/settings/security.html"

@@ -38,7 +38,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/account-form.js` | T-UR08 | delete |  |
 | `src/budget_planner/web/static/js/app-init.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | delete |  |
-| `src/budget_planner/web/static/js/category-form.js` | T-UR13 | delete |  |
+| `src/budget_planner/web/static/js/category-form.js` | T-UR13 | deleted |  |
 | `src/budget_planner/web/static/js/combobox.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/kebab.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/numeric-input.js` | T-UR15 | delete |  |
@@ -88,7 +88,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/budget/_yearly.html` | T-UR11 | delete |  |
 | `src/budget_planner/web/templates/budget/index.html` | T-UR15 | delete | UR11a: `GET /budget` still renders it; `tests/contract/test_plan_views.py::test_budget_page_renders_sections_in_order` pins its sections (hero, summary, rules, yearly, breakdown), so it moves to the final sweep |
 | `src/budget_planner/web/templates/budget/manage.html` | T-UR11 | deleted | UR11a: no route or template used it |
-| `src/budget_planner/web/templates/categories/index.html` | T-UR13 | delete |  |
+| `src/budget_planner/web/templates/categories/index.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/dev/components.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/errors/404.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/errors/409.html` | T-UR06 | deleted |  |
@@ -120,8 +120,8 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/accounts/_snapshot_item.html` | T-UR08 | delete |  |
 | `src/budget_planner/web/templates/partials/accounts/_totals.html` | T-UR08 | delete |  |
 | `src/budget_planner/web/templates/partials/budget/_override_form.html` | T-UR11 | delete |  |
-| `src/budget_planner/web/templates/partials/categories/_form.html` | T-UR13 | delete |  |
-| `src/budget_planner/web/templates/partials/categories/_row.html` | T-UR13 | delete |  |
+| `src/budget_planner/web/templates/partials/categories/_form.html` | T-UR13 | deleted |  |
+| `src/budget_planner/web/templates/partials/categories/_row.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/partials/forecast/_chart.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/partials/forecast/_table.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR12 | delete |  |
@@ -150,13 +150,13 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/plan/index.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/planned/index.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/recurring/index.html` | T-UR10 | delete |  |
-| `src/budget_planner/web/templates/settings/_categories.html` | T-UR13 | delete |  |
-| `src/budget_planner/web/templates/settings/_drawer.html` | T-UR13 | delete |  |
-| `src/budget_planner/web/templates/settings/_fx.html` | T-UR13 | delete |  |
+| `src/budget_planner/web/templates/settings/_categories.html` | T-UR13 | deleted |  |
+| `src/budget_planner/web/templates/settings/_drawer.html` | T-UR13 | deleted |  |
+| `src/budget_planner/web/templates/settings/_fx.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/settings/_password_form.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/settings/_prefs.html` | T-UR13 | delete |  |
-| `src/budget_planner/web/templates/settings/_tabs.html` | T-UR13 | delete |  |
-| `src/budget_planner/web/templates/settings/index.html` | T-UR13 | delete |  |
+| `src/budget_planner/web/templates/settings/_prefs.html` | T-UR13 | deleted |  |
+| `src/budget_planner/web/templates/settings/_tabs.html` | T-UR14 | delete | still included by settings/security and settings/users; the new shell's strip is `fragments/nav/settings-tabs.html` (T-UR13) |
+| `src/budget_planner/web/templates/settings/index.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/settings/password.html` | T-UR14 | delete |  |
 | `src/budget_planner/web/templates/settings/security.html` | T-UR14 | delete |  |
 | `src/budget_planner/web/templates/settings/users/_add-errors.html` | T-UR14 | delete |  |

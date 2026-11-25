@@ -6,7 +6,7 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World
-from tests.ui_map import ledger, settings
+from tests.ui_map import settings, shell
 
 pytestmark = pytest.mark.e2e
 
@@ -15,7 +15,7 @@ def test_create_category_adds_a_settings_row(world: World) -> None:
     world.goto("/settings?tab=categories")
     world.find(settings.new_category).click()
     world.find(settings.form_name).fill("Pets")
-    world.find(settings.form_expense).check()
+    world.find(settings.form_expense).check(force=True)  # the radio is visually hidden
     world.find(settings.form_create).click()
 
     row = world.wait_rows("SELECT * FROM categories WHERE name = 'Pets'")[0]
@@ -36,20 +36,22 @@ def test_edit_category_renames_it(world: World) -> None:
     expect(world.find(settings.category_row(category))).to_contain_text("Pets")
 
 
-def test_archive_category_then_restore_from_recently_deleted(world: World) -> None:
+def test_archive_category_closes_the_dialog_shows_undo_then_restore(world: World) -> None:
     category = world.category("Hobby")
     world.goto("/settings?tab=categories")
-    world.find(settings.archive_category(category)).click()  # native confirm is accepted
+    world.find(settings.archive_category(category)).click()
+    expect(world.find(settings.archive_dialog)).to_be_visible()
+    world.find(settings.archive_confirm).click()
 
     world.wait_rows("SELECT 1 FROM categories WHERE id = ? AND deleted_at IS NOT NULL", (category,))
-    expect(world.find(settings.category_row(category))).to_have_count(0)
-    world.find(ledger.recently_deleted_link).click()
-    world.settle()
-    world.find(ledger.restore("category", category)).click()
+    # ADR-0152: the 204 closes the confirm dialog via the dialog-close event; the toast offers undo.
+    expect(world.find(settings.archive_dialog)).to_have_count(0)
+    expect(world.find(shell.undo_button)).to_be_visible()
+    expect(world.find(settings.category_row(category))).to_have_count(0)  # list refetched
+    world.find(shell.undo_button).click()  # restores and reloads the page
 
     world.wait_rows("SELECT 1 FROM categories WHERE id = ? AND deleted_at IS NULL", (category,))
     assert world.audit_ops("category", category) == ["create", "delete", "undelete"]
-    world.goto("/settings?tab=categories")
     expect(world.find(settings.category_row(category))).to_contain_text("Hobby")
 
 
@@ -65,7 +67,7 @@ def test_fx_tab_lists_cached_rates(world: World) -> None:
         "VALUES ('2026-01-05', 'EUR', 'PLN', '4.25')"
     )
     world.goto("/settings?tab=fx")
-    expect(world.find(settings.fx_row("EUR → PLN"))).to_contain_text("4.250000")
+    expect(world.find(settings.fx_row("EUR → PLN"))).to_contain_text("4.25")
 
 
 def test_preferences_show_base_currency_and_save_the_income_anchor(world: World) -> None:

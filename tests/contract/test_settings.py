@@ -105,12 +105,15 @@ def test_unknown_tab_is_422_and_empty_tab_is_categories(client: TestClient) -> N
 
 
 @covers("GET /settings")
-def test_htmx_request_gets_drawer_fragment(client: TestClient) -> None:
+def test_htmx_request_gets_the_new_shell_page(client: TestClient) -> None:
+    # ADR-0152: the slide-over drawer is gone; an HX GET returns the page the regions select from.
     r = client.get("/settings", headers=HX)
     assert r.status_code == 200
-    assert "<html" not in r.text
-    assert _html.exists(r.text, ui.drawer)
-    assert _html.resolve_one(r.text, ui.drawer)["aria-modal"] == "true"
+    assert _html.text_of(r.text, ui.heading) == "Categories"
+    assert _selected_tabs(r.text) == ["Categories"]
+    assert _html.exists(r.text, ui.category_slot)
+    assert "<aside" not in r.text
+    assert "aria-modal" not in r.text
 
 
 @covers("GET /settings")

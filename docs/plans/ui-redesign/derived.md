@@ -33,7 +33,7 @@
 
 | Screen | Surface task | Built from | Notes |
 |---|---|---|---|
-| _…_ | | | |
+| Currency & FX, rates table | T-UR13 | `pages/settings/currency-fx` (empty card) plus `rd-ledger` table markup of `pages/accounts` | The handoff shows only the empty state; with cached rates (`services.fx.list_recent_rates`, ADR-0139) the card holds a table of PAIR (`EUR → PLN`), AS OF and RATE (printed exactly as cached, `4.25`, not padded to six decimals). Designer to confirm. |
 
 ## Deviations from the handoff
 
@@ -54,6 +54,12 @@
 | `pages/plan/budget` period links | `?year=&month=` instead of the handoff's `?period=YYYY-MM` | contract tests and journeys pin the app's query names | T-UR11 |
 | `pages/plan/budget` row menu, `override` item | link to the existing `GET /budget/rules/{id}/overrides/new` (with `hx-get` into `#modal-root`) | the override dialog is rebuilt by the second Plan item; the static board links to its overlay page | T-UR11 |
 | `rows/budget-line` over-budget bar | `aria-label="over budget"` as in the handoff, clamped `used_pct` is not printed | `bar_spans` label would read "100 percent spent, 0 percent left" | T-UR11 |
+| Settings tabs | The strip is a `role=tablist` of `role=tab` links with `aria-selected` plus `aria-current` and a capitalised `aria-label` (handoff: `nav` of plain links, `aria-current` only) | the contract tests read the selected tab and its capitalised name (`aria-selected`); the visible text is the handoff's lowercase | T-UR13 |
+| Settings, category colour palette | The handoff dialog's ten swatches (`#ef4444` …) replace the old ten (`#c9403a` …); a stored hex that equals a preset prints that preset's `data-color` name, any other hue gets a generated name and a nonce'd rule (`domain.category_colors`). The radio is named `color` (handoff `colour`); the "default colour" radio posts an empty value, which the routes treat as `clear_color` | server field names are pinned by contract tests; designer question: should old custom hues snap to the nearest preset? | T-UR13 |
+| Settings, category dialog preview | The preview chip is server-rendered (name and colour as loaded or as submitted on a 422); it does not update while typing | the old `category-form.js` is deleted and the handoff ships no preview script | T-UR13 |
+| Settings, category archive | `GET /categories/{id}/archive` (new) serves the confirm dialog; `POST` stays 204 with the undo toast and now also fires `dialog-close` (handled in `rd/js/app-toast.js`) to close the dialog | ADR-0152 rule 4: the 204 is pinned, the dialog closes client-side | T-UR13 |
+| Settings, preferences theme card | Markup only (system, light, dark buttons); `theme-switch.js` wiring and persistence are T-UR27 | brief: do not implement T-UR27 | T-UR13 |
+| Settings, categories list | Rows carry `id="category-N"` (HTMX target of the edit dialog) and the page keeps `#settings-categories` as the list region refetched on `settings-categories-stale` | ADR-0143 listener contract | T-UR13 |
 
 > **Transitional (T-UR08a, until T-UR08b):** the dialogs (new, edit, delete, reconcile) and their POST responses still render the old `partials/accounts/_card.html`, `_row.html` and the slide-over into the new page, so a swapped old row or slide-over looks unstyled until T-UR08b ports them. The row menu, the `reconcile` link and `+ new account` already target the existing routes with `#modal-root`.
 

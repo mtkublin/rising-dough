@@ -79,6 +79,7 @@ NOT_PAGES: dict[str, str] = {
     "/budget/yearly": "fragment (host page: /plan?tab=year, crawled in VIEWS)",
     "/budget/rules/{category_id}/overrides/new": "dialog fragment",
     "/categories/new": "dialog fragment",
+    "/categories/{category_id}/archive": "dialog fragment",
     "/categories/{category_id}/edit": "dialog fragment",
     "/forecast/view": "fragment",
     "/ledger/table": "fragment",

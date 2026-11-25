@@ -873,49 +873,37 @@
   ],
   "/settings": [
     {
+      "kind": "button",
+      "name": "Keyboard shortcuts",
+      "target": ""
+    },
+    {
       "kind": "hx-get",
-      "name": "+ New category",
+      "name": "+ new category",
       "target": "/categories/new"
     },
     {
       "kind": "hx-get",
-      "name": "Edit category 5",
-      "target": "/categories/{id}/edit"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Edit category 6",
-      "target": "/categories/{id}/edit"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Expense 1 Groceries Expense Direction default Edit \u00b7 Archive...",
+      "name": "Expense \u00b7 1 Expense categories Name Colour Actions Groceries...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings?tab=categories"
     },
     {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Archive category 5",
-      "target": "/categories/{id}/delete"
+      "kind": "hx-get",
+      "name": "archive",
+      "target": "/categories/{id}/archive"
+    },
+    {
+      "kind": "hx-get",
+      "name": "edit",
+      "target": "/categories/{id}/edit"
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Archive category 6",
-      "target": "/categories/{id}/delete"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Income anchor \u2014 none \u2014 Paycheck",
+      "name": "INCOME ANCHOR none Paycheck each period starts on its next d...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/budget/preferences/income-anchor"
-    },
-    {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
     },
     {
       "kind": "link",
@@ -929,23 +917,8 @@
     },
     {
       "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
-    },
-    {
-      "kind": "link",
       "name": "Preferences",
       "target": "/settings?tab=prefs"
-    },
-    {
-      "kind": "link",
-      "name": "Recently deleted",
-      "target": "/ledger/recently-deleted"
     },
     {
       "kind": "link",
@@ -959,92 +932,142 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "Users",
+      "target": "/settings/users"
+    },
+    {
+      "kind": "link",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
-    },
-    {
-      "kind": "link",
-      "name": "Users",
-      "target": "/settings/users"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out",
+      "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
     },
     {
-      "kind": "hx-get",
-      "name": "Expense 1 Income 1 Paycheck Income Direction default Edit \u00b7 ...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/settings?tab=categories",
-      "via": "Archive category 5"
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "+ new category"
     },
     {
       "kind": "button",
-      "name": "Cancel",
+      "name": "cancel",
       "target": "",
-      "via": "Edit category 5"
+      "via": "+ new category"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "new category name direction \u2193 expense \u2191 income direction is ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/categories",
+      "via": "+ new category"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "[ create category ]",
+      "target": "/categories",
+      "via": "+ new category"
+    },
+    {
+      "kind": "button",
+      "name": "cancel",
+      "target": "",
+      "via": "archive"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Archive Groceries? It disappears from pickers. Its 2 entries...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/categories/{id}/archive",
+      "via": "archive"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Archive Paycheck? It disappears from pickers. Its 1 entry an...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/categories/{id}/archive",
+      "via": "archive"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "archive",
+      "target": "/categories/{id}/archive",
+      "via": "archive"
     },
     {
       "kind": "button",
       "name": "Close",
       "target": "",
-      "via": "Edit category 5"
+      "via": "edit"
+    },
+    {
+      "kind": "button",
+      "name": "cancel",
+      "target": "",
+      "via": "edit"
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Name Colour Use direction colour Pick #c9403a Pick #d97706 P...",
+      "name": "edit category \u00b7 Groceries name direction \u2193 expense \u00b7 locked ...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/categories/{id}",
-      "via": "Edit category 5"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save \u21a9",
-      "target": "/categories/{id}",
-      "via": "Edit category 5"
-    },
-    {
-      "kind": "button",
-      "name": "Cancel",
-      "target": "",
-      "via": "Edit category 6"
-    },
-    {
-      "kind": "button",
-      "name": "Close",
-      "target": "",
-      "via": "Edit category 6"
+      "via": "edit"
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Name Colour Use direction colour Pick #c9403a Pick #d97706 P...",
+      "name": "edit category \u00b7 Paycheck name direction \u2191 income \u00b7 locked by...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/categories/{id}",
-      "via": "Edit category 6"
+      "via": "edit"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Save \u21a9",
+      "name": "[ save ]",
       "target": "/categories/{id}",
-      "via": "Edit category 6"
+      "via": "edit"
     }
   ],
   "/settings/password": [
