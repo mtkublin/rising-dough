@@ -218,12 +218,12 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Handoff: `pages/errors/404`, `409`, `422`, `500`; `offline` per the T-UR00 decision.
 - Error handlers render the new pages for full-page requests and the error summary fragment for HTMX requests.
 
-### ◻ T-UR07 [P] Today
+### ✅ T-UR07 [P] Today
 - Handoff: `pages/today` and its states (`--empty`, `--loading`, `--afford-over`, `--afford-invalid`, `--flash`); overlays `new-entry*` (happened, planned, repeats fixed, repeats formula, error, phone sheet), `promote--planned`, `promote--recurring`, `row-menu--upcoming`.
 - Fragments: `today/upcoming-list`, `today/afford-result`, `rows/upcoming-row`, hero.
 - The new-entry dialog is owned here; Ledger reuses it.
 - Page part done 2026-11-25 (UR07a, 10cf35bb; audit docs/audits/2026-11-24-t-ur07a-today.md). Open (UR07b): new-entry dialog /add, promote and override dialogs; re-enable the T-UR07b skips.
-- Remaining: upcoming-row override links do not open (UR07b audit F6, routed to T-UR10).
+- Remaining: none. UR07b audit F6 (upcoming-row override links did not open) is resolved by UR10b (`e6daa30c`): the override dialog opens through the Upcoming row menu ([audit](../../audits/2026-11-25-t-ur10b-planned-recurring-dialogs.md)).
 
 ### ✅ T-UR08 [P] Accounts
 - Handoff: `pages/accounts`, `accounts--empty`; overlays `new-account*`, `edit-account*`, `delete-account*`, `reconcile*`, `row-menu--account`.
@@ -250,10 +250,10 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 - Fragments: `rows/budget-line`, `plan/unbudgeted-disclosure`, `rows/year-grid-row`, `rows/year-cell-editor`.
 - Budget tab done 2026-11-25 (UR11a, 22a3dc57; audit docs/audits/2026-11-24-t-ur11a-plan-budget.md). Open (UR11b): year tab, override dialogs, year-cell editor; re-enable the T-UR11b skips.
 
-### ◻ T-UR12 [P] Plan · forecast and analytics
+### ✅ T-UR12 [P] Plan · forecast and analytics
 - Handoff: `pages/plan/forecast`, `analytics`; `charts/forecast`, `charts/income-vs-expense`, `charts/spend-by-category`.
 - Fragments: `rows/forecast-month`, `rows/analytics-category`, `charts/*`. SVG geometry from the server per the handoff's chart notes (amends ADR-0054).
-- Remaining: UR12b (seed history, geometry_rows, ADR-0147 §4 amendment).
+- Done: UR12 (`8de349c3`) and UR12b (`294bbbce`: seed history, geometry rows, ADR-0147 §4 amendment). Remaining: none.
 
 ### ✅ T-UR13 [P] Settings · categories, currency and FX, preferences
 - Handoff: `pages/settings/categories`, `currency-fx`, `preferences`; overlays `new-category*`, `edit-category`, `archive-category`.
@@ -269,14 +269,14 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 
 Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-redesign-backend-preconditions-released-first.md)); what remains here is pages, routers that render them and frontend. These land in the redesign release (ADR-0107 §8). Each needs its own requirement text first (done in `docs/requirements.md`, ADR-0134 Consequences) and the per-surface loop in [README.md](README.md#per-surface-loop-test-first). Not started.
 
-### ◻ T-UR18 [S] Invite email: cost evaluation (operator)
+### ✅ T-UR18 [S] Invite email: cost evaluation (operator)
 - Evaluate mail provider, Terraform and secret cost for sending invite email. Output: go or no-go recorded in ADR-0134 (amendment). On no-go the switch of T-UR19 stays off and the code is kept. ADR-0134 §1.
-- Decision 2026-11-25: NO-GO for v1 (operator QA Q9, recorded in the ADR-0134 amendment of 2026-11-25, §1/§10). `BUDGET_INVITE_EMAIL_ENABLED` stays off, admins copy the invite link by hand, the code stays.
+- Decision 2026-11-25: decided: no-go for v1 (operator QA Q9, recorded in the ADR-0134 amendment of 2026-11-25, §1/§10). `BUDGET_INVITE_EMAIL_ENABLED` stays off, admins copy the invite link by hand, the code stays.
 
 ### ◻ T-UR19 [moved] Invite email behind a config switch → T-UR31
 - **Moved whole to T-UR31** (Phase P, ADR-0148). Original scope kept for reference: send the invite email through an injected port (ADR-0021), behind a config switch, default off. No secret committed; Terraform and secret only if T-UR18 is go. ADR-0134 §1, ADR-0099.
 
-### ◻ T-UR20 [P] Invites, add user, user row menu, forced change → T-UR14, T-UR29, T-UR30
+### ✅ T-UR20 [P] Invites, add user, user row menu, forced change → T-UR14, T-UR29, T-UR30
 - **Split (2026-11-25):** UR20a = invite landing pages and invite management on `/settings/users`; UR20b = add user with one-time credential dialog, reset and delete confirms, edit user dialog check, forced change page (ST10). Invite email is NO-GO for v1 (Q9): the switch stays off, admins hand the link over themselves.
 - **UR20a done (2026-11-25):** `GET/POST /invite/{token}` (AU08 accept, AU09 expired / used / invalid; public path, rate-limited like `/setup`; accepting signs the person in and lands on Today); `+ create invite` dialog (email, role; 422 with visible error for a bad or duplicate email or a pending invite) that answers with the invite link dialog (the link is shown once: only its hash is stored); pending and expired invite rows on the Users table (`✉ invited · expires 02 DEC`), row menu `resend invite` (new link and 7 days, link dialog) and `revoke invite` (confirm, then the link reads `invalid`). No `copy link` item: the stored hash cannot give the link back, so `resend invite` is the way to get one (derived.md). Service `accept_invite` gained the 12-character and confirm checks. ADR-0134 §1, §10; ADR-0148.
 - **PAR-D progress (2026-11-25):** design-parity seed items in `tests/visual/handoff_seed.py`: category chip colours by name from the handoff presets, the picker entry "Wyjścia na miasto", 23 upcoming rows on Today (value-inventory §5 row 12 and the PAR-D note). Open: the picker count N (seed yields 24; handoff 21, ADR-0151 23) and, blocked by ADR-0151/ADR-0147, the afford-it states and `accounts--empty`.
@@ -284,7 +284,8 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - **UR20b done (2026-11-25):** `GET /settings/users/new` add user dialog (email, name, role; `+ add user` on the page) answering with the one-time password dialog (shown once, `no-store`, password not in logs or audit); a duplicate or bad email re-opens the dialog with the field error and the summary (422, no user written). Reset and delete confirms, the last-admin / self guards (409 error flash) and the edit dialog (name and role, email read-only, first menu item, own row no menu) existed from UR14 and are pinned with exact values (delete keeps the user's ledger entries; reset flags the user and signs their sessions out). Forced change page ST10 existed from UR14 (rate limit and CSRF as the password flow, now pinned `no-store`).
 - **Server side shipped in Phase P** (ADR-0148): invite model, migration and service (T-UR30), edit and delete guards (T-UR29). This task builds the pages, dialogs and the routes that render them on top. Routes: create invite with email and role, pending row with expiry, row menu copy link / resend / revoke; invite pages (AU08 and expired, used, invalid AU09); add user dialog with one-time credential dialog (not toast), duplicate email refused; reset and delete user with confirms (ledger entries stay); forced change page (ST10). Edit user dialog (name and member/admin, email read-only) as the first row-menu item before reset and delete; an admin's own row has no menu. Server-side guards (no self-demotion, no last-admin demotion, email unchanged) already shipped in T-UR29; the UI hides the menu on the admin's own row on top of them; delete keeps refusing self and last admin. ADR-0134 §10, §11, ADR-0061, ADR-0073.
 
-### ◻ T-UR21a [P] Setup-token hash wiring → T-UR32
+### ✅ T-UR21a [P] Setup-token hash wiring → T-UR32
+- Caveat (2026-11-25): the OPERATOR still adds the GitHub `prod` secret `SETUP_TOKEN_HASH` and runs the approved apply ([q10-operator-steps.md](q10-operator-steps.md)). Until then the code is done and prod setup stays closed.
 - **Status (2026-11-25): prep done, operator step open.** Operator decision Q10: the hash lives in the GitHub `prod` environment secret `SETUP_TOKEN_HASH` (declared in `tests/architecture/ci_environments.toml`) and Terraform passes it as the optional sensitive variable `setup_token_hash` into the instance compose env `BUDGET_PLANNER_SETUP_TOKEN_HASH` (ADR-0111 metadata path; empty = not set, setup stays closed). `terraform.yml` already passes `toJSON(secrets)` and `scripts/ci/tf_env.py` now maps `SETUP_TOKEN_HASH` (prod only), so no workflow edit is needed: the operator only adds the secret and runs the approved prod apply ([q10-operator-steps.md](q10-operator-steps.md)).
 - The drill workflow (and the prod bootstrap path, if any) generates the one-time setup token, prints it only in the workflow output, and passes only its sha256 hex as `BUDGET_PLANNER_SETUP_TOKEN_HASH` to the app (instance metadata / env, per ADR-0111); nothing sets it today, so setup stays closed. Needs an operator decision on where the hash lives for prod.
 - Must land before T-UR21 (`/setup` page) can be exercised on a drill.
@@ -301,7 +302,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
 - Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0134 §9, ADR-0099.
 
-### ◻ T-UR23 [P] Account delete rule (blocked dialog) → T-UR08, T-UR33
+### ✅ T-UR23 [P] Account delete rule (blocked dialog) → T-UR08, T-UR33
 - Service rule shipped in Phase P (T-UR33, ADR-0148); this task builds the blocked and confirm dialogs on the returned counts. Original scope: service refuses delete while any transaction, planned or recurring item references the account; dialog links to them; state blocked by recurring only; final confirm otherwise. Tests assert DB state and audit. Requirement F2.8. ADR-0134 §3.
 - UR23 scope (2026-11-25): the dialogs already shipped with T-UR08b (`pages/accounts/dialog-delete.html`, `accounts_view.delete_dialog`, `GET /accounts/{id}/edit?intent=delete`, 404 for unknown or foreign ids); no new route or template. This item pins the rule with `tests/integration/web/test_accounts_delete_rule.py`: counts text and link per state (transactions with others, planned, recurring only: `view=recurring`), planned-only and balance-only ("Its balance is X. Bring it to zero first.", no link, no form) variants, a foreign account id is 404 on GET and POST and stays live (user 2 cannot reference user 1's account: `require_owned` refuses cross-user FKs, so a cross-user count scenario does not exist and is not claimed), confirm POST soft-deletes with one audit row, a POST while blocked (recurring, transaction or balance) is a 409 that writes nothing. Counts derive from `services/accounts.account_references` (no new derived value).
 
@@ -331,7 +332,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ## Phase 3 — Cutover
 
-### ◻ T-UR15 [S] Delete the old frontend (final sweep) → T-UR05..T-UR14
+### ✅ T-UR15 [S] Delete the old frontend (final sweep) → T-UR05..T-UR14
 - **Files**: every remaining `removal.md` row: old `base.html`, what is left of `_partials/`, `partials/` and the per-feature template directories, `app.css`, `rising-dough.css`, `tailwind.css`, `tailwind.src.css`, `tokens.css`, `fonts.css`, `auth.css`, `settings-*.css`, old fonts, `favicon.svg`, old `static/js/*` (the kept behaviour JS already moved to `rd/js/` in T-UR04), remaining old visual baselines. Port `dev/components.html` from the handoff's `components.html`.
 - **Toolchain**: Tailwind npm dependency and config, `just css-watch` and the Tailwind part of `just css`, the `tailwind-check` pre-commit hook, the old stylelint config, Tailwind steps in CI workflows and the Dockerfile.
 - **Dead Python**: anything only the old frontend used (old-template view-model fields, helpers, filters, the v2 legacy redirects if T-UR00 decides they have served their purpose), found with `vulture` plus coverage on the full suite.
@@ -339,6 +340,8 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - **Docs**: `CLAUDE.md` (stack: Tailwind gone), `docs/requirements.md` §3 stack and tooling lines, the `frontend-visual-audit` skill and any agent briefs that name old paths; ADR-0052, ADR-0053, ADR-0055 marked `Superseded by ADR-0107` and ADR-0050 marked superseded for visual direction, in the files and in `docs/adr/README.md`.
 - **Operator**: delete the untracked `data/rising-dough-frontend/` copy from the main checkout (if not done after T-UT01).
 - **Progress**: UR15a done (2026-11-25): old Budget and Forecast pages retired (`budget/index.html`, `budget/_yearly.html`, `forecast/index.html`, `partials/forecast/*`, `web/forecast_data.py`); `GET /budget`, `/budget/yearly`, `/forecast`, `/forecast/view` redirect (307) to `/plan?tab=budget|year|forecast` keeping `year`, `month`, `horizon_months`->`horizon` only when it is 6/12/24/60, otherwise dropped so the bookmark lands on the default horizon (`web/plan_redirects.py`; direct `/plan?tab=forecast&horizon=7` stays 422); the plan forecast hero refetches on `forecast-stale`; budget/forecast page tests ported to `/plan`. Remaining: UR15b (old transaction/planned/recurring forms), `dev/components.html` port (UR15c), old CSS/JS/fonts, Tailwind toolchain, docs, dead-Python sweep.
+- **Progress UR15d (2026-11-25, old assets removed)**: `d8e57560` removed the old CSS, fonts, Tailwind toolchain and dead helpers and relocated the kept JS (ADR-0107 §2; `csrf.js`, `htmx-2.0.11.min.js` and `passkeys.js` kept). Acceptance evidence: `template_logic.toml` is empty; CI `success` on `d8e57560` (full suite, includes `test_old_frontend_removed`). `e2e` failed on that tip (see the run log).
+- **Remaining (operator)**: two edits to `.github/workflows/ci.yml` that the token could not push: the Tailwind steps ([q-ci-tailwind-removal.md](q-ci-tailwind-removal.md)) and the guard checkout depth ([q2-ci-checkout.md](q2-ci-checkout.md)).
 - **Acceptance**: `tests/architecture/allowlists/template_logic.toml` is empty (ADR-0130 amendment 2026-11-21); every `removal.md` row is `deleted` or `keep` with an ADR-0107 §2 reason; `test_old_frontend_removed.py` green; `grep -r` finds no reference to a removed path, `tailwind`, `app.css` or `rising-dough.css` outside `docs/adr/` and `docs/CHANGELOG.md`; `just ci` green; crawler inventory diff reviewed.
 - **Progress UR15b (2026-11-25, legacy entry flows)**. Survey (callers over templates, `static/rd/js`, `tests/e2e`, `tests/ui_map`):
   - `GET /transactions/new`, `/planned/new`, `/recurring/new`: callers were only the shell's own links (`layouts/base.html` x2, `layouts/_palette.html`, `pages/ledger/index.html`, `fragments/states/*-empty|ledger-first-run`, `fragments/ledger/*-table`) and tests; all three only rendered the `/add` dialog. Repointed the links to `/add?when=happened&dialog=1` and deleted the three routes (`render_new_form`) with their contract/integration tests, the crawl inventory rows and the `mockup_routes` rows.
@@ -402,3 +405,17 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - WebKit e2e (advisory) failures: `test_crawl[ledger]` (export as parquet, frame load interrupted), `test_crawl[today]` (cancelled GET `/today/upcoming`), `test_csp_buttons` (x2), `test_setup_page` (timeout).
 - Amount inputs stay ungrouped (`parse_amount_str` accepts no grouping). Operator question: are grouped digits wanted in amount inputs?
 - `merge-item` remote-branch deletion returns 403 (token). Stale `wi/**` branches on origin to be pruned by the operator.
+- GET 422 page copy is form-oriented for plain GETs (for example `/plan?horizon=100000`).
+- The `_orphans` macro matches on message text; fragile. Key it by field name.
+- `dialog.html` `_orphans` takes an unused `field_count` argument.
+- 500s on bad `day_of_month`, year or opening balance (`abc`), and on a duplicate category name, in dialogs.
+- Bad values are accepted and saved: edit recurring with `day_of_month=45`; budget override amount empty or `abc`.
+- A service-raised `ValidationError` HTMX flash (`handle_validation`) lacks `HX-Reswap: none`.
+- Palette and tab-bar `+` / `n` navigate to `/today` to open a new entry, instead of opening it in place on `/ledger`.
+- Removed routes such as `/transactions/new` answer 405, not 404.
+- `accounts/9999/edit` answers a bare `account not found` body.
+- Invite links use the configured public base URL, not the request host (see the T-UR20 note). There is no `copy link` for invites: the token is stored hashed.
+- Intermittent required Chromium e2e failure, 'note typed but not posted' (QFIX10/11/12). Root cause under investigation; QFIX10 is not merged (its branch exists on origin).
+- Unused ui_map locators: `any_recurring_row` and `plan_year.disclosure`.
+- Dead-Python sweep incomplete (`vulture` not installed): filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans` and `year_cell_state` are unused by templates.
+- Commit subjects that deviate from the item-id rule (history not rewritten): PAR-A audit `docs(PAR-A)`; UR10a `wip(UR10a)`.

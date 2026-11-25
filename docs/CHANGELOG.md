@@ -1,5 +1,47 @@
 # Changelog
 
+2026-11-25 PAR-B: dialog 422 summary box removed; dialog-level visible errors for every failed save (b43d8c6b, Q18).
+
+2026-11-25 UR15d: old CSS, fonts, Tailwind toolchain and dead helpers removed; kept JS relocated (d8e57560, ADR-0107 §2, T-UR15).
+
+2026-11-25 QFIX9: same-account validation tests assert the field-level error (aff88b94).
+
+2026-11-25 UR15c: old shell removed (base.html, partials, old JS); dev/components ported; template_logic empty (6eab98c6, T-UR15).
+
+2026-11-25 PAR-A: topbar email removed; session badge reads THIS DEVICE (f13810bd, Q17, Q23).
+
+2026-11-25 PAR-C: handoff copy for non-positive amount and duplicate email (0533c399).
+
+2026-11-25 QFIX8: tailwind rebuild, clock-dependent tests and e2e barrier path (fa0179ba, 6c105cc8).
+
+2026-11-25 PAR-D: seed follows the handoff for chip colours, picker names and 23 upcoming rows (6e1cb970).
+
+2026-11-25 UR15a: budget and forecast pages retired; redirects to /plan (c9d835d5, T-UR15).
+
+2026-11-25 QFIX7: regenerate tests/contract/routes.md after UR20b (5ec2559c).
+
+2026-11-25 UR20b: add-user dialog, one-time password dialog, users pinning tests (9c1a902d, T-UR20).
+
+2026-11-25 QFIX6: ruff format on test_recurring_formula; all pre-commit hooks pass repo-wide (bce51a9a).
+
+2026-11-25 QFIX5: repair CI on ba0c7226: djlint invite page, tailwind rebuild, recurring formula create test (4e11d8aa).
+
+2026-11-25 QFIX4: e2e submit barrier asserts a 2xx answer before DB reads (be8082f6).
+
+2026-11-25 UR15b: legacy entry flows removed; create answers the dialog (ba0c7226, T-UR15).
+
+2026-11-25 UR20a: invite landing pages and invite management on /settings/users (e41ee9fe, T-UR20).
+
+2026-11-25 UR00f: 20 of 59 unmapped overlay pages mapped in the handoff reference comparison (3c5aec99, T-UR00b).
+
+2026-11-25 QFIX3: drop stale old-UI snapshot baselines for migrated pages (91de6dfe).
+
+2026-11-25 UR21a: setup-token hash wiring (env, Terraform pass-through, ci_environments entry; Q10, T-UR21a) (4495a27c).
+
+2026-11-25 UR23: account delete rule pinned; blocked and confirm dialog tests (e3ec9932, T-UR23).
+
+2026-11-25 UR28: planned export and over-limit edit credit line pinned (c765a4d8, T-UR28).
+
 2026-11-25 QFIX2: repair 4 Chromium e2e failures (auth flash locator, crawl inventory, promote flow) (eb53536c).
 
 2026-11-25 QFIX1: repair red non-e2e CI: ledger hero ctx tests, clock-independent seed, q2 note, css rebuild (38683f35).
