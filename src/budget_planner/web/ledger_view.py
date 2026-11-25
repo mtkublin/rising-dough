@@ -31,6 +31,7 @@ from budget_planner.services.ledger_totals import (
     RecurringTotals,
     signed_effect,
 )
+from budget_planner.services.recurring_formula import cycle_label
 from budget_planner.web.ledger_export import filter_query
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
 from budget_planner.web.paths import EDIT_PATH
@@ -601,6 +602,8 @@ def _recurring_row_view(row: Mapping[str, object], names: Mapping[int, Category]
     effective = _int(row, "effective_amount_minor")
     amount = _signed_text(effective, direction, currency)
     title = _str_of(row, "default_description") or "\N{EM DASH}"
+    if row.get("formula_cycle"):
+        title = cycle_label(_str_of(row, "default_description"))
     sub = _account_name(row)
     due = _date(row, "next_due")
     overrides = _override_rows(row, rule_id, currency)

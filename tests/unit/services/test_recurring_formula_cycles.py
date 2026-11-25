@@ -30,6 +30,7 @@ from budget_planner.services.recurring_formula import (
     FormulaCycleError,
     PreviewError,
     compute_savable_amount,
+    live_rule_amount,
     preview,
     validate_formula_sources,
 )
@@ -182,3 +183,35 @@ def test_a_stored_cycle_is_skipped_marked_and_logged(
         include_overdue=False,
     )
     assert {i.description for i in dates_only} == {""}
+
+
+def test_live_amount_of_a_stored_cycle_is_zero_and_flagged_like_the_expansion(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    # Q25: both surfaces agree; the saved snapshot (100.00) is not shown for a cycle
+    taxes_rule = _rule(conn, world, "taxes", _reads(world["savings"]))
+    _rule(conn, world, "savings", _reads(world["taxes"]))
+    fx = formula_fx_of(conn, USER_ID)
+    rule = recurring_repo.find_rule(conn, USER_ID, taxes_rule)
+    assert rule is not None
+    assert live_rule_amount(conn, USER_ID, rule, date(2026, 11, 1), fx) == (0, True)
+    expanded = recurring_svc.pending_occurrences(
+        conn,
+        USER_ID,
+        fx=fx,
+        start=date(2026, 11, 1),
+        end=date(2027, 3, 1),
+        today=date(2026, 11, 22),
+        include_overdue=False,
+    )
+    assert {i.amount for i in expanded if i.rule_id == taxes_rule} == {0}
+
+
+def test_live_amount_of_a_healthy_rule_is_not_flagged(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    fixed = _rule(conn, world, "salary")
+    fx = formula_fx_of(conn, USER_ID)
+    rule = recurring_repo.find_rule(conn, USER_ID, fixed)
+    assert rule is not None
+    assert live_rule_amount(conn, USER_ID, rule, date(2026, 11, 1), fx) == (10_000, False)
