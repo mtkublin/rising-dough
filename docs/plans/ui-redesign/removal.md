@@ -126,15 +126,15 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/forecast/_table.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
 | `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR15 | delete | kept: `GET /forecast` and `GET /forecast/view` are pinned by `tests/contract/test_plan_views.py` (heading, `#forecast-chart`, `#forecast-monthly-table`, horizon spinbutton); T-UR15 retires the routes with the contract rows |
 | `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15 |
-| `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | delete |  |
-| `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR15 | delete | still the old shell's promote slide-over (ledger) until T-UR09 / T-UR10; Today uses pages/entries/promote.html |
+| `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | deleted | UR24: the inline promote routes are gone; promote is the dialog only |
+| `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR24 | deleted | UR24: the legacy `?dialog=` branch is gone; `GET /planned/{id}/promote` always renders pages/entries/promote.html |
 | `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | delete | UR10a kept: `created_planned_response` (the old "+ Add" planned create) still renders it; goes with T-UR09 / T-UR15 |
 | `src/budget_planner/web/templates/partials/planned/_table.html` | T-UR10 | deleted | UR10a: orphaned (only planned/index.html included it) |
 | `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" repeats tab and the 422 of its create; goes with T-UR09 / T-UR15 |
 | `src/budget_planner/web/templates/partials/recurring/_formula_preview.html` | T-UR10 | deleted | UR10b: POST /recurring/formula/preview renders `fragments/dialogs/formula-result.html` |
 | `src/budget_planner/web/templates/partials/recurring/_override_form.html` | T-UR10 | deleted | UR10b: `GET /recurring/{id}/overrides/new` renders `fragments/dialogs/override-occurrence.html` |
-| `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR24 | delete |  |
-| `src/budget_planner/web/templates/partials/recurring/_promote_modal.html` | T-UR15 | delete | still the old shell's promote slide-over (ledger) until T-UR09 / T-UR10; Today uses pages/entries/promote.html |
+| `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR24 | deleted | UR24: the inline promote routes are gone; promote is the dialog only |
+| `src/budget_planner/web/templates/partials/recurring/_promote_modal.html` | T-UR24 | deleted | UR24: the legacy `?dialog=` branch is gone; `GET /recurring/{id}/promote` always renders pages/entries/promote.html |
 | `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | delete | UR10a kept: `render_created_row` and `render_rule_row` (old "+ Add" repeats create, skip-next) still render it; goes with T-UR15 |
 | `src/budget_planner/web/templates/partials/transactions/_empty.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/partials/transactions/_filter_form.html` | T-UR09 | deleted |  |

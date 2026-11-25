@@ -19,7 +19,7 @@ from budget_planner.web.middleware.auth import EXEMPT_PATHS, STATIC_PREFIX
 KEY_PATTERN: Final = re.compile(r"^(GET|POST|PUT|PATCH|DELETE|MOUNT) /\S*$")
 _ROUTER_PREFIX: Final = "budget_planner.web.routers."
 _FRAGMENT_NAMES: Final = frozenset(
-    {"limit_preview", "last_checked", "promote_inline", "drawer", "close", "add_entry_overlay"}
+    {"limit_preview", "last_checked", "drawer", "close", "add_entry_overlay"}
 )
 
 

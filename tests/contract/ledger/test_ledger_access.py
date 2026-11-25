@@ -40,7 +40,6 @@ KEYS: Final[tuple[str, ...]] = (
     "POST /planned/{planned_id}/delete",
     "POST /planned/{planned_id}/restore",
     "GET /planned/{planned_id}/promote",
-    "GET /planned/{planned_id}/promote/inline",
     "POST /planned/{planned_id}/promote",
     "GET /planned/export",
     "GET /recurring/new",
@@ -53,7 +52,6 @@ KEYS: Final[tuple[str, ...]] = (
     "POST /recurring/{rule_id}/overrides",
     "POST /recurring/{rule_id}/overrides/{occurrence_date}/delete",
     "GET /recurring/{rule_id}/promote",
-    "GET /recurring/{rule_id}/promote/inline",
     "POST /recurring/{rule_id}/promote",
     "POST /recurring/{rule_id}/skip-next",
 )

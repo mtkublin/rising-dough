@@ -43,7 +43,6 @@ from budget_planner.web.rendering import is_hx_request, render, render_context
 _TXN_FORM = "partials/transactions/_form.html"
 _PLANNED_FORM = "partials/planned/_form.html"
 PROMOTE_TEMPLATE = "pages/entries/promote.html"
-_LEGACY_PROMOTE = "partials/planned/_promote_modal.html"
 EDIT_PLANNED_TEMPLATE = "fragments/dialogs/edit-planned.html"
 _RECONCILE_DIALOG = "pages/accounts/dialog-reconcile.html"
 _UNPROCESSABLE = 422
@@ -385,24 +384,10 @@ def promote_planned_dialog(
     planned: PlannedTransaction,
     account: Account | None,
     *,
-    as_dialog: bool | None = None,
     posted: Mapping[str, str] | None = None,
     errors: Mapping[str, str] | None = None,
 ) -> Response:
-    """The promote dialog for a planned item: prefill (200) or posted values with errors (422).
-
-    ``as_dialog`` ``None`` follows the post (``from_dialog``). The old shell (ledger) still gets
-    its slide-over until T-UR09 / T-UR10 (``as_dialog`` false).
-    """
-    if not (from_dialog(request) if as_dialog is None else as_dialog):
-        return render(
-            request,
-            _LEGACY_PROMOTE,
-            planned=planned,
-            account=account,
-            errors=dict(errors or {}),
-            status_code=_UNPROCESSABLE if errors else 200,
-        )
+    """The promote dialog for a planned item: prefill (200) or posted values with errors (422)."""
     context = entry_forms.promote_context(
         conn,
         user_id,

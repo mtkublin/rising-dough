@@ -612,25 +612,21 @@ def test_promote_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[s
     assert "HX-Refresh" not in on.headers
 
 
-def test_promote_invalid_amount_rerenders_modal(client: TestClient, ctx: dict[str, int]) -> None:
+def test_promote_invalid_amount_rerenders_dialog(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _planned_state(db)
     form = {"operation_date": "2026-10-15", "amount": "0"}
     r = client.post(f"/planned/{ctx['pl']}/promote", data=form, headers=_ON_LEDGER)
     assert r.status_code == 422
-    assert _html.exists(r.text, ledger.slideover)
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert "Amount : amount must be positive" in _html.all_text(r.text, entries.summary)
+    assert _planned_state(db) == before
 
 
-def test_promote_on_the_old_shell_is_still_the_slide_over(
-    client: TestClient, ctx: dict[str, int]
-) -> None:
-    """Without ``dialog=1`` (the ledger, until T-UR09 / T-UR10) the old modal and its 422 stay."""
+def test_promote_get_is_always_the_dialog(client: TestClient, ctx: dict[str, int]) -> None:
+    """T-UR24: no ``?dialog=`` switch, no slide-over; the inline form route is gone."""
     r = client.get(f"/planned/{ctx['pl']}/promote", headers=_HTMX)
-    assert _html.exists(r.text, ledger.slideover)
-    assert "HX-Retarget" not in r.headers
-    bad = client.post(
-        f"/planned/{ctx['pl']}/promote",
-        data={"operation_date": "bad", "amount": "-1"},
-        headers=_HTMX,
-    )
-    assert bad.status_code == 422
-    assert "operation_date: invalid date" in _html.all_text(bad.text, errors.alert)
-    assert "amount: amount must be positive" in _html.all_text(bad.text, errors.alert)
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert _html.exists(r.text, role("dialog", re.compile("^promote to actual")))
+    assert client.get(f"/planned/{ctx['pl']}/promote/inline", headers=_HTMX).status_code == 404
