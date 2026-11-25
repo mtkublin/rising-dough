@@ -481,3 +481,98 @@ def test_delete_other_admin_is_allowed(admin_client: TestClient, db: sqlite3.Con
         "SELECT count(*) FROM users WHERE is_admin = 1 AND deleted_at IS NULL"
     ).fetchone()[0]
     assert live_admins == 1
+
+
+@covers("POST /settings/users/{user_id}/delete")
+def test_delete_user_keeps_their_ledger_entries(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "ledger@example.test")
+    uid = _uid(db, "ledger@example.test")
+    account = db.execute(
+        "INSERT INTO accounts(user_id, name, currency) VALUES (?, 'Own', 'PLN')", (uid,)
+    ).lastrowid
+    category = db.execute(
+        "INSERT INTO categories(user_id, name, direction) VALUES (?, 'Food', 'expense')", (uid,)
+    ).lastrowid
+    db.execute(
+        "INSERT INTO transactions(user_id, operation_date, category_id, account_id, amount)"
+        " VALUES (?, '2026-01-15', ?, ?, 1234)",
+        (uid, category, account),
+    )
+    assert admin_client.post(f"/settings/users/{uid}/delete", headers=HX).status_code == 200
+    kept = db.execute(
+        "SELECT amount, deleted_at FROM transactions WHERE user_id = ?", (uid,)
+    ).fetchall()
+    assert [(row["amount"], row["deleted_at"]) for row in kept] == [(1234, None)]
+
+
+# --- GET /settings/users/new and the add dialog (T-UR20b) ---------------------
+
+
+@covers("GET /settings/users/new")
+def test_add_dialog_opens_for_admin(admin_client: TestClient) -> None:
+    dialog = admin_client.get("/settings/users/new", headers=HX)
+    assert dialog.status_code == 200
+    assert dialog.headers["hx-retarget"] == "#modal-root"
+    assert _html.exists(dialog.text, ui.add_user_submit)
+
+
+@covers("GET /settings/users/new")
+def test_add_dialog_is_404_for_members(client: TestClient) -> None:
+    assert client.get("/settings/users/new", headers=HX).status_code == 404
+
+
+@covers("GET /settings/users/new")
+def test_add_dialog_sends_anonymous_to_login(anon_client: TestClient) -> None:
+    anon = anon_client.get("/settings/users/new", follow_redirects=False)
+    assert anon.status_code == 302
+    assert anon.headers["location"].startswith("/auth/login")
+
+
+@covers("GET /settings/users")
+def test_page_offers_add_user_beside_create_invite(admin_client: TestClient) -> None:
+    page = admin_client.get("/settings/users")
+    assert _html.resolve_one(page.text, ui.add_user_link)["hx-get"] == "/settings/users/new"
+    assert _html.exists(page.text, ui.create_invite_link)
+
+
+@covers("POST /settings/users")
+def test_add_dialog_role_radio_creates_admin_and_never_logs_the_password(
+    admin_client: TestClient,
+    db: sqlite3.Connection,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level("DEBUG"):
+        r = admin_client.post(
+            "/settings/users",
+            data={"email": "roleadmin@example.test", "name": "Ro", "role": "admin"},
+            headers=HX,
+        )
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
+    password = _password_in(r.text)
+    uid = _uid(db, "roleadmin@example.test")
+    assert db.execute("SELECT is_admin FROM users WHERE id = ?", (uid,)).fetchone()[0] == 1
+    assert password not in caplog.text
+    audit_text = " ".join(
+        str(tuple(row)) for row in db.execute("SELECT * FROM audit_log").fetchall()
+    )
+    assert password not in audit_text
+
+
+@covers("POST /settings/users")
+def test_add_dialog_duplicate_email_reopens_dialog_with_field_error(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "taken@example.test")
+    before = db.execute("SELECT count(*) FROM users").fetchone()[0]
+    r = admin_client.post(
+        "/settings/users", data={"email": "Taken@example.test", "name": "X"}, headers=HX
+    )
+    assert r.status_code == 422
+    assert r.headers["hx-retarget"] == "#modal-root"
+    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(r.text, ui.add_user_email_error)
+    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(r.text, ui.add_errors)
+    assert not _html.exists(r.text, ui.new_password_value)
+    assert db.execute("SELECT count(*) FROM users").fetchone()[0] == before

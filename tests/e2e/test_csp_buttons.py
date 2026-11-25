@@ -26,6 +26,7 @@ from tests.e2e.ui_actions import (
     choose_category,
     open_add_slide_over,
     open_new_entry,
+    save_entry,
 )
 from tests.ui_map import (
     accounts,
@@ -98,7 +99,7 @@ def test_add_from_today_submits_under_csp(live_server: tuple[str, Path], page: P
     choose_account(page, "Checking")
     to_playwright(page, entries.hero_amount).fill("12.34")
     to_playwright(page, entries.field_note).fill("today-added")
-    to_playwright(page, entries.save).click()
+    save_entry(page)
     # Today reloads: the 500.00 opening balance drops by 12.34.
     expect(to_playwright(page, rd_shell.main)).to_contain_text("487.66")
     assert db_probe.txn_amounts(db_path, "today-added") == [_ADDED_MINOR]
@@ -202,7 +203,7 @@ def test_add_from_ledger_submits_under_csp(live_server: tuple[str, Path], page: 
     choose_account(page, "Checking")
     to_playwright(page, entries.hero_amount).fill("12.34")
     to_playwright(page, entries.field_note).fill("csp-added")
-    to_playwright(page, entries.save).click()
+    save_entry(page)
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()  # ledger-stale closes it
     expect(to_playwright(page, ledger.view_table("actual"))).to_contain_text("csp-added")
     assert db_probe.txn_amounts(db_path, "csp-added") == [_ADDED_MINOR]
@@ -287,7 +288,7 @@ def test_add_planned_from_today_submits_under_csp(
     to_playwright(page, entries.field_due).fill(soon.isoformat())
     to_playwright(page, entries.hero_amount).fill("25.00")
     to_playwright(page, entries.field_note).fill("today-planned")
-    to_playwright(page, entries.save).click()
+    save_entry(page)
     expect(to_playwright(page, entries.dialog)).to_have_count(0)  # saved: Today reloaded
     planned_row = today.upcoming_planned(db_probe.planned_id(db_path, "today-planned"))
     expect(to_playwright(page, planned_row)).to_be_visible()
@@ -320,7 +321,7 @@ def test_add_recurring_from_today_submits_under_csp(
     choose_account(page, "Checking")
     to_playwright(page, entries.hero_amount).fill("40.00")
     to_playwright(page, entries.field_note).fill("today-rule")
-    to_playwright(page, entries.save).click()
+    save_entry(page)
     expect(to_playwright(page, entries.dialog)).to_have_count(0)  # saved: Today reloaded
     rule = ledger.recurring_row(db_probe.rule_id(db_path, "today-rule"))
     page.goto(f"{base_url}/ledger?view=recurring")

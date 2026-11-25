@@ -1,0 +1,62 @@
+{# Settings · add user dialog (T-UR20b, ADR-0107, ADR-0134 section 1). Handoff: overlays/add-user.html (and --error).
+   Context: email, name, is_admin (submitted values), errors (field -> message), field_count / field_errors (invalid_dialog_response).
+   The answer is the one-time password dialog (the password is shown once, the response is no-store). Role radios post `role`. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog(
+  "dlg-add-user",
+  "add user",
+  size="md",
+  action="/settings/users",
+  hx_post="/settings/users",
+  field_count=field_count|default(0),
+  field_errors=field_errors|default(()),
+  actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ add user ]"}]
+) %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="au-email">email</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="au-email"
+             name="email"
+             type="email"
+             value="{{ email }}"
+             placeholder="name@example.com"
+             autocomplete="off"
+             required
+             {% if "email" in errors %}aria-invalid="true" aria-describedby="au-email-error"{% endif %}>
+    </span>
+    {% if "email" in errors %}<p class="rd-field__error" id="au-email-error">▲ {{ errors.email }}</p>{% endif %}
+  </div>
+  <div class="rd-field">
+    <label class="rd-field__label" for="au-name">name</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="au-name"
+             name="name"
+             type="text"
+             value="{{ name }}"
+             placeholder="Ola"
+             maxlength="100"
+             autocomplete="off"
+             {% if "name" in errors %}aria-invalid="true" aria-describedby="au-name-error"{% endif %}>
+    </span>
+    {% if "name" in errors %}<p class="rd-field__error" id="au-name-error">▲ {{ errors.name }}</p>{% endif %}
+  </div>
+  <div class="rd-field rd-field--seg"
+       role="radiogroup"
+       aria-labelledby="au-role-label">
+    <span class="rd-field__label" id="au-role-label">role</span>
+    <div class="rd-segmented">
+      <label class="rd-segmented__option">
+      <input type="radio"
+             name="role"
+             value="member"
+             {% if not is_admin %}checked{% endif %}>member</label>
+      <label class="rd-segmented__option">
+      <input type="radio"
+             name="role"
+             value="admin"
+             {% if is_admin %}checked{% endif %}>admin</label>
+    </div>
+  </div>
+{% endcall %}
