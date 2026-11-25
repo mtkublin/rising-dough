@@ -58,8 +58,8 @@ visible at all three viewports.
 Check 4 (today_segment, then online "all" succeeds): the offline state is removed by offline.js, but the
 assertive flash stays (see findings).
 
-consoleErrors during forced offline (expected, listed separately): 6 per offline action (3 `Failed to load
-resource: net::ERR_INTERNET_DISCONNECTED` plus HTMX send error logs), 12 for the filter and hero scenarios
+consoleErrors during forced offline (expected, listed separately): 6 per offline action (offline resource-load
+errors plus HTMX send error logs), 12 for the filter and hero scenarios
 (two requests); requestFailures 2 or 4 respectively. Online consoleErrors and requestFailures: 0 in all
 scenarios.
 
@@ -76,7 +76,7 @@ scenarios.
 
 1. Behavior, low-medium: non-form failures show two red boxes (the "You're offline ... retry now" state in
    `#flash-region` and the "Could not reach the server" flash right under it). They do not overlap, but the
-   message is duplicated and they push the page down by about 190 px at 1440 and 1024 and about 245 px at 375
+   message is duplicated and they push the page down by about 200 px at 1440 and 1024 and about 245 px at 375
    (`1440__today_segment_1.png`, `375__today_segment_1.png`). Decide whether non-form requests should show
    only one of them.
 2. Behavior, low: the assertive flash is not cleared by a following successful request, while the offline
