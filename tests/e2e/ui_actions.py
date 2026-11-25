@@ -30,18 +30,30 @@ def open_new_entry(page: Any) -> None:
     expect(to_playwright(page, entries.dialog)).to_be_visible()
 
 
-def save_entry(page: Any) -> None:
-    """Click Save in the new-entry dialog and wait for the server's answer to the post.
+def submit_ok(page: Any, button: Locator, *, path_suffix: str | None = None) -> None:
+    """Click ``button`` and wait for the server's answer to the post, which must be 2xx.
 
     The dialog going away is not a barrier for the database (a reload or a swap can remove it
     around the request); the post's response is: the row is committed before the server answers.
+    A click that never posts times out here, and a rejected post (422, 409, 500) fails with its
+    body instead of surfacing later as an empty probe. Hero refresh GETs never match.
     """
-    with page.expect_response(_is_entry_post):
-        to_playwright(page, entries.save).click()
+
+    def is_post(response: Any) -> bool:
+        if response.request.method != "POST":
+            return False
+        return path_suffix is None or response.url.split("?")[0].endswith(path_suffix)
+
+    with page.expect_response(is_post) as answer:
+        to_playwright(page, button).click()
+    assert answer.value.ok, (
+        f"{answer.value.url} answered {answer.value.status}: {answer.value.text()}"
+    )
 
 
-def _is_entry_post(response: Any) -> bool:
-    return response.request.method == "POST" and not _is_hero_refresh(response)
+def save_entry(page: Any) -> None:
+    """Save the new-entry dialog and wait for the committed answer (see :func:`submit_ok`)."""
+    submit_ok(page, entries.save)
 
 
 def choose_category(page: Any, name: str) -> None:
