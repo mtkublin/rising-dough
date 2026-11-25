@@ -193,6 +193,30 @@ optional = true
 reason = "seed value via budget.month_summary: left"
 
 [[row]]
+page = "pages/ledger/actual.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "19,417.18"
+reason = "handoff inconsistent, app right: the board's hero repeats Today's budgeted-category spend (5,014.55) while the same ledger lists the Fixed costs and Taxes entries; ADR-0151 section 2 defines the figure as every expense in the pay window, which the seed totals to 19,417.18 (the Oct 2026 expense of the analytics flow board)"
+
+[[row]]
+page = "pages/ledger/actual.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "7"
+reason = "digit count of the hero figure above (19,417.18 has seven digits)"
+
+[[row]]
+page = "pages/today.html"
+select = ".rd-upcoming__cat .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages (the rule description too); the seed has one such category"
+
+[[row]]
 page = "pages/*.html"
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
