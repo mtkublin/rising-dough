@@ -217,7 +217,14 @@ def _skeleton(html: str) -> dict[str, object]:
         ),
         "form": [(f.get("class"), f.get("method")) for f in dlg.find_all("form")],
         "band": chrome(
-            ".rd-dialog__band, .rd-dialog__band-head, .rd-dialog__hero, .rd-dialog__hero-row"
+            "rd-dialog__band",
+            "rd-dialog__band-head",
+            "rd-dialog__hero",
+            "rd-dialog__hero-row",
+            "rd-dialog__amount",
+            "rd-dialog__cur",
+            "rd-dialog__hero-note",
+            "u-visually-hidden",
         ),
         "title": chrome("rd-dialog__title", "rd-dialog__confirm", "rd-dialog__confirm-title"),
         "close": [
@@ -243,6 +250,7 @@ def _skeleton(html: str) -> dict[str, object]:
 def _handoff(name: str) -> dict[str, object]:
     skeleton = _skeleton((_OVERLAYS / f"{name}.html").read_text())
     assert skeleton["actions"] and skeleton["title"], f"{name}: nothing parsed from the handoff"
+    assert skeleton["band"] or name != "new-account", "new-account: band and hero not parsed"
     return skeleton
 
 
