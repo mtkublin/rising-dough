@@ -72,7 +72,7 @@ def error_client(tmp_path: Path) -> Iterator[TestClient]:
 
     app.include_router(router)
     cookie = login_cookie(cfg)
-    with TestClient(app, raise_server_exceptions=False) as c:
+    with TestClient(app, raise_server_exceptions=False, base_url="https://testserver") as c:
         c.cookies.set(*cookie)
         yield c
 
@@ -153,7 +153,12 @@ def test_service_error_htmx_renders_flash_with_reference(error_client: TestClien
 
 def test_failed_htmx_write_flashes_the_handoff_copy_with_retry(error_client: TestClient) -> None:
     """handoff today--flash: a failed save keeps the form, offers retry, tooltip holds the id."""
-    r = error_client.post("/_boom/unhandled-write", headers={"HX-Request": "true"})
+    assert error_client.get("/health").status_code == 200  # mints the CSRF cookie (exempt route)
+    csrf = error_client.cookies.get("__Host-csrf")
+    assert csrf is not None
+    r = error_client.post(
+        "/_boom/unhandled-write", headers={"HX-Request": "true", "X-CSRF-Token": csrf}
+    )
     assert r.status_code == 500
     rid = r.headers["X-Request-Id"]
     flash = _html.text_of(r.text, by_id("flash-region-assertive"))
