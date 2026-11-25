@@ -37,6 +37,7 @@ from tests.visual.overlay import (
     APP_VALUES_SOURCE,
     GEOMETRY_ATTRIBUTES,
     GEOMETRY_SOURCES,
+    HIDDEN_SETTABLE_CLASSES,
     OVERLAY_FILE,
     VALUE_SOURCES,
     OverlayError,
@@ -65,7 +66,9 @@ def row_violations(row: Row) -> list[str]:
     if not row.reason.strip():
         found.append("no reason")
     if row.field not in {"text", "class"} and row.field not in ALLOWED_ATTRIBUTES:
-        if row.field in GEOMETRY_ATTRIBUTES:
+        if row.field == "hidden" and row.absent:
+            pass  # kind_violation holds it to HIDDEN_SETTABLE_CLASSES
+        elif row.field in GEOMETRY_ATTRIBUTES:
             if row.source != "geometry" or row.source not in GEOMETRY_SOURCES:
                 found.append(f"geometry attribute {row.field!r} needs a generated geometry source")
         else:
@@ -100,7 +103,9 @@ def skeleton(html: str) -> list[tuple[object, ...]]:
             sorted(
                 (k, _plain(k, v))
                 for k, v in el.attrs.items()
-                if k not in ALLOWED_ATTRIBUTES and k not in GEOMETRY_ATTRIBUTES
+                if k not in ALLOWED_ATTRIBUTES
+                and k not in GEOMETRY_ATTRIBUTES
+                and not (k == "hidden" and HIDDEN_SETTABLE_CLASSES & set(el.get("class") or []))
             )
         )  # geometry: generated rows only; reviewed class tokens ignored
         body = el.get_text() if el.name in ("script", "style") else ""
@@ -226,6 +231,24 @@ def test_absent_row_refuses_other_attributes_and_stale_state() -> None:
         apply_rows("pages/p.html", '<input value="a">', [_ABSENT])
     with pytest.raises(OverlayError, match="cannot be created"):
         apply_rows("pages/p.html", "<input>", [replace(_ABSENT, field="id")])
+
+
+_HIDDEN = replace(
+    _BASE, select=".rd-upcoming__promote-all", field="hidden", old="", value="hidden", absent=True
+)
+
+
+def test_hidden_row_sets_hidden_only_on_the_promote_all_form() -> None:
+    html = '<form class="rd-upcoming__promote-all"><button>x</button></form>'
+    assert row_violations(_HIDDEN) == []
+    out = apply_rows("pages/p.html", html, [_HIDDEN])
+    assert out == '<form class="rd-upcoming__promote-all" hidden="hidden"><button>x</button></form>'
+    assert skeleton(out) == skeleton(html)
+    assert row_violations(replace(_HIDDEN, select="form"))
+    assert row_violations(replace(_HIDDEN, select=".rd-btn"))
+    assert row_violations(replace(_HIDDEN, absent=False, old="x"))
+    assert row_violations(replace(_HIDDEN, old="x"))
+    assert skeleton('<p class="rd-btn" hidden>x</p>') != skeleton('<p class="rd-btn">x</p>')
 
 
 def test_red_style_and_id_rows_are_refused() -> None:
