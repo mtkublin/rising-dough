@@ -351,7 +351,7 @@ def new_entry_context(
     values = posted or {}
     cats = categories_service.list_all(conn, user_id)
     accounts = accounts_service.list_by_last_use(conn, user_id)
-    picker = categories_service.picker_summary(conn, user_id)
+    picker = categories_service.picker_summary(conn, user_id, today=today)
     account = _picked(accounts, parse_int(values.get("account_id", "")), accounts[:1])
     category_view = _category_view(
         cats, picker, parse_int(values.get("category", values.get("category_id", "")))

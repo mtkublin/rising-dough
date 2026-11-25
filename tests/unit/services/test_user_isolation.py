@@ -239,10 +239,12 @@ def _case_usage_for(conn: sqlite3.Connection, world: World) -> None:
 
 @covers("categories.picker_summary")
 def _case_picker_summary(conn: sqlite3.Connection, world: World) -> None:
-    recent = {c.id for c in categories.picker_summary(conn, OWNER_ID).recent}
+    recent = {c.id for c in categories.picker_summary(conn, OWNER_ID, today=TODAY).recent}
     assert world.owner.category_id in recent
     assert world.other.category_id not in recent
-    assert all(c.user_id == OWNER_ID for c in categories.picker_summary(conn, OWNER_ID).recent)
+    assert all(
+        c.user_id == OWNER_ID for c in categories.picker_summary(conn, OWNER_ID, today=TODAY).recent
+    )
 
 
 def collect() -> list[Violation]:

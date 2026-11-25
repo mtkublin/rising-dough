@@ -308,7 +308,7 @@ def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -
         refs = accounts_service.account_references(conn, handoff_seed.OWNER_ID, checking.id)
     finally:
         conn.close()
-    assert (refs.transactions, refs.planned, refs.recurring) == (33, 2, 8)
+    assert (refs.transactions, refs.planned, refs.recurring) == (46, 2, 8)
     expected = (
         f"{refs.transactions} transactions and {refs.planned + refs.recurring} "
         "planned or recurring items."

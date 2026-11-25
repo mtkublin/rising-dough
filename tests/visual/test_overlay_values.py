@@ -338,7 +338,7 @@ def _forecast_cases() -> tuple[Case, ...]:
 
 _CATEGORY_USAGE = (
     f"{_SEED} categories.usage_for / category_usage_text: "
-    "Takeaway has 3 live entries in the seed, the board says 41"
+    "Takeaway has 6 live entries in the seed, the board says 41"
 )
 
 _LISTED_CASES: tuple[Case, ...] = (
@@ -616,7 +616,7 @@ def test_overlay_values_pin(vals: Vals) -> None:
     assert (vals.committed, vals.left, vals.per_day) == (44_660, 98_793, 14_113)
     assert (vals.afford_small_per_day, vals.afford_small_delta) == (10_542, -3_571)
     assert (vals.afford_over_per_day, vals.afford_over_over) == (-11_601, 81_207)
-    assert (vals.actual_count, vals.recurring_count) == (42, 24)
+    assert (vals.actual_count, vals.recurring_count) == (55, 24)
 
 
 def test_forecast_cells_left_out_of_the_overlay_match(vals: Vals) -> None:

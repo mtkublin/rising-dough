@@ -40,4 +40,4 @@ The four changes are one backend task, **T-UR36**, the first code item on `ui/so
 
 ## Amendments
 
-- None yet.
+- 2026-11-25 (R1, T-UR00b, operator decision "follow the handoff"): section 2's recent chips rank by **entry count over the last 90 days** (reference date = the clock; ties by latest use, then id; up to 4; the selected category leads), not by latest transaction date. The handoff's base chips (Groceries, Takeaway, Transport, Nights Out) follow a stable rule, not "last used"; its 11-row ledger window cannot refute a most-used rule. Reconciliation stays excluded; archived categories and soft-deleted entries do not count.
