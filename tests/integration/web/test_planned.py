@@ -174,8 +174,8 @@ def _hero_part(text: str, css_class: str) -> Tag:
     return part
 
 
-def _count(db: sqlite3.Connection, table: str) -> int:
-    return int(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])  # noqa: S608  # fixed table names
+def _audit_rows(db: sqlite3.Connection) -> int:
+    return int(db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0])
 
 
 def _other_users_planned(db: sqlite3.Connection) -> int:
@@ -326,7 +326,7 @@ def test_update_404(client: TestClient, ctx: dict[str, int], db: sqlite3.Connect
 
 def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     before = _planned_state(db)
-    audit_before = _count(db, "audit_log")
+    audit_before = _audit_rows(db)
     r = client.post(
         f"/planned/{ctx['pl']}",
         data={
@@ -350,7 +350,7 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
     assert _html.resolve_one(r.text, edit_dialogs.field_note(scope)).get("value") == "kept"
     assert _html.resolve_one(r.text, edit_dialogs.hero_amount(scope)).get("value") == "-1"
     assert _planned_state(db) == before
-    assert _count(db, "audit_log") == audit_before
+    assert _audit_rows(db) == audit_before
 
 
 def test_update_with_nothing_posted_names_every_missing_field(
