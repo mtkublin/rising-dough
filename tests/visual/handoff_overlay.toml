@@ -2380,7 +2380,7 @@ select = "dialog .rd-dialog__amount--static"
 field = "text"
 old = "1,836.93"
 value = "3,002.00"
-reason = "seed value via recurring_formula preview (formula_hero): the Taxes rule's 19 % of Salary and Side Income less 19 % of Bank Fees #18 over the seed's transactions"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero over the seed's Taxes rule), checked against the served dialog by test_overlay_values_ledger"
 
 [[row]]
 page = "pages/overlays/edit-recurring--formula.html"
@@ -2388,7 +2388,7 @@ select = "dialog .rd-formula__result"
 field = "text"
 old = "→ next amount 1,836.93 PLN"
 value = "→ next amount 3,002.00 PLN"
-reason = "seed value via recurring_formula preview (formula_hero), the hero figure above"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero), the hero figure above"
 
 [[row]]
 page = "pages/overlays/override--[or]*.html"

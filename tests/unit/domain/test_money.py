@@ -12,6 +12,7 @@ from budget_planner.domain.money import (
     format_money,
     format_whole,
     minor_to_major,
+    parse_amount_minor,
     parse_amount_str,
     sign_glyph,
     to_minor_units,
@@ -181,6 +182,25 @@ def test_parse_amount_str_accepts_grouped_thousands_before_a_dot(
 @pytest.mark.parametrize("raw", ["2,23.80", "12,3456.00", ",239.80", "2,239,.80", "1.234,50"])
 def test_parse_amount_str_rejects_misplaced_grouping(raw: str) -> None:
     assert parse_amount_str(raw, "PLN") is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "currency", "minor"),
+    [
+        ("2,50", "PLN", 250),  # a lone comma stays the decimal separator
+        ("12,34", "PLN", 1234),
+        ("2,239.80", "PLN", 223_980),  # grouping only when a dot follows
+        ("1,234.00", "PLN", 123_400),
+        ("1,234", "JPY", None),  # no dot: the decimal reading, not allowed for a yen amount
+        ("1,234", "PLN", None),  # decimal reading has three decimals: rejected, never 1234.00
+        ("1 234,56", "PLN", None),  # a space is not a separator
+        ("1.234,56", "PLN", None),  # European grouping is not read
+    ],
+)
+def test_parse_amount_minor_keeps_the_meaning_of_ambiguous_commas(
+    raw: str, currency: str, minor: int | None
+) -> None:
+    assert parse_amount_minor(raw, currency) == minor
 
 
 def test_format_major_grouped_round_trips_and_leaves_zero_decimals_bare() -> None:

@@ -44,6 +44,10 @@ Runs 45496302019 and 45496318944 ran on branch `wi/ui/sourdough/UR00bD` at `afbd
 
 Recalibration rule: rerun the calibration (`visual-actual/self-clusters.txt` from the reference job, twice the largest value over at least two CI runs under load, ADR-0147 section 2) whenever the pinned Playwright container or the fonts change. Changing the cap needs an amendment to ADR-0147.
 
+### Normalised state
+
+- The app selects the amount of an opened dialog (`amount-input.js`); a static handoff mock cannot show a selection, so `handoff_recurring.settle` collapses it for `SETTLED_DIALOGS` (deliberate difference, `derived.md`); focus is kept.
+
 ### Known gaps
 
 - Overlay pages (`pages/overlays/*`) are compared against the plain `/today` route without opening the dialog; overlay routing is a later item.
