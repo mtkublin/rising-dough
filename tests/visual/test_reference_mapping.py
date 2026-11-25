@@ -23,6 +23,7 @@ from tests.visual.test_reference import (
     OVERLAY_DIALOGS,
     PAGE_MODIFIERS,
     UNMAPPED_OVERLAYS,
+    base_page_of,
     modifiers_for,
     route_for,
 )
@@ -42,10 +43,44 @@ def test_every_overlay_page_is_mapped_or_listed_unmapped() -> None:
     assert mapped | unmapped == overlays
     assert not mapped & unmapped
     assert not set(OVERLAY_DIALOGS) & OPENER_PAGES
-    for page in OVERLAY_DIALOGS:
-        assert route_for(page).startswith("/add?dialog=1&when=")
-    for page in OPENER_PAGES | unmapped:
-        assert route_for(page) == "/today"
+    for page in overlays:
+        assert base_page_of(page).startswith("pages/")
+        assert handoff.surface_of(base_page_of(page)) != "overlays"
+        assert route_for(page) == route_for(base_page_of(page))
+    for url in OVERLAY_DIALOGS.values():
+        assert url.startswith("/add?when=")
+
+
+# Overlay page -> (route of its own base page, seed modifiers), derived from the handoff file.
+_BASES = {
+    "edit-account": ("/accounts", ()),
+    "edit-account--liability": ("/accounts", ()),
+    "reconcile": ("/accounts", ()),
+    "new-account": ("/accounts", ()),
+    "edit-category": ("/settings", ()),
+    "archive-category": ("/settings", ()),
+    "new-category": ("/settings", ()),
+    "edit-planned": ("/ledger?view=planned", ()),
+    "promote--planned": ("/ledger?view=planned", ()),
+    "edit-recurring--fixed": ("/ledger?view=recurring", ("recurring-board",)),
+    "promote--recurring": ("/ledger?view=recurring", ("recurring-board",)),
+    "override--occurrence": ("/ledger?view=recurring", ("recurring-board",)),
+    "override--budget-default": ("/plan", ()),
+    "override--budget-month": ("/plan", ()),
+    "edit-transaction": ("/ledger", ()),
+    "edit-transaction--transit": ("/ledger", ()),
+    "new-entry--happened": ("/today", ()),
+    "new-entry--planned": ("/today", ()),
+    "new-entry--repeats-fixed": ("/today", ()),
+}
+
+
+@pytest.mark.parametrize("stem", sorted(_BASES))
+def test_overlay_renders_over_its_own_base_page(stem: str) -> None:
+    page = f"pages/overlays/{stem}.html"
+    route, modifiers = _BASES[stem]
+    assert route_for(page) == route
+    assert modifiers_for(page) == modifiers
 
 
 # Text each dialog must show once opened from its resolved route (the handoff names).
@@ -115,6 +150,27 @@ def test_opener_route_serves_its_dialog(stem: str, seeded: tuple[Settings, str])
     assert "<dialog" in body
     assert _DIALOG_TEXT[stem] in body
     assert retarget == "#modal-root"
+
+
+def test_recurring_openers_resolve_in_the_recurring_board_seed(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    path = tmp_path_factory.mktemp("board") / "seed.sqlite"
+    token = handoff_seed.build_seed(path, modifiers=("recurring-board",)).session_token
+    settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
+    for stem in ("edit-recurring--fixed", "promote--recurring", "override--occurrence"):
+        status, body, _ = _get(settings, token, _url(settings, stem))
+        assert status == 200, stem
+        assert _DIALOG_TEXT[stem] in body
+
+
+def test_new_entry_overlays_open_the_dialog_from_add(seeded: tuple[Settings, str]) -> None:
+    settings, token = seeded
+    for url in OVERLAY_DIALOGS.values():
+        status, body, retarget = _get(settings, token, url)
+        assert status == 200, url
+        assert "<dialog" in body
+        assert retarget == "#modal-root"
 
 
 def test_delete_opener_opens_the_blocked_variant(seeded: tuple[Settings, str]) -> None:

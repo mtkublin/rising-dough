@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,9 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.visual import handoff
+from tests.visual.conftest import serve_db
 from tests.visual.handoff_openers import OPENERS, opener_url
+from tests.visual.handoff_seed import build_seed
 
 pytestmark = pytest.mark.visual
 
@@ -41,7 +44,7 @@ SURFACE_ROUTES: dict[str, str] = {
     "settings": "/settings",
     "auth": "/auth/login",
     "errors": "/settings/users/999999/edit",
-    "overlays": "/today",
+    # No "overlays" entry: an overlay page renders over its own base page (`base_page_of`).
 }
 # Tab pages with their own app route (plan ?tab=, ledger ?view=, recently-deleted).
 PAGE_ROUTES: dict[str, str] = {
@@ -53,17 +56,20 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
     "pages/errors/422.html": "/budget?month=zz",
 }
-# Overlay pages whose dialog the app opens from a plain GET: the new-entry shell page
-# (`/add?dialog=1&when=<tab>`) renders the page with the dialog open (T-UR07b).
+# Overlay pages whose dialog the app opens from a plain GET (the new-entry dialog,
+# `/add?when=<tab>`, T-UR07b). Like every opener it is fetched into #modal-root over the
+# overlay's base page (Today), never loaded as a blank shell.
 OVERLAY_DIALOGS: dict[str, str] = {
-    "pages/overlays/new-entry--happened.html": "/add?dialog=1&when=happened",
-    "pages/overlays/new-entry--planned.html": "/add?dialog=1&when=planned",
-    "pages/overlays/new-entry--repeats-fixed.html": "/add?dialog=1&when=repeats",
+    "pages/overlays/new-entry--happened.html": "/add?when=happened",
+    "pages/overlays/new-entry--planned.html": "/add?when=planned",
+    "pages/overlays/new-entry--repeats-fixed.html": "/add?when=repeats",
 }
 # Overlay pages whose dialog the app opens from a dialog route (id-bound ones resolved from
-# the seed): `handoff_openers.OPENERS`; the test loads /today and fetches it into #modal-root.
+# the seed): `handoff_openers.OPENERS`; the test loads the overlay's base page and fetches it
+# into #modal-root.
 # Overlay pages with no way to open their dialog yet (row menus, palette and pickers, POST
-# error states, settings/users dialogs, formula editor states): compared against plain /today.
+# error states, settings/users dialogs, formula editor states): compared against their plain
+# base page.
 UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
         "add-user--error",
@@ -114,17 +120,45 @@ PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
 }
 
 
+_ANCHOR = re.compile(r"<a\b[^>]*>")
+_HREF = re.compile(r'href="([^"]*)"')
+# An overlay file with no current nav item shows the Today board.
+_DEFAULT_BASE = "pages/today.html"
+
+
+def base_page_of(page: str) -> str:
+    """Handoff page behind an overlay: the surface board the overlay file shows around its dialog.
+
+    Derived from the file: the tab link with ``aria-current="page"`` (a tab that is not another
+    overlay: ledger planned / recurring, settings categories, plan budget) wins over the main-nav
+    link (ledger actual, accounts, today). Non-overlay pages are their own base.
+    """
+    if handoff.surface_of(page) != "overlays":
+        return page
+    tab = nav = None
+    for tag in _ANCHOR.findall((handoff.HANDOFF_ROOT / page).read_text(encoding="utf-8")):
+        href = _HREF.search(tag)
+        if 'aria-current="page"' not in tag or not href or "pages/" not in href.group(1):
+            continue
+        target = "pages/" + href.group(1).split("pages/", 1)[1].split("?", 1)[0]
+        if handoff.surface_of(target) == "overlays":
+            continue
+        if "rd-tabs__tab" in tag:
+            tab = tab or target
+        elif "rd-mainnav__link" in tag or "rd-topbar__link" in tag:
+            nav = nav or target
+    return tab or nav or _DEFAULT_BASE
+
+
 def route_for(page: str) -> str:
-    """App route compared with a handoff page (overlay dialogs, tab pages, surface default)."""
-    return (
-        OVERLAY_DIALOGS.get(page)
-        or PAGE_ROUTES.get(page)
-        or SURFACE_ROUTES[handoff.surface_of(page)]
-    )
+    """App route compared with a handoff page (tab pages; overlays: their base page's route)."""
+    base = base_page_of(page)
+    return PAGE_ROUTES.get(base) or SURFACE_ROUTES[handoff.surface_of(base)]
 
 
 def modifiers_for(page: str) -> tuple[str, ...]:
-    return PAGE_MODIFIERS.get(page, ())
+    """Seed modifiers of a page; an overlay takes its base page's (recurring-board)."""
+    return PAGE_MODIFIERS.get(base_page_of(page), ())
 
 
 @pytest.fixture(scope="session")
@@ -197,17 +231,19 @@ def test_app_matches_handoff(
 ) -> None:
     route = route_for(handoff_page)
     modifiers = modifiers_for(handoff_page)
-    opener: str | None = None
     with contextlib.ExitStack() as stack:
         if modifiers:
-            server, token = stack.enter_context(
-                request.getfixturevalue("handoff_server")(modifiers)
-            )
+            # Own seeded DB: the opener's ids are resolved from the DB being served.
+            tmp_path_factory = request.getfixturevalue("tmp_path_factory")
+            db_path = tmp_path_factory.mktemp("handoff-state") / "handoff.sqlite"
+            token = build_seed(db_path, modifiers=modifiers).session_token
+            server = stack.enter_context(serve_db(db_path))
             cookies = [{"name": SESSION_DEV_COOKIE_NAME, "value": token, "url": server}]
         else:
             server = request.getfixturevalue("live_server")
             cookies = request.getfixturevalue("session_cookies")
-            opener = _opener_for(handoff_page, request.getfixturevalue("scratch_db")[0])
+            db_path = request.getfixturevalue("scratch_db")[0]
+        opener = _opener_for(handoff_page, db_path)
         _compare_app(
             handoff_page,
             route,
@@ -222,6 +258,8 @@ def test_app_matches_handoff(
 
 def _opener_for(handoff_page: str, db_path: Path) -> str | None:
     """Dialog route of an overlay page, ids resolved from the seeded scratch DB (read-only)."""
+    if handoff_page in OVERLAY_DIALOGS:
+        return OVERLAY_DIALOGS[handoff_page]
     if handoff_page not in OPENER_PAGES:
         return None
     conn = get_connection(Settings(_env_file=None, database_url=f"sqlite:///{db_path.as_posix()}"))
