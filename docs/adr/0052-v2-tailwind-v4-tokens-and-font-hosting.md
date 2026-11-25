@@ -1,6 +1,6 @@
 # ADR-0052: v2 Rising Dough — Tailwind v4 Migration, `@theme` Tokens, and Self-Hosted Fonts
 
-- **Status**: Accepted in part (2026-11-21; Tailwind v4 not adopted, repo is on Tailwind 3.4.14; superseded in part by ADR-0107 implementation pending)
+- **Status**: Superseded by ADR-0107 (2026-11-25, T-UR15: Tailwind and the old fonts are removed)
 - **Date**: 2026-10-28
 - **Related**: ADR-0027 (frontend toolchain hardening), ADR-0050 (visual direction)
 

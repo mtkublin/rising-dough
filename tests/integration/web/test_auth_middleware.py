@@ -113,7 +113,7 @@ def test_exempt_paths_reachable_anonymously(anon_client: TestClient, path: str) 
 
 
 def test_static_is_exempt(anon_client: TestClient) -> None:
-    r = anon_client.get("/static/js/passkeys.js")
+    r = anon_client.get("/static/rd/js/passkeys.js")
     assert r.status_code == 200
 
 
@@ -126,7 +126,7 @@ def test_static_is_exempt(anon_client: TestClient) -> None:
         ("/auth/logout", False),
         ("/auth/register", False),
         ("/auth/sessions", False),
-        ("/static/app.css", True),
+        ("/static/rd/css/app.bundle.css", True),
         ("/today", False),
         ("/healthz", True),
     ],

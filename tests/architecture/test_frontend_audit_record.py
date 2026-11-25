@@ -4,7 +4,7 @@
 
 Agents skipped the mandatory ``frontend-visual-audit`` skill twice (ad-hoc Playwright; no audit at all), so the
 rule became a guard: when the branch diff against its base touches ``src/budget_planner/web/templates/**`` or
-``src/budget_planner/web/static/*.css``, it must add or update ``docs/audits/<date>-<slug>.md`` with the routes,
+``src/budget_planner/web/static/**/*.css``, it must add or update ``docs/audits/<date>-<slug>.md`` with the routes,
 the 1440/1024/375 viewports, the five diagnostics and screenshot paths (format: the skill, Step 6).
 
 Base = merge-base with ``audit/quality``, else ``origin/main``, else ``main``. Skips cleanly outside a git
@@ -22,7 +22,7 @@ import pytest
 from tests.architecture._ratchet import REPO_ROOT
 
 BASES = ("audit/quality", "origin/main", "main")
-FRONTEND = re.compile(r"^src/budget_planner/web/(templates/.+|static/[^/]+\.css)$")
+FRONTEND = re.compile(r"^src/budget_planner/web/(templates/.+|static/.+\.css)$")
 RECORD = re.compile(r"^docs/audits/\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$")
 VIEWPORTS = ("1440", "1024", "375")
 DIAGNOSTICS = (
@@ -115,5 +115,5 @@ def test_audit_record_check_detects_missing_and_incomplete_records() -> None:
         == []
     )
     assert audit_problems([template], {"docs/audits/2026-11-20-today.md": "routes only"})
-    css = "src/budget_planner/web/static/app.css"
+    css = "src/budget_planner/web/static/rd/css/app.bundle.css"
     assert audit_problems([css], {})

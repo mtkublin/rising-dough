@@ -1,6 +1,6 @@
 # ADR-0053: v2 Rising Dough — Component System and Jinja Macro Inventory
 
-- **Status**: Proposed
+- **Status**: Superseded by ADR-0107 (2026-11-25, T-UR15: the old macro inventory is deleted)
 - **Date**: 2026-10-28
 - **Related**: ADR-0030 (shared form interaction primitives), ADR-0050 (visual direction), ADR-0051 (IA)
 

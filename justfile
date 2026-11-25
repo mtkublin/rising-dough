@@ -67,14 +67,9 @@ prod-db-seed *args:
     @echo "################################################################"
     bash scripts/prod_db_seed.sh {{args}}
 
-# Build Tailwind CSS once (purged + minified) → static/tailwind.css. See ADR-0027.
+# Build the rd CSS bundle (static/rd/css/app.bundle.css from main.css imports). No Tailwind, no Node (ADR-0107 section 4).
 css:
-    npm run css
     uv run python scripts/build_css_bundle.py
-
-# Rebuild Tailwind on save; run alongside `just dev`.
-css-watch:
-    npm run css:watch
 
 # Visual regression in the pinned Playwright container (ADR-0027 amendment 2026-11-22, T-Q251).
 # Needs docker (macOS devs: Docker Desktop). Baselines are Linux-only; never generate them on the host.
@@ -134,7 +129,7 @@ lint:
     uv run xenon --max-absolute C src
     uv run sqlfluff lint migrations
     out=$(uv run djlint src/budget_planner/web/templates --check 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
-    npm run stylelint --silent
+    npx --no-install stylelint --config src/budget_planner/web/static/rd/.stylelintrc.json "src/budget_planner/web/static/rd/css/**/*.css" --ignore-pattern "src/budget_planner/web/static/rd/css/app.bundle.css"
 
 # Auto-fix formatting + simple lint issues.
 format:

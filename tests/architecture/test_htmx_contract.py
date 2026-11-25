@@ -164,9 +164,8 @@ def collect() -> list[Violation]:
     scripts: dict[str, str] = {
         p.relative_to(REPO_ROOT).as_posix(): p.read_text(encoding="utf-8")
         for p in [
-            *sorted((WEB / "static" / "js").glob("*.js")),
             *sorted((WEB / "static" / "rd" / "js").glob("app-*.js")),
-            WEB / "static" / "htmx-csrf.js",
+            WEB / "static" / "rd" / "js" / "htmx-csrf.js",
         ]
     }
     return scan(py_trees, templates, scripts)

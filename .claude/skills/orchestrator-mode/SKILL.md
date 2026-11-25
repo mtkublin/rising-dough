@@ -78,8 +78,8 @@ before each merge check `MERGE_HEAD` and the branch tip (`just merge-item` refus
 6. **Hotspots, one owner per wave:** `tasks.md`, `CHANGELOG.md`, `docs/adr/README.md` (scribe);
    each `tests/architecture/allowlists/*.toml` and `canonical_modules.toml` (burn-downs of one file
    go in different waves or one item: the ratchet fails on stale entries); `migrations/`,
-   `pyproject.toml`, `uv.lock`, `justfile`, `.pre-commit-config.yaml`; `base.html`, shared
-   macros/partials, Tailwind input CSS; `tests/conftest.py`.
+   `pyproject.toml`, `uv.lock`, `justfile`, `.pre-commit-config.yaml`; `layouts/base.html`, shared
+   fragments, `static/rd/css/main.css`; `tests/conftest.py`.
 7. **Steps.** Write each item's brief as numbered steps with a check command each, and acceptance
    criteria as commands. The brief must pass the Definition of Ready in brief-common.md.
 8. **Model per item (ADR-0150 §3).** `implementer` on Haiku only if: at most 2 source files plus
