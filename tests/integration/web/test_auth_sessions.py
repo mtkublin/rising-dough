@@ -53,8 +53,8 @@ def test_sessions_page_lists_own_sessions_by_handle(
     assert session_handle(foreign) not in html
     for raw in (current, second, foreign):
         assert raw not in html
-    assert "This device" in html
-    assert html.count("This device") == 1
+    assert "THIS DEVICE" in html
+    assert html.count("THIS DEVICE") == 1
     assert "EXPIRES" in html
     # The page renders expiry in the display timezone (ADR-0007), so derive it the same way.
     expected = (
@@ -146,7 +146,7 @@ def test_app_nav_shows_only_sign_out(client: TestClient) -> None:
     assert 'href="/auth/sessions"' not in html
     assert 'href="/settings/password"' not in html
     assert 'action="/auth/logout"' in html
-    assert "owner@example.test" in html
+    assert "owner@example.test" not in html  # Q17: the handoff topbar has no email
 
 
 def test_security_tab_lists_all_sections_for_non_admin(client: TestClient) -> None:
