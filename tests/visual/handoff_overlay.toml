@@ -3307,3 +3307,1463 @@ old = "▼ −591.11"
 value = "▼ −707.35"
 reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 42-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
+
+# --- generated recent-chip rows (do not edit; regenerate, see above) ---
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "orange"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "orange"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "orange"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "orange"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "orange"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "orange"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "orange"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "orange"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "orange"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "orange"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "orange"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "orange"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Takeaway"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "orange"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Takeaway"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "orange"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction--transit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--happened.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--over-limit.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--phone-sheet.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--planned.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-fixed.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "text"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2) input"
+field = "value"
+old = "Groceries"
+value = "Big Purchases"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(2)"
+field = "data-color"
+old = "lime"
+value = "cyan"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "text"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3) input"
+field = "value"
+old = "Transport"
+value = "Entertainment"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(3)"
+field = "data-color"
+old = "blue"
+value = "silver"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "text"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4) input"
+field = "value"
+old = "Nights Out"
+value = "Groceries"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = ".rd-catfield__recent label.rd-chip-option:nth-of-type(4)"
+field = "data-color"
+old = "aqua"
+value = "lime"
+reason = "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them from the seed history (documented last-used rule)"
+source = "app-chips"

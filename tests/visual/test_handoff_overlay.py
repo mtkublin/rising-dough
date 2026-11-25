@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import http.client
 import json
 import shutil
+import sqlite3
 import subprocess
 import tempfile
 import threading
@@ -15,6 +17,7 @@ from dataclasses import replace
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+import httpx
 import pytest
 from bs4 import BeautifulSoup, Tag
 
@@ -27,14 +30,22 @@ from budget_planner.services import (
     fx as fx_service,
 )
 from budget_planner.web import plan_views
+from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.visual import handoff_seed
+from tests.visual.conftest import serve_db
+from tests.visual.handoff_openers import opener_url
+from tests.visual.handoff_recurring import state_opener_url
 from tests.visual.overlay import (
     ABSENT_SETTABLE,
     ALLOWED_ATTRIBUTES,
     ALLOWED_CLASS_CHANGES,
     ALLOWED_CLASS_TOKENS,
     ANALYTICS_PAGE,
+    APP_CHIPS_SOURCE,
     APP_VALUES_SOURCE,
+    CHIP_ATTRIBUTES,
+    CHIP_PRESET_NAMES,
+    CHIP_ROW,
     GEOMETRY_ATTRIBUTES,
     GEOMETRY_SOURCES,
     OVERLAY_FILE,
@@ -42,6 +53,8 @@ from tests.visual.overlay import (
     OverlayError,
     Row,
     apply_rows,
+    chip_rows,
+    chip_violation,
     class_change_violation,
     delta_rows,
     kind_violation,
@@ -49,6 +62,7 @@ from tests.visual.overlay import (
     overlay_handler,
     overlay_page,
 )
+from tests.visual.test_reference import OVERLAY_DIALOGS, modifiers_for
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HANDOFF = REPO_ROOT / "docs" / "design" / "rising-dough-frontend"
@@ -65,7 +79,10 @@ def row_violations(row: Row) -> list[str]:
     if not row.reason.strip():
         found.append("no reason")
     if row.field not in {"text", "class"} and row.field not in ALLOWED_ATTRIBUTES:
-        if row.field in GEOMETRY_ATTRIBUTES:
+        if row.field in CHIP_ATTRIBUTES:
+            if row.source != APP_CHIPS_SOURCE:
+                found.append(f"{row.field!r} needs an {APP_CHIPS_SOURCE!r} row")
+        elif row.field in GEOMETRY_ATTRIBUTES:
             if row.source != "geometry" or row.source not in GEOMETRY_SOURCES:
                 found.append(f"geometry attribute {row.field!r} needs a generated geometry source")
         else:
@@ -81,6 +98,15 @@ def row_violations(row: Row) -> list[str]:
     if row.old == row.value:
         found.append("old equals value")
     return found
+
+
+def _is_recent_chip(el: Tag) -> bool:
+    return (
+        el.name == "label"
+        and el.select_one("input") is not None
+        and el.parent is not None
+        and ("rd-catfield__recent" in (el.parent.get("class") or []))
+    )
 
 
 def _plain(name: str, value: object) -> str:
@@ -100,7 +126,9 @@ def skeleton(html: str) -> list[tuple[object, ...]]:
             sorted(
                 (k, _plain(k, v))
                 for k, v in el.attrs.items()
-                if k not in ALLOWED_ATTRIBUTES and k not in GEOMETRY_ATTRIBUTES
+                if k not in ALLOWED_ATTRIBUTES
+                and k not in GEOMETRY_ATTRIBUTES
+                and not (k in CHIP_ATTRIBUTES and _is_recent_chip(el))
             )
         )  # geometry: generated rows only; reviewed class tokens ignored
         body = el.get_text() if el.name in ("script", "style") else ""
@@ -381,8 +409,8 @@ def seed_value_rows() -> tuple[Row, ...]:
     return delta_rows(ANALYTICS_HTML, seed_deltas(), reason=VALUES_REASON)
 
 
-def _values_toml(rows: tuple[Row, ...]) -> str:
-    blocks = [VALUES_MARKER, ""]
+def _values_toml(rows: tuple[Row, ...], marker: str = VALUES_MARKER) -> str:
+    blocks = [marker, ""]
     for r in rows:
         blocks += [
             "[[row]]",
@@ -431,7 +459,193 @@ def test_red_app_values_row_is_text_only() -> None:
     assert row_violations(replace(row, field="title"))
 
 
+# --- generated chip rows: the dialogs' "recent categories" (ADR-0147 amendment, O2) -------
+
+CHIPS_MARKER = "# --- generated recent-chip rows (do not edit; regenerate, see above) ---"
+CHIPS_REASON = (
+    "the handoff's recent chips cannot be produced by its own ledger data (Big Purchases and "
+    "Entertainment used on 30 Oct but absent; Transport not on the board); the app derives them "
+    "from the seed history (documented last-used rule)"
+)
+# Overlay pages whose dialog is the new-entry dialog the browser recipes start from.
+NEW_ENTRY_DIALOGS = {
+    "pages/overlays/category-picker.html": "/add?when=happened",
+    "pages/overlays/category-picker--no-match.html": "/add?when=happened",
+    "pages/overlays/new-entry--error.html": "/add?when=happened",
+    "pages/overlays/new-entry--over-limit.html": "/add?when=happened",
+    "pages/overlays/new-entry--repeats-formula.html": "/add?when=repeats",
+}
+Chip = tuple[str, str | None, bool]
+
+
+def chip_pages() -> tuple[str, ...]:
+    return tuple(
+        p
+        for p in PAGES
+        if BeautifulSoup((HANDOFF / p).read_text(encoding="utf-8"), "html.parser").select(CHIP_ROW)
+    )
+
+
+def _dialog_url(page: str, conn: sqlite3.Connection) -> str:
+    url = (
+        OVERLAY_DIALOGS.get(page)
+        or NEW_ENTRY_DIALOGS.get(page)
+        or state_opener_url(page, conn)
+        or opener_url(page, conn)
+    )
+    assert url, f"{page}: no app dialog route"
+    return url
+
+
+def app_chips(html: str) -> tuple[Chip, ...]:
+    """The app dialog's recent chips: (name, preset, checked) in order."""
+    out: list[Chip] = []
+    for label in BeautifulSoup(html, "html.parser").select(CHIP_ROW):
+        color = label.get("data-color")
+        radio = label.select_one("input")
+        assert radio is not None
+        out.append(
+            (label.get_text(), color if isinstance(color, str) else None, radio.has_attr("checked"))
+        )
+    return tuple(out)
+
+
+@functools.cache
+def seed_chips() -> dict[str, tuple[Chip, ...]]:
+    """The app's recent chips for every chip page, from the dialog it serves over the seed."""
+    groups: dict[tuple[str, ...], list[str]] = {}
+    for page in chip_pages():
+        groups.setdefault(tuple(modifiers_for(page)), []).append(page)
+    found: dict[str, tuple[Chip, ...]] = {}
+    for modifiers, members in groups.items():
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "chips.sqlite"
+            token = handoff_seed.build_seed(db, modifiers=modifiers).session_token
+            settings = Settings(_env_file=None, database_url=f"sqlite:///{db.as_posix()}")
+            conn = get_connection(settings)
+            try:
+                urls = {p: _dialog_url(p, conn) for p in members}
+            finally:
+                conn.close()
+            with serve_db(db) as base:
+                cookies = {SESSION_DEV_COOKIE_NAME: token}
+                for page, url in urls.items():
+                    got = httpx.get(f"{base}{url}", cookies=cookies, headers={"HX-Request": "true"})
+                    got.raise_for_status()
+                    found[page] = app_chips(got.text)
+    return found
+
+
+def seed_chip_rows() -> tuple[Row, ...]:
+    chips = seed_chips()
+    rows: list[Row] = []
+    for page in chip_pages():
+        html = (HANDOFF / page).read_text(encoding="utf-8")
+        rows += chip_rows(page, html, chips[page], reason=CHIPS_REASON)
+    return tuple(rows)
+
+
+def test_chip_pages_are_the_eighteen_overlays_with_a_recent_row() -> None:
+    pages = chip_pages()
+    assert len(pages) == 18
+    assert all(p.startswith("pages/overlays/") for p in pages)
+
+
+def test_committed_chip_rows_equal_the_generated_rows() -> None:
+    committed = tuple(r for r in ROWS if r.source == APP_CHIPS_SOURCE)
+    generated = seed_chip_rows()
+    assert generated, "no chip rows generated"
+    assert committed == generated, f"stale chip rows; regenerate with: {REGENERATE}"
+
+
+def test_chip_rows_make_every_recent_row_equal_the_app() -> None:
+    chips = seed_chips()
+    for page in chip_pages():
+        html = (HANDOFF / page).read_text(encoding="utf-8")
+        applied = apply_rows(page, html, ROWS)
+        assert chip_rows(page, applied, chips[page], reason="x") == (), page
+
+
+def test_chip_rows_keep_checked_and_the_chip_count() -> None:
+    for page in chip_pages():
+        html = (HANDOFF / page).read_text(encoding="utf-8")
+        before = BeautifulSoup(html, "html.parser").select(f"{CHIP_ROW} input")
+        after = BeautifulSoup(apply_rows(page, html, ROWS), "html.parser").select(
+            f"{CHIP_ROW} input"
+        )
+        assert [i.has_attr("checked") for i in before] == [i.has_attr("checked") for i in after]
+        assert len(before) == 4
+
+
+def test_committed_chip_rows_only_touch_chip_text_value_and_preset() -> None:
+    rows = [r for r in ROWS if r.source == APP_CHIPS_SOURCE]
+    assert {r.field for r in rows} == {"text", "value", "data-color"}
+    for r in rows:
+        assert chip_violation(r) == "", r
+        assert r.reason == CHIPS_REASON
+        assert (r.old in CHIP_PRESET_NAMES) == (r.field == "data-color")
+
+
+_CHIP_HTML = (
+    '<div class="rd-catfield__recent"><span>recent</span>'
+    '<label class="rd-chip-option" data-color="orange"><input type="radio" name="category" '
+    'value="Takeaway" checked>Takeaway</label>'
+    '<label class="rd-chip-option" data-color="lime"><input type="radio" name="category" '
+    'value="Groceries">Groceries</label></div>'
+)
+
+
+def test_chip_rows_rewrite_text_value_and_preset_only() -> None:
+    chips = [("Takeaway", "orange", True), ("Big Purchases", "cyan", False)]
+    rows = chip_rows("pages/p.html", _CHIP_HTML, chips, reason="r")
+    assert [(r.select.split(":nth-of-type")[1], r.field, r.old, r.value) for r in rows] == [
+        ("(2)", "text", "Groceries", "Big Purchases"),
+        ("(2) input", "value", "Groceries", "Big Purchases"),
+        ("(2)", "data-color", "lime", "cyan"),
+    ]
+    out = apply_rows("pages/p.html", _CHIP_HTML, rows)
+    assert skeleton(out) == skeleton(_CHIP_HTML)
+    assert 'data-color="cyan"' in out
+    assert 'value="Big Purchases"' in out
+    assert "checked" in out
+
+
+def test_chip_rows_refuse_a_count_preset_or_checked_difference() -> None:
+    first = ("Takeaway", "orange", True)
+    with pytest.raises(OverlayError, match="2 recent chips, the app has 1"):
+        chip_rows("pages/p.html", _CHIP_HTML, [first], reason="r")
+    with pytest.raises(OverlayError, match="preset on one side only"):
+        chip_rows("pages/p.html", _CHIP_HTML, [first, ("Groceries", None, False)], reason="r")
+    with pytest.raises(OverlayError, match="checked in the app only"):
+        chip_rows("pages/p.html", _CHIP_HTML, [first, ("Groceries", "lime", True)], reason="r")
+
+
+def test_red_chip_rows_are_limited_to_chip_text_value_and_preset_names() -> None:
+    row = Row(
+        "pages/p.html",
+        f"{CHIP_ROW}:nth-of-type(1)",
+        "data-color",
+        "orange",
+        "cyan",
+        "r",
+        source=APP_CHIPS_SOURCE,
+    )
+    assert row_violations(row) == []
+    assert row_violations(replace(row, source=""))  # data-color needs the generated source
+    assert row_violations(replace(row, value="not-a-preset"))
+    assert row_violations(replace(row, select="label.rd-chip-option:nth-of-type(1)"))
+    assert row_violations(replace(row, select=f"{CHIP_ROW}:nth-of-type(1) input"))
+    assert row_violations(replace(row, field="checked", old="", value="checked"))
+    assert row_violations(replace(row, field="class", old="a", value="a b"))
+    assert row_violations(replace(row, field="text", old="x", value="y", absent=True))
+    assert row_violations(replace(row, select="p", field="text", old="x", value="y"))
+    with pytest.raises(OverlayError, match="app-chips"):
+        apply_rows("pages/p.html", _CHIP_HTML, [replace(row, source="")])
+
+
 if __name__ == "__main__":
     text = OVERLAY_FILE.read_text(encoding="utf-8")
     head = text.split(VALUES_MARKER)[0].rstrip("\n")
-    OVERLAY_FILE.write_text(f"{head}\n\n{_values_toml(seed_value_rows())}", encoding="utf-8")
+    values = _values_toml(seed_value_rows())
+    chips_block = _values_toml(seed_chip_rows(), CHIPS_MARKER)
+    OVERLAY_FILE.write_text(f"{head}\n\n{values}\n{chips_block}", encoding="utf-8")
