@@ -18,10 +18,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
 )
 from tests.ui_map import _html, plan, plan_budget, plan_year
-from tests.ui_map.locator import by_id
 
 USER_ID = 1
-ERROR_SUMMARY = by_id("error-summary")
 
 
 @pytest.fixture

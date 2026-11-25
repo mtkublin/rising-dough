@@ -34,7 +34,6 @@ pytest_plugins = ("tests.contract.test_plan_support",)
 USER_ID = 1
 HX = {"HX-Request": "true"}
 FLASH = by_id("flash-region")
-SUMMARY = by_id("error-summary")
 MARCH = "year=2026&month=3"
 POST_FORM = {"year": "2026", "month": "3"}
 

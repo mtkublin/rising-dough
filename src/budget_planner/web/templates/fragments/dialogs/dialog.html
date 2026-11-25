@@ -125,10 +125,8 @@
    as a dialog-level error line, so a failed save is never silent. #}
 {% macro _orphans(field_errors, body, hero) %}
   {% for name, label, message in field_errors %}
-    {% if ('▲ ' ~ (message|e)) not in body and not (hero and hero.error|default(none) and name == hero.amount_name|default("amount")) %}
-      <p class="rd-dialog__error"
-         id="dialog-error-{{ name }}"
-         role="alert">▲ {{ label }}: {{ message }}</p>
+    {% if ("▲ " ~ (message|e)) not in body and not (hero and hero.error|default(none) and name == hero.amount_name|default("amount")) %}
+      <p class="rd-dialog__error" id="dialog-error-{{ name }}" role="alert">▲ {{ label }}: {{ message }}</p>
     {% endif %}
   {% endfor %}
 {% endmacro %}
