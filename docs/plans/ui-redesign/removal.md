@@ -138,7 +138,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_empty.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/partials/transactions/_filter_form.html` | T-UR09 | deleted |  |
-| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR09 | delete |  |
+| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR15 | delete | the edit dialog no longer renders it (T-UR09b); still the old shell's "+ Add" happened form (`form_responses.open_legacy_overlay`) and the non-dialog 422 of `POST /transactions` (`txn_form_errors`) until the ledger and the other old-shell pages are ported |
 | `src/budget_planner/web/templates/partials/transactions/_limit_preview.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_row.html` | T-UR09 | delete |  |
 | `src/budget_planner/web/templates/partials/transactions/_table.html` | T-UR09 | deleted |  |

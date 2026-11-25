@@ -122,6 +122,75 @@ def test_add_from_today_invalid_amount_rerenders_form(
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM transactions") == 0
 
 
+def test_edit_saved_from_today_keeps_the_flash(live_server: tuple[str, Path], page: Page) -> None:
+    """A save off the ledger keeps the flash: no HX-Refresh, the stale events refetch (F3)."""
+    base_url, db_path = live_server
+    account_id, category_id = _seed(base_url, db_path, page)
+    assert page.request.post(
+        f"{base_url}/transactions",
+        form={
+            "operation_date": datetime.now(tz=UTC).date().isoformat(),
+            "category_id": category_id,
+            "account_id": account_id,
+            "amount": "12.34",
+            "description": "today-edit",
+        },
+    ).ok
+    txn = db_probe.txn_id(db_path, "today-edit")
+    page.goto(f"{base_url}/today")
+    expect(to_playwright(page, rd_shell.main)).to_contain_text("487.66")
+    page.evaluate(
+        "id => window.htmx.ajax('GET', `/transactions/${id}/edit`, {target: '#modal-root'})", txn
+    )
+    expect(to_playwright(page, entries.edit_dialog)).to_be_visible()
+    to_playwright(page, entries.edit_amount).fill("45.67")
+    to_playwright(page, entries.edit_save).click()
+    expect(to_playwright(page, entries.edit_dialog)).to_have_count(0)
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("transaction saved")
+    # No reload: the page is the same document, so the flash survived the save.
+    assert page.evaluate("document.querySelector('#flash-region .rd-flash') !== null")
+    # Net worth refetched on ledger-stale: 500.00 opening minus the edited 45.67.
+    expect(to_playwright(page, rd_shell.main)).to_contain_text("454.33")
+    expect(to_playwright(page, rd_shell.main)).not_to_contain_text("487.66")
+    assert db_probe.txn_amounts(db_path, "today-edit") == [4567]
+
+
+def test_edit_dialog_saves_under_csp(live_server: tuple[str, Path], page: Page) -> None:
+    """The shell page that opens the edit dialog, the category pick and the save (T-UR09b)."""
+    base_url, db_path = live_server
+    account_id, category_id = _seed(base_url, db_path, page)
+    assert page.request.post(
+        f"{base_url}/categories", form={"name": "Transport", "direction": "expense"}
+    ).ok
+    assert page.request.post(
+        f"{base_url}/transactions",
+        form={
+            "operation_date": datetime.now(tz=UTC).date().isoformat(),
+            "category_id": category_id,
+            "account_id": account_id,
+            "amount": "12.34",
+            "description": "csp-edit",
+        },
+    ).ok
+    txn = db_probe.txn_id(db_path, "csp-edit")
+    page.goto(f"{base_url}/transactions/{txn}/edit")
+    expect(to_playwright(page, entries.edit_dialog)).to_be_visible()
+    expect(to_playwright(page, entries.edit_amount)).to_have_value("12.34")
+    to_playwright(page, entries.edit_category_search).click()
+    query = to_playwright(page, entries.edit_category_query)
+    query.fill("Transport")
+    with page.expect_response(lambda r: "hero=1" in r.url):  # the hero follows the category
+        query.press("Enter")
+    page.wait_for_timeout(300)
+    to_playwright(page, entries.edit_amount).fill("45.67")
+    to_playwright(page, entries.edit_save).click()
+    expect(to_playwright(page, entries.edit_dialog)).to_have_count(0)
+    assert db_probe.txn_amounts(db_path, "csp-edit") == [4567]
+    assert db_probe.scalar(
+        db_path, "SELECT category_id FROM transactions WHERE description = 'csp-edit'"
+    ) == db_probe.category_id(db_path, "Transport")
+
+
 def test_add_from_ledger_submits_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
