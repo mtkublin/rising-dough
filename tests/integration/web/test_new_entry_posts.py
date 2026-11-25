@@ -234,7 +234,7 @@ def test_recurring_fixed_failure_reopens_the_repeats_tab_with_the_values(
     )
     assert r.status_code == 422
     assert _html.resolve_one(r.text, entries.tab_repeats).get("aria-current") == "page"
-    assert "Default Amount : amount must be positive" in _html.all_text(r.text, entries.summary)
+    assert "Default Amount : Enter an amount above 0.00" in _html.all_text(r.text, entries.summary)
     assert _html.resolve_one(r.text, entries.field_start).get("value") == "2026-03-10"
     assert _html.resolve_one(r.text, entries.field_note).get("value") == "box"
     quarterly = _html.resolve_one(r.text, entries.cadence_quarterly)

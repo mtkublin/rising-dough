@@ -197,7 +197,7 @@ def test_create_invalid_amount(
         },
     )
     assert r.status_code == 422
-    assert "default_amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert "default_amount: Enter an amount above 0.00" in _html.all_text(r.text, errors.alert)
     assert _state(db) == before
 
 
@@ -454,7 +454,7 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
     assert r.status_code == 422
     assert _html.all_text(r.text, edit_dialogs.summary) == (
         "3 fields need attention Repeats : invalid Start date : invalid date "
-        "Default Amount : amount must be positive"
+        "Default Amount : Enter an amount above 0.00"
     )
     assert _state(db) == before
 
@@ -533,7 +533,7 @@ def test_override_non_positive_amount(
         data={"year": 2026, "month": 5, "amount": "0"},
     )
     assert r.status_code == 422
-    assert "amount must be positive" in _html.all_text(r.text, edit_dialogs.summary)
+    assert "Enter an amount above 0.00" in _html.all_text(r.text, edit_dialogs.summary)
     assert _state(db) == before
 
 
@@ -660,7 +660,7 @@ def test_promote_submit_zero_amount_422(
         headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
-    assert "Amount : amount must be positive" in _html.all_text(r.text, entries.summary)
+    assert "Amount : Enter an amount above 0.00" in _html.all_text(r.text, entries.summary)
     assert _state(db) == before
 
 
@@ -1250,7 +1250,7 @@ def test_override_errors_rerender_the_dialog_with_the_message(
     for form, text in (
         ({"year": "2026", "month": "13", "amount": "5"}, "invalid year or month"),
         ({"year": "2026", "month": "5", "amount": "abc"}, "decimal number within range"),
-        ({"year": "2026", "month": "5", "amount": "-1"}, "must be positive"),
+        ({"year": "2026", "month": "5", "amount": "-1"}, "Enter an amount above 0.00"),
     ):
         r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_FROM_DIALOG)
         assert r.status_code == 422
@@ -1268,4 +1268,4 @@ def test_promote_get_is_always_the_dialog(client: TestClient, ctx: dict[str, int
     bad = client.post(f"/recurring/{ctx['rule']}/promote", data={"amount": "0"}, headers=_HTMX)
     assert bad.status_code == 422
     assert bad.headers["HX-Retarget"] == "#modal-root"
-    assert "Amount : amount must be positive" in _html.all_text(bad.text, entries.summary)
+    assert "Amount : Enter an amount above 0.00" in _html.all_text(bad.text, entries.summary)

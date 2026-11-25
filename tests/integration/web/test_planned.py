@@ -131,7 +131,7 @@ def test_create_bad_amount(client: TestClient, ctx: dict[str, int], db: sqlite3.
         },
     )
     assert r.status_code == 422
-    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert "amount: Enter an amount above 0.00" in _html.all_text(r.text, errors.alert)
     assert _planned_state(db) == before
 
 
@@ -351,7 +351,7 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
     summary = _html.all_text(r.text, edit_dialogs.summary)
     assert "2 fields need attention" in summary
     assert "Date : invalid date" in summary
-    assert "Amount : amount must be positive" in summary
+    assert "Amount : Enter an amount above 0.00" in summary
     scope = edit_dialogs.planned_dialog("Rent")
     # the dialog comes back with what was posted, nothing stored
     assert _html.resolve_one(r.text, edit_dialogs.field_due(scope)).get("value") == "bad"
@@ -447,7 +447,7 @@ def test_promote_submit_invalid(
     assert r.headers["HX-Retarget"] == "#modal-root"
     summary = _html.all_text(r.text, entries.summary)
     assert "Date : invalid date" in summary
-    assert "Amount : amount must be positive" in summary
+    assert "Amount : Enter an amount above 0.00" in summary
     assert _planned_state(db) == before
     assert _txn_count(db) == txns
 
@@ -626,7 +626,7 @@ def test_promote_invalid_amount_rerenders_dialog(
     r = client.post(f"/planned/{ctx['pl']}/promote", data=form, headers=_ON_LEDGER)
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert "Amount : amount must be positive" in _html.all_text(r.text, entries.summary)
+    assert "Amount : Enter an amount above 0.00" in _html.all_text(r.text, entries.summary)
     assert _planned_state(db) == before
 
 
