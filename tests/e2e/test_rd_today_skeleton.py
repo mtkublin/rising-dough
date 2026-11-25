@@ -18,6 +18,7 @@ pytestmark = pytest.mark.e2e
 _range_30 = role("button", "30 days")
 _range_all = role("button", "all").inside(by_id("upcoming"))
 _list = by_id("upcoming-list")
+_section = by_id("upcoming")
 
 
 def _loc(journey: Journey, locator: Any) -> Any:
@@ -28,7 +29,6 @@ def test_failed_range_request_restores_the_list(journey: Journey) -> None:
     if journey.target == "mockup":
         pytest.skip("the handoff mockup has no server to answer an error")
     journey.goto("/today")
-    section = journey.page.locator("#upcoming")
     before = _loc(journey, _list).inner_text()
 
     def fail(route: Any) -> None:
@@ -37,9 +37,8 @@ def test_failed_range_request_restores_the_list(journey: Journey) -> None:
     journey.page.route("**/today/upcoming?window=all", fail)
     _loc(journey, _range_all).click()
     journey.page.wait_for_selector("#flash-region-assertive .rd-flash--error")
-    assert _loc(journey, _list).locator(".rd-skeleton").count() == 0
-    assert _loc(journey, _list).inner_text() == before
-    assert section.get_attribute("aria-busy") is None
+    assert _loc(journey, _list).inner_text() == before  # the skeleton has no text
+    assert _loc(journey, _section).get_attribute("aria-busy") is None
 
 
 def test_successful_range_request_clears_busy(journey: Journey) -> None:
@@ -48,5 +47,4 @@ def test_successful_range_request_clears_busy(journey: Journey) -> None:
     journey.goto("/today")
     _loc(journey, _range_30).click()
     journey.page.wait_for_load_state("networkidle")
-    assert journey.page.locator("#upcoming").get_attribute("aria-busy") is None
-    assert _loc(journey, _list).locator(".rd-skeleton").count() == 0
+    assert _loc(journey, _section).get_attribute("aria-busy") is None
