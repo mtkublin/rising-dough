@@ -7,7 +7,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget_planner.domain.errors import require_present
+from budget_planner.domain.errors import ValidationError, require_present
 from budget_planner.services import categories as categories_service
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
 from budget_planner.web.deps import current_user_id, get_db
@@ -76,7 +76,20 @@ def create_category(
             },
             parsed.errors,
         )
-    cat = categories_service.create(conn, user_id, parsed.command)
+    try:
+        cat = categories_service.create(conn, user_id, parsed.command)
+    except ValidationError as exc:
+        return invalid_dialog_response(
+            request,
+            _DIALOG,
+            {
+                "category": None,
+                "form": category_form_view(None, name=name, direction=direction, color=color),
+                "action": "/categories",
+                "target": MODAL_ROOT,
+            },
+            exc.fields,
+        )
     response = saved_response(
         request,
         _ROW,
@@ -167,7 +180,23 @@ def update_category(
             },
             parsed.errors,
         )
-    categories_service.update(conn, user_id, category_id, parsed.patch)
+    try:
+        categories_service.update(conn, user_id, category_id, parsed.patch)
+    except ValidationError as exc:
+        usage = categories_service.usage_for(conn, user_id, category_id)
+        return invalid_dialog_response(
+            request,
+            _DIALOG,
+            {
+                "category": cat,
+                "form": category_form_view(
+                    cat, name=name, color=color, usage_text=category_usage_text(usage)
+                ),
+                "action": f"/categories/{category_id}",
+                "target": f"#category-{category_id}",
+            },
+            exc.fields,
+        )
     updated = require_present(
         categories_service.find_by_id(conn, user_id, category_id), "updated category"
     )
