@@ -10,6 +10,7 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World, today
+from tests.e2e.ui_actions import quiesce
 from tests.ui_map import plan_year, rd_dialogs
 
 pytestmark = pytest.mark.e2e
@@ -91,8 +92,13 @@ def test_removing_an_override_restores_the_default(world: World) -> None:
     year = _override_in_march(world, "this month only", "321.00")
     world.wait_rows("SELECT 1 FROM budget_one_off_overrides WHERE deleted_at IS NULL")
 
+    # The save closed the dialog and the grid reload may still be in flight: a click on the
+    # cell before it settles lands on the element about to be replaced and opens nothing.
+    expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("• 321.00")
+    quiesce(world.page)
     world.find(plan_year.cell("Groceries", "March")).click()
     dialog = plan_year.dialog("Groceries", f"Mar {year}")
+    expect(world.find(dialog)).to_be_visible()
     world.find(plan_year.remove_override(dialog)).click()
     confirm = plan_year.remove_dialog()
     expect(world.find(confirm)).to_contain_text("goes back to the default 500.00 PLN")
