@@ -14,8 +14,8 @@ from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.periods import next_month_start
+from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
 from budget_planner.repositories import (
     accounts as accounts_repo,
