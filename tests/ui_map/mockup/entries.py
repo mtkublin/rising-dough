@@ -19,7 +19,6 @@ hero_amount = role("textbox", "Amount", exact=True).inside(dialog)
 category_group = role("group", "category", exact=True).inside(dialog)
 category_search = role("button").inside(category_group)
 category_query = role("combobox", "Search categories", exact=True).inside(dialog)
-category_chosen = by_id("catpick-new-entry-picked")
 field_account = label("account", exact=True)
 field_date = label("date", exact=True)
 field_due = label("due date", exact=True)
@@ -73,7 +72,6 @@ NO_HANDOFF_TWIN = frozenset(
         "formula_pick",
         "formula_result",
         "opener",
-        "category_chosen",
         "category_query",  # the handoff search panel is hidden until opened
         "field_dest",
         "edit_opener",
