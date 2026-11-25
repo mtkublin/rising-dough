@@ -383,10 +383,40 @@ def _history_month(
     return (TxnSeed(f"{month}-10", "Side Income", "Checking", income, "Side Income"), *spread)
 
 
+# Recent chips (R1, ADR-0151 amendment 2026-11-25): the app ranks categories by entries over the
+# last 90 days (2 Aug to 31 Oct), and the handoff's chips read Groceries, Takeaway, Transport,
+# Nights Out. October gives Groceries 2, Takeaway 3, Transport 2 and Nights Out 2 entries
+# against 3 for five other categories, so Aug and Sep carry small extra entries (1.00 each) that
+# lift the four to 7, 6, 5 and 4. Each is taken out of the month's first spread entry, so the
+# month's expense and every category's October figure stay as they were.
+_CHIP_EXTRAS: Final = (
+    ("2026-08", (("Groceries", 3), ("Takeaway", 2), ("Transport", 2), ("Nights Out", 1))),
+    ("2026-09", (("Groceries", 2), ("Takeaway", 1), ("Transport", 1), ("Nights Out", 1))),
+)
+_CHIP_EXTRA_MINOR: Final = 100
+
+
+def _chip_extras(month: str) -> tuple[TxnSeed, ...]:
+    extras = dict(_CHIP_EXTRAS).get(month, ())
+    return tuple(
+        TxnSeed(f"{month}-{16 + i}", cat, "Checking", _CHIP_EXTRA_MINOR, cat)
+        for cat, n in extras
+        for i in range(n)
+    )
+
+
+def _history_with_chips(
+    month: str, income: int, expense: int, cats: tuple[str, ...]
+) -> tuple[TxnSeed, ...]:
+    extras = _chip_extras(month)
+    base = _history_month(month, income, expense - len(extras) * _CHIP_EXTRA_MINOR, cats)
+    return (*base, *extras)
+
+
 _HISTORY: Final = tuple(
     entry
     for (month, income, expense), cats in zip(_HISTORY_FLOW, _HISTORY_SPREAD, strict=True)
-    for entry in _history_month(month, income, expense, cats)
+    for entry in _history_with_chips(month, income, expense, cats)
 )
 
 # The ledger lists a day newest-first (id descending), so the listed rows are written in reverse.

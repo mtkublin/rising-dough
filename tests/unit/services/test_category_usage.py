@@ -26,6 +26,7 @@ from budget_planner.web.view_models import category_usage_text
 
 USER_ID = 1
 OTHER_USER_ID = 2
+TODAY = date(2026, 10, 31)
 
 
 def _cat(conn: sqlite3.Connection, name: str, user_id: int = USER_ID) -> int:
@@ -73,19 +74,49 @@ def test_entry_count_ignores_second_user(conn: sqlite3.Connection, acc: int) -> 
     assert set(categories_svc.usage_by_category(conn, USER_ID)) == {cat}
 
 
-def test_picker_recent_order_and_ties(conn: sqlite3.Connection, acc: int) -> None:
-    a, b, c, d, e = (_cat(conn, n) for n in ("A", "B", "C", "D", "E"))
-    _txn(conn, a, acc, date(2026, 10, 1))
-    _txn(conn, b, acc, date(2026, 10, 20))
+def test_picker_recent_ranks_entry_count_over_90_days_ties_by_latest_use(
+    conn: sqlite3.Connection, acc: int
+) -> None:
+    a, b, c, d, e, f = (_cat(conn, n) for n in ("A", "B", "C", "D", "E", "F"))
+    _txn(conn, a, acc, date(2026, 10, 1))  # 1 entry
+    _txn(conn, b, acc, date(2026, 10, 20))  # 2 entries
     _txn(conn, b, acc, date(2026, 10, 2))
-    _txn(conn, c, acc, date(2026, 10, 20))  # tie with b: lower id first
-    _txn(conn, d, acc, date(2026, 10, 10))
-    _txn(conn, e, acc, date(2026, 9, 1))
+    _txn(conn, c, acc, date(2026, 10, 20))  # 2 entries, ties with b on the latest use: lower id
+    _txn(conn, c, acc, date(2026, 9, 1))
+    _txn(conn, d, acc, date(2026, 10, 25))  # 2 entries, latest use beats b and c
+    _txn(conn, d, acc, date(2026, 8, 5))
+    _txn(conn, e, acc, date(2026, 8, 1))  # 91 days back: outside the window
+    for day in (1, 2, 3):
+        _txn(conn, f, acc, date(2026, 11, day))  # after today: outside the window
 
-    picker = categories_svc.picker_summary(conn, USER_ID)
+    picker = categories_svc.picker_summary(conn, USER_ID, today=TODAY)
 
-    assert [x.id for x in picker.recent] == [b, c, d, a]
+    assert [x.id for x in picker.recent] == [d, b, c, a]
     assert len(picker.recent) == categories_svc.RECENT_CATEGORY_LIMIT == 4
+
+
+def test_picker_recent_window_edge_is_90_days_inclusive(conn: sqlite3.Connection, acc: int) -> None:
+    edge, outside = _cat(conn, "Edge"), _cat(conn, "Outside")
+    _txn(conn, edge, acc, date(2026, 8, 2))
+    _txn(conn, outside, acc, date(2026, 8, 1))
+
+    assert [x.id for x in categories_svc.picker_summary(conn, USER_ID, today=TODAY).recent] == [
+        edge
+    ]
+
+
+def test_picker_recent_ignores_second_users_entries(conn: sqlite3.Connection, acc: int) -> None:
+    conn.execute("INSERT INTO users(id, name) VALUES (?, 'other')", (OTHER_USER_ID,))
+    mine = _cat(conn, "Mine")
+    theirs = _cat(conn, "Theirs", OTHER_USER_ID)
+    other_acc = _account(conn, OTHER_USER_ID)
+    _txn(conn, mine, acc, date(2026, 10, 1))
+    for day in (1, 2, 3):
+        _txn(conn, theirs, other_acc, date(2026, 10, day), OTHER_USER_ID)
+
+    picker = categories_svc.picker_summary(conn, USER_ID, today=TODAY)
+
+    assert [x.id for x in picker.recent] == [mine]
 
 
 def test_picker_excludes_archived_and_deleted_only_usage(
@@ -94,13 +125,13 @@ def test_picker_excludes_archived_and_deleted_only_usage(
     live = _cat(conn, "Live")
     archived = _cat(conn, "Archived")
     gone = _cat(conn, "Gone")
-    before = categories_svc.picker_summary(conn, USER_ID).total_count
+    before = categories_svc.picker_summary(conn, USER_ID, today=TODAY).total_count
     _txn(conn, live, acc, date(2026, 10, 1))
     _txn(conn, archived, acc, date(2026, 10, 5))
     transactions_repo.soft_delete(conn, USER_ID, _txn(conn, gone, acc, date(2026, 10, 9)))
     categories_svc.archive(conn, USER_ID, archived)
 
-    picker = categories_svc.picker_summary(conn, USER_ID)
+    picker = categories_svc.picker_summary(conn, USER_ID, today=TODAY)
 
     assert [x.id for x in picker.recent] == [live]
     assert picker.total_count == before - 1
@@ -112,7 +143,9 @@ def test_picker_never_recommends_reconciliation(conn: sqlite3.Connection, acc: i
     assert recon is not None
     _txn(conn, recon.id, acc, date(2026, 10, 30))
 
-    assert recon.id not in [x.id for x in categories_svc.picker_summary(conn, USER_ID).recent]
+    assert recon.id not in [
+        x.id for x in categories_svc.picker_summary(conn, USER_ID, today=TODAY).recent
+    ]
 
 
 def test_lead_with_selected_puts_the_chosen_category_first_and_keeps_four_chips(
@@ -121,7 +154,7 @@ def test_lead_with_selected_puts_the_chosen_category_first_and_keeps_four_chips(
     ids = [_cat(conn, n) for n in ("A", "B", "C", "D", "E")]
     for day, cid in enumerate(ids, start=1):
         _txn(conn, cid, acc, date(2026, 10, day))
-    picker = categories_svc.picker_summary(conn, USER_ID)
+    picker = categories_svc.picker_summary(conn, USER_ID, today=TODAY)
     assert [x.id for x in picker.recent] == [ids[4], ids[3], ids[2], ids[1]]
     by_id = {c.id: c for c in picker.searchable}
 
@@ -178,7 +211,7 @@ def test_usage_counts_three_kinds_per_category(conn: sqlite3.Connection, acc: in
     assert category_usage_text(usage[a]) == "3 entries · 2 planned · 1 rule"
     assert category_usage_text(usage[b]) == "1 planned · 2 rules"
     assert categories_svc.usage_for(conn, USER_ID, _cat(conn, "Unused")).rule_count == 0
-    assert b not in [x.id for x in categories_svc.picker_summary(conn, USER_ID).recent]
+    assert b not in [x.id for x in categories_svc.picker_summary(conn, USER_ID, today=TODAY).recent]
 
 
 def test_usage_excludes_soft_deleted_and_second_user(conn: sqlite3.Connection, acc: int) -> None:
@@ -203,7 +236,7 @@ def test_usage_excludes_soft_deleted_and_second_user(conn: sqlite3.Connection, a
 def test_picker_excludes_reconciliation_from_list_and_total_keeps_transit(
     conn: sqlite3.Connection,
 ) -> None:
-    picker = categories_svc.picker_summary(conn, USER_ID)
+    picker = categories_svc.picker_summary(conn, USER_ID, today=TODAY)
     names = [c.name for c in picker.searchable]
 
     assert RECONCILIATION_CATEGORY_NAME not in names
