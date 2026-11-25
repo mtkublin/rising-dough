@@ -19,7 +19,7 @@ from budget_planner.domain.money import format_figure, format_major, format_mone
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services.account_planned import AccountPlanned
 from budget_planner.services.balance import sparkline_points
-from budget_planner.web.paths import DELETE_PATH
+from budget_planner.web.paths import DELETE_PATH, EDIT_PATH
 from budget_planner.web.view_models import ROW_BAR_CELLS, BarSpans, HeroFit, bar_spans, hero_fit
 
 _FULL_BAR_PCT = 100
@@ -194,10 +194,10 @@ def account_row(card: Mapping[str, object]) -> AccountRow:
         menu_sub=f"{kind} · {format_figure(balance, acc.currency, with_currency=True)}",
         menu_items=(
             {"label": "reconcile", "hx_get": f"/accounts/{acc.id}/reconcile", "phone": True},
-            {"label": "edit", "hx_get": f"/accounts/{acc.id}/edit"},
+            {"label": "edit", "hx_get": f"/accounts/{acc.id}{EDIT_PATH}"},
             {
                 "label": "delete",
-                "hx_get": f"/accounts/{acc.id}/edit?intent=delete",
+                "hx_get": f"/accounts/{acc.id}{EDIT_PATH}?intent=delete",
                 "danger": True,
             },
         ),
