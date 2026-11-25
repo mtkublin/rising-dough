@@ -13,7 +13,6 @@ from fastapi import Request
 from fastapi.responses import Response
 
 from budget_planner.domain.accounts import Account
-from budget_planner.domain.categories import Category
 from budget_planner.domain.money import format_major, format_money
 from budget_planner.domain.periods import shift_month
 from budget_planner.domain.recurring import RecurringOverride, RecurringRule
@@ -26,15 +25,14 @@ from budget_planner.services import (
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import entry_forms
 from budget_planner.web.deps import today_for
-from budget_planner.web.dialogs import dialog_response, invalid_dialog_response
+from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.entry_forms import promote_context
 from budget_planner.web.form_responses import (
     PROMOTE_TEMPLATE,
     from_dialog,
     new_entry_errors,
-    open_new_entry,
 )
-from budget_planner.web.htmx import Event, refresh_unless_on, trigger
+from budget_planner.web.htmx import Event, refresh_unless_on
 from budget_planner.web.params import parse_int
 from budget_planner.web.paths import LEDGER_PATH, PROMOTE_PATH
 from budget_planner.web.recurring_forms import (
@@ -54,7 +52,6 @@ FORMULA_RESULT_TEMPLATE = "fragments/dialogs/formula-result.html"
 OCCURRENCE_TEMPLATE = "fragments/dialogs/override-occurrence.html"
 OCCURRENCE_REMOVE_TEMPLATE = "fragments/dialogs/override-remove-occurrence.html"
 CREATE_ACTION = "/recurring"
-_ROW = "partials/recurring/_row.html"
 CYCLE_NOTE = "formula cycle: the amount shows 0.00 until the formula is edited to remove the cycle."
 
 
@@ -250,11 +247,6 @@ def render_rule_form_errors(
         amount_source=fields.amount_source,
         terms=fields.form_terms,
     )
-
-
-def render_new_form(request: Request, conn: sqlite3.Connection, user_id: int) -> Response:
-    """The new-entry dialog on the repeats tab (T-UR07b)."""
-    return open_new_entry(request, conn, user_id, tab="repeats")
 
 
 def _rule_values(rule: RecurringRule, account: Account | None) -> dict[str, str]:
@@ -462,24 +454,15 @@ def render_formula_result(
     )
 
 
-def render_created_row(
-    request: Request,
-    rule: RecurringRule,
-    account: Account | None,
-    category: Category | None,
-    effective_amount_minor: int | None,
-) -> Response:
-    html = render(
+def render_created(request: Request) -> Response:
+    """A saved rule: the dialog closes and flashes; refetch on the ledger, reload elsewhere."""
+    html = saved_response(
         request,
-        _ROW,
-        rule=rule,
-        overrides=[],
-        account=account,
-        category=category,
-        effective_amount_minor=effective_amount_minor,
+        None,
+        {},
+        message="Recurring rule saved",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
     )
-    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
     refresh_unless_on(request, html, LEDGER_PATH)
     return html
 

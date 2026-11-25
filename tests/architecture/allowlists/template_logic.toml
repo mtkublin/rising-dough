@@ -259,39 +259,7 @@ epic = "E16"
 owner = "T-UR10"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/planned/_row.html"
-rule = "tpl-domain-if"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/planned/_row.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/planned/_row.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_form.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR10"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_row.html"
 rule = "tpl-set"
 count = 1
 finding = "Q-039"

@@ -37,6 +37,8 @@ _DENY_PREFIXES = ("amount", "note", "password", "token", "secret")
 _DENY_SUFFIXES = ("_json",)
 #: ``"GET /path?query HTTP/1.1"`` request line of a uvicorn.access message.
 _REQUEST_LINE_QUERY = re.compile(r"(\"[A-Z]+ [^\s?\"]*)\?[^\s\"]*( HTTP/)")
+#: ``"POST /invite/<token> HTTP/1.1"``: the invite token is the path segment (T-UR20a).
+_REQUEST_LINE_INVITE = re.compile(r"(\"[A-Z]+ /invite/)[^\s?\"/]+")
 
 
 def _is_sensitive_key(key: object) -> bool:
@@ -72,7 +74,7 @@ def redact_sensitive(
 def strip_access_query(
     _logger: object, _method: str, event_dict: Mapping[str, object]
 ) -> Mapping[str, object]:
-    """structlog foreign-record processor: drop the query string from ``uvicorn.access`` paths.
+    """structlog foreign-record processor: drop query and invite token from ``uvicorn.access``.
 
     Works on the already-formatted message (structlog clears ``record.args`` before
     the pre-chain runs), so the record is never mutated; returns a new dict.
@@ -83,7 +85,8 @@ def strip_access_query(
         return event_dict
     if not isinstance(message, str):
         return event_dict
-    return {**event_dict, "event": _REQUEST_LINE_QUERY.sub(r"\1\2", message)}
+    stripped = _REQUEST_LINE_QUERY.sub(r"\1\2", message)
+    return {**event_dict, "event": _REQUEST_LINE_INVITE.sub(rf"\1{REDACTED}", stripped)}
 
 
 #: Final ``Type: message`` line(s) of a formatted traceback (T-Q254): the message

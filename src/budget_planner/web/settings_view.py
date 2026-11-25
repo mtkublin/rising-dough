@@ -21,6 +21,8 @@ from budget_planner.domain import category_colors
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.fx import FxRate
+from budget_planner.repositories.invites import Invite
+from budget_planner.services.invites import EXPIRED, PENDING, invite_state
 from budget_planner.services.security_settings import SessionRow
 from budget_planner.services.users import (
     LAST_ADMIN_DELETE_MESSAGE,
@@ -297,6 +299,61 @@ def user_row_view(user: UserListing, *, me_id: int, tz: str) -> UserRowView:
 def user_rows(users: Sequence[UserListing], *, me_id: int, tz: str) -> tuple[UserRowView, ...]:
     """Roster rows in service order."""
     return tuple(user_row_view(u, me_id=me_id, tz=tz) for u in users)
+
+
+INVITES_PATH: Final = "/settings/users/invites"
+
+
+@dataclass(frozen=True, slots=True)
+class InviteRowView:
+    """One pending or expired invite on the Users page (derived from ``rows/user-row``)."""
+
+    id: int
+    email_text: str
+    role_text: str
+    status_text: str
+    expired: bool
+    menu_id: str
+    menu_sub: str
+    menu_items: tuple[Mapping[str, object], ...]
+
+
+def _invite_menu(invite_id: int) -> tuple[Mapping[str, object], ...]:
+    base = f"{INVITES_PATH}/{invite_id}"
+    return (
+        MappingProxyType(
+            {"label": "resend invite", "hx_post": f"{base}/resend", "hx_target": "#modal-root"}
+        ),
+        MappingProxyType({"label": "revoke invite", "hx_get": f"{base}/revoke", "danger": True}),
+    )
+
+
+def invite_row_view(invite: Invite, *, now: datetime, tz: str) -> InviteRowView:
+    """Row values: ``invited, expires 02 DEC`` or ``invite expired, 02 DEC`` with the mail mark."""
+    expired = invite_state(invite, now=now) == EXPIRED
+    stamp = _local(invite.expires_at, tz, "%d %b")
+    return InviteRowView(
+        id=invite.id,
+        email_text=invite.email,
+        role_text="admin" if invite.is_admin else "member",
+        status_text=f"\u2709 invite expired \u00b7 {stamp}"
+        if expired
+        else f"\u2709 invited \u00b7 expires {stamp}",
+        expired=expired,
+        menu_id=f"invite-menu-{invite.id}",
+        menu_sub="expired invite" if expired else "pending invite",
+        menu_items=_invite_menu(invite.id),
+    )
+
+
+def invite_rows(invites: Sequence[Invite], *, now: datetime, tz: str) -> tuple[InviteRowView, ...]:
+    """Pending and expired invites only (used and revoked ones leave the list), service order."""
+    open_states = (PENDING, EXPIRED)
+    return tuple(
+        invite_row_view(i, now=now, tz=tz)
+        for i in invites
+        if invite_state(i, now=now) in open_states
+    )
 
 
 @dataclass(frozen=True, slots=True)

@@ -21,7 +21,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, entries, ledger
+from tests.ui_map import _html, entries, errors, ledger, rd_shell as shell
 
 USER_ID = 1
 
@@ -93,7 +93,7 @@ def test_table_fragment_is_not_full_page(client: TestClient, seeded: dict[str, i
 
 
 def test_new_form_fragment(client: TestClient, seeded: dict[str, int]) -> None:
-    r = client.get("/transactions/new", headers={"HX-Request": "true"})
+    r = client.get("/add?when=happened&dialog=1", headers={"HX-Request": "true"})
     assert r.status_code == 200
     form = _html.resolve_one(r.text, entries.dialog).find("form")
     assert form is not None
@@ -122,7 +122,9 @@ def test_create_valid_persists_and_triggers(
         },
     )
     assert r.status_code == 200
-    assert _html.exists(r.text, ledger.row(_new_txn_id(_migrated)))
+    # the dialog closes (modal-root emptied out of band) and the flash says what happened
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Transaction saved"
     hx = json.loads(r.headers["HX-Trigger"])
     assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
     conn = get_connection(_migrated)
@@ -171,7 +173,7 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, seeded: dict
 def test_new_form_posts_into_the_modal_root_not_the_ledger_table(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
-    r = client.get("/transactions/new", headers={"HX-Request": "true"})
+    r = client.get("/add?when=happened&dialog=1", headers={"HX-Request": "true"})
     form = _html.resolve_one(r.text, entries.dialog).find("form")
     assert form is not None
     assert form.get("hx-target") == "#modal-root"
@@ -181,7 +183,7 @@ def test_new_form_on_a_plain_page_load_opens_the_dialog_through_the_shell(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
     """The top bar links here: a full load is a shell page that fetches ``/add`` on load."""
-    r = client.get("/transactions/new")
+    r = client.get("/add?when=happened&dialog=1")
     assert r.status_code == 200
     opener = _html.resolve_one(r.text, entries.opener)
     assert (opener.get("hx-get"), opener.get("hx-trigger")) == (

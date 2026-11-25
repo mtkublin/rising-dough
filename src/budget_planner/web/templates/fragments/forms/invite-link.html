@@ -1,0 +1,11 @@
+{# fragment: forms/invite-link (T-UR20a). Input: invite (InviteRowView), invite_link, resent.
+   Body of the invite link dialog and of its no-script inline card; the secret is a read-only output like forms/one-time-password. #}
+<p class="rd-dialog__lede" id="invite-link-note">
+  {% if resent %}New link, the old one no longer works.{% else %}Invite created.{% endif %}
+  Shown once. Hand it to {{ invite.email_text }} yourself (no email is sent). Status: {{ invite.status_text }}.
+</p>
+<div class="rd-secret">
+  <output class="rd-secret__value"
+          id="invite-link-value"
+          aria-label="Invite link">{{ invite_link }}</output>
+</div>

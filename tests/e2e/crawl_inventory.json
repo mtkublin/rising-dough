@@ -35,7 +35,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -228,7 +228,7 @@
       "kind": "link",
       "name": "[ new entry ]",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -465,7 +465,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -530,7 +530,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -720,7 +720,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -877,7 +877,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1070,7 +1070,7 @@
       "kind": "link",
       "name": "[ new entry ]",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1208,7 +1208,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1295,6 +1295,11 @@
       "target": ""
     },
     {
+      "kind": "hx-get",
+      "name": "+ create invite",
+      "target": "/settings/users/invites/new"
+    },
+    {
       "kind": "link",
       "name": "Categories",
       "target": "/settings?tab=categories"
@@ -1327,7 +1332,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1371,6 +1376,33 @@
       "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "+ create invite"
+    },
+    {
+      "kind": "button",
+      "name": "cancel",
+      "target": "",
+      "via": "+ create invite"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "create invite email role member admin cancel [ create invite...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users/invites",
+      "via": "+ create invite"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "[ create invite ]",
+      "target": "/settings/users/invites",
+      "via": "+ create invite"
     },
     {
       "kind": "hx-get",
@@ -1448,7 +1480,7 @@
     {
       "kind": "link",
       "name": "[ new entry ]",
-      "target": "/transactions/new"
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",

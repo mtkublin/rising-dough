@@ -26,7 +26,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, edit_dialogs, entries, errors, ledger
+from tests.ui_map import _html, edit_dialogs, entries, errors, ledger, rd_shell as shell
 from tests.ui_map.locator import by_id, role
 
 USER_ID = 1
@@ -88,7 +88,7 @@ def ctx(_migrated: Settings) -> dict[str, int]:
 
 
 def test_new_form(client: TestClient) -> None:
-    r = client.get("/recurring/new", headers=_HTMX)
+    r = client.get("/add?when=repeats&dialog=1", headers=_HTMX)
     assert r.status_code == 200
     assert _html.exists(r.text, entries.tab_repeats)
     start = _html.resolve_one(r.text, entries.field_start)
@@ -105,7 +105,7 @@ def test_new_form_single_term_consistent_indices(client: TestClient, ctx: dict[s
     # ``ctx`` seeds at least one income+expense category so
     # ``_formula_source_candidates`` yields non-empty checkbox markup.
     assert ctx["cat"] > 0
-    r = client.get("/recurring/new", headers=_HTMX)
+    r = client.get("/add?when=repeats&dialog=1", headers=_HTMX)
     assert r.status_code == 200
     checkbox_indices = {
         int(m.group(1)) for m in re.finditer(r'name="components\[(\d+)\]\[categories\]"', r.text)
@@ -118,7 +118,7 @@ def test_new_form_single_term_consistent_indices(client: TestClient, ctx: dict[s
     assert sign_indices == {0}, sign_indices
 
 
-def test_create(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     r = client.post(
         "/recurring",
         data={
@@ -130,7 +130,18 @@ def test_create(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 200
-    assert "forecast-stale" in r.headers["HX-Trigger"]
+    assert json.loads(r.headers["HX-Trigger"]) == {"forecast-stale": True, "ledger-stale": True}
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Recurring rule saved"
+    row = db.execute(
+        "SELECT id, default_amount FROM recurring_rules ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row[1] == 50000
+    ops = db.execute(
+        "SELECT operation FROM audit_log WHERE entity_type = 'recurring_rule' AND entity_id = ?",
+        (row[0],),
+    ).fetchall()
+    assert [o[0] for o in ops] == ["create"]
 
 
 def test_create_invalid_cadence(
@@ -1171,7 +1182,7 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[st
 
 
 def test_new_form_posts_into_the_modal_root_not_the_ledger_table(client: TestClient) -> None:
-    r = client.get("/recurring/new", headers=_HTMX)
+    r = client.get("/add?when=repeats&dialog=1", headers=_HTMX)
     form = _html.resolve_one(r.text, entries.dialog).find("form")
     assert form is not None
     assert (form.get("hx-post"), form.get("hx-target")) == ("/recurring", "#modal-root")

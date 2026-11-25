@@ -47,7 +47,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | keep: ADR-0107 §2: WebAuthn ceremonies, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
 | `src/budget_planner/web/static/js/rd-wire.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/reconcile-form.js` | T-UR08 | deleted |  |
-| `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | delete | UR10b kept: the old "+ Add" repeats form (`recurring/_form.html`) still needs it; goes with it |
+| `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | delete | UR10b kept: the old "+ Add" repeats form (`recurring/_form.html`) still needs it; goes with it; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
 | `src/budget_planner/web/static/js/rising-dough.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/shortcuts.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/txn-form.js` | T-UR15 | delete |  |
@@ -99,7 +99,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/ledger/_recently_deleted.html` | T-UR10 | deleted | UR10a: `GET /ledger/recently-deleted` renders `pages/ledger/recently-deleted.html` |
 | `src/budget_planner/web/templates/ledger/_table.html` | T-UR10 | deleted | UR10a: the planned and recurring views render `fragments/ledger/{planned,recurring}-table.html` (actual: T-UR09) |
 | `src/budget_planner/web/templates/ledger/index.html` | T-UR09 | deleted |  |
-| `src/budget_planner/web/templates/partials/_add_entry_overlay.html` | T-UR15 | delete | still the old shell's "+ Add" overlay (ledger, forecast, settings) until T-UR09/T-UR10 port them; Today uses pages/entries/new-entry.html |
+| `src/budget_planner/web/templates/partials/_add_entry_overlay.html` | T-UR15 | delete | still the old shell's "+ Add" overlay (ledger, forecast, settings) until T-UR09/T-UR10 port them; Today uses pages/entries/new-entry.html; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
 | `src/budget_planner/web/templates/partials/_cheatsheet.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_direction_badge.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_flash.html` | T-UR15 | delete |  |
@@ -109,8 +109,8 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/_pagination.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_palette.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_shortcuts.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_slideover.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_slideover_page.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/partials/_slideover.html` | T-UR15 | deleted | UR15b: nothing renders it; the slide-over branch of `rendering.py` is gone |
+| `src/budget_planner/web/templates/partials/_slideover_page.html` | T-UR15 | deleted | UR15b: nothing renders it; the slide-over branch of `rendering.py` is gone |
 | `src/budget_planner/web/templates/partials/_tabbar.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/accounts/_card.html` | T-UR08 | deleted |  |
 | `src/budget_planner/web/templates/partials/accounts/_form.html` | T-UR08 | deleted |  |
@@ -125,22 +125,22 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/forecast/_chart.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
 | `src/budget_planner/web/templates/partials/forecast/_table.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
 | `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
-| `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15 |
+| `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell page `dev/components.html` (the budget and forecast pages went in UR15a): goes with it |
 | `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | deleted | UR24: the inline promote routes are gone; promote is the dialog only |
 | `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR24 | deleted | UR24: the legacy `?dialog=` branch is gone; `GET /planned/{id}/promote` always renders pages/entries/promote.html |
-| `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | delete | UR10a kept: `created_planned_response` (the old "+ Add" planned create) still renders it; goes with T-UR09 / T-UR15 |
+| `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | deleted | UR15b: nothing renders it (dialog creates answer `saved_response`) |
 | `src/budget_planner/web/templates/partials/planned/_table.html` | T-UR10 | deleted | UR10a: orphaned (only planned/index.html included it) |
-| `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" repeats tab and the 422 of its create; goes with T-UR09 / T-UR15 |
+| `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" repeats tab and the 422 of its create; goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
 | `src/budget_planner/web/templates/partials/recurring/_formula_preview.html` | T-UR10 | deleted | UR10b: POST /recurring/formula/preview renders `fragments/dialogs/formula-result.html` |
 | `src/budget_planner/web/templates/partials/recurring/_override_form.html` | T-UR10 | deleted | UR10b: `GET /recurring/{id}/overrides/new` renders `fragments/dialogs/override-occurrence.html` |
 | `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR24 | deleted | UR24: the inline promote routes are gone; promote is the dialog only |
 | `src/budget_planner/web/templates/partials/recurring/_promote_modal.html` | T-UR24 | deleted | UR24: the legacy `?dialog=` branch is gone; `GET /recurring/{id}/promote` always renders pages/entries/promote.html |
-| `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | delete | UR10a kept: `render_created_row` and `render_rule_row` (old "+ Add" repeats create, skip-next) still render it; goes with T-UR15 |
+| `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | deleted | UR15b: nothing renders it (dialog creates answer `saved_response`) |
 | `src/budget_planner/web/templates/partials/transactions/_empty.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/partials/transactions/_filter_form.html` | T-UR09 | deleted |  |
-| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR15 | delete | the edit dialog no longer renders it (T-UR09b); still the old shell's "+ Add" happened form (`form_responses.open_legacy_overlay`) and the non-dialog 422 of `POST /transactions` (`txn_form_errors`) until the ledger and the other old-shell pages are ported |
-| `src/budget_planner/web/templates/partials/transactions/_limit_preview.html` | T-UR09 | delete |  |
-| `src/budget_planner/web/templates/partials/transactions/_row.html` | T-UR09 | delete |  |
+| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR15 | delete | the edit dialog no longer renders it (T-UR09b); still the old shell's "+ Add" happened form (`form_responses.open_legacy_overlay`) and the non-dialog 422 of `POST /transactions` (`txn_form_errors`) until the ledger and the other old-shell pages are ported; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
+| `src/budget_planner/web/templates/partials/transactions/_limit_preview.html` | T-UR09 | delete | UR15b: still included by `transactions/_form.html` (old-shell "+ Add", see that row); the live credit line is `fragments/fields/credit-line.html` on the same route |
+| `src/budget_planner/web/templates/partials/transactions/_row.html` | T-UR09 | deleted | UR15b: nothing renders it (dialog creates answer `saved_response`) |
 | `src/budget_planner/web/templates/partials/transactions/_table.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/plan/_analytics_bundle.html` | T-UR12 | deleted |  |
 | `src/budget_planner/web/templates/plan/_analytics_tab.html` | T-UR12 | deleted |  |

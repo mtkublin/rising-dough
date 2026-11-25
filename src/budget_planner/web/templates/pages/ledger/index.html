@@ -8,7 +8,7 @@
 {% block header_actions %}
   {# the shell's [ new entry ] asks the dialog route in place, so a save lands back on the ledger #}
   <a class="rd-btn rd-btn--primary rd-topbar__new"
-     href="/transactions/new"
+     href="/add?when=happened&dialog=1"
      hx-get="/add?when=happened&dialog=1"
      hx-target="#modal-root"
      hx-swap="innerHTML"

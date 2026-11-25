@@ -36,3 +36,18 @@ setup_alert = role("alert")
 setup_email_error = by_id("setup-email-error")
 setup_password_error = by_id("setup-password-error")
 setup_confirm_error = by_id("setup-confirm-error")
+
+
+# Invite landing (T-UR20a; handoff auth/invite and its expired, used, invalid states).
+invite_heading = role("heading", "Create your account", level=1, exact=True)
+invite_email = label("email", exact=True)
+invite_name = label("name", exact=True)
+invite_password = label("password", exact=True)
+invite_confirm = label("confirm password", exact=True)
+invite_create = role("button", re.compile(r"^\[ create account \]$"))
+invite_alert = role("alert")
+invite_back = role("link", "back to sign in")
+invite_caption = by_id("invite-caption")
+invite_name_error = by_id("inv-name-error")
+invite_password_error = by_id("inv-password-error")
+invite_confirm_error = by_id("inv-confirm-error")

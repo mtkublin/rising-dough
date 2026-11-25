@@ -98,6 +98,20 @@ delete_blocked = _app.delete_blocked
 add_errors = _app.add_errors
 flash_success = _app.flash_success
 flash_error = _app.flash_error
+# T-UR20a: invite dialogs and rows (the handoff overlays differ in ids; the app names are shared)
+create_invite_link = _app.create_invite_link
+create_invite_dialog = _app.create_invite_dialog
+invite_email_field = _app.invite_email_field
+invite_role_admin = _app.invite_role_admin
+invite_submit = _app.invite_submit
+invite_email_error = _app.invite_email_error
+invite_link_dialog = _app.invite_link_dialog
+invite_link_value = _app.invite_link_value
+revoke_invite_dialog = _app.revoke_invite_dialog
+revoke_invite_confirm = _app.revoke_invite_confirm
+any_invite_row = _app.any_invite_row
+flash_error_region = _app.flash_error_region
+flash_error_close = _app.flash_error_close
 # no handoff twin: the forced rotation page (T-UR20) and the 422 / throttle summary
 save_and_continue = _app.save_and_continue
 sign_out_instead = _app.sign_out_instead
@@ -155,3 +169,11 @@ def edit_user_item(name: str) -> Locator:
 
 def passkey_remove(name: str) -> Locator:
     return _app.passkey_remove(name)
+
+
+def invite_row(invite_id: int) -> Locator:
+    return _app.invite_row(invite_id)
+
+
+def invite_menu_item(label_text: str, invite_id: int) -> Locator:
+    return _app.invite_menu_item(label_text, invite_id)

@@ -78,6 +78,8 @@ EXEMPT_PATHS: Final = frozenset(
 )
 #: Path prefixes reachable without a session and never hydrated.
 STATIC_PREFIX: Final = "/static/"
+#: Invite landing links (/invite/<token>, T-UR20a) are public: the person has no account yet.
+INVITE_PREFIX: Final = "/invite/"
 
 _UNAUTHORIZED_BODY: Final = MappingProxyType({"error": "unauthorized"})
 _log = get_logger("budget_planner.auth")
@@ -106,7 +108,7 @@ class CurrentUser:
 
 def is_exempt(path: str) -> bool:
     """True when *path* is reachable without a session (ADR-0070 §4)."""
-    return path in EXEMPT_PATHS or path.startswith(STATIC_PREFIX)
+    return path in EXEMPT_PATHS or path.startswith((STATIC_PREFIX, INVITE_PREFIX))
 
 
 def _resolve(settings: Settings, session_id: str) -> tuple[CurrentUser, datetime] | None:

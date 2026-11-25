@@ -24,6 +24,7 @@ redirect, so the password is not lost); edit / delete redirect 303 back to the l
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -31,7 +32,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.domain.ports import PasswordHasher, TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
-from budget_planner.services import users as users_service
+from budget_planner.services import invites as invites_service, users as users_service
 from budget_planner.services.users import UserConflict, UserInputError, UserNotFound
 from budget_planner.web.auth_deps import current_admin
 from budget_planner.web.deps import (
@@ -39,10 +40,18 @@ from budget_planner.web.deps import (
     get_password_hasher,
     get_request_ctx,
     get_token_source,
+    reauth_now,
     require_recent_auth,
 )
-from budget_planner.web.dialogs import invalid_dialog_response, saved_response
+from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.field_labels import field_summary
+from budget_planner.web.invites_admin import (
+    CREATE_DIALOG,
+    REVOKE_DIALOG,
+    create_context,
+    invite_not_found,
+    link_response,
+)
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render, render_context
 from budget_planner.web.users_admin import (
@@ -55,6 +64,7 @@ from budget_planner.web.users_admin import (
     SUMMARY_TEMPLATE,
     checkbox,
     conflict,
+    conflict_message,
     dialog_view,
     not_found,
     page_context,
@@ -110,6 +120,114 @@ def create_user(
         context = {**page_context(request, conn, admin), "form_summary": rows}
         return render(request, LIST_TEMPLATE, HTTPStatus.UNPROCESSABLE_ENTITY, **context)
     return render_toast(request, conn, admin, password_toast(user, password, kind="created"))
+
+
+# --- invites (T-UR20a): before the ``/{user_id}`` routes so ``invites`` is not read as an id ---
+
+
+@router.get("/invites/new", response_class=HTMLResponse, dependencies=[Depends(current_admin)])
+def invite_new(request: Request) -> HTMLResponse:
+    """Create invite dialog (email and role)."""
+    return dialog_response(request, CREATE_DIALOG, create_context())
+
+
+@router.post("/invites", response_model=None, dependencies=[Depends(require_recent_auth)])
+def invite_create(
+    request: Request,
+    *,
+    email: str = Form(default=""),
+    role: str = Form(default="member"),
+    conn: sqlite3.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(current_admin),
+    request_ctx: RequestCtx = Depends(get_request_ctx),
+    tokens: TokenSource = Depends(get_token_source),
+    now: datetime = Depends(reauth_now),
+) -> Response:
+    """Create an invite and show its link once."""
+    is_admin = role == "admin"
+    try:
+        issued = invites_service.create_invite(
+            conn,
+            admin.id,
+            email=email,
+            is_admin=is_admin,
+            tokens=tokens,
+            now=now,
+            request_ctx=request_ctx,
+        )
+    except UserInputError as exc:
+        return invalid_dialog_response(
+            request, CREATE_DIALOG, create_context(email=email, is_admin=is_admin), exc.fields
+        )
+    return link_response(request, conn, admin, issued, now=now, resent=False)
+
+
+@router.get(
+    "/invites/{invite_id}/revoke",
+    response_class=HTMLResponse,
+    dependencies=[Depends(current_admin)],
+)
+def invite_revoke_form(
+    request: Request,
+    invite_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> HTMLResponse:
+    """Revoke confirm dialog."""
+    invite = next((i for i in invites_service.list_invites(conn) if i.id == invite_id), None)
+    if invite is None:
+        return invite_not_found(request)
+    return dialog_response(request, REVOKE_DIALOG, {"invite": invite})
+
+
+@router.post(
+    "/invites/{invite_id}/resend", response_model=None, dependencies=[Depends(require_recent_auth)]
+)
+def invite_resend(
+    request: Request,
+    invite_id: int,
+    *,
+    conn: sqlite3.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(current_admin),
+    request_ctx: RequestCtx = Depends(get_request_ctx),
+    tokens: TokenSource = Depends(get_token_source),
+    now: datetime = Depends(reauth_now),
+) -> Response:
+    """New link and a fresh 7 days; the old link stops working."""
+    try:
+        issued = invites_service.resend_invite(
+            conn, admin.id, invite_id, tokens=tokens, now=now, request_ctx=request_ctx
+        )
+    except invites_service.InviteNotFoundError:
+        return invite_not_found(request)
+    except invites_service.InviteConflictError as exc:
+        return conflict_message(request, exc.message)
+    return link_response(request, conn, admin, issued, now=now, resent=True)
+
+
+@router.post(
+    "/invites/{invite_id}/revoke", response_model=None, dependencies=[Depends(require_recent_auth)]
+)
+def invite_revoke(
+    request: Request,
+    invite_id: int,
+    *,
+    conn: sqlite3.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(current_admin),
+    request_ctx: RequestCtx = Depends(get_request_ctx),
+    now: datetime = Depends(reauth_now),
+) -> Response:
+    """Revoke (final): the link reads ``invalid`` from now on."""
+    try:
+        invite = invites_service.revoke_invite(
+            conn, admin.id, invite_id, now=now, request_ctx=request_ctx
+        )
+    except invites_service.InviteNotFoundError:
+        return invite_not_found(request)
+    except invites_service.InviteConflictError as exc:
+        return conflict_message(request, exc.message)
+    if not is_hx_request(request):
+        return see_other()
+    return saved_response(request, None, {}, message=f"Revoked the invite for {invite.email}.")
 
 
 @router.get("/{user_id}/edit", response_class=HTMLResponse)

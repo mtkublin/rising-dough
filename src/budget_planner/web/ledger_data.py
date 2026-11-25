@@ -23,7 +23,7 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import PAGE_SIZE_MAX
-from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
+from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import RecurringRule
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.services import (
@@ -171,24 +171,6 @@ def hydrate_txn_rows(
             )
         )
     return out
-
-
-def planned_row_from_persisted(
-    pl: PlannedTransaction, acc: Account | None, cat: Category | None
-) -> dict[str, object]:
-    """Row view of a just-created planned transaction for ``_row.html``."""
-    return {
-        "key": f"p-{pl.id}",
-        "kind": "persisted",
-        "operation_date": pl.operation_date,
-        "amount_minor": pl.amount,
-        "description": pl.description,
-        "is_promoted": pl.promoted_to_txn_id is not None,
-        "account": acc,
-        "category": cat,
-        "persisted_id": pl.id,
-        "currency": acc.currency if acc else "",
-    }
 
 
 def _planned_key(view: planned_service.PlannedView) -> str:

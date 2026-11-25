@@ -47,7 +47,7 @@ from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
 )
-from tests.ui_map import _html, entries, ledger
+from tests.ui_map import _html, entries, ledger, rd_shell as shell
 
 USER_ID = 1
 
@@ -116,12 +116,12 @@ def _extract_after_request_handler(source: str) -> str:
 def test_new_transaction_dialog_posts_the_amount_preview_from_the_form(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
-    """``GET /transactions/new`` is the new-entry dialog (T-UR07b, ADR-0152).
+    """``GET /add?when=happened&dialog=1`` is the new-entry dialog (T-UR07b, ADR-0152).
 
     The credit line refetches itself from the whole form, so an amount keystroke can
     never close or reset the dialog: it targets ``#credit-line`` only.
     """
-    r = client.get("/transactions/new", headers={"HX-Request": "true"})
+    r = client.get("/add?when=happened&dialog=1", headers={"HX-Request": "true"})
     assert r.status_code == 200
     assert r.headers["HX-Retarget"] == "#modal-root"
     assert _html.exists(r.text, entries.dialog)
@@ -219,7 +219,7 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
 
 
 def test_form_submit_still_dismisses_slide_over(client: TestClient, seeded: dict[str, int]) -> None:
-    """``POST /transactions`` returns the row fragment, not the slide-over.
+    """``POST /transactions`` closes the dialog (empties ``#modal-root``), no slide-over.
 
     The dismissal is a client-side side-effect of a successful submit;
     the server contract that unblocks it is: 2xx response that does NOT
@@ -236,8 +236,7 @@ def test_form_submit_still_dismisses_slide_over(client: TestClient, seeded: dict
         },
     )
     assert r.status_code == 200
-    # Row fragment — not the slide-over.
-    assert _html.exists(r.text, ledger.any_row)
+    assert _html.text_of(r.text, shell.modal_root) == ""
     assert not _html.exists(r.text, ledger.slideover), (
         "submit response must not re-render the slide-over wrapper"
     )
