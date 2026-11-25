@@ -44,7 +44,6 @@ def test_afford_result_shows_per_day_and_arrowed_delta() -> None:
     assert _html.text_of(html, by_id("afford-result")).startswith(
         "→ per day becomes 164.28 (↓ 35.71"
     )
-    assert _html.text_of(html, by_id("afford-delta")) == "35.71"
 
 
 def test_afford_result_over_shows_unclamped_per_day_and_the_over_amount() -> None:

@@ -30,7 +30,7 @@ promote = role("link", "promote", exact=True)
 
 # The handoff shows the afford result as one ``<output>``: per-day and delta share it.
 afford_per_day = by_id("afford-result")
-afford_delta = by_id("afford-result")  # no ``afford-delta`` id in the handoff
+afford_delta = by_id("afford-result")
 upcoming_rows = role("listitem").inside(upcoming)
 promote_all_due = role("button", "promote all due")
 

@@ -24,7 +24,7 @@
              name="name"
              type="text"
              value="{{ form.name }}"
-             {% if not category %}placeholder="e.g. Pets" required{% endif %}
+             {% if not category %}placeholder="e.g. Pets" required {% endif %}
              {% if "name" in errors %}aria-invalid="true" aria-describedby="field-name-error"{% endif %}>
     </span>
     {{ field_error("name", errors) }}

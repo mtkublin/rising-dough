@@ -107,7 +107,7 @@
              data-js="amount-input"
              autocomplete="off"
              value="{{ dlg.credit_limit }}"
-             {% if not dlg.is_liability %}disabled data-reveal-disabled{% endif %}
+             {% if not dlg.is_liability %}disabled data-reveal-disabled {% endif %}
              {% if errors.credit_limit|default(none) %}aria-invalid="true" aria-describedby="field-credit_limit-error"{% endif %}>
     </span>
   </label>

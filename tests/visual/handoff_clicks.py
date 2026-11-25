@@ -42,15 +42,9 @@ def _period_picker(page: Page) -> None:
 
 
 def _row_menu(page: Page) -> None:
-    """The first row menu on the page (the handoff opens the first row's menu or Export)."""
-    page.locator(_ROW_MENU).first.click()
-    page.wait_for_selector(".rd-menu:popover-open", timeout=_TIMEOUT_MS)
-    # The handoff shows the kebab with no hover or pressed background: park the pointer away.
-    page.mouse.move(0, 0)
-
-
-def _row_menu_keyboard(page: Page) -> None:
-    """The first row menu opened from the keyboard: the handoff shows its item focus ring."""
+    """The first row menu opened from the keyboard: the handoff opens it on load (``data-open``) and
+    focuses the first item with no pointer involved, so it shows the item's focus ring; a mouse
+    click would not (``:focus-visible``), a keyboard user sees it."""
     page.locator(_ROW_MENU).first.focus()
     page.keyboard.press("Enter")
     page.wait_for_selector(".rd-menu:popover-open", timeout=_TIMEOUT_MS)
@@ -96,8 +90,8 @@ CLICK_RECIPES: Final[dict[str, Recipe]] = {
     "period-picker": _period_picker,
     "period-picker--year": _period_picker,
     "row-menu--upcoming": _row_menu,
-    "row-menu--budget": _row_menu_keyboard,
-    "row-menu--account": _row_menu_keyboard,
+    "row-menu--budget": _row_menu,
+    "row-menu--account": _row_menu,
     "row-menu--planned": _row_menu,
     "row-menu--recurring": _row_menu,
     "row-menu--transaction": _row_menu,
