@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re as _re
+
 from tests.ui_map.locator import Locator, by_id, by_testid, label, role
 
 # The hero label: "net worth · N accounts" on desktop, "net worth" on phone.
@@ -31,24 +33,56 @@ def snapshot_button(account_id: int) -> Locator:
     return role("button", f"Snapshot account {account_id}")
 
 
-# --- create / edit form (slide-over); UR08b rewrites these with the dialogs ---
-create_account = role("button", "Create account")
-account_form = by_id("account-form")  # create form only; edit form has no id
-form_name = label("Name")
-form_currency = label("Currency")
-form_credit_limit = label("Credit limit")
-form_errors = role("alert")
+# --- new / edit dialogs (UR08b; handoff overlays new-account*, edit-account*) ---
+new_dialog = role("dialog", "new account", exact=True)
+account_form = by_id("account-form")  # the new dialog's field group; the edit dialog has none
+create_account = role("button", "[ create account ]")
+save_account = role("button", "[ save ]")
+form_name = label("name", exact=True)
+form_currency = label("currency", exact=True)
+form_type = label("type", exact=True)
+form_credit_limit = label("credit limit", exact=True)
+form_opening_balance = label("Opening balance")
+form_counts_as = role("radiogroup", "counts as")
+form_liability = role("radio", "liability")
+form_errors = by_id("error-summary")  # the 422 summary (the hero error is a second alert)
+currency_options = by_id("iso-codes")
 
-# --- reconcile dialog (UR08b) ---
-reconcile_dialog = role("dialog")
-reconcile_actual = label("Your bank says")
-reconcile_available = label("Available")
+
+def edit_dialog(name: str) -> Locator:
+    return role("dialog", f"edit account \u00b7 {name}", exact=True)
+
+
+# --- delete: confirm, blocked (handoff overlays delete-account*) ---
+def delete_dialog(name: str) -> Locator:
+    return role("alertdialog", f"Delete {name}?", exact=True)
+
+
+def blocked_dialog(name: str) -> Locator:
+    return role("alertdialog", f"Can\u2019t delete {name}", exact=True)
+
+
+delete_confirm = role("button", "delete account", exact=True)
+blocked_ok = role("button", "[ ok ]", exact=True)
+blocked_link = role("link", _re.compile(r"^view "))
+
+
+def menu_item(label_text: str) -> Locator:
+    return role("menuitem", label_text, exact=True)
+
+
+# --- reconcile dialog (UR08b; handoff overlays reconcile, reconcile--liability) ---
+reconcile_dialog = role("dialog", _re.compile(r"^reconcile \u00b7 "))
+reconcile_actual = label("balance in your bank", exact=True)
+reconcile_available = label("remaining balance in your bank", exact=True)
 reconcile_available_help = by_id("rec-available-help")
+reconcile_difference = role("status").inside(reconcile_dialog)  # the hero <output>
+reconcile_snapshot_option = label("also save a balance snapshot")
+reconcile_preview = role("button", "preview", exact=True).inside(reconcile_dialog)
+reconcile_record = role("button", "[ reconcile ]", exact=True).inside(reconcile_dialog)
 
 # --- last-checked fragment ---
 last_checked_row = role("listitem")
 
 # --- snapshot fragment (bare list item) ---
 snapshot_item = role("listitem")
-
-reconcile_record = role("button", "Record").inside(reconcile_dialog)

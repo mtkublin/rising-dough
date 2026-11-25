@@ -109,7 +109,7 @@ def test_liability_has_subline_and_keeps_available(client: TestClient, ids: dict
 def test_reconcile_row_includes_subline(client: TestClient, ids: dict[str, int]) -> None:
     r = client.post(f"/accounts/{ids['out']}/reconcile", data={"actual_balance": "12400.00"})
     assert r.status_code == 200
-    assert "\u22129,824.01 planned → 2,575.99" in _row_text(r.text, ids["out"])
+    assert "→ 2,575.99 after planned" in _row_text(r.text, ids["out"])
 
 
 def test_hero_planned_total(client: TestClient, ids: dict[str, int]) -> None:

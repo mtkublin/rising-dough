@@ -12,6 +12,7 @@ from datetime import date
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import Account, AccountStats
+from budget_planner.domain.money import format_major, parse_amount_minor
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services import (
     account_planned as planned_service,
@@ -21,11 +22,13 @@ from budget_planner.services import (
     categories as categories_service,
     fortune as fortune_service,
     fx as fx_service,
+    reconciliation as reconciliation_service,
 )
 from budget_planner.web.accounts_view import (
     account_row,
     accounts_hero,
     credit_utilisation,
+    reconcile_dialog,
     sparkline_fields,
 )
 
@@ -186,3 +189,96 @@ def recent_snapshots(
     return accounts_service.list_snapshots_for_account(conn, user_id, account_id)[
         :_RECENT_SNAPSHOTS
     ]
+
+
+def row_context(
+    conn: sqlite3.Connection, user_id: int, account_id: int, settings: Settings
+) -> dict[str, object]:
+    """Context of one ``rows/account-row`` after a save (T-UR08b)."""
+    return {"row": account_row(single_card(conn, user_id, account_id, settings))}
+
+
+def _typed_difference(acc: Account, text: str, derived: int) -> tuple[int, dict[str, str]]:
+    """Signed difference of the typed amount (service preview) and the field error, if any."""
+    if not text:
+        return 0, {}
+    entered = parse_amount_minor(text, acc.currency)
+    if entered is None:
+        return 0, {"actual_balance": "invalid number"}
+    try:
+        return reconcile_service.preview_difference(acc, entered, derived).difference_minor, {}
+    except reconciliation_service.InvalidAvailableError as exc:
+        return 0, {"actual_balance": str(exc)}
+
+
+def reconcile_dialog_context(
+    conn: sqlite3.Connection,
+    user_id: int,
+    acc: Account,
+    *,
+    actual_text: str = "",
+    category_id: str = "",
+    save_snapshot: bool = False,
+    message: str | None = None,
+) -> tuple[dict[str, object], dict[str, str]]:
+    """Reconcile dialog view-model plus the field errors of the typed amount (T-UR08b).
+
+    The difference in the hero is the service preview (``preview_difference``); a liability
+    with a limit is prefilled with its available credit and so starts at zero.
+    """
+    derived = balance_service.derive_balance(conn, user_id, acc.id)
+    util = credit_utilisation(acc, derived)
+    text = actual_text.strip()
+    difference, errors = _typed_difference(acc, text, derived)
+    if message is not None:
+        errors = {"actual_balance": message}
+    prefill = format_major(util.available_minor, acc.currency) if util is not None else ""
+    categories = [
+        (c.id, f"{c.direction.value.upper()} \u00b7 {c.name}")
+        for c in categories_service.list_all(conn, user_id)
+        if not c.is_system
+    ]
+    dlg = reconcile_dialog(
+        acc,
+        current_minor=util.available_minor if util is not None else derived,
+        difference_minor=difference,
+        value=text or prefill,
+        credit=util,
+        categories=categories,
+        category_id=category_id,
+        save_snapshot=save_snapshot,
+        snapshots=recent_snapshots(conn, user_id, acc.id),
+    )
+    return {"dlg": dlg}, errors
+
+
+def book_reconcile(
+    conn: sqlite3.Connection,
+    user_id: int,
+    acc: Account,
+    settings: Settings,
+    *,
+    actual_text: str,
+    category_id: str,
+    save_snapshot: bool,
+) -> str | None:
+    """Book the reconcile adjustment; the field error message when the amount is refused."""
+    entered = parse_amount_minor(actual_text, acc.currency)
+    if entered is None:
+        return "invalid number"
+    try:
+        reconcile_service.reconcile_account(
+            conn,
+            user_id,
+            account_id=acc.id,
+            actual_balance_minor=reconcile_service.target_balance_minor(acc, entered),
+            today=clock.today_local(settings),
+            category_id=int(category_id) if category_id.strip().isdigit() else None,
+            save_snapshot=save_snapshot,
+        )
+    except (
+        reconciliation_service.InvalidAvailableError,
+        reconciliation_service.ValidationError,
+    ) as exc:
+        return str(exc)
+    return None

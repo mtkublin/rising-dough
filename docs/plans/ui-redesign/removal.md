@@ -35,7 +35,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin-ext.woff2` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin.woff2` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | keep: ADR-0107 §2: CSRF header on HTMX requests, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
-| `src/budget_planner/web/static/js/account-form.js` | T-UR08 | delete |  |
+| `src/budget_planner/web/static/js/account-form.js` | T-UR08 | deleted |  |
 | `src/budget_planner/web/static/js/app-init.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | deleted | UR11b: the override dialog is plain radios and `dialog.js`; no script loaded it any more |
 | `src/budget_planner/web/static/js/category-form.js` | T-UR13 | deleted |  |
@@ -46,7 +46,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/palette.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | keep: ADR-0107 §2: WebAuthn ceremonies, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
 | `src/budget_planner/web/static/js/rd-wire.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/reconcile-form.js` | T-UR08 | delete |  |
+| `src/budget_planner/web/static/js/reconcile-form.js` | T-UR08 | deleted |  |
 | `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | delete | UR10b kept: the old "+ Add" repeats form (`recurring/_form.html`) still needs it; goes with it |
 | `src/budget_planner/web/static/js/rising-dough.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/shortcuts.js` | T-UR15 | delete |  |
@@ -112,13 +112,13 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/_slideover.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_slideover_page.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/partials/_tabbar.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/accounts/_card.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/partials/accounts/_form.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/partials/accounts/_fortune_split.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/partials/accounts/_reconcile_modal.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/partials/accounts/_row.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/partials/accounts/_snapshot_item.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/partials/accounts/_totals.html` | T-UR08 | delete |  |
+| `src/budget_planner/web/templates/partials/accounts/_card.html` | T-UR08 | deleted |  |
+| `src/budget_planner/web/templates/partials/accounts/_form.html` | T-UR08 | deleted |  |
+| `src/budget_planner/web/templates/partials/accounts/_fortune_split.html` | T-UR08 | deleted |  |
+| `src/budget_planner/web/templates/partials/accounts/_reconcile_modal.html` | T-UR08 | deleted |  |
+| `src/budget_planner/web/templates/partials/accounts/_row.html` | T-UR08 | deleted |  |
+| `src/budget_planner/web/templates/partials/accounts/_snapshot_item.html` | T-UR08 | deleted |  |
+| `src/budget_planner/web/templates/partials/accounts/_totals.html` | T-UR08 | deleted |  |
 | `src/budget_planner/web/templates/partials/budget/_override_form.html` | T-UR11 | deleted | UR11b: `GET /budget/rules/{id}/overrides/new` renders `fragments/dialogs/override-budget.html` |
 | `src/budget_planner/web/templates/partials/categories/_form.html` | T-UR13 | deleted |  |
 | `src/budget_planner/web/templates/partials/categories/_row.html` | T-UR13 | deleted |  |

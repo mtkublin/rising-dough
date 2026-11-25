@@ -45,7 +45,7 @@ _PLANNED_FORM = "partials/planned/_form.html"
 PROMOTE_TEMPLATE = "pages/entries/promote.html"
 _LEGACY_PROMOTE = "partials/planned/_promote_modal.html"
 EDIT_PLANNED_TEMPLATE = "fragments/dialogs/edit-planned.html"
-_RECONCILE_MODAL = "partials/accounts/_reconcile_modal.html"
+_RECONCILE_DIALOG = "pages/accounts/dialog-reconcile.html"
 _UNPROCESSABLE = 422
 _NOT_FOUND = 404
 EDIT_TXN_TEMPLATE = "fragments/dialogs/edit-transaction.html"
@@ -426,16 +426,46 @@ def reconcile_modal_error(
     user_id: int,
     *,
     acc: Account,
-    derived: int,
     message: str,
+    actual_text: str = "",
+    category_id: str = "",
+    save_snapshot: bool = False,
 ) -> Response:
-    return render(
-        request,
-        _RECONCILE_MODAL,
-        errors={"actual_balance": message},
-        status_code=_UNPROCESSABLE,
-        **accounts_data.reconcile_modal_context(conn, user_id, acc, derived),
+    """The reconcile dialog again with the rejected amount (422, ADR-0143)."""
+    ctx, _ = accounts_data.reconcile_dialog_context(
+        conn,
+        user_id,
+        acc,
+        actual_text=actual_text,
+        category_id=category_id,
+        save_snapshot=save_snapshot,
+        message=message,
     )
+    return invalid_dialog_response(request, _RECONCILE_DIALOG, ctx, {"actual_balance": message})
+
+
+def reconcile_dialog_response(
+    request: Request,
+    conn: sqlite3.Connection,
+    user_id: int,
+    acc: Account,
+    *,
+    actual_text: str = "",
+    category_id: str = "",
+    save_snapshot: bool = False,
+) -> Response:
+    """The reconcile dialog for an optional typed amount: 200, or 422 when the amount is bad."""
+    ctx, errors = accounts_data.reconcile_dialog_context(
+        conn,
+        user_id,
+        acc,
+        actual_text=actual_text,
+        category_id=category_id,
+        save_snapshot=save_snapshot,
+    )
+    if errors:
+        return invalid_dialog_response(request, _RECONCILE_DIALOG, ctx, errors)
+    return dialog_response(request, _RECONCILE_DIALOG, {**ctx, "errors": {}})
 
 
 def stale_refresh(request: Request, *events: Event) -> Response:

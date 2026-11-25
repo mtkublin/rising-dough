@@ -24,7 +24,6 @@ from tests.e2e.ui_actions import (
     choose_category,
     open_add_slide_over,
     open_new_entry,
-    pick,
 )
 from tests.ui_map import (
     accounts,
@@ -333,9 +332,6 @@ def _open_new_account_form(page: Page, base_url: str) -> None:
     expect(to_playwright(page, accounts.account_form)).to_be_visible()
 
 
-@pytest.mark.skip(
-    reason="T-UR08b: the new-account form currency combobox is not wired in the new shell"
-)
 def test_create_account_from_accounts_submits_under_csp(
     live_server: tuple[str, Path], page: Page
 ) -> None:
@@ -352,9 +348,9 @@ def test_create_account_from_accounts_submits_under_csp(
         conn.close()
     _open_new_account_form(page, base_url)
     _fill(page, accounts.form_name, "Travel wallet", accounts.account_form)
-    pick(page, accounts.form_currency, "EUR", scope=accounts.account_form)
-    _submit(page, accounts.create_account, accounts.account_form)
-    expect(to_playwright(page, accounts.account_form)).to_have_count(0)
+    _fill(page, accounts.form_currency, "EUR", accounts.account_form)
+    _submit(page, accounts.create_account, accounts.new_dialog)
+    expect(to_playwright(page, accounts.new_dialog)).to_have_count(0)
     account_id = db_probe.account_id(db_path, "Travel wallet")
     assert (
         db_probe.scalar(db_path, "SELECT currency FROM accounts WHERE id = ?", account_id) == "EUR"
@@ -362,18 +358,15 @@ def test_create_account_from_accounts_submits_under_csp(
     expect(to_playwright(page, accounts.row(account_id))).to_contain_text("Travel wallet")
 
 
-@pytest.mark.skip(
-    reason="T-UR08b: the new-account form currency combobox is not wired in the new shell"
-)
 def test_create_account_invalid_rerenders_form(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _open_new_account_form(page, base_url)
     # ``required`` blocks an empty name in the browser; whitespace passes it.
     _fill(page, accounts.form_name, "   ", accounts.account_form)
-    pick(page, accounts.form_currency, "EUR", scope=accounts.account_form)
-    _submit(page, accounts.create_account, accounts.account_form)
-    expect(to_playwright(page, accounts.account_form)).to_have_count(1)
-    expect(to_playwright(page, accounts.account_form)).to_contain_text("name required")
+    _fill(page, accounts.form_currency, "EUR", accounts.account_form)
+    _submit(page, accounts.create_account, accounts.new_dialog)
+    expect(to_playwright(page, accounts.new_dialog)).to_have_count(1)
+    expect(to_playwright(page, accounts.form_errors)).to_contain_text("name required")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM accounts") == 0
 
 
