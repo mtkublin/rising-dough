@@ -145,18 +145,11 @@ OVERLAY_DIALOGS: dict[str, str] = {
 # Overlay pages whose dialog the app opens from a dialog route (id-bound ones resolved from
 # the seed): `handoff_openers.OPENERS`; the test loads the overlay's base page and fetches it
 # into #modal-root.
-# Overlay pages with no way to open their state yet (the year-cell inline editor, POST
-# error states); click and key states are
-# `handoff_clicks.CLICK_RECIPES`: compared against their plain
-# base page.
+# Overlay pages with no way to open their state yet: the year-cell inline editor, which the
+# app does not have (compared against the plain base page, red). Every other overlay is
+# mapped: dialogs (OVERLAY_DIALOGS, OPENERS), clicks, new-entry and state recipes.
 UNMAPPED_OVERLAYS: frozenset[str] = frozenset(
     {
-        "delete-account--blocked-planned",
-        "delete-account",
-        "new-account--error",
-        "new-account--filled",
-        "new-category--error",
-        "new-category--filled",
         "override--year-cell",
     }
 )
@@ -179,6 +172,12 @@ PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
     "pages/settings/security--error.html": ("form-error",),
     "pages/auth/force-password.html": ("owner-must-change",),
     "pages/auth/force-password--error.html": ("owner-must-change",),
+}
+# Overlays whose dialog needs data the base page does not have (an account nothing points at,
+# an account with recurring rules); the modifier applies to that overlay only.
+OVERLAY_MODIFIERS: dict[str, tuple[str, ...]] = {
+    "pages/overlays/delete-account.html": ("unreferenced-account",),
+    "pages/overlays/delete-account--blocked-planned.html": ("account-with-rules",),
 }
 
 
@@ -225,7 +224,7 @@ def is_anonymous(page: str) -> bool:
 
 def modifiers_for(page: str) -> tuple[str, ...]:
     """Seed modifiers of a page; an overlay takes its base page's (recurring-board)."""
-    return PAGE_MODIFIERS.get(base_page_of(page), ())
+    return OVERLAY_MODIFIERS.get(page) or PAGE_MODIFIERS.get(base_page_of(page), ())
 
 
 @pytest.fixture(scope="session")
@@ -382,7 +381,7 @@ def _compare_app(
             )
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
             if handoff_page in DIALOG_SUBMITS:
-                submit_dialog(pg, handoff_page)
+                submit_dialog(pg, handoff_page)  # typed values or a failed save (handoff_forms)
             elif (state := dialog_state_recipe(handoff_page)) is not None:
                 state(pg)  # a dialog the user has worked on (handoff_recurring)
         elif (

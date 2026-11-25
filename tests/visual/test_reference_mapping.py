@@ -52,6 +52,7 @@ from tests.visual.test_reference import (
     LEDGER_BOARD,
     OPENER_PAGES,
     OVERLAY_DIALOGS,
+    OVERLAY_MODIFIERS,
     PAGE_MODIFIERS,
     PAGE_ROUTES,
     SURFACE_ROUTES,
@@ -123,6 +124,12 @@ _BASES = {
     "edit-account--liability": ("/accounts", ()),
     "reconcile": ("/accounts", ()),
     "new-account": ("/accounts", ()),
+    "new-account--filled": ("/accounts", ()),
+    "new-account--error": ("/accounts", ()),
+    "delete-account": ("/accounts", ("unreferenced-account",)),
+    "delete-account--blocked-planned": ("/accounts", ("account-with-rules",)),
+    "new-category--filled": ("/settings", ()),
+    "new-category--error": ("/settings", ()),
     "edit-category": ("/settings", ()),
     "archive-category": ("/settings", ()),
     "new-category": ("/settings", ()),
@@ -165,6 +172,12 @@ def test_overlay_renders_over_its_own_base_page(stem: str) -> None:
 # Text each dialog must show once opened from its resolved route (the handoff names).
 _DIALOG_TEXT = {
     "new-account": "new account",
+    "new-account--filled": "new account",
+    "new-account--error": "new account",
+    "delete-account": "Delete Investments E?",
+    "delete-account--blocked-planned": "It has no transactions, but 2 recurring rules still use it",
+    "new-category--filled": "new category",
+    "new-category--error": "new category",
     "edit-account": "Investments A",
     "edit-account--liability": "Investments A",
     "delete-account--blocked": "Checking",
@@ -203,7 +216,8 @@ def test_every_opener_has_an_expected_dialog_text() -> None:
 @pytest.fixture(scope="module")
 def seeded(tmp_path_factory: pytest.TempPathFactory) -> tuple[Settings, str]:
     path = tmp_path_factory.mktemp("openers") / "seed.sqlite"
-    token = handoff_seed.build_seed(path).session_token
+    modifiers = tuple(m for names in OVERLAY_MODIFIERS.values() for m in names)
+    token = handoff_seed.build_seed(path, modifiers=modifiers).session_token
     settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}", env="test")
     return settings, token
 
@@ -460,7 +474,12 @@ def test_post_state_recipes_type_what_the_handoff_shows() -> None:
         "pages/overlays/add-user--error.html",
         "pages/overlays/invite-user--error.html",
         "pages/overlays/one-time-password.html",
+        "pages/overlays/new-account--filled.html",
+        "pages/overlays/new-account--error.html",
+        "pages/overlays/new-category--filled.html",
+        "pages/overlays/new-category--error.html",
     }
+    assert not {p for p in DIALOG_SUBMITS if p.split("/")[-1][:-5] in UNMAPPED_OVERLAYS}
     for page, recipe in DIALOG_SUBMITS.items():
         assert page in {f"pages/overlays/{n}.html" for n in OPENERS}
         text = (handoff.HANDOFF_ROOT / page).read_text(encoding="utf-8")
@@ -562,3 +581,9 @@ def test_remove_override_confirm_names_the_default_it_falls_back_to(
     text = " ".join(re.sub(r"<[^>]+>", " ", body).split())
     assert "Remove override?" in text
     assert "Big Purchases \u00b7 Oct 2026 goes back to the default 604.35 PLN." in text
+
+
+def test_overlay_modifiers_name_overlays_and_known_modifiers() -> None:
+    overlays = {p for p in handoff.pages() if handoff.surface_of(p) == "overlays"}
+    assert set(OVERLAY_MODIFIERS) <= overlays
+    assert all(set(m) <= set(handoff_seed.MODIFIER_NAMES) for m in OVERLAY_MODIFIERS.values())
