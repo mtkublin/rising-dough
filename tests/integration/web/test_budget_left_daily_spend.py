@@ -15,6 +15,7 @@ from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.planned import NewPlannedTransaction
+from budget_planner.domain.periods import next_month_start
 from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -23,6 +24,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     preferences as preferences_repo,
 )
+from budget_planner.web.view_models import day_month
 from tests.ui_map import _html, plan, today
 from tests.ui_map.locator import by_id
 
@@ -74,6 +76,15 @@ def _seed_anchor_and_income(
         conn.close()
 
 
+def _end_of_month_caption(settings: Settings) -> str:
+    """The fallback caption for the frozen clock: days to the 1st of next month, as ``d mon``."""
+    today_ = clock.today_local(settings)
+    first_next = next_month_start(today_.year, today_.month)
+    days = max((first_next - today_).days, 1)
+    noun = "day" if days == 1 else "days"
+    return f"{days} {noun} until next income ({day_month(first_next)})"
+
+
 def _hero(html: str) -> str:
     return _html.text_of(html, by_id("today-hero"))
 
@@ -105,9 +116,9 @@ def test_left_daily_spend_card_renders_dash_when_zero_budget(
 
 
 def test_left_daily_spend_card_shows_end_of_month_fallback_when_anchor_unset(
-    client: TestClient, world: dict[str, int]
+    client: TestClient, _migrated: Settings, world: dict[str, int]
 ) -> None:
-    assert "10 days until next income (1 dec)" in _hero(client.get("/today").text)
+    assert _end_of_month_caption(_migrated) in _hero(client.get("/today").text)
 
 
 def test_settings_prefs_lists_income_categories_in_select(
@@ -132,4 +143,4 @@ def test_stale_anchor_renders_fallback_without_500(
         conn.close()
     r = client.get("/today")
     assert r.status_code == 200
-    assert "10 days until next income (1 dec)" in _hero(r.text)
+    assert _end_of_month_caption(_migrated) in _hero(r.text)
