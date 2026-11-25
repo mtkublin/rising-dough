@@ -76,3 +76,68 @@ Differences (none is listed in derived.md for T-UR07b, so none is accepted):
 | F10 | Accepted (record) | none | 375 | Non-zero overflowingElements are the scrolling "recent" chips row (handoff parity) and the Today hero loaf behind the promote dialog (derived.md); horizontalScroll false everywhere. |
 
 Status: FINDINGS (F1, F4, F6 are the ones to route; F2, F3, F5, F7 to F9 are triage items).
+
+## Re-audit 67d2da1d
+
+Change: the fixes for F1 to F5, F7 to F9 at head `67d2da1d` (branch `wi/ui/sourdough/UR07b`). Run: `frontend-visual-audit` skill (Playwright, Chromium), 1440x900, 1024x768, 375x812, light and dark, 6 configurations x 21 states = 126 captures. Each capture waits for `dialog[open]` and `document.getAnimations({subtree:true}).length === 0` (+300 ms) before the diagnostics and the screenshot. DB: scratch copy of `data/demo.sqlite` (`/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/re/re.sqlite`, never `data/budget.sqlite`): "Checking EUR" set to EUR, a JPY account "Yen Wallet", "Credit Card" limit 5,000.00, daily EUR and JPY rates, planned items due today (PLN, EUR) and overdue, recurring rules (fixed PLN, fixed EUR, formula). Server on 127.0.0.1:8791, heavy lock held and released.
+
+States: today-eur (Today list with an EUR item, no dialog); new-happened-{pln,eur,jpy}-{start,income,expense} (account picked, then Salary, then Groceries); new-repeats-fixed; new-repeats-formula-empty, new-repeats-formula (12% of Subscriptions), new-repeats-formula-eur; new-422-empty-{happened,planned,repeats} (empty amount, validation bypassed with noValidate); promote-planned, promote-planned-422-abc, promote-recurring, promote-recurring-422-abc.
+
+### Diagnostics (126 captures; light and dark identical)
+
+| Route (states) | Viewport | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|---|
+| /today + new-entry, promote dialogs, today-eur (21 states) | 1440 | false (0 of 42) | 0 | 0 | 0, except 422 lines below | 0 |
+| same | 1024 | false (0 of 42) | 0 | 0 | 0, except 422 lines below | 0 |
+| same | 375 | false (0 of 42) | 1 in every state (see note) | 0 | 0, except 422 lines below | 0 |
+
+Notes:
+
+- consoleErrors: the only entries in any run are the browser's "Failed to load resource: ... 422 (Unprocessable Entity)" line, once per deliberately invalid request: the 3 empty-amount POSTs, the 2 promote "abc" POSTs, and one in new-repeats-formula (the live formula preview, ADR-0056 §4, answers 422 while the draft is still empty or incomplete; it clears after the percent is typed). No pageerror, no CSP violation, no htmx:targetError. All other states: 0.
+- overflowingElements at 375 (horizontalScroll stays false): the same two accepted cases as the first audit, one per state. `label.rd-chip-option` (right 434) in the dialog states is the sideways-scrolling "recent" chips row (handoff parity); `pre.rd-hero__loaf` (right 399) is the Today hero loaf behind the dialog and on today-eur (derived.md, "Today, hero loaf at 375 px"). Neither is touched by this change. 1440 and 1024: 0.
+
+### Checks per finding
+
+- F1/F2 (human 422). Empty amount with validation bypassed: POST /transactions (happened), /planned and the recurring POST each keep the dialog open, the hero keeps its sign and currency, and show "amount must be a decimal number within range" under the hero, the "1 field needs attention" box and no JSON (new-422-empty-*). Promote planned and promote recurring with "abc": 422 with the same copy, dialog open, hero keeps "-abc PLN" (the text is selected by the focus on the error; browser selection, not a style). DB unchanged by these submits. Fixed.
+- F3/F4 (hero follows account, category, source). Hero text read from the DOM after each swap: PLN account: "Amount PLN", income category "+ Amount PLN", expense category "− Amount PLN". EUR account: "Amount EUR", "+ Amount EUR", "− Amount EUR". JPY account: "Amount JPY", "+ Amount JPY", "− Amount JPY". The sign comes from the category and the currency from the account in all three viewports. Fixed. (JPY placeholder "0.00": known gap.)
+- F5 (repeats hero). Fixed mode: hero holds the input ("− 0.00 PLN", figure typed there saves as default amount; the repeats-fixed screenshot matches the handoff band except the sample value). Formula mode: hero.output "9.80 PLN" with note "→ next amount 9.80 PLN"; on the EUR account "2.31 EUR → next amount 2.31 EUR" (9.80 / 4.25 rate). Empty draft: "— PLN formula needs at least one term". Fixed.
+- F7 (Today rows in the account's currency). today-eur lists "audit eur · Checking EUR −25.50 EUR", "audit fixed eur ... −15.56 EUR", "flow ... −9.99 EUR" and the PLN rows with PLN. Fixed.
+- F8/F9: derived.md rows only, nothing to render.
+
+### Step 3b
+
+1. Swap targets: `#modal-root` 1 and `#modal-root .rd-dialog__hero` 1 before the hero swap, after the account swap and after the category swap. ok.
+2. Failing saves: POST /transactions forced 404, 409, 500: flash "That item was not found...", "That item changed in the meantime...", "Something went wrong on our side. Try again." appears, dialog stays open, nothing saved (`3b_forced_404/409/500.png`). A forced 500 on the hero GET (`/add?hero=1`): the same flash shows; the hero stays at the previous account's currency (JPY while the select reads EUR) until the next change, visible error so not blocking (`3b_forced_hero500.png`).
+3. No arithmetic in templates: `rg` for `float`, `/ 100`, `* 100`, `{% set`, `PLN|EUR|JPY|USD` over `pages/entries`, `fragments/fields`, `fragments/dialogs` and `fragments/rows/upcoming-row.html`: no hits except a comment line in dialog.html ("PLN difference" in a docstring). ok.
+4. Money formatting by currency: EUR hero "2.31 EUR", EUR list rows with 2 decimals, JPY accounts saved without decimals (1500 stays 1500), "−" U+2212 in the hero. ok.
+5. Rendered number equals the service value: hero "3.01 EUR" (new formula rule, 12% of Subscriptions, EUR account, category Other) equals the promote dialog prefill for the saved rule (`resolve_rule_amount`, 3.01) and the stored transaction (301, account 2). Promote prefills 123.45, 55.00, 25.50 equal the planned amounts (12345, 5500, 2550); recurring prefills 15.56 and 3.21 equal the rules (1556, 321). ok. Note: a formula that sources the category its own rule posts to (test data I created by mistake, rules 39/42) makes the hero (draft, includes the existing rule) differ from the saved rule's prefill (excludes itself); and two such rules form a cycle that made GET /today answer 500 (FormulaCycleError). That is service behaviour outside this change (the cycle check is not run against the rule's own category on save); the two rules were deleted from the scratch DB. Record only.
+6. IDs and listeners: duplicateIds 0 in every capture and after every save (see flows). No new HX-Trigger events in the diff.
+
+### Save flows after hero swaps (1440 light, 375 dark, 1024 light; each from /today)
+
+| Flow | Result (DB read after the save) | modal-root / dialog[open] / dup ids |
+|---|---|---|
+| happened, JPY account, Groceries, 1500 | txn account 11 (Yen Wallet), amount 1500 | 0 / 0 / none |
+| happened, EUR account, 12.34 | txn account 2 (Checking EUR), amount 1234 | 0 / 0 / none |
+| happened, PLN account, 7.50 | txn account 1, amount 750 | 0 / 0 / none |
+| happened, amount "250" typed, then account changed to JPY, saved | amount field kept "250", hero "− Amount JPY", txn account 11, amount 250 | 0 / 0 / none |
+| planned, EUR, 9.99 | planned account 2, amount 999 | 0 / 0 / none |
+| repeats fixed, EUR, 3.21 | rule account 2, default amount 321 | 0 / 0 / none |
+| repeats formula, EUR, 12% of Subscriptions (blurred) | rule saved with coefficient_bps 1200, source [6]; hero 3.01 EUR equals the promote prefill and txn 301 | 0 / 0 / none |
+| promote planned (123.45 PLN; 55.00; 25.50 EUR) | txn with the planned amount and account, planned row promoted_to_txn_id set | 0 / 0 / none |
+| promote recurring (15.56 PLN / EUR, 3.21 EUR) | txn with the rule amount and account | 0 / 0 / none |
+
+Every save closed the dialog, left `#modal-root` empty (length 0), no `dialog[open]`, URL /today, no console error. At 1024 the formula save was rejected once with a visible cycle error (the test-data cycle above) with the dialog open, as it should.
+
+### Screenshots
+
+`/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/re/shots/<state>__<1440|1024|375>__<light|dark>.png` (126), `flow-*__<vp>__<theme>.png`, `3b_forced_*.png`. Viewed: new-happened-jpy-income 1440 light (JPY, "+"), new-repeats-formula-eur 1440 light (formula hero 2.31 EUR with the note), new-repeats-fixed 1440 light (hero input in the band, handoff repeats-fixed compared: handoff has a sample -35.50, same structure), new-422-empty-happened 375 light (hero error line, summary box, sheet), promote-planned-422-abc 1440 light, promote-recurring-422-abc 375 dark, today-eur 1440 light. The remaining captures were checked through the DOM diagnostics and hero text above.
+
+### Findings
+
+| # | Category | Severity | Where | Finding |
+|---|---|---|---|---|
+| R1 | Behavior | low | repeats, formula mode, hero | The hero re-renders on `change` of the formula slot, which fires on blur, not on typing: after typing "12" the hero still reads "— EUR coefficient is required for formula rules" until the field loses focus (the in-slot preview chip updates live on keyup). The value is correct after blur and equals the service. Suggest adding `keyup changed delay:400ms` to the hero trigger for the formula slot, as the slot's own preview has. |
+| R2 | Behavior | low | hero GET fails (500) | The flash shows, the hero stays at the previous currency while the account select shows the new one until the next change. Visible error, not blocking. |
+
+Status: CLEAN for blocking items (diagnostics 0 at 1440 and 1024; at 375 only the two accepted overflowing elements; F1 to F5, F7 to F9 verified fixed; save flows and promote flows correct). R1 and R2 are triage items.
