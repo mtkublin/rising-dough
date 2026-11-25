@@ -462,7 +462,7 @@ def test_repeats_formula_hero_shows_the_service_next_amount(
     )
     r = client.get(query, headers=_HX)
     outputs = [o for o in _html.resolve(r.text, role("status")) if o.has_attr("for")]
-    assert [o.get_text(strip=True) for o in outputs] == ["1200.00"]
+    assert [o.get_text(strip=True) for o in outputs] == ["1,200.00"]
     assert "\N{RIGHTWARDS ARROW} next amount 1,200.00 PLN" in _html.all_text(r.text, entries.dialog)
     # the figure is derived, never posted: the hero has no named amount input in formula mode
     assert not _html.exists(r.text, entries.hero_amount)
