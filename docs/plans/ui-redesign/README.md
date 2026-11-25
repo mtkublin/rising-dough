@@ -35,6 +35,7 @@ v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3]
 6. **Record** any deviation or derived screen in `derived.md`.
 
 Overlay references (T-UR00b, ADR-0147 amendment 2026-11-25): each handoff overlay page is its surface's full board with one dialog open, so the app side loads the overlay's own base route (derived from the nav and tab `aria-current` in the handoff file, with that page's seed modifiers) and fetches the dialog into `#modal-root`; it never defaults to `/today`.
+Page routing (T-UR00b, ADR-0147 amendment 2026-11-25): signed-out auth pages render without the session cookie, POST error states are produced by submitting the form, settings/ledger/empty states have their own route and seed modifier, and pages not yet reachable are listed with a reason in `UNMAPPED_PAGES` (`tests/visual/test_reference.py`).
 
 ## Per-surface definition of done
 
