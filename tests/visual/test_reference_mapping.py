@@ -28,8 +28,10 @@ from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS
 from tests.visual.handoff_newentry import (
+    DIALOG_RECIPES,
     NEWENTRY_RECIPES,
     PHONE_SHEET_DIALOGS,
+    dialog_recipe,
     newentry_recipe,
 )
 from tests.visual.handoff_openers import OPENERS, opener_url
@@ -122,6 +124,16 @@ def test_new_entry_input_states_are_mapped() -> None:
         assert newentry_recipe(page) is NEWENTRY_RECIPES[page]
         assert click_recipe(page) is None
     assert newentry_recipe("pages/overlays/new-entry--happened.html") is None
+
+
+def test_typed_dialog_recipes_belong_to_route_opened_new_entry_pages() -> None:
+    # The recipe runs after the dialog was fetched from its route, so only OVERLAY_DIALOGS pages
+    # (never an input-driven page, which opens its own dialog) may carry one.
+    assert set(DIALOG_RECIPES) == set(OVERLAY_DIALOGS)
+    assert not set(DIALOG_RECIPES) & NEWENTRY_PAGES
+    for page, recipe in DIALOG_RECIPES.items():
+        assert dialog_recipe(page) is recipe
+    assert dialog_recipe("pages/overlays/new-entry--error.html") is None
 
 
 # Overlay page -> (route of its own base page, seed modifiers), derived from the handoff file.

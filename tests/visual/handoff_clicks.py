@@ -18,6 +18,8 @@ from typing import Final
 
 from playwright.sync_api import Page
 
+from tests.visual.handoff_newentry import typed_happened
+
 Recipe = Callable[[Page], None]
 
 _TIMEOUT_MS: Final = 15000
@@ -66,7 +68,7 @@ def _category_picker(page: Page, query: str = "") -> None:
         "/add?when=happened",
     )
     page.wait_for_selector("#modal-root dialog[open]", timeout=_TIMEOUT_MS)
-    page.fill("#modal-root [data-js='amount-input']", "35.50")
+    typed_happened(page)  # the handoff's picker pages show the worked-on dialog (F8)
     page.click("#modal-root [data-js='combobox-open']")
     page.wait_for_selector("#modal-root [data-js='combobox-input']", state="visible")
     if query:

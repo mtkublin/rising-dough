@@ -3357,3 +3357,31 @@ old = "▼ −591.11"
 value = "▼ −707.21"
 reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
 source = "app-values"
+
+# --- new-entry dialog (F8, T-UR00b): the formula amount. The handoff's 12 % of Salary is 774.01,
+# which makes Salary 6,450.08, while the handoff's own ledger pays Salary 16,213.97 and 30,536.19;
+# the app evaluates the formula over the seed's Salary (recurring_formula, 12 % of 15,800.00).
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = "output.rd-dialog__amount--static"
+field = "text"
+old = "774.01"
+value = "1,896.00"
+reason = "handoff inconsistent, app right: 12 % of the seed's Salary is 1,896.00; the handoff's 774.01 implies a Salary its own ledger does not show"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = "output.rd-formula__result"
+field = "text"
+old = "→ next amount 774.01 PLN"
+value = "→ next amount 1,896.00 PLN"
+reason = "handoff inconsistent, app right: same figure as the hero (12 % of the seed's Salary)"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = "p.rd-credit-line"
+field = "text"
+old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
+value = "Credit Card · 12,521.63 of 14,977.37 left → 12,521.63 after this"
+reason = "handoff inconsistent, app right: the dialog is answering an amount of 0.00, which leaves the limit as it is (12,486.13 is the 35.50 of the other new-entry pages)"

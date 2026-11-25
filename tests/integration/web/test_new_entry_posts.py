@@ -121,6 +121,9 @@ def test_transaction_without_a_category_reopens_the_dialog_with_the_values(
     assert _html.error_lines(r.text) == {
         "catpick-new-entry-error": "▲ Pick a category",
     }
+    # announced like the amount error; the picker's search button is where focus goes (dialog.js)
+    alert = _html.resolve_one(r.text, role("alert", "▲ Pick a category"))
+    assert alert.get("id") == "catpick-new-entry-error"
     assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.34"
     assert _html.resolve_one(r.text, entries.field_note).get("value") == "milk"
     assert _html.resolve_one(r.text, entries.field_date).get("value") == "2026-11-20"
@@ -142,7 +145,7 @@ def test_bad_amount_marks_the_hero_and_keeps_the_picked_category(
     )
     assert r.status_code == 422
     hero = _html.resolve_one(r.text, entries.hero_amount)
-    assert (hero.get("aria-invalid"), hero.get("value")) == ("true", "0")
+    assert (hero.get("aria-invalid"), hero.get("value")) == ("true", "0.00")  # as the handoff
     # Groceries has no entry yet (not a recent radio): the picked category leads the chips, checked.
     chips = [
         (c.get("value"), c.has_attr("checked"))
@@ -152,6 +155,27 @@ def test_bad_amount_marks_the_hero_and_keeps_the_picked_category(
     assert [checked for _, checked in chips].count(True) == 1
     named = _html.resolve_one(r.text, entries.category_option("Groceries"))
     assert (named.get("value"), named.has_attr("checked")) == (str(ids["groc"]), True)
+
+
+def test_zero_amount_422_keeps_the_credit_line_of_a_card(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    """The handoff's error dialog still prints the card's line (F8: before = after for zero)."""
+    card = accounts_repo.create(
+        db,
+        USER_ID,
+        NewAccount(name="Card", currency="PLN", is_liability=True, credit_limit_minor=500_000),
+    )
+    r = client.post(
+        "/transactions",
+        data={"account_id": str(card.id), "amount": "0.00", "operation_date": "2026-11-20"},
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    assert _html.text_of(r.text, entries.credit_line) == (
+        "Card \N{MIDDLE DOT} 5,000.00 of 5,000.00 left \N{RIGHTWARDS ARROW} 5,000.00 after this"
+    )
+    assert _count(db, "transactions") == 0
 
 
 def test_planned_posted_with_the_picker_category_is_stored(
@@ -439,9 +463,14 @@ def test_hero_follows_the_account_currency_and_the_category_sign(
     assert r.status_code == 200
     assert "HX-Retarget" not in r.headers
     assert _hero_text(r.text) == "+ Amount EUR"
-    assert (
-        _html.resolve_one(r.text, entries.hero_amount).get("value") == "12.5"
-    )  # typed amount kept
+    typed = _html.resolve_one(r.text, entries.hero_amount).get("value")
+    assert typed == "12.50"  # shown at the currency exponent
+    r = client.get(
+        f"{base}&account_id={ids['acc']}&category={ids['groc']}&amount=13000", headers=_HX
+    )
+    assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "13,000.00"  # grouped
+    r = client.get(f"{base}&account_id={ids['acc']}&amount=12x", headers=_HX)
+    assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "12x"  # junk as typed
     r = client.get(f"{base}&account_id={jpy.id}&category={ids['groc']}", headers=_HX)
     assert _hero_text(r.text) == "\N{MINUS SIGN} Amount JPY"
     r = client.get(f"{base}&account_id={ids['acc']}", headers=_HX)
@@ -486,7 +515,12 @@ def test_repeats_formula_hero_shows_the_service_next_amount(
     r = client.get(query, headers=_HX)
     outputs = [o for o in _html.resolve(r.text, role("status")) if o.has_attr("for")]
     assert [o.get_text(strip=True) for o in outputs] == ["1,200.00"]
+    row = outputs[0].parent
+    assert row is not None
+    assert row.get_text(" ", strip=True) == "\N{MINUS SIGN} 1,200.00 PLN"  # signed like a typed one
     assert "\N{RIGHTWARDS ARROW} next amount 1,200.00 PLN" in _html.all_text(r.text, entries.dialog)
+    # the figure sits once, in the formula line: the hero has no note (handoff)
+    assert _html.all_text(r.text, entries.dialog).count("next amount") == 1
     # the figure is derived, never posted: the hero has no named amount input in formula mode
     assert not _html.exists(r.text, entries.hero_amount)
 

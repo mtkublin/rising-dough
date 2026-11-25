@@ -32,7 +32,7 @@ from tests.visual import handoff
 from tests.visual.conftest import serve_db
 from tests.visual.handoff_clicks import click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS, submit_dialog
-from tests.visual.handoff_newentry import PHONE_SHEET_DIALOGS, newentry_recipe
+from tests.visual.handoff_newentry import PHONE_SHEET_DIALOGS, dialog_recipe, newentry_recipe
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.handoff_recurring import (
     STATE_PAGES,
@@ -392,6 +392,8 @@ def _compare_app(
                 submit_dialog(pg, handoff_page)  # typed values or a failed save (handoff_forms)
             elif (state := dialog_state_recipe(handoff_page)) is not None:
                 state(pg)  # a dialog the user has worked on (handoff_recurring)
+            elif (typed := dialog_recipe(handoff_page)) is not None:
+                typed(pg)  # the new-entry dialog with the handoff's typed values (handoff_newentry)
         elif (
             recipe := click_recipe(handoff_page)
             or newentry_recipe(handoff_page)

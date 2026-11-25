@@ -9,11 +9,12 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -469,7 +470,11 @@ def _recent_chips(html: str) -> list[tuple[str, bool]]:
 
 
 def _used_categories(db: sqlite3.Connection, account: int) -> dict[str, tuple[int, int]]:
-    """Five categories used on 1..5 Oct, name -> (category id, transaction id); Ee is latest."""
+    """Five categories used on the 5..1 days before today (inside the 90-day recents window, R1).
+
+    name -> (category id, transaction id); one entry each, so the recents tie and Ee is latest.
+    """
+    today = clock.today_local(Settings(_env_file=None))
     out: dict[str, tuple[int, int]] = {}
     for day, name in enumerate(("Aa", "Bb", "Cc", "Dd", "Ee"), start=1):
         cat = categories_repo.create(
@@ -479,7 +484,7 @@ def _used_categories(db: sqlite3.Connection, account: int) -> dict[str, tuple[in
             db,
             USER_ID,
             NewTransaction(
-                operation_date=date(2026, 10, day),
+                operation_date=today - timedelta(days=6 - day),
                 category_id=cat.id,
                 account_id=account,
                 amount=100,

@@ -336,9 +336,11 @@ def _signed_hero(context: dict[str, object]) -> dict[str, object]:
     if not isinstance(hero, dict):
         return context
     note = str(hero.get("note") or "")
-    shown = {k: v for k, v in hero.items() if k != "note"}
+    shown = {k: v for k, v in hero.items() if k not in ("note", "next_amount")}
     prefix = "\N{RIGHTWARDS ARROW} next amount "
-    next_amount = note.removeprefix(prefix) if note.startswith(prefix) else None
+    next_amount = hero.get("next_amount") or (
+        note.removeprefix(prefix) if note.startswith(prefix) else None
+    )
     return {
         **context,
         "hero": {"sign": context["sign"], **shown},
