@@ -157,7 +157,6 @@ def test_afford_delta_is_signed_per_day(client: TestClient) -> None:
     # Nothing is budgeted, so 100.00 exceeds what is left: the over line carries the ▲ glyph
     # and the over amount is the delta element.
     html = client.get("/today/afford?amount=100.00").text
-    assert _html.text_of(html, today.afford_delta) == "100.00"
-    result = _html.text_of(html, today.afford_per_day)
+    result = _html.text_of(html, today.afford_delta)
     assert result.startswith("▲ per day becomes")
-    assert result.endswith("over")
+    assert result.endswith("· 100.00 over")

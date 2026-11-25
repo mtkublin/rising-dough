@@ -149,6 +149,45 @@ old = "▲ per day becomes −14.20 · 114.20 over"
 value = "▲ per day becomes −116.01 · 812.07 over"
 reason = "seed value via today.afford(1,800.00) (ADR-0151 semantics unchanged); the handoff is inconsistent (value-inventory 5 row 9)"
 
+# today--empty: no planned or recurring item is left, so the 250.00 check leaves the whole budget
+# to spend: per day 1,184.53 (the board repeats the figures of the full Today).
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-afford__result"
+field = "text"
+old = "→ per day becomes 105.42 "
+value = "→ per day becomes 1,184.53 "
+reason = "seed value via today.afford(250.00) with an empty upcoming list; the handoff repeats the figure of the full Today beside 'Nothing due'"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-afford__result .rd-muted"
+field = "text"
+old = "(↓ 35.71)"
+value = "(↓ 250.00)"
+reason = "seed value via today.afford(250.00) with an empty upcoming list: the delta is the whole amount"
+
+# today--afford-invalid: the handoff keeps a stale answer ("per day becomes ... (down ...)") under
+# an empty field marked invalid with "Enter an amount". An unparsable or empty amount has no
+# answer: the app (GET /today?amount=abc and the htmx 422) shows the message only.
+
+[[row]]
+page = "pages/today--afford-invalid.html"
+select = ".rd-afford__result"
+field = "text"
+old = "→ per day becomes 105.42 "
+value = ""
+reason = "handoff inconsistent, app right: an empty, invalid amount has no per-day answer; the handoff keeps a stale one beside its own error"
+
+[[row]]
+page = "pages/today--afford-invalid.html"
+select = ".rd-afford__result .rd-muted"
+field = "text"
+old = "(↓ 35.71)"
+value = ""
+reason = "handoff inconsistent, app right: the delta belongs to the stale answer removed by the row above"
+
 [[row]]
 page = "pages/*.html"
 select = ".rd-hero__figure--plan"
@@ -3062,6 +3101,17 @@ old = "2026-10-31"
 value = ""
 optional = true
 reason = "handoff inconsistent, app right: the board filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 JAN 2027), so the recurring view applies no date window and leaves the fields empty"
+
+# --- today--empty: the promote-all button beside an empty list (ADR-0147 amendment N1) ---
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-upcoming__promote-all"
+field = "hidden"
+absent = true
+old = ""
+value = "hidden"
+reason = "handoff inconsistent, app right: the board draws 'promote all due' beside 'Nothing due in the next 30 days'; value-inventory section 2 shows it only when due rows exist"
 
 # --- Ledger --long and --no-matches boards (T-UR00b, F2).
 

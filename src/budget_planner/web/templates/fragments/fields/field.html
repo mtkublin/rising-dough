@@ -16,7 +16,7 @@
              {% if min %}min="{{ min }}"{% endif %}
              {% if max %}max="{{ max }}"{% endif %}
              {% if value != "" %}value="{{ value }}"{% endif %}
-             {% if required %}required{% endif %}
+             {% if required %}required {% endif %}
              {% if error %}aria-invalid="true" aria-describedby="field-{{ name }}-error"{% endif %}>
     </span>
     {% if error %}<p class="rd-field__error" id="field-{{ name }}-error">▲ {{ error }}</p>{% endif %}

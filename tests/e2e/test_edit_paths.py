@@ -99,7 +99,7 @@ def test_today_override_recurring_saves_and_closes(
     page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
     _override_from_today(page, row)
-    dialog = edit_dialogs.occurrence_dialog("Groceries")
+    dialog = edit_dialogs.occurrence_dialog("edit-rule")
     expect(to_playwright(page, dialog)).to_be_visible()
     # the dialog opens on the occurrence the row names, with the rule's amount
     expect(to_playwright(page, edit_dialogs.hero_amount(dialog))).to_have_value("50.00")
@@ -180,7 +180,7 @@ def test_override_invalid_month_shows_error_in_the_dialog(
     page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
     _override_from_today(page, row)
-    dialog = edit_dialogs.occurrence_dialog("Groceries")
+    dialog = edit_dialogs.occurrence_dialog("edit-rule")
     expect(to_playwright(page, dialog)).to_be_visible()
     # A month with no quarterly occurrence.
     to_playwright(page, edit_dialogs.month_next(dialog)).click()

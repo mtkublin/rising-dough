@@ -13,6 +13,7 @@ from fastapi import Request
 from fastapi.responses import Response
 
 from budget_planner.domain.accounts import Account
+from budget_planner.domain.categories import Category
 from budget_planner.domain.money import format_major, format_money
 from budget_planner.domain.periods import shift_month
 from budget_planner.domain.recurring import RecurringOverride, RecurringRule
@@ -101,6 +102,11 @@ def override_on_next_due(
     return None
 
 
+def _rule_label(rule: RecurringRule, category: Category | None) -> str:
+    """The rule's name in a dialog title: its description (as the list shows), else the category."""
+    return rule.default_description.strip() or (category.name if category else "")
+
+
 def _promote_prefill(
     conn: sqlite3.Connection,
     user_id: int,
@@ -163,6 +169,7 @@ def render_promote_modal(
         note_value=prefill[2],
         base_currency=request.app.state.settings.base_currency,
         recurring=True,
+        title_name=rule.default_description.strip(),
         notes=_promote_notes(
             rule,
             override,
@@ -276,7 +283,7 @@ def edit_context(
     category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
     return {
         **_signed_hero(context),
-        "title": f"edit recurring rule \N{MIDDLE DOT} {category.name if category else ''}",
+        "title": f"edit recurring rule \N{MIDDLE DOT} {_rule_label(rule, category)}",
         "action": f"{CREATE_ACTION}/{rule.id}",
         "hero_url": f"{CREATE_ACTION}/{rule.id}/edit?hero=1",
         "rule_id": rule.id,
@@ -477,7 +484,7 @@ def occurrence_context(
     )
     category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
     return {
-        "title": f"override occurrence \N{MIDDLE DOT} {category.name if category else ''}",
+        "title": f"override occurrence \N{MIDDLE DOT} {_rule_label(rule, category)}",
         "action": f"{CREATE_ACTION}/{rule.id}/overrides",
         "hero": _occurrence_hero(shown, amount, error),
         "year": year,

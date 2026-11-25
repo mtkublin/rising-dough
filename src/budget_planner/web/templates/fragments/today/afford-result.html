@@ -6,9 +6,9 @@
         aria-live="polite">
   {% if afford.result %}
     {% if afford.result.is_over %}
-      <span class="rd-afford__result rd-afford__result--over">▲ per day becomes {{ afford.result.per_day }} · <span id="afford-delta">{{ afford.result.over_by }}</span> over</span>
+      <span class="rd-afford__result rd-afford__result--over">▲ per day becomes {{ afford.result.per_day }} · {{ afford.result.over_by }} over</span>
     {% else %}
-      <span class="rd-afford__result">→ per day becomes {{ afford.result.per_day }} <span class="rd-muted">({{ afford.result.delta_arrow }} <span id="afford-delta">{{ afford.result.delta }}</span>)</span></span>
+      <span class="rd-afford__result">→ per day becomes {{ afford.result.per_day }} <span class="rd-muted">({{ afford.result.delta_arrow }} {{ afford.result.delta }})</span></span>
     {% endif %}
   {% endif %}
 </output>

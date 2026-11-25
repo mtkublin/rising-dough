@@ -23,7 +23,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from tests.ui_map import _html, settings as ui
-from tests.ui_map.locator import Locator
+from tests.ui_map.locator import Locator, by_id
 
 USER_ID = 1
 
@@ -94,6 +94,12 @@ def test_create_duplicate_name_is_422_under_the_name_field_and_writes_nothing(
     assert _html.error_lines(r.text)["field-name-error"] == _DUPLICATE
     assert _names(db) == names
     assert _audit_count(db) == audits
+    # The create form's name field is marked invalid and points at its error line (a
+    # whitespace-trimmed ``required`` once glued ``requiredaria-invalid`` into one attribute).
+    field = _html.resolve_one(r.text, by_id("field-name"))
+    assert field.get("aria-invalid") == "true"
+    assert field.get("aria-describedby") == "field-name-error"
+    assert field.has_attr("required")
 
 
 def test_rename_onto_another_categorys_name_is_422_and_changes_nothing(

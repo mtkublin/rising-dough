@@ -26,10 +26,10 @@ def upcoming_recurring(rule_id: int) -> Locator:
 # Promote is a link into the promote dialog (a page link without script).
 promote = role("link", "promote", exact=True)
 
-# The afford result is one ``<output>``: per-day and delta share it; the
-# ``afford-delta`` span inside it carries the ``(↓ 35.71)`` part.
+# The afford result is one ``<output>`` holding one text run (as the handoff draws it, so the
+# glyphs sit at the same sub-pixel positions): per-day and delta share it.
 afford_per_day = by_id("afford-result")
-afford_delta = by_id("afford-delta")
+afford_delta = by_id("afford-result")
 
 # Every upcoming row in a ``/today/upcoming`` fragment (planned and recurring).
 upcoming_rows = role("listitem").inside(upcoming)

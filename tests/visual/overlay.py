@@ -66,6 +66,10 @@ ALLOWED_ATTRIBUTES: Final = frozenset(
 # Text attributes a row may CREATE (``absent = true``): what a form control shows. Never an id,
 # class, style or structural attribute.
 ABSENT_SETTABLE: Final = frozenset({"value", "placeholder"})
+# ``hidden`` may be CREATED (``absent = true``, ``old = ""``, ``value = "hidden"``) on the elements
+# of exactly these classes (ADR-0147 amendment 2026-11-25 "hidden promote-all"): the handoff draws
+# the promote-all button beside an empty list, contradicting its own rule. Selector = ``.<class>``.
+HIDDEN_SETTABLE_CLASSES: Final = frozenset({"rd-upcoming__promote-all"})
 # Class changes a row may make, as (token removed, token added; "" = none). Each pair is a handoff
 # inconsistency whose app side is right; a class change moves paint, not layout, and only these
 # reviewed pairs are allowed.
@@ -152,12 +156,15 @@ def kind_violation(row: Row) -> str:
         if row.absent:
             return "a class row cannot be absent"
         return class_change_violation(row.old, row.value)
-    if row.absent:
-        if row.field not in ABSENT_SETTABLE:
-            return f"attribute {row.field!r} cannot be created (only {sorted(ABSENT_SETTABLE)})"
-        if row.old != "":
-            return 'an absent row has old = ""'
-    return ""
+    if not row.absent:
+        return ""
+    if row.field == "hidden":
+        allowed = {f".{c}" for c in HIDDEN_SETTABLE_CLASSES}
+        if row.select not in allowed:
+            return f"hidden may be set only on {sorted(allowed)}, not {row.select!r}"
+    elif row.field not in ABSENT_SETTABLE:
+        return f"attribute {row.field!r} cannot be created (only {sorted(ABSENT_SETTABLE)})"
+    return 'an absent row has old = ""' if row.old != "" else ""
 
 
 def _own_text(el: Tag, old: str) -> list[NavigableString]:

@@ -654,14 +654,18 @@ def promote_context(
     note_value: str,
     base_currency: str,
     recurring: bool = False,
+    title_name: str = "",
     notes: Sequence[str] = (),
     posted: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
-    """Everything ``pages/entries/promote.html`` renders: stored prefill or posted values."""
+    """Everything ``pages/entries/promote.html`` renders: stored prefill or posted values.
+
+    ``title_name`` (a recurring rule's description) replaces the category name in the title.
+    """
     values = posted or {}
     cat = categories_service.find_by_id(conn, user_id, category_id, include_deleted=True)
     currency = account.currency if account else base_currency
-    name = cat.name if cat else ""
+    name = title_name or (cat.name if cat else "")
     return {
         "dialog_id": "promote-dialog",
         "title": f"promote · {name}" if recurring else f"promote to actual · {name}",

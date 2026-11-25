@@ -154,21 +154,21 @@ def test_edit_a_formula_rule_shows_its_terms_and_the_computed_amount(
 ) -> None:
     r = client.get(f"/recurring/{ids['taxes_rule']}/edit", headers=_HTMX)
     assert r.status_code == 200
-    scope = edit_dialogs.recurring_dialog("Taxes")
+    scope = edit_dialogs.recurring_dialog("note")
     assert _html.resolve_one(r.text, edit_dialogs.amount_formula(scope)).has_attr("checked")
     assert _html.resolve_one(r.text, edit_dialogs.field_note(scope)).get("value") == "note"
     # the hero is the server's computed figure: 20 % of the 1000.00 Salary rule
-    figure = _hero(r.text, "Taxes", "rd-dialog__amount")
+    figure = _hero(r.text, "note", "rd-dialog__amount")
     assert (figure.name, figure.get_text()) == ("output", "200.00")
     # the note sits in the formula body (handoff), not in the hero band
-    assert _hero(r.text, "Taxes", "rd-dialog__hero").find(class_="rd-dialog__hero-note") is None
+    assert _hero(r.text, "note", "rd-dialog__hero").find(class_="rd-dialog__hero-note") is None
     group = _html.resolve_one(r.text, edit_dialogs.formula_group(scope))
     assert _child(group, "output").get_text() == "→ next amount 200.00 PLN"
-    assert _hero(r.text, "Taxes", "rd-dialog__sign").get_text() == sign_glyph(True)
+    assert _hero(r.text, "note", "rd-dialog__sign").get_text() == sign_glyph(True)
     percent = _html.resolve_one(r.text, edit_dialogs.formula_percent(scope))
     assert percent.get("value") == "20"
     # the form carries the rule id so the preview leaves the rule out of its own sources
-    hidden = _html.resolve_one(r.text, edit_dialogs.recurring_dialog("Taxes")).find(
+    hidden = _html.resolve_one(r.text, edit_dialogs.recurring_dialog("note")).find(
         "input", attrs={"name": "draft_rule_id"}
     )
     assert hidden is not None
@@ -186,7 +186,7 @@ def test_hero_refresh_of_a_formula_rule_follows_the_form(
     r = client.get(f"/recurring/{ids['taxes_rule']}/edit?{query}", headers=_HTMX)
     assert r.status_code == 200
     assert "HX-Retarget" not in r.headers
-    assert _hero(r.text, "Taxes", "rd-dialog__amount").get_text() == "500.00"
+    assert _hero(r.text, "note", "rd-dialog__amount").get_text() == "500.00"
 
 
 def test_preview_leaves_the_edited_rule_out_of_its_sources(
@@ -272,7 +272,7 @@ def test_empty_formula_is_a_human_422_and_writes_nothing(
         "field-formula": "▲ coefficient is required for formula rules",
     }
     # the dialog comes back in the formula state with the posted note
-    scope = edit_dialogs.recurring_dialog("Taxes")
+    scope = edit_dialogs.recurring_dialog("note")
     assert _html.resolve_one(r.text, edit_dialogs.amount_formula(scope)).has_attr("checked")
     stored = recurring_repo.find_rule(db, USER_ID, ids["taxes_rule"])
     assert stored is not None
@@ -318,7 +318,7 @@ def test_override_dialog_opens_on_the_occurrence_date(
         f"/recurring/{ids['rent_rule']}/overrides/new?occurrence_date=2026-05-01", headers=_HTMX
     )
     assert r.status_code == 200
-    scope = edit_dialogs.occurrence_dialog("Rent")
+    scope = edit_dialogs.occurrence_dialog("note")
     month = _html.resolve_one(r.text, edit_dialogs.month_group(scope))
     assert (_child(month, "output").get_text(), _child(month, "input", "year").get("value")) == (
         "May 2026",
@@ -357,7 +357,7 @@ def test_override_dialog_prefills_the_stored_override_of_that_month(
     r = client.get(
         f"/recurring/{ids['rent_rule']}/overrides/new?occurrence_date=2026-05-20", headers=_HTMX
     )
-    scope = edit_dialogs.occurrence_dialog("Rent")
+    scope = edit_dialogs.occurrence_dialog("note")
     assert _html.resolve_one(r.text, edit_dialogs.hero_amount(scope)).get("value") == "123.45"
 
 
