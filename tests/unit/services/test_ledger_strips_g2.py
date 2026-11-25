@@ -14,6 +14,7 @@ from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import OverrideState
 from budget_planner.domain.fx import NewFxRate
+from budget_planner.domain.money import format_figure
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import NewRecurringOverride
 from budget_planner.domain.transactions import NewTransaction
@@ -25,7 +26,7 @@ from budget_planner.repositories import (
     transactions as txn_repo,
 )
 from budget_planner.services import ledger_totals as lt, preferences as preferences_svc
-from budget_planner.web import ledger_data
+from budget_planner.web import ledger_data, ledger_view
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind
 from tests.unit.services.conftest import OWNER_ID, WORLD_TODAY, World, expense_rule_amount
 
@@ -70,9 +71,10 @@ def test_planned_strip_counts_and_row_status(
     _planned(conn, w, OWNER_ID, WORLD_TODAY, "today")
     _planned(conn, w, w.other.user_id, dt.date(2026, 11, 1), "other-late")
     ctx = _ctx(conn, "planned")
-    summary = ctx["planned_summary"]
-    assert isinstance(summary, lt.PlannedTotals)
-    assert (summary.count, summary.overdue_count, summary.due_today_count) == (4, 2, 1)
+    hero = ctx["hero"]
+    assert isinstance(hero, ledger_view.LedgerHero)
+    assert hero.note == "4 items · 2 overdue · 1 due today"
+    assert hero.figure == format_figure(-800, "PLN")  # 3 x 100 plus the world's 500, all expenses
     rows = ctx["rows"]
     assert isinstance(rows, list)
     status = {r["description"]: r["status"] for r in rows}
@@ -148,15 +150,11 @@ def test_recurring_strip_and_override_delta(
             ),
         )
     ctx = _ctx(conn, "recurring")
-    summary = ctx["recurring_summary"]
-    assert isinstance(summary, lt.RecurringTotals)
+    hero = ctx["hero"]
+    assert isinstance(hero, ledger_view.LedgerHero)
     # next-due override 850 out (the effective amount), income 5_000 in, both monthly
-    assert (summary.rule_count, summary.next_due) == (2, dt.date(2026, 11, 15))
-    assert (summary.monthly_in_minor, summary.monthly_out_minor, summary.net_minor) == (
-        5_000,
-        850,
-        4_150,
-    )
+    assert hero.figure == format_figure(-850, "PLN")
+    assert hero.note == (f"in {format_figure(5_000, 'PLN', plus=True)} · 2 rules · next due 15 nov")
     rows = ctx["rows"]
     assert isinstance(rows, list)
     deltas = next(r for r in rows if r["id"] == w.owner.rule_id)["override_deltas"]

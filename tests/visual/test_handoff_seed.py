@@ -43,6 +43,9 @@ from tests.visual import handoff_seed as seed
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 
 USER = seed.OWNER_ID
+# The seed's deletions are stamped in Oct 2026; the repo's 90-day "recently deleted" window is
+# relative to the (shifted) clock, so these tests read the whole history instead.
+_ALL_TIME_DAYS = 36_500
 DAY = dt.date.fromisoformat(HANDOFF_FIXTURE_DATE)
 NOW = dt.datetime(2026, 10, 31, 10, tzinfo=dt.UTC)
 TZ = "Europe/Warsaw"
@@ -139,7 +142,7 @@ def test_categories_and_deleted(base: Built) -> None:
     assert by_direction[Direction.INCOME] == 5
     # ADR-0151: the picker's N excludes Reconciliation (system-only): 17 + 5 + Transit.
     assert len([c for c in live if c.name != "Reconciliation"]) == 23
-    deleted = categories_repo.list_recently_deleted(conn, USER)
+    deleted = categories_repo.list_recently_deleted(conn, USER, days=_ALL_TIME_DAYS)
     stamps = {c.name: c.deleted_at for c in deleted}
     assert sorted(stamps) == ["Bank Fees", "Opłaty bankowe i prowizje", "VAT Refund #6"]
     assert stamps["VAT Refund #6"] == dt.datetime(2026, 10, 29, 19, 6, tzinfo=dt.UTC)
@@ -207,7 +210,7 @@ def test_planned_and_recurring(base: Built) -> None:
         ("2026-11-20", 2_500_000, "Annual bonus"),
         ("2026-12-15", 223_980, "Car"),
     ]
-    deleted = planned_repo.list_recently_deleted(conn, USER)
+    deleted = planned_repo.list_recently_deleted(conn, USER, days=_ALL_TIME_DAYS)
     assert [(p.amount, p.deleted_at) for p in deleted] == [
         (230_635, dt.datetime(2026, 10, 29, 19, 30, tzinfo=dt.UTC))
     ]
