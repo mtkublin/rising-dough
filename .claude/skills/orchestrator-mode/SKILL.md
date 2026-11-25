@@ -93,7 +93,8 @@ before each merge check `MERGE_HEAD` and the branch tip (`just merge-item` refus
   `isolation: "worktree"` (the worktree starts from `main`; the role resets to the brief's base
   sha). Reviewer, tester, visual-auditor: no isolation, the brief names the path. Pass `model` only
   to override the role default (Haiku implementer, escalation).
-- Background; wait for completion notifications. No polling, no sleep loops.
+- Background; wait for completion notifications. No polling loops. The one allowed timer is the
+  single background heartbeat (`sleep 1200; echo heartbeat`, Bash `run_in_background`; see §6).
 - Auto mode: agents inherit it; do not override. Briefs say "autonomous; no confirmation except
   the prod-DB rule".
 
@@ -125,6 +126,14 @@ an agent commits it). Mutation: weekly `mutation.yml`.
   uncommitted work) to a fresh `implementer` with the handover addition from brief-common.md.
   Never `git worktree remove`, `checkout .`, `stash` or `reset` a stopped agent's worktree.
 - Second stall on one item: escalate the model (§4.8). Record every overrun and stop in the run log.
+- **No idle turns (ADR-0150 amendment 2026-11-25).** In a run told to keep going, before ending
+  any turn: (a) at least 2 agents in flight when load allows and unblocked work exists (follow-ups,
+  independent items, scribe/test passes); (b) a background heartbeat always running:
+  `sleep 1200; echo heartbeat` via Bash `run_in_background`, restarted on every heartbeat. A
+  completion notification can fail to arrive; the heartbeat re-invokes you to check worktrees
+  (above), then merge and dispatch. Never end a turn whose only in-flight work is one agent
+  waiting on its own background job. An operator question mid-run is answered and the run
+  continues in the same turn.
 
 ## 7. Step 3: review and merge, item by item (do not wait for the wave)
 
