@@ -175,6 +175,7 @@ module "compute" {
   # T-Q238 (Q-040): only drills may verify branch-signed images.
   allow_branch_builds = var.env == "drill"
   admin_email         = var.admin_email
+  setup_token_hash    = var.setup_token_hash
   admin_password      = random_password.admin_initial_password.result
   cookie_secret       = random_password.cookie_secret.result
   trusted_hosts_csv   = local.fqdn

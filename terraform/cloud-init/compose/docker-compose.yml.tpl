@@ -25,6 +25,10 @@ services:
       BUDGET_WEBAUTHN_ORIGIN: "https://${hostname}"
       BUDGET_PLANNER_ADMIN_EMAIL: "${admin_email}"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "${admin_initial_password}"
+%{~ if setup_token_hash != "" }
+      # T-UR21a / ADR-0134 section 9: sha256 of the one-time setup token.
+      BUDGET_PLANNER_SETUP_TOKEN_HASH: "${setup_token_hash}"
+%{~ endif }
       BUDGET_BACKUP_MAX_AGE_DAYS: "${backup_max_age_days}"
       # T-D144 / ADR-0119: freshness file written by litestream-probe.
       BUDGET_REPLICATION_STATUS_FILE: "/replication/status.json"
