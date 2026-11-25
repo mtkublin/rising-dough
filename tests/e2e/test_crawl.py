@@ -82,6 +82,7 @@ NOT_PAGES: dict[str, str] = {
     "/categories/{category_id}/archive": "dialog fragment",
     "/categories/{category_id}/edit": "dialog fragment",
     "/forecast/view": "fragment",
+    "/ledger/recently-deleted/panel": "fragment (self-refetching deleted panel, T-UR10a)",
     "/ledger/table": "fragment",
     "/planned/export": "download",
     "/planned/new": "dialog fragment",
