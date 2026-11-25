@@ -1,0 +1,29 @@
+{# Settings · delete user dialog (T-UR14, ADR-0107, ADR-0134 section 10). Handoff: overlays/delete-user.html.
+   Context: view (settings_view.UserDialogView). blocked_reason set (own account, last admin): the blocked variant,
+   no form, the service guard's own message. Otherwise the confirm; entries the user made stay in the ledger. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% if view.blocked_reason %}
+  {% call dialog(
+    "dlg-delete-user",
+    "Can't delete " ~ view.label,
+    variant="blocked",
+    size="md",
+    actions=[{"tone": "ok"}]
+  ) %}
+    <p>{{ view.blocked_reason }}</p>
+  {% endcall %}
+{% else %}
+  {% call dialog(
+    "dlg-delete-user",
+    "Delete " ~ view.label ~ "?",
+    variant="confirm",
+    size="md",
+    action="/settings/users/" ~ view.id ~ "/delete",
+    hx_post="/settings/users/" ~ view.id ~ "/delete",
+    hx_target="#user-row-" ~ view.id,
+    hx_swap="outerHTML",
+    actions=[{"tone": "cancel"}, {"tone": "danger", "label": "delete user", "name": "delete", "value": "1"}]
+  ) %}
+    <p>{{ view.email }} loses access straight away and is signed out everywhere. Entries they made stay in the ledger.</p>
+  {% endcall %}
+{% endif %}

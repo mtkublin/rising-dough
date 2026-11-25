@@ -11,6 +11,7 @@ TABLE_PATH: Final = "/table"
 TRANSACTIONS_PATH: Final = "/transactions"
 PLANNED_PATH: Final = "/planned"
 DELETE_PATH: Final = "/delete"
+EDIT_PATH: Final = "/edit"
 RESTORE_SEGMENT: Final = "restore"
 
 GET_HEAD_METHODS: Final = ("GET", "HEAD")

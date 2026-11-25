@@ -13,7 +13,7 @@ Rules (counted per ``{{ }}`` / ``{% %}`` expression after stripping string liter
   tpl-domain-if    ``{% if %}`` comparing direction/kind/status/cadence/currency/account_type to a literal
   tpl-currency-lit hard-coded ISO currency code string ('PLN', 'EUR', ...)
   tpl-format       ``|format``, ``%``-format, ``.strftime(``, ``.isoformat(`` (formatting outside the shared filters)
-Also counts kept JS (htmx-csrf.js, passkeys.js, users-admin.js) for money math / clock: ``js-money``, ``js-clock``.
+Also counts kept JS (htmx-csrf.js, passkeys.js) for money math / clock: ``js-money``, ``js-clock``.
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def main() -> None:
         per_file,
     )
     js: list[tuple[str, str, str]] = []
-    for name in ("htmx-csrf.js", "js/passkeys.js", "js/users-admin.js"):
+    for name in ("htmx-csrf.js", "js/passkeys.js"):
         p = STATIC / name
         if not p.exists():
             continue
@@ -87,4 +87,4 @@ def main() -> None:
                 js.append((f"{p.relative_to(ROOT).as_posix()}:{i}", "js-money", line.strip()[:90]))
             if re.search(r"Date\.now\(|new Date\(", line):
                 js.append((f"{p.relative_to(ROOT).as_posix()}:{i}", "js-clock", line.strip()[:90]))
-    write("p12-js-kept", "P12 kept JS (htmx-csrf, passkeys, users-admin): money math / clock", js)
+    write("p12-js-kept", "P12 kept JS (htmx-csrf, passkeys): money math / clock", js)
