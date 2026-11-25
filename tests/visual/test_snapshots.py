@@ -41,11 +41,8 @@ VIEWPORTS: Final = {
     "375": _Viewport(width=375, height=812),
 }
 ROUTES: Final = {
-    "ledger": "/ledger",
     "budget": "/budget",
     "forecast": "/forecast",
-    "recurring": "/recurring/new",
-    "settings": "/settings",
 }
 FONT_HOSTS: Final = ("**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**")
 
