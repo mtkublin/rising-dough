@@ -16,7 +16,7 @@ from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
 from tests.e2e.forms import PANEL, wait_for_htmx
-from tests.e2e.ui_actions import submit_ok
+from tests.e2e.ui_actions import fill_stable, submit_ok
 from tests.ui_map import ledger
 from tests.ui_map.locator import to_playwright
 
@@ -86,9 +86,9 @@ def test_recurring_rule_and_planned_promote_cycle(
     wait_for_htmx(page)
     to_playwright(page, ledger.planned_promote(planned_id)).click()
     expect(to_playwright(page, PANEL)).to_be_visible()
-    to_playwright(page, ledger.overlay_field(ledger.field_date)).fill("2026-01-22")
-    to_playwright(page, ledger.overlay_field(ledger.field_amount)).fill("27.50")
-    to_playwright(page, ledger.overlay_field(ledger.field_note)).fill("promoted one-off")
+    fill_stable(to_playwright(page, ledger.overlay_field(ledger.field_date)), "2026-01-22")
+    fill_stable(to_playwright(page, ledger.overlay_field(ledger.field_amount)), "27.50")
+    fill_stable(to_playwright(page, ledger.overlay_field(ledger.field_note)), "promoted one-off")
     # The typed values must still be in the form when it posts (a re-render would reset them).
     expect(to_playwright(page, ledger.overlay_field(ledger.field_amount))).to_have_value("27.50")
     expect(to_playwright(page, ledger.overlay_field(ledger.field_note))).to_have_value(

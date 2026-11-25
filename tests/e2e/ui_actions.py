@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Any
 from urllib.parse import urlsplit
 
-from playwright.sync_api import expect
+from playwright.sync_api import Error as PlaywrightError, expect
 
 from tests.ui_map import entries, ledger, rd_shell, shell
 from tests.ui_map.locator import Locator, to_playwright
@@ -89,6 +90,79 @@ def _is_hero_refresh(response: Any) -> bool:
     return "hero=1" in response.url
 
 
+HTMX_PENDING_JS = """
+(() => {
+  const inflight = new Set();
+  window.__htmxPending = 0;
+  const sync = () => { window.__htmxPending = inflight.size; };
+  const key = (e) => (e.detail && (e.detail.xhr || e.detail.requestConfig)) || e.target;
+  document.addEventListener('htmx:beforeRequest', (e) => { inflight.add(key(e)); sync(); });
+  for (const name of ['htmx:afterRequest', 'htmx:sendError', 'htmx:responseError',
+                      'htmx:sendAbort', 'htmx:afterSettle']) {
+    document.addEventListener(name, (e) => { inflight.delete(key(e)); sync(); });
+  }
+})();
+"""
+
+_QUIET_JS = """
+async () => {
+  const busy = () =>
+    (window.__htmxPending || 0) > 0 ||
+    document.querySelector('.htmx-request, .htmx-swapping, .htmx-settling') !== null;
+  const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  const deadline = performance.now() + 5000;
+  while (performance.now() < deadline) {
+    if (!busy()) {
+      await frame();
+      await frame();
+      if (!busy()) return true;  // held stable across two animation frames
+    } else {
+      await frame();
+    }
+  }
+  return false;
+}
+"""
+
+# (description, attempts) of every fill_stable that needed more than one attempt; the e2e
+# conftest prints a summary line so CI logs show how often a swap beat a fill (QFIX13).
+FILL_RETRIES: list[tuple[str, int]] = []
+FILL_ATTEMPTS = 3
+
+
+def quiesce(page: Any) -> None:
+    """Block until no htmx request, swap or settle is in flight, stable across two frames."""
+    # A navigation destroys the context: the new page has nothing in flight yet.
+    with suppress(PlaywrightError):
+        page.evaluate(_QUIET_JS)
+
+
+def fill_stable(locator: Any, value: str) -> None:
+    """Fill ``locator`` only while htmx is quiet and prove the value stuck (QFIX13).
+
+    A hero refresh swap landing between Playwright's focus and text-insert steps would send the
+    text to the element about to be replaced. Quiesce, fill, check; if the value was lost,
+    quiesce and fill again (up to ``FILL_ATTEMPTS``). Retries are recorded in ``FILL_RETRIES``.
+    """
+    page = locator.page
+    for attempt in range(1, FILL_ATTEMPTS + 1):
+        quiesce(page)
+        locator.fill(value)
+        try:
+            expect(locator).to_have_value(value, timeout=1500)
+            quiesce(page)  # a swap queued behind the fill would still replace the field
+            expect(locator).to_have_value(value, timeout=1500)
+        except AssertionError:
+            if attempt == FILL_ATTEMPTS:
+                raise AssertionError(
+                    f"fill of {value!r} was lost in all {attempt} attempts"
+                ) from None
+            continue
+        if attempt > 1:
+            FILL_RETRIES.append((str(locator), attempt))
+        return
+
+
 def _settle(page: Any) -> None:
     """Let the hero swap land before the amount is typed (it re-renders the amount input)."""
-    page.wait_for_timeout(300)
+    quiesce(page)

@@ -10,7 +10,13 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.e2e.journeys._world import World, days_from_today
-from tests.e2e.ui_actions import choose_account, choose_category, open_new_entry, save_entry
+from tests.e2e.ui_actions import (
+    choose_account,
+    choose_category,
+    fill_stable,
+    open_new_entry,
+    save_entry,
+)
 from tests.ui_map import entries, ledger
 from tests.ui_map.locator import label
 
@@ -34,8 +40,8 @@ def test_new_happened_entry_lands_in_actual(world: World) -> None:
     _open_dialog(world, "happened")
     choose_category(world.page, "Groceries")
     choose_account(world.page, "Checking")
-    world.find(entries.hero_amount).fill("12.50")
-    world.find(entries.field_note.inside(entries.dialog)).fill("happened-entry")
+    fill_stable(world.find(entries.hero_amount), "12.50")
+    fill_stable(world.find(entries.field_note.inside(entries.dialog)), "happened-entry")
     save_entry(world.page)
 
     txn = world.wait_rows("SELECT * FROM transactions WHERE description = 'happened-entry'")
@@ -57,9 +63,9 @@ def test_new_planned_entry_lands_in_planned(world: World) -> None:
     _open_dialog(world, "planned")
     choose_category(world.page, "Groceries")
     choose_account(world.page, "Checking")
-    world.find(entries.hero_amount).fill("33.00")
-    world.find(entries.field_due).fill(days_from_today(3))
-    world.find(entries.field_note.inside(entries.dialog)).fill("planned-entry")
+    fill_stable(world.find(entries.hero_amount), "33.00")
+    fill_stable(world.find(entries.field_due), days_from_today(3))
+    fill_stable(world.find(entries.field_note.inside(entries.dialog)), "planned-entry")
     save_entry(world.page, "planned")
 
     found = world.wait_rows(
@@ -85,10 +91,10 @@ def test_new_repeating_fixed_rule_lands_in_recurring(world: World) -> None:
     choose_category(world.page, "Rent")
     choose_account(world.page, "Checking")
     world.find(entries.amount_fixed).check(force=True)
-    world.find(entries.hero_amount).fill("1800.00")
-    world.find(entries.field_start).fill(days_from_today(5))
+    fill_stable(world.find(entries.hero_amount), "1800.00")
+    fill_stable(world.find(entries.field_start), days_from_today(5))
     world.find(entries.cadence_quarterly).check(force=True)
-    world.find(entries.field_note.inside(entries.dialog)).fill("fixed-rule")
+    fill_stable(world.find(entries.field_note.inside(entries.dialog)), "fixed-rule")
     world.find(entries.save).click()
 
     rule = world.wait_rows(
@@ -116,8 +122,8 @@ def test_new_repeating_formula_rule_derives_from_source(world: World) -> None:
     world.find(entries.amount_formula).check(force=True)
     world.find(entries.formula_pick).click()
     world.find(label("Salary", exact=True).inside(entries.formula_group)).check(force=True)
-    world.find(entries.formula_percent).fill("10")
-    world.find(entries.field_note.inside(entries.dialog)).fill("formula-rule")
+    fill_stable(world.find(entries.formula_percent), "10")
+    fill_stable(world.find(entries.field_note.inside(entries.dialog)), "formula-rule")
     world.find(entries.save).click()
 
     rule = world.wait_rows(
