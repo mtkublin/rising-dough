@@ -30,6 +30,7 @@ from budget_planner.domain.errors import (
 from budget_planner.web.app import create_app
 from tests.auth_support import login_cookie
 from tests.ui_map import _html, errors
+from tests.ui_map.locator import by_id, role
 
 
 @pytest.fixture
@@ -200,3 +201,41 @@ def test_flash_inline_render_does_not_emit_oob_attribute(client: TestClient) -> 
     assert "hx-swap-oob" not in html
     assert 'role="status"' in html
     assert "Saved" in html
+
+
+_RD = {"HX-Request": "true", "X-Shell": "rd"}
+_OLD = {"HX-Request": "true"}
+
+
+@pytest.mark.parametrize(
+    ("path", "status", "expected"),
+    [
+        ("/_boom/not-found", 404, ("flash-region-assertive", "assertive", "Transaction not found")),
+        ("/_boom/conflict", 409, ("flash-region", "polite", "protected row")),
+        ("/_boom/service", 500, ("flash-region-assertive", "assertive", "downstream unavailable")),
+    ],
+)
+def test_new_shell_htmx_error_uses_the_rd_flash_fragment(
+    error_client: TestClient, path: str, status: int, expected: tuple[str, str, str]
+) -> None:
+    region, live, text = expected
+    r = error_client.get(path, headers=_RD)
+    assert r.status_code == status
+    live_region = _html.resolve_one(r.text, by_id(region))
+    assert live_region["aria-live"] == live
+    assert live_region["hx-swap-oob"] == "true"
+    flash = _html.resolve_one(r.text, errors.alert.inside(by_id(region)))
+    assert flash["class"] == ["rd-flash", "rd-flash--error"]
+    assert f"▲ {text}" in flash.get_text()
+    close = _html.resolve_one(r.text, role("button", "Dismiss").inside(by_id(region)))
+    assert close["data-js"] == "flash-close"
+
+
+def test_old_shell_htmx_error_keeps_the_legacy_flash(error_client: TestClient) -> None:
+    r = error_client.get("/_boom/conflict", headers=_OLD)
+    assert r.status_code == 409
+    region = _html.resolve_one(r.text, by_id("flash-region"))
+    box = region.find("div")
+    assert box is not None
+    assert box["class"] == ["flash", "flash-warning"]
+    assert "rd-flash" not in r.text

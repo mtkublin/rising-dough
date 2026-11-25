@@ -79,20 +79,59 @@
   const FALLBACK_TEXT = 'Something went wrong on our side. Try again.';
   const FORM_RERENDER = [422, 429];
 
+  /* Same markup as fragments/flash/error.html. */
   function flashBox(message) {
     const box = document.createElement('div');
-    box.className = 'flash flash-error';
-    box.dataset.flashKind = 'error';
+    box.className = 'rd-flash rd-flash--error';
+    box.setAttribute('role', 'alert');
     const text = document.createElement('span');
-    text.textContent = message;
+    text.textContent = '\u25b2 ' + message;
     const close = document.createElement('button');
     close.type = 'button';
-    close.className = 'flash-dismiss';
-    close.setAttribute('aria-label', 'Dismiss message');
-    close.dataset.action = 'dismiss-flash';
-    close.textContent = '\u00d7';
+    close.className = 'rd-btn rd-btn--icon rd-flash__close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.dataset.js = 'flash-close';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'rd-icon');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '/static/rd/icons/sprite.svg#icon-close');
+    svg.append(use);
+    close.append(svg);
     box.append(text, close);
     return box;
+  }
+
+  /* The shell tells the server which flash markup to send (web/errors.py). */
+  document.addEventListener('htmx:configRequest', (event) => {
+    if (event.detail && event.detail.headers) event.detail.headers['X-Shell'] = 'rd';
+  });
+
+  /* A modal <dialog> sits in the top layer, above #flash-region. While one is open the flash is
+     shown in a live region inside the dialog instead (same role and aria-live as the page region),
+     created empty first so assistive tech announces the content added next. It goes with the dialog. */
+  function show(id, nodes) {
+    const open = document.querySelectorAll('dialog[open]');
+    const dialog = open.length ? open[open.length - 1] : null;
+    const page = document.getElementById(id);
+    if (!dialog) {
+      if (page) page.replaceChildren(...nodes);
+      return;
+    }
+    let region = dialog.querySelector('[data-flash-in-dialog="' + id + '"]');
+    if (region) {
+      region.replaceChildren(...nodes);
+      return;
+    }
+    region = document.createElement('div');
+    region.className = 'rd-flash-region';
+    region.dataset.flashInDialog = id;
+    region.setAttribute('role', id === 'flash-region-assertive' ? 'alert' : 'status');
+    region.setAttribute('aria-live', id === 'flash-region-assertive' ? 'assertive' : 'polite');
+    dialog.prepend(region);
+    dialog.addEventListener('close', () => region.remove(), { once: true });
+    setTimeout(() => region.replaceChildren(...nodes), 0);
   }
 
   document.addEventListener('htmx:beforeSwap', (event) => {
@@ -105,11 +144,11 @@
       ['flash-region', 'flash-region-assertive'].forEach((id) => {
         const from = incoming.getElementById(id);
         const region = document.getElementById(id);
-        if (from && region) region.replaceChildren(...from.childNodes);
+        if (from && region) show(id, Array.from(from.childNodes));
       });
     } else if (!FORM_RERENDER.includes(xhr.status)) {
       const region = document.getElementById('flash-region-assertive');
-      if (region) region.replaceChildren(flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT));
+      if (region) show('flash-region-assertive', [flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT)]);
     } else {
       return;
     }
