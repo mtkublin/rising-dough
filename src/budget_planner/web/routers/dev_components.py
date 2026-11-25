@@ -40,7 +40,7 @@ def dev_components(
 ) -> HTMLResponse:
     if getattr(settings, "env", "dev") == "production":
         raise HTTPException(status_code=404)
-    return render(request, "dev/components.html")
+    return render(request, "pages/dev/components.html")
 
 
 @router.get("/dev/shell", response_class=HTMLResponse, include_in_schema=False)

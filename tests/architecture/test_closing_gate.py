@@ -133,7 +133,9 @@ def test_gate_flags_each_class_of_violation(tmp_path: Path) -> None:
 
 
 def test_carve_out_maximum_is_pinned_and_the_file_fits_it() -> None:
-    rows = tomllib.loads((ALLOWLIST_DIR / CARVE_OUT_FILE).read_text(encoding="utf-8"))["entry"]
+    rows = tomllib.loads((ALLOWLIST_DIR / CARVE_OUT_FILE).read_text(encoding="utf-8")).get(
+        "entry", []
+    )
     assert CARVE_OUT_MAX == 59
     assert len(rows) <= CARVE_OUT_MAX
 

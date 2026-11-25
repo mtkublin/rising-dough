@@ -83,7 +83,7 @@ def test_bad_value_on_htmx_request_is_422_error_flash(
     r = client.get(_url(path, name, value), headers=HX)
 
     assert r.status_code == 422
-    assert name in _html.text_of(r.text, errors.alert)
+    assert name in _html.all_text(r.text, errors.alert)
 
 
 @pytest.mark.parametrize("path", OK_PATHS)

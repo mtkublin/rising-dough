@@ -36,21 +36,21 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin.woff2` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | keep: ADR-0107 §2: CSRF header on HTMX requests, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
 | `src/budget_planner/web/static/js/account-form.js` | T-UR08 | deleted |  |
-| `src/budget_planner/web/static/js/app-init.js` | T-UR15 | delete |  |
+| `src/budget_planner/web/static/js/app-init.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | deleted | UR11b: the override dialog is plain radios and `dialog.js`; no script loaded it any more |
 | `src/budget_planner/web/static/js/category-form.js` | T-UR13 | deleted |  |
-| `src/budget_planner/web/static/js/combobox.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/kebab.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/numeric-input.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/overlay-actions.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/palette.js` | T-UR15 | delete |  |
+| `src/budget_planner/web/static/js/combobox.js` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/js/kebab.js` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/js/numeric-input.js` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/js/overlay-actions.js` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/js/palette.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | keep: ADR-0107 §2: WebAuthn ceremonies, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
-| `src/budget_planner/web/static/js/rd-wire.js` | T-UR15 | delete |  |
+| `src/budget_planner/web/static/js/rd-wire.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/reconcile-form.js` | T-UR08 | deleted |  |
-| `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | delete | UR10b kept: the old "+ Add" repeats form (`recurring/_form.html`) still needs it; goes with it; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
-| `src/budget_planner/web/static/js/rising-dough.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/shortcuts.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/txn-form.js` | T-UR15 | delete |  |
+| `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | deleted | UR10b kept: the old "+ Add" repeats form (`recurring/_form.html`) still needs it; goes with it; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
+| `src/budget_planner/web/static/js/rising-dough.js` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/js/shortcuts.js` | T-UR15 | deleted |  |
+| `src/budget_planner/web/static/js/txn-form.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/users-admin.js` | T-UR14 | deleted | The handoff users page has the copy button markup (no script); the one-time password dialog prints the value in a selectable `<output>`. Copy-to-clipboard moves to T-UR20 with the add-user dialog |
 | `src/budget_planner/web/static/rising-dough.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/settings-security.css` | T-UR14 | deleted |  |
@@ -60,36 +60,36 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/tokens.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/vendor/htmx-2.0.11.min.js` | T-UR15 | keep: operator decision Q1 (2026-11-25) KEEP; ADR-0107 §2 (amendment 2026-11-25) keeps the HTMX endpoints and triggers; the HTMX runtime is a vendored library, not design |  |
 | `src/budget_planner/web/templates/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
-| `src/budget_planner/web/templates/_partials/combobox.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_amount.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_button.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_direction_badge.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_filter_chips.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_heatmap_cell.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_pace_tag.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_period_header.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_pill.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_planned_net.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_progress_bar.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_segmented.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_sparkline.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_table_row.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_toast.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/components/_top_bar_add.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/kebab_menu.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/overdue_row.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/segmented.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/_partials/slide_over_header.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/_partials/combobox.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_amount.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_button.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_direction_badge.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_filter_chips.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_heatmap_cell.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_pace_tag.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_period_header.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_pill.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_planned_net.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_progress_bar.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_segmented.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_sparkline.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_table_row.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_toast.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/components/_top_bar_add.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/kebab_menu.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/overdue_row.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/segmented.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/_partials/slide_over_header.html` | T-UR15 | deleted |  |
 | `src/budget_planner/web/templates/accounts/index.html` | T-UR08 | deleted |  |
 | `src/budget_planner/web/templates/auth/_layout.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/auth/login.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | deleted |  |
-| `src/budget_planner/web/templates/base.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/base.html` | T-UR15 | deleted |  |
 | `src/budget_planner/web/templates/budget/_yearly.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /budget`, `/budget/yearly`, `/forecast`, `/forecast/view` now redirect (307) to `/plan?tab=...` (operator decision Q13); contract pins ported to the Plan hub tests |
 | `src/budget_planner/web/templates/budget/index.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /budget`, `/budget/yearly`, `/forecast`, `/forecast/view` now redirect (307) to `/plan?tab=...` (operator decision Q13); contract pins ported to the Plan hub tests |
 | `src/budget_planner/web/templates/budget/manage.html` | T-UR11 | deleted | UR11a: no route or template used it |
 | `src/budget_planner/web/templates/categories/index.html` | T-UR13 | deleted |  |
-| `src/budget_planner/web/templates/dev/components.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/dev/components.html` | T-UR15 | deleted | UR15c: ported to `pages/dev/components.html` from the handoff components.html |
 | `src/budget_planner/web/templates/errors/404.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/errors/409.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/errors/422.html` | T-UR06 | deleted |  |
@@ -99,19 +99,19 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/ledger/_recently_deleted.html` | T-UR10 | deleted | UR10a: `GET /ledger/recently-deleted` renders `pages/ledger/recently-deleted.html` |
 | `src/budget_planner/web/templates/ledger/_table.html` | T-UR10 | deleted | UR10a: the planned and recurring views render `fragments/ledger/{planned,recurring}-table.html` (actual: T-UR09) |
 | `src/budget_planner/web/templates/ledger/index.html` | T-UR09 | deleted |  |
-| `src/budget_planner/web/templates/partials/_add_entry_overlay.html` | T-UR15 | delete | still the old shell's "+ Add" overlay (ledger, forecast, settings) until T-UR09/T-UR10 port them; Today uses pages/entries/new-entry.html; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
-| `src/budget_planner/web/templates/partials/_cheatsheet.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_direction_badge.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_flash.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_form_errors.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_money.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_nav.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_pagination.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_palette.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/partials/_shortcuts.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/partials/_add_entry_overlay.html` | T-UR15 | deleted | still the old shell's "+ Add" overlay (ledger, forecast, settings) until T-UR09/T-UR10 port them; Today uses pages/entries/new-entry.html; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
+| `src/budget_planner/web/templates/partials/_cheatsheet.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_direction_badge.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_flash.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_form_errors.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_money.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_nav.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_pagination.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_palette.html` | T-UR15 | deleted |  |
+| `src/budget_planner/web/templates/partials/_shortcuts.html` | T-UR15 | deleted |  |
 | `src/budget_planner/web/templates/partials/_slideover.html` | T-UR15 | deleted | UR15b: nothing renders it; the slide-over branch of `rendering.py` is gone |
 | `src/budget_planner/web/templates/partials/_slideover_page.html` | T-UR15 | deleted | UR15b: nothing renders it; the slide-over branch of `rendering.py` is gone |
-| `src/budget_planner/web/templates/partials/_tabbar.html` | T-UR15 | delete |  |
+| `src/budget_planner/web/templates/partials/_tabbar.html` | T-UR15 | deleted |  |
 | `src/budget_planner/web/templates/partials/accounts/_card.html` | T-UR08 | deleted |  |
 | `src/budget_planner/web/templates/partials/accounts/_form.html` | T-UR08 | deleted |  |
 | `src/budget_planner/web/templates/partials/accounts/_fortune_split.html` | T-UR08 | deleted |  |
@@ -125,12 +125,12 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/forecast/_chart.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
 | `src/budget_planner/web/templates/partials/forecast/_table.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
 | `src/budget_planner/web/templates/partials/forecast/_view.html` | T-UR15 | deleted | UR15a (2026-11-25): `GET /forecast` and `/forecast/view` now redirect (307) to `/plan?tab=forecast` (operator decision Q13) |
-| `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell page `dev/components.html` (the budget and forecast pages went in UR15a): goes with it |
+| `src/budget_planner/web/templates/partials/planned/_form.html` | T-UR10 | deleted | UR10b kept: still the old shell's "+ Add" planned tab and the 422 of its create (`open_legacy_overlay`, `planned_form_errors`); goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell page `dev/components.html` (the budget and forecast pages went in UR15a): goes with it |
 | `src/budget_planner/web/templates/partials/planned/_promote_inline_row.html` | T-UR24 | deleted | UR24: the inline promote routes are gone; promote is the dialog only |
 | `src/budget_planner/web/templates/partials/planned/_promote_modal.html` | T-UR24 | deleted | UR24: the legacy `?dialog=` branch is gone; `GET /planned/{id}/promote` always renders pages/entries/promote.html |
 | `src/budget_planner/web/templates/partials/planned/_row.html` | T-UR10 | deleted | UR15b: nothing renders it (dialog creates answer `saved_response`) |
 | `src/budget_planner/web/templates/partials/planned/_table.html` | T-UR10 | deleted | UR10a: orphaned (only planned/index.html included it) |
-| `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | delete | UR10b kept: still the old shell's "+ Add" repeats tab and the 422 of its create; goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
+| `src/budget_planner/web/templates/partials/recurring/_form.html` | T-UR10 | deleted | UR10b kept: still the old shell's "+ Add" repeats tab and the 422 of its create; goes with T-UR09 / T-UR15; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
 | `src/budget_planner/web/templates/partials/recurring/_formula_preview.html` | T-UR10 | deleted | UR10b: POST /recurring/formula/preview renders `fragments/dialogs/formula-result.html` |
 | `src/budget_planner/web/templates/partials/recurring/_override_form.html` | T-UR10 | deleted | UR10b: `GET /recurring/{id}/overrides/new` renders `fragments/dialogs/override-occurrence.html` |
 | `src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html` | T-UR24 | deleted | UR24: the inline promote routes are gone; promote is the dialog only |
@@ -138,8 +138,8 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/recurring/_row.html` | T-UR10 | deleted | UR15b: nothing renders it (dialog creates answer `saved_response`) |
 | `src/budget_planner/web/templates/partials/transactions/_empty.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/partials/transactions/_filter_form.html` | T-UR09 | deleted |  |
-| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR15 | delete | the edit dialog no longer renders it (T-UR09b); still the old shell's "+ Add" happened form (`form_responses.open_legacy_overlay`) and the non-dialog 422 of `POST /transactions` (`txn_form_errors`) until the ledger and the other old-shell pages are ported; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
-| `src/budget_planner/web/templates/partials/transactions/_limit_preview.html` | T-UR09 | delete | UR15b: still included by `transactions/_form.html` (old-shell "+ Add", see that row); the live credit line is `fragments/fields/credit-line.html` on the same route |
+| `src/budget_planner/web/templates/partials/transactions/_form.html` | T-UR15 | deleted | the edit dialog no longer renders it (T-UR09b); still the old shell's "+ Add" happened form (`form_responses.open_legacy_overlay`) and the non-dialog 422 of `POST /transactions` (`txn_form_errors`) until the ledger and the other old-shell pages are ported; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
+| `src/budget_planner/web/templates/partials/transactions/_limit_preview.html` | T-UR09 | deleted | UR15b: still included by `transactions/_form.html` (old-shell "+ Add", see that row); the live credit line is `fragments/fields/credit-line.html` on the same route |
 | `src/budget_planner/web/templates/partials/transactions/_row.html` | T-UR09 | deleted | UR15b: nothing renders it (dialog creates answer `saved_response`) |
 | `src/budget_planner/web/templates/partials/transactions/_table.html` | T-UR09 | deleted |  |
 | `src/budget_planner/web/templates/plan/_analytics_bundle.html` | T-UR12 | deleted |  |

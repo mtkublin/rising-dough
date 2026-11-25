@@ -53,8 +53,6 @@ async def create_rule(
             request,
             conn,
             user_id,
-            rule=None,
-            action=views.CREATE_ACTION,
             fields=fields,
             errors=draft.errors,
         )

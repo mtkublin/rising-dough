@@ -165,7 +165,6 @@ def add_entry_overlay(
     request: Request,
     *,
     when: str = "happened",
-    dialog: str = "",
     hero: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
@@ -175,13 +174,8 @@ def add_entry_overlay(
 
     ``hero=1`` re-renders the dialog from the form's values for the hero refresh (account, category,
     amount source); the caller swaps only ``.rd-dialog__hero``.
-
-    ``dialog=1`` is the new shell's ask; the old shell's "+ Add" (ledger, forecast, settings) still
-    gets the slide-over until those pages are ported (T-UR09, T-UR10).
     """
     tab = query_choice("when", when, entry_forms.ENTRY_TABS) or "happened"
-    if not dialog:
-        return form_responses.open_legacy_overlay(request, conn, user_id, tab=tab)
     if hero:
         return form_responses.new_entry_hero(request, conn, user_id, tab=tab, fx=fx)
     return form_responses.open_new_entry(request, conn, user_id, tab=tab)

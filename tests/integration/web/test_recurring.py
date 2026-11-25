@@ -159,7 +159,7 @@ def test_create_invalid_cadence(
         },
     )
     assert r.status_code == 422
-    assert "cadence: invalid cadence" in _html.all_text(r.text, errors.alert)
+    assert "Repeats : invalid cadence" in _html.text_of(r.text, entries.summary)
     assert _state(db) == before
 
 
@@ -178,7 +178,7 @@ def test_create_invalid_date(
         },
     )
     assert r.status_code == 422
-    assert "start_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "Start date : invalid date" in _html.text_of(r.text, entries.summary)
     assert _state(db) == before
 
 
@@ -197,7 +197,7 @@ def test_create_invalid_amount(
         },
     )
     assert r.status_code == 422
-    assert "default_amount: Enter an amount above 0.00" in _html.all_text(r.text, errors.alert)
+    assert "Amount : Enter an amount above 0.00" in _html.text_of(r.text, entries.summary)
     assert _state(db) == before
 
 
@@ -216,7 +216,7 @@ def test_create_unknown_account(
         },
     )
     assert r.status_code == 422
-    assert "account_id: unknown account" in _html.all_text(r.text, errors.alert)
+    assert "Account : unknown account" in _html.text_of(r.text, entries.summary)
     assert _state(db) == before
 
 
@@ -1017,7 +1017,7 @@ def test_create_end_date_before_start_rejected(client: TestClient, ctx: dict[str
         },
     )
     assert r.status_code == 422
-    assert "end_date" in _html.text_of(r.text, ledger.form_errors)
+    assert "End Date : must be on or after start" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_create_end_date_in_past_marks_inactive(
