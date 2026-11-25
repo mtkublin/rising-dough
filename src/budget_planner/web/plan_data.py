@@ -101,7 +101,7 @@ def budget_view_for(
         base_currency=settings.base_currency,
         display_timezone=settings.display_timezone,
     )
-    return view_models.budget_view(summary, today)
+    return view_models.budget_view(summary, today, settings.base_currency)
 
 
 def budget_period_for(

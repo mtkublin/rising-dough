@@ -411,6 +411,7 @@ def _hero(
         "amount_id": f"field-{name}",
         "amount_name": name,
         "amount_value": values.get(name, ""),
+        "placeholder": format_major(0, currency),
         "error": errors.get(name),
     }
 

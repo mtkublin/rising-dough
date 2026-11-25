@@ -95,10 +95,34 @@
     return box;
   }
 
+  /* New-entry hero refresh (GET /add?hero=1, T-UR07b): the server renders the hero from the values sent
+     with the request, so an amount typed while it is in flight would be overwritten. Keep what the user
+     typed (value, focus, caret) across the swap. A failed refresh marks the hero stale: the unit shows
+     an em dash, because it may no longer match the account select. */
+  const HERO = '.rd-dialog__hero';
+  let typed = null;
+
+  function isHeroRefresh(detail) {
+    const path = (detail.pathInfo && detail.pathInfo.requestPath) || '';
+    return detail.target && detail.target.matches && detail.target.matches(HERO) && path.includes('hero=1');
+  }
+
+  function markHeroStale() {
+    const unit = document.querySelector('#modal-root .rd-dialog__hero .rd-dialog__cur');
+    if (unit) unit.textContent = '—';
+  }
+
   document.addEventListener('htmx:beforeSwap', (event) => {
     const detail = event.detail || {};
+    if (isHeroRefresh(detail) && !(detail.xhr && detail.xhr.status >= 400)) {
+      const input = detail.target.querySelector('input.rd-dialog__amount');
+      typed = input
+        ? { id: input.id, value: input.value, focus: document.activeElement === input, start: input.selectionStart, end: input.selectionEnd }
+        : null;
+    }
     const xhr = detail.xhr;
     if (!xhr || xhr.status < 400) return;
+    if (String((detail.pathInfo && detail.pathInfo.requestPath) || '').includes('hero=1')) markHeroStale();
     const body = xhr.responseText || '';
     if (FLASH_OOB.test(body)) {
       const incoming = new DOMParser().parseFromString(body, 'text/html');
@@ -115,5 +139,25 @@
     }
     detail.shouldSwap = false;
     detail.isError = false;
+  });
+
+  document.addEventListener('htmx:afterSwap', (event) => {
+    const saved = typed;
+    typed = null;
+    if (!saved || !event.detail || !event.detail.pathInfo) return;
+    if (!String(event.detail.pathInfo.requestPath || '').includes('hero=1')) return;
+    const input = document.getElementById(saved.id);
+    if (!input || !input.matches('input.rd-dialog__amount')) return;
+    input.value = saved.value;
+    if (saved.focus) {
+      input.focus();
+      if (saved.start !== null) input.setSelectionRange(saved.start, saved.end);
+    }
+  });
+
+  /* A hero refresh that never got a response (network down) is stale too. */
+  document.addEventListener('htmx:sendError', (event) => {
+    const path = (event.detail && event.detail.pathInfo && event.detail.pathInfo.requestPath) || '';
+    if (path.includes('hero=1')) markHeroStale();
   });
 })();
