@@ -168,7 +168,7 @@ def _search_cleared(page: Page) -> None:
 
     The route carries the ``q`` filter, so the summary names it. The handoff file shows the field
     empty beside that summary, a state no request produces (typing triggers a new search). Only
-    the field's value is reset, with no input event, so the result card stays as the app rendered it.
+    the field's value is reset, with no input event, so the card stays as the app rendered it.
     """
     page.eval_on_selector("#f-q", "el => { el.value = ''; }")
 
