@@ -1903,6 +1903,37 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
+### ✅ T-Q330 [S] Hook-enforced orchestrator rules: decision record (docs only)
+- Findings: 2026-11-25 analysis of the `ui/sourdough` orchestrator v2 run (wave 6 after about 14 h; 10.8 agent-h of lock waits, 3.2 h of poll loops, 5.8 h of implementer e2e runs, reviewer suite reruns, 12 implementers over 60 min, two idle orchestrator stretches of 21 and about 90 min).
+- Epic: E04
+- Band: 3 · Size: S · Tags: docs, ops
+- Depends on: T-Q324
+- Docs-first step: this entry; ADR-0150 amendments 2026-11-25 ("no idle turns", "hook-enforced rules"); `docs/requirements.md` §3.5 guard line.
+- Goal: record the measured causes and the decision before T-Q331 and T-Q332 change the hooks, the skill and the agents.
+- Acceptance: both ADR-0150 amendments exist, the index row names them; requirements §3.5 names `scripts/ci/agent_guard.py`; `docs/CHANGELOG.md` has a line.
+- Operator question blocking it: none (operator asked for the change 2026-11-25).
+- Removes allowlist entries: none.
+
+### ✅ T-Q331 [S] `scripts/ci/agent_guard.py` and the project hooks
+- Epic: E04
+- Band: 3 · Size: S · Tags: ops, tests
+- Depends on: T-Q330
+- Docs-first step: ADR-0150 amendment 2026-11-25 "hook-enforced rules" §1 to §4, §6.
+- Goal: a stdlib-only guard with two modes. `pre-tool`: for the six role agents (`agent_type`), deny suites, directory and e2e runs per role, `-n auto`, foreground waits, local e2e runs past the implementer budget, and heavy commands past the role's runtime budget (active time, idle gaps capped). `stop`: in an `orchestrator-mode` session, refuse once a stop whose last message has no `RUN-STATE:` line. Fail open on any error. `.claude/settings.json` wires both hooks.
+- Acceptance: `tests/unit/deploy/test_agent_guard.py` pins each role's allowed and denied commands with exact reasons, the budget arithmetic and the stop decision; a scripted hook run on sample stdin returns the documented JSON / exit codes; a live subagent call in a scratch session is denied.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
+### ✅ T-Q332 [S] Skill, brief template and role agents follow the amendment
+- Epic: E04
+- Band: 3 · Size: S · Tags: docs, ops
+- Depends on: T-Q330, T-Q331
+- Docs-first step: ADR-0150 amendment 2026-11-25 "hook-enforced rules" §5.
+- Goal: `SKILL.md` (two lock slots, audit and review in parallel, next wave built while the tester runs, parked agents, `RUN-STATE` line, item size, untried workflows), `brief-common.md` (single-file acceptance commands, e2e evidence from `e2e.yml`, audit expectations, estimate), the six role files (background waits, runtime budgets, guard denials, reviewer reads `e2e.yml`), CLAUDE.md "Multi-agent work" (plus a short table of the project skills and agents and when to use each; role agents are for orchestrated runs only).
+- Acceptance: no rule contradicts the guard; `brief-common.md` no longer tells the reviewer to rerun every acceptance command; `just guards` green (G15 guidance paths).
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
 ### QA follow-ups trunk: open follow-ups (2026-11-23)
 - ✅ (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`. Done 2026-11-24: `integration_id` 15368 on all 7 required contexts; evidence file refreshed (OPS-1).
 - ✅ (b) Operator: OQ-32, check the `tag:ci` Tailscale ACL. Done 2026-11-24: live ACL matched the repo file; `tag:prod:22` removed from the `tag:ci` rule, `tag:drill:22/443` kept (ADR-0132 amendment).
