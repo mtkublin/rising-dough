@@ -133,7 +133,8 @@ def filter_bar(
     categories: Sequence[Category],
     accounts: Sequence[Account],
 ) -> FilterBar:
-    """Select options with the active filter marked; the bar opens when a filter is active."""
+    """Select options with the active filter marked; the bar opens for a category or account filter
+    (the date window is the pay-period default, as the handoff's collapsed bar)."""
     return FilterBar(
         date_from=filters.date_from.isoformat() if filters.date_from else "",
         date_to=filters.date_to.isoformat() if filters.date_to else "",
@@ -148,9 +149,7 @@ def filter_bar(
             FilterOption(value, label, filters.direction == value)
             for value, label in _DIRECTION_LABELS.items()
         ),
-        expanded=bool(
-            filters.date_from or filters.date_to or filters.category_ids or filters.account_ids
-        ),
+        expanded=bool(filters.category_ids or filters.account_ids),
     )
 
 
@@ -333,7 +332,7 @@ _DELETE: Final = "delete"
 _BULLET: Final = "\N{BLACK CIRCLE}"
 _UP_TRIANGLE: Final = "\N{BLACK UP-POINTING TRIANGLE}"
 _CHECK: Final = "\N{CHECK MARK}"
-_REPEAT: Final = "\N{ANTICLOCKWISE OPEN CIRCLE ARROW}"
+_REPEAT: Final = "\N{CLOCKWISE OPEN CIRCLE ARROW}"
 _MINUS: Final = "\N{MINUS SIGN}"
 _FORMULA_SIGNS: Final[Mapping[str, str]] = MappingProxyType({"+": "+", "-": _MINUS})
 _MONTH_NAMES: Final = (
@@ -422,6 +421,8 @@ class SchedRowView:
     overrides_badge: str = ""
     promote_url: str = ""
     expand_id: str = ""
+    expanded: bool = False
+    due_sub: str = ""
     new_override_url: str = ""
     override_rows: tuple[DetailRow, ...] = ()
     formula_rows: tuple[DetailRow, ...] = ()
@@ -556,9 +557,9 @@ def _override_rows(row: Mapping[str, object], rule_id: int, currency: str) -> tu
     if not isinstance(overrides, Sequence):
         return ()
     out: list[DetailRow] = []
-    for ov in overrides:
-        if not isinstance(ov, RecurringOverride):
-            continue
+    # Entry order (oldest first), as the handoff lists them (derived.md, T-UR00b F2).
+    entered = sorted((o for o in overrides if isinstance(o, RecurringOverride)), key=lambda o: o.id)
+    for ov in entered:
         delta = deltas.get(ov.occurrence_date) if isinstance(deltas, Mapping) else None
         label = _override_label(ov.occurrence_date)
         out.append(
@@ -594,7 +595,26 @@ def _formula_rows(
     )
 
 
-def _recurring_row_view(row: Mapping[str, object], names: Mapping[int, Category]) -> SchedRowView:
+def _due_with_year(due: date, today: date) -> str:
+    """Next-due label: ``01 NOV``; the year follows once it is not the current one."""
+    return _short_date(due) if due.year == today.year else f"{_short_date(due)} {due.year}"
+
+
+def _rule_account_text(row: Mapping[str, object]) -> str:
+    """Account of a rule; a transit rule names ``Account → Destination``."""
+    sub = _account_name(row)
+    dest = row.get("dest_account")
+    return f"{sub} {_ARROW} {dest.name}" if isinstance(dest, Account) else sub
+
+
+def _ends_text(end: object) -> str:
+    """``ends 15 MAY 2028`` for a rule with an end date, else empty."""
+    return f"ends {_short_date(end)} {end.year}" if isinstance(end, date) else ""
+
+
+def _recurring_row_view(
+    row: Mapping[str, object], names: Mapping[int, Category], today: date
+) -> SchedRowView:
     rule_id = _int(row, "id")
     category = _category(row)
     direction = category.direction if category else None
@@ -604,14 +624,16 @@ def _recurring_row_view(row: Mapping[str, object], names: Mapping[int, Category]
     title = _str_of(row, "default_description") or "\N{EM DASH}"
     if row.get("formula_cycle"):
         title = cycle_label(_str_of(row, "default_description"))
-    sub = _account_name(row)
+    sub = _rule_account_text(row)
     due = _date(row, "next_due")
     overrides = _override_rows(row, rule_id, currency)
     formula = _formula_rows(row, names)
     count = len(overrides)
     return SchedRowView(
         dom_id=f"recurring-{rule_id}",
-        due_text=_short_date(due),
+        due_text=_due_with_year(due, today),
+        due_sub=_ends_text(row.get("end_date")),
+        expanded=bool(overrides),
         title=title,
         formula=bool(row.get("is_formula")),
         sub=sub,
@@ -653,14 +675,14 @@ def _recurring_menu(rule_id: int, due: date) -> tuple[MenuItem, ...]:
 
 
 def recurring_groups(
-    rows: Sequence[Mapping[str, object]], names: Mapping[int, Category]
+    rows: Sequence[Mapping[str, object]], names: Mapping[int, Category], today: date
 ) -> tuple[CadenceGroup, ...]:
     """Rule rows grouped by cadence in first-seen order (the list is sorted by next due)."""
     groups: dict[str, list[SchedRowView]] = {}
     for row in rows:
         cadence = row.get("cadence")
         label = str(getattr(cadence, "value", cadence)).upper()
-        groups.setdefault(label, []).append(_recurring_row_view(row, names))
+        groups.setdefault(label, []).append(_recurring_row_view(row, names, today))
     return tuple(CadenceGroup(label, tuple(views)) for label, views in groups.items())
 
 
