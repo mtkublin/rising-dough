@@ -275,9 +275,14 @@
       markHeroStale();
       return;
     }
-    /* Inside a form offline.js already shows the offline state (T-UR25); elsewhere also raise the flash. */
+    /* Inside a form offline.js already shows the offline state (T-UR25); elsewhere the banner replaces the flash. */
     const elt = event.detail && event.detail.elt;
     if (elt instanceof Element && elt.closest('form')) return;
-    show('flash-region-assertive', [flashBox('Could not reach the server. Check your connection and try again.')]);
+    /* Outside a form offline.js shows the offline banner in #flash-region (same event); the banner
+       shows alone, so the assertive flash is raised only if no banner appeared (Q29, T-UR02e). */
+    window.setTimeout(() => {
+      if (document.querySelector('#flash-region [data-js="offline-state"]')) return;
+      show('flash-region-assertive', [flashBox('Could not reach the server. Check your connection and try again.')]);
+    }, 0);
   });
 })();
