@@ -34,6 +34,13 @@ from tests.visual.handoff_clicks import click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS, submit_dialog
 from tests.visual.handoff_openers import OPENERS, opener_url
 from tests.visual.handoff_seed import build_seed
+from tests.visual.handoff_states import (
+    NO_USER_PAGES,
+    SETUP_ROUTE,
+    build_empty_db,
+    setup_server_env,
+    state_recipe,
+)
 
 pytestmark = pytest.mark.visual
 
@@ -73,6 +80,17 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/settings/currency-fx.html": "/settings?tab=fx",
     "pages/settings/security.html": "/settings/security",
     "pages/settings/security--error.html": "/settings/security",
+    # Error pages start from Today; the recipe (handoff_states) reaches the answer page.
+    "pages/errors/409.html": "/today",
+    "pages/errors/500.html": "/today",
+    "pages/errors/offline.html": "/today",
+    # GET /today?amount= answers the afford check (an unparsable text; 1,800.00 over the limit).
+    "pages/today--afford-invalid.html": "/today?amount=abc",
+    "pages/today--afford-over.html": "/today?amount=1800",
+    "pages/auth/register.html": SETUP_ROUTE,
+    "pages/auth/register--error.html": SETUP_ROUTE,
+    "pages/auth/force-password.html": "/settings/password",
+    "pages/auth/force-password--error.html": "/settings/password",
     "pages/settings/users.html": "/settings/users",
     "pages/auth/login.html": "/auth/login",
     "pages/auth/login--error.html": "/auth/login",
@@ -107,28 +125,10 @@ FORM_SUBMITS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "pages/auth/reauth--error.html": (("input[type=password]", "wrong-password-1"),),
 }
-_SETUP_ONLY_EMPTY = "first-run setup (/setup) is open only with no users; the seed has users"
-_NEEDS_ROTATION_USER = "needs a signed-in user with must_change_password; no seed modifier"
 # Handoff pages (not overlays) the harness cannot reach yet: page -> why. Like UNMAPPED_OVERLAYS
-# they are still compared with their surface's fallback route (red); the unmapped-state item maps
-# them and this dict only shrinks.
-UNMAPPED_PAGES: dict[str, str] = {
-    "pages/settings/security--error.html": (
-        "POST /settings/password re-renders the forced-rotation page, not the Security tab"
-        " with the inline error"
-    ),
-    "pages/auth/register.html": _SETUP_ONLY_EMPTY,
-    "pages/auth/register--error.html": _SETUP_ONLY_EMPTY,
-    "pages/auth/force-password.html": _NEEDS_ROTATION_USER,
-    "pages/auth/force-password--error.html": _NEEDS_ROTATION_USER,
-    "pages/errors/409.html": "needs a version-conflict response; no GET renders the 409 card",
-    "pages/errors/500.html": "needs a server error; no GET renders the 500 card",
-    "pages/errors/offline.html": "the offline card is a client-side (service worker) state",
-    "pages/today--afford-invalid.html": "needs the afford check submitted with invalid input",
-    "pages/today--afford-over.html": "needs the afford check submitted over the limit",
-    "pages/today--flash.html": "needs the saved-toast flash state after a write",
-    "pages/today--loading.html": "needs the hero's loading (skeleton) state",
-}
+# they are still compared with their surface's fallback route (red); this dict only shrinks.
+# Empty since T-UR00b mapped every page: the state recipes are `handoff_states`.
+UNMAPPED_PAGES: dict[str, str] = {}
 # Overlay pages whose dialog the app opens from a plain GET (the new-entry dialog,
 # `/add?when=<tab>`, T-UR07b). Like every opener it is fetched into #modal-root over the
 # overlay's base page (Today), never loaded as a blank shell.
@@ -180,6 +180,9 @@ PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
     # Fresh DB per run: the wrong-password POST must not eat a shared rate limit.
     "pages/auth/login--error.html": ("form-error",),
     "pages/auth/reauth--error.html": ("form-error",),
+    "pages/settings/security--error.html": ("form-error",),
+    "pages/auth/force-password.html": ("owner-must-change",),
+    "pages/auth/force-password--error.html": ("owner-must-change",),
 }
 
 
@@ -300,7 +303,14 @@ def test_app_matches_handoff(
     route = route_for(handoff_page)
     modifiers = modifiers_for(handoff_page)
     with contextlib.ExitStack() as stack:
-        if modifiers or handoff_page in DIALOG_SUBMITS:
+        if handoff_page in NO_USER_PAGES:
+            # First-run setup: a DB with no user, the setup token hash in the server env.
+            tmp_path_factory = request.getfixturevalue("tmp_path_factory")
+            db_path = tmp_path_factory.mktemp("handoff-setup") / "empty.sqlite"
+            build_empty_db(db_path)
+            server = stack.enter_context(serve_db(db_path, setup_server_env()))
+            cookies = []
+        elif modifiers or handoff_page in DIALOG_SUBMITS:
             # Own seeded DB: the opener's ids are resolved from the DB being served (and a
             # submitted dialog, e.g. a password reset, must not change the shared one).
             tmp_path_factory = request.getfixturevalue("tmp_path_factory")
@@ -377,8 +387,8 @@ def _compare_app(
             pg.wait_for_selector("#modal-root dialog[open]", timeout=15000)
             if handoff_page in DIALOG_SUBMITS:
                 submit_dialog(pg, handoff_page)
-        elif (recipe := click_recipe(handoff_page)) is not None:
-            recipe(pg)  # client-side overlay: the click or key a user makes (handoff_clicks)
+        elif (recipe := click_recipe(handoff_page) or state_recipe(handoff_page)) is not None:
+            recipe(pg)  # the click, key or request a user makes (handoff_clicks, handoff_states)
         pg.add_style_tag(content=handoff.FREEZE_CSS)
         pg.evaluate("document.fonts.ready.then(() => undefined)")
         with tempfile.TemporaryDirectory() as tmp:

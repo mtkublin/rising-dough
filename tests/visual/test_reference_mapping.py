@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,7 +16,7 @@ from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.repositories import users as users_repo
-from budget_planner.services import invites as invites_service
+from budget_planner.services import invites as invites_service, setup as setup_service
 from budget_planner.web.app import create_app
 from budget_planner.web.auth_cookies import session_cookie_name
 from budget_planner.web.middleware.csrf import csrf_cookie_name
@@ -23,6 +24,15 @@ from tests.visual import handoff, handoff_seed
 from tests.visual.handoff_clicks import CLICK_RECIPES, click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS
 from tests.visual.handoff_openers import OPENERS, opener_url
+from tests.visual.handoff_states import (
+    NO_USER_PAGES,
+    RECIPES,
+    SETUP_ROUTE,
+    SETUP_TOKEN,
+    build_empty_db,
+    setup_server_env,
+    state_recipe,
+)
 from tests.visual.test_reference import (
     ANONYMOUS_PAGES,
     FORM_SUBMITS,
@@ -295,23 +305,105 @@ def test_only_signed_out_auth_pages_are_anonymous() -> None:
     assert not is_anonymous("pages/today.html")
 
 
-def test_unmapped_pages_carry_a_reason() -> None:
-    assert set(UNMAPPED_PAGES) == {
-        "pages/auth/register.html",
-        "pages/auth/register--error.html",
-        "pages/auth/force-password.html",
-        "pages/auth/force-password--error.html",
-        "pages/settings/security--error.html",
+_STATE_PAGES = {
+    "pages/errors/409.html": "/today",
+    "pages/errors/500.html": "/today",
+    "pages/errors/offline.html": "/today",
+    "pages/today--afford-invalid.html": "/today?amount=abc",
+    "pages/today--afford-over.html": "/today?amount=1800",
+    "pages/today--flash.html": "/today",
+    "pages/today--loading.html": "/today",
+    "pages/auth/register.html": SETUP_ROUTE,
+    "pages/auth/register--error.html": SETUP_ROUTE,
+    "pages/auth/force-password.html": "/settings/password",
+    "pages/auth/force-password--error.html": "/settings/password",
+    "pages/settings/security--error.html": "/settings/security",
+}
+
+
+def test_every_state_page_is_mapped_and_none_is_unmapped() -> None:
+    assert UNMAPPED_PAGES == {}
+    for page, route in _STATE_PAGES.items():
+        assert page in handoff.pages()
+        assert route_for(page) == route
+    assert f"/setup?token={SETUP_TOKEN}" == SETUP_ROUTE
+
+
+def test_state_recipes_name_handoff_pages_reached_by_a_request() -> None:
+    assert set(RECIPES) == {
         "pages/errors/409.html",
         "pages/errors/500.html",
         "pages/errors/offline.html",
-        "pages/today--afford-invalid.html",
-        "pages/today--afford-over.html",
         "pages/today--flash.html",
         "pages/today--loading.html",
+        "pages/auth/register--error.html",
+        "pages/auth/force-password--error.html",
+        "pages/settings/security--error.html",
     }
-    assert all(len(reason) > 20 for reason in UNMAPPED_PAGES.values())
+    assert set(RECIPES) <= set(_STATE_PAGES)
+    assert not set(RECIPES) & set(FORM_SUBMITS)
+    assert state_recipe("pages/errors/409.html") is RECIPES["pages/errors/409.html"]
+    # The afford states and the plain register / force pages are reached by their route alone.
+    assert state_recipe("pages/today--afford-over.html") is None
+    assert state_recipe("pages/auth/register.html") is None
     assert set(FORM_SUBMITS) == {"pages/auth/login--error.html", "pages/auth/reauth--error.html"}
+
+
+def test_state_pages_use_their_own_user_and_server_state() -> None:
+    assert {"pages/auth/register.html", "pages/auth/register--error.html"} == NO_USER_PAGES
+    assert NO_USER_PAGES <= ANONYMOUS_PAGES
+    for page in ("pages/auth/force-password.html", "pages/auth/force-password--error.html"):
+        assert modifiers_for(page) == ("owner-must-change",)
+        assert not is_anonymous(page)
+    assert modifiers_for("pages/settings/security--error.html") == ("form-error",)
+    assert modifiers_for("pages/today--flash.html") == ()
+
+
+def _must_change_flags(db: Path) -> list[tuple[int, int]]:
+    conn = get_connection(Settings(_env_file=None, database_url=f"sqlite:///{db.as_posix()}"))
+    try:
+        rows = conn.execute("SELECT id, must_change_password FROM users ORDER BY id").fetchall()
+    finally:
+        conn.close()
+    return [(r["id"], r["must_change_password"]) for r in rows]
+
+
+def test_owner_must_change_modifier_flags_only_the_owner(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    forced = tmp_path_factory.mktemp("force") / "seed.sqlite"
+    handoff_seed.build_seed(forced, modifiers=("owner-must-change",))
+    plain = tmp_path_factory.mktemp("plain") / "seed.sqlite"
+    handoff_seed.build_seed(plain)
+    flags = _must_change_flags(forced)
+    base = _must_change_flags(plain)
+    assert base[0] == (1, 0)
+    assert flags[0] == (1, 1)
+    assert flags[1:] == base[1:]  # the seeded users keep theirs (the parent is flagged already)
+
+
+def test_first_run_setup_is_open_on_the_empty_db_with_the_token_env(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    path = tmp_path_factory.mktemp("setup") / "empty.sqlite"
+    build_empty_db(path)
+    env = setup_server_env()
+    assert env["BUDGET_ENV"] == "test"
+    settings = Settings(
+        _env_file=None,
+        database_url=f"sqlite:///{path.as_posix()}",
+        env="test",
+        planner_setup_token_hash=env["BUDGET_PLANNER_SETUP_TOKEN_HASH"],
+    )
+    conn = get_connection(settings)
+    try:
+        assert setup_service.is_open(conn, settings)
+        assert setup_service.check_token(conn, settings, SETUP_TOKEN)
+        assert not setup_service.check_token(conn, settings, "another-token")
+    finally:
+        conn.close()
+    with pytest.raises(FileExistsError):
+        build_empty_db(path)
 
 
 def test_user_openers_resolve_ids_by_email_from_the_seed(seeded: tuple[Settings, str]) -> None:
