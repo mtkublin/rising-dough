@@ -43,6 +43,10 @@ Prefer mono text glyphs (↑ ↓ + − →). Icons, when needed, are a 1.5px out
 
 No logo yet. Set "Rising Dough" in Unbounded 700, tight tracking. The system label form is `RISING_DOUGH` in Geist Mono.
 
+## Components
+
+The components are the app's own: `components/bundle.css` is the base package's component CSS (generated from `docs/design/rising-dough-frontend/static/css/`), and each component's preview is the markup from the base `components.html` board. Build with these classes (`rd-btn`, `rd-chip`, `rd-segmented`, `rd-bar`, `rd-field`, `rd-toast`, `rd-dialog`, …); never restyle them with literal values. A component the app does not have yet is a design proposal on the canvas, not a new class here.
+
 ## Designing with this system
 
 - Draw every screen, component and state twice, light and dark, side by side.

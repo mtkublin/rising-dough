@@ -1,5 +1,7 @@
 # Changelog
 
+2026-11-25 T-DW02 follow-up: the design system carries the app's components: `components/bundle.css` (base component CSS + base tokens the system lacks) and 11 previews + READMEs generated from the base `components.html` sections; shadow tokens themed; cover ink fixed for dark; republished (v3); `/designer` links `bundle.css` into canvases.
+
 2026-11-25 T-DW09: design gate (ADR-0151 §6, requirements §13.2): every UI-facing change goes through the designer and has an agreed design reference (handoff package page or spec), complying with the design system and the existing app design; CLAUDE.md "Design gate" section, skills/agents table rows, handoff checklist item; `implementer` blocks and `reviewer` returns a UI change without a reference. Guard T-DW10 open.
 
 2026-11-25 T-DW01 to T-DW06: design work from the repo (ADR-0151; amends ADR-0107 §1, ADR-0129; requirements §13): one design system *Rising Dough — Sourdough* (light + dark) in `docs/design/system/`, `tokens.json` generated from the base `tokens.css` (`scripts/design_system.py`, `just design-system`), published as a new claude.ai design system (existing ones untouched); handoff package template `docs/design/handoff-template.md`, spec and change-request formats; `scripts/ci/check_handoff.py` + `just check-handoff` (static, render, wiring, parity, checksums; unit-tested); `/designer` skill; `handoff-builder` agent. T-DW07 (artboard reference rendering) and T-DW08 (cluster cap after `ui/sourdough`) open. No allowlist change.

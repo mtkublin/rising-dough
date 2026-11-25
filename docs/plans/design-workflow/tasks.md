@@ -13,7 +13,7 @@
 - ADR-0151 §1.
 - Goal: `docs/design/system/project/` (README brand book, generated `tokens.json`, index); `scripts/design_system.py` + `just design-system` generate `tokens.json` from the base `static/css/tokens.css`; `--check` fails when the committed file is stale.
 - Acceptance: unit tests with exact token output (`tests/unit/deploy/test_design_system.py`); the system published to claude.ai as a new Design System artifact and its URL recorded in `docs/design/system/README.md`; no existing remote system changed.
-- Done 2026-11-25: https://claude.ai/artifact/Q9n5eDZg4KWdFKCb5WAYWy.
+- Done 2026-11-25: https://claude.ai/artifact/Q9n5eDZg4KWdFKCb5WAYWy. Components added the same day from the base package (`components/bundle.css`, 11 generated previews + READMEs; `--check` covers them; test: previews carry no colour literal).
 
 ### ✅ T-DW03 [S] Handoff package template → T-DW01
 - ADR-0151 §3.

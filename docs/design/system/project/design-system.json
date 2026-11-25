@@ -18,8 +18,8 @@
   },
   "lastChange": {
     "by": "Claude",
-    "at": "2026-11-25T12:00:00Z",
+    "at": "2026-11-25T14:00:00Z",
     "via": "Claude Code",
-    "note": "Combined light and dark Sourdough system generated from the repo's tokens.css (ADR-0151)."
+    "note": "Added the base package's components (bundle.css + 11 previews); shadows themed; cover ink fixed (ADR-0151)."
   }
 }
