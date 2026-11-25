@@ -260,6 +260,51 @@ class Comparison:
     pixels: bytes = b""
     channels: int = 3
     size_mismatch: bool = False
+    expected_size: tuple[int, int] = (0, 0)
+    actual_size: tuple[int, int] = (0, 0)
+
+
+def _rgb_crop(pixels: bytes, size: tuple[int, int, int], width: int, height: int) -> bytes:
+    """Top-left ``width`` x ``height`` window of ``pixels`` as packed RGB (alpha dropped)."""
+    src_w, _, channels = size
+    out = bytearray()
+    for y in range(height):
+        row = pixels[y * src_w * channels : (y * src_w + width) * channels]
+        out += row if channels == 3 else b"".join(row[i : i + 3] for i in range(0, len(row), 4))
+    return bytes(out)
+
+
+def _compare_mismatched(
+    expected: tuple[int, int, int, bytes], actual: tuple[int, int, int, bytes]
+) -> Comparison:
+    """Size mismatch: always a failure, but report an honest ratio instead of a flat 100%.
+
+    The two images are compared over their shared top-left window; every pixel outside that
+    window (the extra page height or width of the larger image) counts as differing. The
+    cluster is not computed (-1). ``expected_size``/``actual_size`` carry the real sizes, so a
+    report can say "page is 1329px tall, handoff 1451px" (T-UR00b).
+    """
+    w1, h1, c1, a = expected
+    w2, h2, c2, b = actual
+    cw, ch = min(w1, w2), min(h1, h2)
+    crop_a = _rgb_crop(a, (w1, h1, c1), cw, ch)
+    crop_b = _rgb_crop(b, (w2, h2, c2), cw, ch)
+    mask = diff_mask(crop_a, crop_b, 3)
+    union = max(w1, w2) * max(h1, h2)
+    ratio = (mask.count(1) + union - cw * ch) / union
+    return Comparison(
+        ratio,
+        -1,
+        None,
+        cw,
+        ch,
+        mask,
+        crop_b,
+        3,
+        size_mismatch=True,
+        expected_size=(w1, h1),
+        actual_size=(w2, h2),
+    )
 
 
 def largest_cluster(
@@ -330,7 +375,7 @@ def compare(
     w1, h1, c1, a = _decode(expected)
     w2, h2, c2, b = _decode(actual)
     if (w1, h1, c1) != (w2, h2, c2):
-        return Comparison(1.0, -1, None, w2, h2, b"", size_mismatch=True)
+        return _compare_mismatched((w1, h1, c1, a), (w2, h2, c2, b))
     mask = diff_mask(a, b, c1)
     ratio = mask.count(1) / (w1 * h1)
     if ratio_limit is not None and ratio > ratio_limit:
@@ -354,9 +399,10 @@ def _png(width: int, height: int, rows: bytes) -> bytes:
 
 
 def write_diff_png(result: Comparison, out: Path) -> None:
-    """Actual screenshot with differing pixels red; the largest cluster (if scanned) outlined."""
-    if result.size_mismatch:
-        return
+    """Actual screenshot with differing pixels red; the largest cluster (if scanned) outlined.
+
+    After a size mismatch the image covers the shared top-left window only.
+    """
     w, h, c = result.width, result.height, result.channels
     n = w * h
     rgb = bytearray(n * 3)
