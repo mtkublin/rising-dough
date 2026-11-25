@@ -1,5 +1,35 @@
 # Changelog
 
+2026-11-25 QFIX2: repair 4 Chromium e2e failures (auth flash locator, crawl inventory, promote flow) (eb53536c).
+
+2026-11-25 QFIX1: repair red non-e2e CI: ledger hero ctx tests, clock-independent seed, q2 note, css rebuild (38683f35).
+
+2026-11-25 T-UR43a: stored formula cycle shows 0.00 with a warning; saves rejected (9eea034f, Q25, ADR-0047).
+
+2026-11-25 T-UR41a: unknown routes return an HTML 404 page for browsers and JSON for API clients (0fba76e9, Q12).
+
+2026-11-25 T-UR24: remove inline promote routes and the legacy promote branch (f62c0bb6, ADR-0134 §5).
+
+2026-11-25 T-UR42a: dev-only Pillow for visual compare decode; ADR-0153 (95ddde59, Q14).
+
+2026-11-25 T-UR40a: operator decisions Q1/Q9/Q16 recorded; Q2 ci patch prepared (dfb11105).
+
+2026-11-25 T-UR21d: pin /setup token absent from access log (e472afb9, Q28).
+
+2026-11-25 T-UR08: unknown or foreign account delete returns 404 (761d280d, Q15).
+
+2026-11-25 T-UR10: ledger planned/recurring/recently-deleted views; F1-F3 fixed (942e2f8d, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR02: UR02e offline banner alone outside forms; assertive flash suppressed (53e01c52, Q29).
+
+2026-11-25 T-UR14: security and users pages; Q21/Q22 contract edits (a5ad323e, ADR-0134).
+
+2026-11-25 T-UR08: UR08b accounts dialogs; Q21 contract edits (9c42c5dd, ADR-0107).
+
+2026-11-25 T-UR28b: formula hero figure through format_figure (fc5c8e2a).
+
+2026-11-25 T-UR09: UR09b edit-transaction dialog; HX-Refresh dropped after save (3b190535, Q26).
+
 2026-11-25 docs(ui-redesign): operator QA decisions and remote handover
 
 2026-11-25 ui/sourdough: merge origin/main up to 4baabf1f (PR #58, agent guard hooks) (aa771d57).
