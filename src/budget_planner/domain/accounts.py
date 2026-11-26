@@ -133,6 +133,7 @@ def new_account_errors(data: NewAccount) -> dict[str, str]:
 
 
 KIND_FIXED_MESSAGE = "can't be changed after the account is created"
+DUPLICATE_NAME_MESSAGE = "An account with this name already exists"
 
 
 def patch_account_errors(patch: PatchAccount) -> dict[str, str]:
