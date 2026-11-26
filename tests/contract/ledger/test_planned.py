@@ -68,7 +68,7 @@ def test_create_persists_audits_and_signals(
 ) -> None:
     r = client.post("/planned", data=_form(seeded))
     assert r.status_code == 200
-    assert hx_events(r) == {**FORECAST_LEDGER, "today-stale": True}
+    assert hx_events(r) == {**FORECAST_LEDGER, "today-stale": True, "budget-stale": True}
     assert "HX-Reswap" not in r.headers
     assert "HX-Refresh" not in r.headers
     assert _html.text_of(r.text, shell.modal_root) == ""
@@ -201,6 +201,7 @@ def test_promote_creates_transaction_and_links_it(
         "forecast-stale": True,
         "ledger-stale": True,
         "today-stale": True,
+        "budget-stale": True,
     }
     assert "HX-Reswap" not in r.headers
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before + 1

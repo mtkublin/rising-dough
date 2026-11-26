@@ -132,6 +132,7 @@ def test_create_valid_persists_and_triggers(
         "forecast-stale": True,
         "ledger-stale": True,
         "today-stale": True,
+        "budget-stale": True,
     }
     conn = get_connection(_migrated)
     try:
@@ -191,7 +192,7 @@ def test_create_off_ledger_refreshes_page_without_swap(
     assert r.status_code == 200
     assert "HX-Reswap" not in r.headers
     assert "HX-Refresh" not in r.headers
-    assert "today-stale" in r.headers["HX-Trigger"]
+    assert {"today-stale", "budget-stale"} <= set(json.loads(r.headers["HX-Trigger"]))
 
 
 def test_create_on_ledger_does_not_refresh_page(client: TestClient, seeded: dict[str, int]) -> None:

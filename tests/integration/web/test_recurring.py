@@ -134,6 +134,7 @@ def test_create(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection)
         "forecast-stale": True,
         "ledger-stale": True,
         "today-stale": True,
+        "budget-stale": True,
     }
     assert _html.text_of(r.text, shell.modal_root) == ""
     assert _html.all_text(r.text, errors.status) == "● Recurring rule saved"
@@ -1210,7 +1211,7 @@ def test_create_off_ledger_refreshes_page_without_swap(
     assert r.status_code == 200
     assert "HX-Reswap" not in r.headers
     assert "HX-Refresh" not in r.headers
-    assert "today-stale" in r.headers["HX-Trigger"]
+    assert {"today-stale", "budget-stale"} <= set(json.loads(r.headers["HX-Trigger"]))
     assert "ledger-stale" in r.headers["HX-Trigger"]
 
 
@@ -1269,7 +1270,7 @@ def test_promote_off_ledger_refreshes_and_on_ledger_does_not(
     assert off.status_code == 200
     assert "HX-Reswap" not in off.headers
     assert "HX-Refresh" not in off.headers
-    assert "today-stale" in off.headers["HX-Trigger"]
+    assert {"today-stale", "budget-stale"} <= set(json.loads(off.headers["HX-Trigger"]))
     on = client.post(f"/recurring/{ctx['rule']}/promote", data={}, headers=_ON_LEDGER)
     assert on.headers["HX-Reswap"] == "none"
     assert "HX-Refresh" not in on.headers

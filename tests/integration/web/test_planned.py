@@ -122,6 +122,7 @@ def test_create(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection)
         "forecast-stale": True,
         "ledger-stale": True,
         "today-stale": True,
+        "budget-stale": True,
     }
     assert _html.text_of(r.text, shell.modal_root) == ""
     assert _html.all_text(r.text, errors.status) == "● Planned entry saved"
@@ -456,6 +457,7 @@ def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
         "forecast-stale": True,
         "ledger-stale": True,
         "today-stale": True,
+        "budget-stale": True,
     }
     assert _html.text_of(r.text, by_id("flash-region")).endswith("Planned entry promoted")
 
@@ -548,7 +550,7 @@ def test_create_off_ledger_refreshes_page_without_swap(
     assert r.status_code == 200
     assert "HX-Reswap" not in r.headers
     assert "HX-Refresh" not in r.headers
-    assert "today-stale" in r.headers["HX-Trigger"]
+    assert {"today-stale", "budget-stale"} <= set(json.loads(r.headers["HX-Trigger"]))
     assert "ledger-stale" in r.headers["HX-Trigger"]
 
 
@@ -637,7 +639,7 @@ def test_promote_off_ledger_refreshes_page(client: TestClient, ctx: dict[str, in
     assert off.status_code == 200
     assert "HX-Reswap" not in off.headers
     assert "HX-Refresh" not in off.headers
-    assert "today-stale" in off.headers["HX-Trigger"]
+    assert {"today-stale", "budget-stale"} <= set(json.loads(off.headers["HX-Trigger"]))
     assert "ledger-stale" in off.headers["HX-Trigger"]
 
 

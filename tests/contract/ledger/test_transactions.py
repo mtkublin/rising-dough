@@ -61,7 +61,7 @@ def test_create_persists_audits_and_signals(
 ) -> None:
     r = client.post("/transactions", data=txn_form(seeded))
     assert r.status_code == 200
-    assert hx_events(r) == {**STALE, "today-stale": True}
+    assert hx_events(r) == {**STALE, "today-stale": True, "budget-stale": True}
     assert "HX-Reswap" not in r.headers
     assert "HX-Refresh" not in r.headers  # off the ledger: events refetch, the flash stays
     new_id = scalar(_migrated, "SELECT MAX(id) FROM transactions")
