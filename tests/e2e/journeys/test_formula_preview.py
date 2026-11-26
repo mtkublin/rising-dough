@@ -8,6 +8,7 @@ old "+ Add" overlay of the ledger (until T-UR09), the second the edit-recurring 
 
 from __future__ import annotations
 
+import json
 import re
 
 import pytest
@@ -67,6 +68,49 @@ def test_two_term_formula_shows_computed_preview(world: World) -> None:
 
     expect(world.find(entries.dialog)).to_be_visible()  # the preview did not close it
     assert world.scalar("SELECT COUNT(*) FROM recurring_rules") == rules_before
+
+
+def test_add_component_keeps_the_first_component_sign(world: World) -> None:
+    """The cloned component shared the radio group, so component 0 lost its "-" (T-UR58)."""
+    account = world.account("Checking")
+    salary = world.category("Salary", "income")
+    bonus = world.category("Bonus", "income")
+    savings = world.category("Savings", "expense")
+    world.rule(account, salary, "1000.00", "salary-rule")
+    world.rule(account, bonus, "200.00", "bonus-rule")
+    world.goto(LEDGER_ALL_TIME)
+    open_new_entry(world.page)
+    world.find(entries.tab_repeats).click()
+    expect(world.find(entries.tab_repeats)).to_have_attribute("aria-current", "page")
+    choose_category(world.page, "Savings")
+    choose_account(world.page, "Checking")
+    world.find(entries.amount_formula).check(force=True)
+
+    world.find(entries.formula_subtract).check(force=True)
+    world.find(entries.formula_pick).click()
+    world.find(label("Bonus", exact=True).inside(entries.formula_group)).check(force=True)
+    world.find(entries.formula_percent).press_sequentially("10")
+    expect(world.find(entries.formula_result)).to_contain_text("non-positive")  # -20.00 alone
+
+    world.find(entries.formula_add_component).click()
+    world.find(entries.formula_pick).click()  # only the new component still reads "pick categories"
+    world.find(label("Salary", exact=True).inside(entries.formula_group)).nth(1).check(force=True)
+    world.find(entries.formula_percent).nth(1).press_sequentially("50")
+
+    expect(world.find(entries.formula_subtract).first).to_be_checked()
+    expect(world.find(entries.formula_result)).to_contain_text("480.00")  # 520.00 without the sign
+
+    world.find(entries.field_note.inside(entries.dialog)).fill("sign-check")
+    world.find(entries.save).click()
+    expect(world.find(entries.dialog)).to_be_hidden()
+    raw = world.scalar(
+        "SELECT amount_formula FROM recurring_rules WHERE category_id = ?", (savings,)
+    )
+    terms = json.loads(raw)["terms"]
+    assert [(t["sign"], t["coefficient_bps"], t["source_category_ids"]) for t in terms] == [
+        ("-", 1000, [bonus]),
+        ("+", 5000, [salary]),
+    ]
 
 
 def test_formula_cycle_shows_the_error_and_keeps_the_edit_dialog_open(world: World) -> None:
