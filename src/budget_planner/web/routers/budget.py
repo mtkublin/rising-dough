@@ -40,6 +40,7 @@ from budget_planner.web import (
 from budget_planner.web.budget_forms import non_negative_amount
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.dialogs import dialog_response
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, query_int
@@ -73,7 +74,7 @@ def new_override_form(
     """
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "category", category_id)
     q = request.query_params
     today = clock.today_local(settings)
     target = plan_year_view.OverrideTarget(
@@ -112,7 +113,7 @@ def create_override(
     """Save (tier dispatcher, ADR-0031 section 2) or, with ``remove=1``, drop an override."""
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "category", category_id)
     shown = override_forms.shown_target(
         cat.id, cat.name, year=year, month=month, today=clock.today_local(settings)
     )
@@ -131,6 +132,8 @@ def index(request: Request) -> RedirectResponse:
 @router.post("/defaults/{category_id}")
 def set_default(
     category_id: int,
+    request: Request,
+    *,
     amount: str = Form(...),
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
@@ -138,7 +141,7 @@ def set_default(
 ) -> Response:
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "category", category_id)
     minor = non_negative_amount(amount, settings.base_currency)
     if minor is None:
         return Response(status_code=422, content="invalid amount")
@@ -182,6 +185,7 @@ def set_one_off(
     category_id: int,
     year: int,
     month: int,
+    request: Request,
     *,
     amount: str = Form(...),
     conn: sqlite3.Connection = Depends(get_db),
@@ -190,7 +194,7 @@ def set_one_off(
 ) -> Response:
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "category", category_id)
     if not valid_month(month):
         return Response(status_code=422, content="invalid month")
     minor = non_negative_amount(amount, settings.base_currency)

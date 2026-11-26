@@ -18,6 +18,7 @@ from budget_planner.services import (
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.dialogs import removed_response, saved_response
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice
@@ -162,7 +163,7 @@ def create_planned(
     return form_responses.created_planned_response(request)
 
 
-@router.get("/{planned_id}/edit", response_class=HTMLResponse)
+@router.get("/{planned_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     planned_id: int,
     request: Request,
@@ -173,7 +174,7 @@ def edit_form(
     """The edit-planned dialog (T-UR10); ``hero=1`` renders it from the form for the hero swap."""
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="planned: not found")
+        return not_found_response(request, "planned", planned_id)
     if hero:
         return form_responses.edit_planned_dialog(
             request,
@@ -186,7 +187,7 @@ def edit_form(
     return form_responses.edit_planned_dialog(request, conn, user_id, pl)
 
 
-@router.post("/{planned_id}")
+@router.post("/{planned_id:int}")
 def update_planned(
     planned_id: int,
     request: Request,
@@ -203,7 +204,7 @@ def update_planned(
 ) -> Response:
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     chosen = entry_forms.category_choice(category_id, category)
     account = entry_forms.account_choice(account_id)
     check = entry_forms.check_planned_update(
@@ -236,7 +237,7 @@ def update_planned(
     return form_responses.planned_saved(request)
 
 
-@router.post("/{planned_id}/delete")
+@router.post("/{planned_id:int}/delete")
 def delete_planned(
     planned_id: int,
     request: Request,
@@ -246,7 +247,7 @@ def delete_planned(
     """Soft-delete: the row goes, the toast offers undo (``/restore``)."""
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     planned_service.soft_delete(conn, user_id, planned_id)
     return removed_response(
         request,
@@ -256,9 +257,10 @@ def delete_planned(
     )
 
 
-@router.post("/{planned_id}/restore")
+@router.post("/{planned_id:int}/restore")
 def restore_planned(
     planned_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
@@ -266,7 +268,7 @@ def restore_planned(
     try:
         planned_service.undelete(conn, user_id, planned_id)
     except LookupError:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(
         resp,
@@ -277,7 +279,7 @@ def restore_planned(
     return resp
 
 
-@router.get("/{planned_id}/promote", response_class=HTMLResponse)
+@router.get("/{planned_id:int}/promote", response_class=HTMLResponse)
 def promote_form(
     planned_id: int,
     request: Request,
@@ -286,12 +288,12 @@ def promote_form(
 ) -> Response:
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="planned: not found")
+        return not_found_response(request, "planned", planned_id)
     acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
     return form_responses.promote_planned_dialog(request, conn, user_id, pl, acc)
 
 
-@router.post("/{planned_id}/promote")
+@router.post("/{planned_id:int}/promote")
 def promote_submit(
     planned_id: int,
     request: Request,
@@ -304,7 +306,7 @@ def promote_submit(
 ) -> Response:
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
     op_date, minor, errors = entry_forms.check_promote_input(acc, operation_date, amount)
     posted = {"amount": amount, "operation_date": operation_date, "description": description}

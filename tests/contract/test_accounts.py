@@ -31,7 +31,8 @@ from tests.contract.web_helpers_t_ut04b import (
     field,
     seed_other_user,
 )
-from tests.ui_map import _html, accounts
+from tests.ui_map import _html, accounts, errors
+from tests.ui_map.locator import by_id
 
 pytest_plugins = ["tests.contract.web_support_t_ut04b"]  # client, anon_client, raw_client
 
@@ -279,6 +280,24 @@ def test_edit_form_liability_shows_credit_limit(client: TestClient, _migrated: S
 def test_edit_form_missing_or_foreign_is_404(client: TestClient, foreign_id: int) -> None:
     assert client.get("/accounts/9999/edit").status_code == 404
     assert client.get(f"/accounts/{foreign_id}/edit").status_code == 404
+
+
+@covers("GET /accounts/{account_id}/edit")
+def test_edit_form_unknown_or_foreign_is_the_404_page_or_flash_not_plain_text(
+    client: TestClient, foreign_id: int
+) -> None:
+    """Browser: the HTML 404 page; HTMX: the error flash. A foreign id answers the same."""
+    browser = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
+    for acc in (9999, foreign_id):
+        page = client.get(f"/accounts/{acc}/edit", headers=browser)
+        assert page.status_code == 404
+        assert page.headers["content-type"].startswith("text/html")
+        assert _html.text_of(page.text, errors.heading) == "Not found"
+        assert "Theirs" not in page.text
+        flash = client.get(f"/accounts/{acc}/edit", headers={"HX-Request": "true"})
+        assert flash.status_code == 404
+        assert "Account not found" in _html.text_of(flash.text, by_id("flash-region"))
+        assert "Theirs" not in flash.text
 
 
 @covers("GET /accounts/{account_id}/edit")

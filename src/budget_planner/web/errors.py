@@ -119,21 +119,20 @@ def _flash_fragment(
     )
 
 
+def not_found_response(request: Request, entity: str, entity_id: int | str) -> HTMLResponse:
+    """The 404 for an unknown or foreign id: the 404 page for browsers, the error flash for HTMX.
+
+    A router returns this (never raises ``NotFoundError`` through ``get_db``: the frozen
+    exception cannot cross the connection context manager). Foreign ids answer the same.
+    """
+    if _is_htmx(request):
+        return _flash_fragment(request, f"{entity.capitalize()} not found", status=404)
+    return _render(request, "pages/errors/404.html", status=404, entity=entity, entity_id=entity_id)
+
+
 async def handle_not_found(request: Request, exc: Exception) -> HTMLResponse:
     nf = exc if isinstance(exc, NotFoundError) else NotFoundError(entity="page", entity_id=0)
-    if _is_htmx(request):
-        return _flash_fragment(
-            request,
-            f"{nf.entity.capitalize()} not found",
-            status=404,
-        )
-    return _render(
-        request,
-        "pages/errors/404.html",
-        status=404,
-        entity=nf.entity,
-        entity_id=nf.entity_id,
-    )
+    return not_found_response(request, nf.entity, nf.entity_id)
 
 
 def _wants_html(request: Request) -> bool:
@@ -184,7 +183,10 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     # routers short-circuit with a fully populated form partial before raising.
     message = next(iter(v.fields.values()), "validation failed")
     if _is_htmx(request):
-        return _flash_fragment(request, message, status=422)
+        # Keep the open dialog and its typed values: the flash is the whole answer.
+        response = _flash_fragment(request, message, status=422)
+        response.headers[HX_RESWAP] = "none"
+        return response
     field_count, field_errors = validation_summary(v.fields)
     return _render(
         request,

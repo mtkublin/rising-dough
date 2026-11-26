@@ -22,6 +22,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from tests.ui_map import _html, entries, errors, ledger, rd_shell as shell
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
@@ -371,6 +372,10 @@ def test_create_rejects_bad_amount_string(client: TestClient, seeded: dict[str, 
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/transactions/9999/edit")
     assert r.status_code == 404
+    assert _html.text_of(r.text, errors.heading) == "Not found"
+    flash = client.get("/transactions/9999/edit", headers={"HX-Request": "true"})
+    assert flash.status_code == 404
+    assert "Transaction not found" in _html.text_of(flash.text, by_id("flash-region"))
 
 
 def test_update_404(client: TestClient, seeded: dict[str, int]) -> None:
@@ -384,6 +389,7 @@ def test_update_404(client: TestClient, seeded: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 404
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_update_invalid(client: TestClient, seeded: dict[str, int], _migrated: Settings) -> None:
