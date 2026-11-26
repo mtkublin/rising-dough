@@ -146,6 +146,25 @@ class CategoryFormView:
     usage_text: str | None
 
 
+def _rgb(hex_value: str) -> tuple[int, int, int]:
+    return int(hex_value[1:3], 16), int(hex_value[3:5], 16), int(hex_value[5:7], 16)
+
+
+def _nearest_swatch(hex_value: str) -> str:
+    """The dialog swatch closest to a stored hue (RGB distance).
+
+    The dialog palette (ten swatches) is not the board palette: Takeaway is stored as the
+    board's ``orange`` (#ff9f43), which no swatch holds; the handoff dialog shows its
+    neighbour, ``tangerine``.
+    """
+    want = _rgb(hex_value)
+
+    def distance(name: str) -> int:
+        return sum((a - b) ** 2 for a, b in zip(_rgb(_PRESET_HEX[name]), want, strict=True))
+
+    return min(_FORM_SWATCH_NAMES, key=distance)
+
+
 def _picked_direction(category: Category | None, direction: str | None) -> Direction:
     if category is not None:
         return category.direction
@@ -169,9 +188,9 @@ def category_form_view(
     """Dialog values: the stored category first, submitted values (422 re-render) over them."""
     picked = _picked_direction(category, direction)
     picked_color = _picked_color(category, color)
-    lowered = picked_color.lower()
     valid = _HEX_COLOUR.fullmatch(picked_color) is not None
-    preview = category_colors.category_color(picked_color if valid else None)
+    lowered = _PRESET_HEX[_nearest_swatch(picked_color)] if valid else ""
+    preview = category_colors.category_color(lowered if valid else None)
     stored_name = category.name if category else ""
     return CategoryFormView(
         title=f"edit category · {category.name}" if category else "new category",

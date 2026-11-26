@@ -57,6 +57,7 @@ ALLOWED_ATTRIBUTES: Final = frozenset(
         "title",
         "value",
         "datetime",
+        "placeholder",
         "aria-keyshortcuts",
         "data-digits",
         "data-marks",

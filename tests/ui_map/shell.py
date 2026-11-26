@@ -6,7 +6,6 @@ from tests.ui_map.locator import Locator, by_id, role
 
 main = by_id("main")
 flash_region = by_id("flash-region")
-flash_region_assertive = by_id("flash-region-assertive")
 modal_root = by_id("modal-root")
 toast_root = by_id("toast-root")
 drawer_root = by_id("drawer-root")

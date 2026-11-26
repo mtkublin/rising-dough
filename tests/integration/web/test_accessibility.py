@@ -75,14 +75,12 @@ def test_skip_link_is_first_focusable(client: TestClient) -> None:
 @pytest.mark.parametrize("path", _ROUTES)
 def test_flash_live_regions_present(client: TestClient, path: str) -> None:
     soup = _soup(client, path)
-    polite = soup.find(id="flash-region")
-    assertive = soup.find(id="flash-region-assertive")
-    assert polite is not None and isinstance(polite, Tag)
-    assert assertive is not None and isinstance(assertive, Tag)
-    assert polite.get("role") == "status"
-    assert polite.get("aria-live") == "polite"
-    assert assertive.get("role") == "alert"
-    assert assertive.get("aria-live") == "assertive"
+    region = soup.find(id="flash-region")
+    assert region is not None and isinstance(region, Tag)
+    assert region.get("role") == "status"
+    assert region.get("aria-live") == "polite"
+    # One region (handoff, D9-A): an error flash announces assertively through its own role="alert".
+    assert soup.find(id="flash-region-assertive") is None
 
 
 def _control_is_labelled(control: Tag) -> bool:

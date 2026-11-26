@@ -1,10 +1,10 @@
 {# fragment: flash/error
    Rendered into #flash-region when a save fails. Inputs: message (text), retry (optional: re-issue the failed request, flash-retry in app-toast.js), reference (optional tooltip), retry_url (optional, POST),
-   region (optional: "flash-region" | "flash-region-assertive"; wraps the flash as an out-of-band
+   region (optional: "flash-region"; wraps the flash as an out-of-band
    swap of that live region, used by web/errors.py for new-shell HTMX errors). #}
 {% if region | default("") %}<div id="{{ region }}"
-     role="{{ 'alert' if region == 'flash-region-assertive' else 'status' }}"
-     aria-live="{{ 'assertive' if region == 'flash-region-assertive' else 'polite' }}"
+     role="status"
+     aria-live="polite"
      hx-swap-oob="true">{% endif %}<div class="rd-flash rd-flash--error" role="alert"><span{% if reference | default("") %} title="{{ reference }}"{% endif %}>▲ {{ message }}{% if reference | default("") %}<span class="u-visually-hidden"> ({{ reference }})</span>{% endif %}</span>{% if retry | default(false) %}<button type="button" class="rd-flash__action" data-js="flash-retry">retry</button>{% elif retry_url | default("") %}<button type="button"
         class="rd-flash__action"
         hx-post="{{ retry_url }}"

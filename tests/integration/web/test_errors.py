@@ -89,8 +89,8 @@ def test_not_found_browser_renders_404_page(error_client: TestClient) -> None:
 def test_not_found_htmx_renders_flash_fragment(error_client: TestClient) -> None:
     r = error_client.get("/_boom/not-found", headers={"HX-Request": "true"})
     assert r.status_code == 404
-    region = _html.resolve_one(r.text, by_id("flash-region-assertive"))
-    assert region["aria-live"] == "assertive"
+    region = _html.resolve_one(r.text, by_id("flash-region"))
+    assert region["aria-live"] == "polite"  # one region (D9-A); the flash itself is role=alert
     assert region["hx-swap-oob"] == "true"
     assert "\N{BLACK UP-POINTING TRIANGLE} Transaction not found" in region.get_text()
 
@@ -122,7 +122,7 @@ def test_validation_browser_renders_422_page(error_client: TestClient) -> None:
 def test_validation_htmx_renders_error_flash(error_client: TestClient) -> None:
     r = error_client.get("/_boom/validation", headers={"HX-Request": "true"})
     assert r.status_code == 422
-    assert "amount must be positive" in _html.text_of(r.text, by_id("flash-region-assertive"))
+    assert "amount must be positive" in _html.text_of(r.text, by_id("flash-region"))
 
 
 def test_service_error_browser_renders_500_with_request_id(
@@ -145,7 +145,7 @@ def test_service_error_browser_renders_500_with_request_id(
 def test_service_error_htmx_renders_flash_with_reference(error_client: TestClient) -> None:
     r = error_client.get("/_boom/service", headers={"HX-Request": "true"})
     assert r.status_code == 500
-    flash = _html.text_of(r.text, by_id("flash-region-assertive"))
+    flash = _html.text_of(r.text, by_id("flash-region"))
     assert "Reference:" in flash
     rid = r.headers["X-Request-Id"]
     assert rid in flash
@@ -161,9 +161,9 @@ def test_failed_htmx_write_flashes_the_handoff_copy_with_retry(error_client: Tes
     )
     assert r.status_code == 500
     rid = r.headers["X-Request-Id"]
-    flash = _html.text_of(r.text, by_id("flash-region-assertive"))
+    flash = _html.text_of(r.text, by_id("flash-region"))
     assert "\u25b2 Couldn\u2019t save. Your changes are still in the form." in flash
-    assert _html.exists(r.text, role("button", "retry").inside(by_id("flash-region-assertive")))
+    assert _html.exists(r.text, role("button", "retry").inside(by_id("flash-region")))
     assert f"Reference: {rid}" in flash  # also a visually hidden text for keyboard and touch users
 
 
@@ -219,9 +219,9 @@ def test_validation_inline_form_render_on_transactions_post(client: TestClient) 
 @pytest.mark.parametrize(
     ("path", "status", "expected"),
     [
-        ("/_boom/not-found", 404, ("flash-region-assertive", "assertive", "Transaction not found")),
+        ("/_boom/not-found", 404, ("flash-region", "polite", "Transaction not found")),
         ("/_boom/conflict", 409, ("flash-region", "polite", "protected row")),
-        ("/_boom/service", 500, ("flash-region-assertive", "assertive", "downstream unavailable")),
+        ("/_boom/service", 500, ("flash-region", "polite", "downstream unavailable")),
     ],
 )
 def test_htmx_error_uses_the_rd_flash_fragment(
