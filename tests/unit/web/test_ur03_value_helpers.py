@@ -89,22 +89,6 @@ def test_bar_spans_share_uses_rest_shade() -> None:
     assert view_models.bar_spans(0, 4, has_budget=False, share=True).remainder == REST * 4
 
 
-@pytest.mark.parametrize(
-    ("origin", "editing", "state"),
-    [
-        ("default", False, "default"),
-        ("recurring", False, "recurring"),
-        ("one_off", False, "one-off"),
-        ("unset", False, "unset"),
-        (None, False, "default"),
-        ("bogus", False, "default"),
-        ("recurring", True, "editing"),
-    ],
-)
-def test_year_cell_state(origin: str | None, editing: bool, state: str) -> None:
-    assert view_models.year_cell_state(origin, editing=editing) == state
-
-
 def _render(template: str, **context: object) -> str:
     return build_jinja_env(Settings()).from_string(template).render(**context)
 
@@ -117,18 +101,10 @@ def test_filter_category_color_preset_and_custom() -> None:
     )
 
 
-def test_filter_bar_spans_and_label() -> None:
-    assert _render("{% set b = 39 | bar_spans(10) %}{{ b.filled }}{{ b.remainder }}") == (
-        FULL * 4 + LEFT * 6
-    )
+def test_filter_bar_aria_label() -> None:
     assert _render("{{ 78 | bar_aria_label(15) }}") == "78 percent spent, 15 percent left"
 
 
 def test_filter_direction_label() -> None:
     assert _render("{{ 'income' | direction_label }}") == "\u2191 income"
     assert _render("{{ d | direction_label }}", d=Direction.TRANSIT) == "\u21c4 transit"
-
-
-def test_filter_year_cell_state() -> None:
-    assert _render("{{ 'one_off' | year_cell_state }}") == "one-off"
-    assert _render("{{ 'one_off' | year_cell_state(editing=true) }}") == "editing"

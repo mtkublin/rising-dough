@@ -80,7 +80,7 @@ One-time, per user, **persisted** in `starter_milestones(user_id, milestone, unl
 
 ### 7. Zero-delta reconcile (amends ADR-0011, F2.5)
 
-A reconcile where `actual == derived` no longer raises `NoAdjustmentNeededError` to the user. It records an `account_snapshots` row with the new plaintext column `source = 'reconcile'` (existing rows: `'manual'`). The UI says "Already in sync". `last_checked` already counts snapshots.
+A reconcile where `actual == derived` no longer raises `NoAdjustmentNeededError` to the user. It records an `account_snapshots` row with `note = 'reconcile snapshot'` (the schema has no source column). The UI says "Already in sync". `last_checked` already counts snapshots.
 
 ### 8. Check-in
 
