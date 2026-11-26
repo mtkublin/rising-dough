@@ -38,12 +38,12 @@ def _seed_budgeted(base_url: str, db_path: Path, page: Page) -> int:
     return category_id
 
 
-def _assert_toggle(page: Page, dialog: UiLocator) -> None:
-    """Walk the scope radios of ``dialog``; exactly the clicked one is checked."""
+def _assert_toggle(page: Page, dialog: UiLocator, *, opens_on: str = _LABELS[0]) -> None:
+    """Walk the scope radios of ``dialog`` (opens on ``opens_on``); the clicked one is checked."""
     one_off, every, new_default = (
         to_playwright(page, plan_year.tier(dialog, label)) for label in _LABELS
     )
-    expect(one_off).to_be_checked()
+    expect(to_playwright(page, plan_year.tier(dialog, opens_on))).to_be_checked()
     every.dispatch_event("click")
     expect(every).to_be_checked()
     expect(one_off).not_to_be_checked()
@@ -98,4 +98,5 @@ def test_tier_toggle_on_budget_tab_dialog(live_server: tuple[str, Path], page: P
     to_playwright(page, plan_budget.edit_budget_item("Groceries")).click()
     dialog = plan_year.dialog("Groceries", "Mar 2026")
     expect(to_playwright(page, plan_year.amount(dialog))).to_be_visible()
-    _assert_toggle(page, dialog)
+    # The row's budget is the default tier, so the dialog opens on it (BUDUX).
+    _assert_toggle(page, dialog, opens_on=_LABELS[2])
