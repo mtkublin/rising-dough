@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from tests.e2e.mockup_target import Journey
-from tests.ui_map import rd_shell as shell
+from tests.ui_map import ledger as ledger_map, rd_shell as shell
 from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -133,6 +133,24 @@ def test_question_mark_opens_shortcuts_and_escape_closes(journey: Journey) -> No
     assert _loc(journey, shell.shortcuts_dialog).is_visible()
     journey.page.keyboard.press("Escape")
     assert _loc(journey, shell.shortcuts_dialog).is_visible() is False
+
+
+def test_slash_focuses_ledger_search_and_typing_fills_it(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("app-only: the ledger filter bar is the app template")
+    journey.goto("/ledger")
+    search = _loc(journey, ledger_map.filter_search)
+    journey.page.keyboard.press("/")
+    assert search.evaluate("el => el === document.activeElement")
+    journey.page.keyboard.type("rent")
+    assert search.input_value() == "rent"
+    assert search.evaluate("el => el.type") == "search"
+
+
+def test_slash_without_search_field_does_nothing(journey: Journey) -> None:
+    journey.goto("/dev/shell")
+    journey.page.keyboard.press("/")
+    assert journey.page.evaluate("document.activeElement === document.body")
 
 
 def test_shortcuts_button_and_close_button(journey: Journey) -> None:
