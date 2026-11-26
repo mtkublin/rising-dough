@@ -213,3 +213,14 @@ an agent commits it). Mutation: weekly `mutation.yml`.
   questions.
 - Push and open a PR only with the operator's approval; once approved, open it as a draft early.
 - Agent quirk: agents commit with plain commands (the worktree guard refuses a chained `git commit`).
+
+## 10. Remote-session and CI lessons
+
+Full text and reasons: [ADR-0150 amendment 2026-11-26](../../../docs/adr/0150-orchestrator-role-agents-executable-dod-and-wave-testing.md).
+
+- **Merge in bursts, then read CI on the tip** (`gh run list --branch <MAIN>`) before the next merge. A cancelled run (a newer push cancels it) is no verdict on its commit.
+- **Pre-push checklist in every implementer brief** ([brief-common.md](brief-common.md)); reviewer briefs name the CI run and the e2e job to read. Reviewers cannot run tests here.
+- **One final report per subagent.** A later report in the same run is refused and lost. If an agent reports while it waits on its own background work, `SendMessage` it for the final status. `merge-item` prunes the worktree: a fix after the merge needs a new item.
+- **Lock hygiene.** A waiter for a lock the agent gave up on is stopped by that agent. A second heavy slot only while the 5-min load is under 2x `nproc`.
+- **Token limits.** No `workflow` scope: a push touching `.github/workflows/*` is rejected, so write the exact edit into a doc for the operator. No remote branch deletion: a 403 after `merge-item` does not mean the merge failed (check `git status -sb` and `git log origin/<MAIN>`). `just` may be missing (`uv tool install rust-just`).
+- **Deferred operator list.** Workflow edits, branch pruning, GitHub settings and prod steps go into one operator list in the run log, not into the run's agent work.

@@ -1,5 +1,7 @@
 # Changelog
 
+2026-11-26 SCRIBE8: docs: ui-sourdough run log refresh (final state, QFIX10-14), ADR-0150 amendment 2026-11-26, orchestrator pre-push checklist.
+
 2026-11-26 feat(N2): T-UR00b: recipe fixes (scroll back, close-button ring, home key, answer wait) (1d48851).
 
 2026-11-26 feat(I1): T-UR00b: one flash region, category swatch snap (unchanged save keeps colour), picker placeholder row (20a1799).
@@ -13,6 +15,10 @@
 2026-11-26 feat(F9): T-UR00b: recent chip lead on pointer pick, formula preview line, recipe normalisation docs (d4c06a8).
 
 2026-11-26 feat(V1): T-UR00b: viewport-specific harness fixes (row menus, year cell, long board marks, one-time password) (254bd6d).
+
+2026-11-25 QFIX14: e2e override removal waits for the grid reload; one-off cell marker asserted exactly (c1aad4f0).
+
+2026-11-25 QFIX13: e2e quiescence barrier and fill_stable helper; retries counted in the pytest summary (f1bb3b22).
 
 2026-11-25 fix(X6): T-UR00b: CI tests after N1/R1/F8 merges (e92f3d3).
 
