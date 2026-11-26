@@ -47,6 +47,7 @@ Recalibration rule: rerun the calibration (`visual-actual/self-clusters.txt` fro
 ### Normalised state
 
 - The app selects the amount of an opened dialog (`amount-input.js`); a static handoff mock cannot show a selection, so `handoff_recurring.settle` collapses it for `SETTLED_DIALOGS` (deliberate difference, `derived.md`); focus is kept.
+- Focus after a 422 (Q1): `handoff_recurring._incomplete` clicks the dialog title, taking the focus from the field the dialog focused (`dialog.js` focuses the first invalid input); the handoff file shows no ring there (its static ring sits on the close button, which stays a 470 px difference).
 - Pointer and scroll (V1): `_row_menu` focuses the trigger with `preventScroll` then presses Enter (the handoff opens at scroll 0); the year-cell recipe scrolls the grid back to its left edge and parks the pointer at (0,0); `handoff_recurring._transaction_error` and `handoff_newentry._error` call `mouse.move(0, 0)` (no hover on the save button); the one-time-password close-button ring comes from a Shift press then focus (stands in for keyboard Tab so `:focus-visible` shows).
 
 ### Known gaps
