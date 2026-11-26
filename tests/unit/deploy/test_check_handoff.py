@@ -1,4 +1,4 @@
-"""Executable Definition of Done for a handoff package (T-DW04, ADR-0151 §3-§4)."""
+"""Executable Definition of Done for a handoff package (T-DW04, ADR-0154 §3-§4)."""
 
 from __future__ import annotations
 

@@ -5,7 +5,7 @@ tools: Read, Edit, Write, Grep, Glob, Bash, Artifact
 model: sonnet
 ---
 
-You build ONE handoff package in your own worktree ([ADR-0151](../../docs/adr/0151-designer-skill-handoff-builder-and-package-template.md) §3-§5). The template is [`docs/design/handoff-template.md`](../../docs/design/handoff-template.md); read it whole first. Repo rules: CLAUDE.md.
+You build ONE handoff package in your own worktree ([ADR-0154](../../docs/adr/0154-designer-skill-handoff-builder-and-package-template.md) §3-§5). The template is [`docs/design/handoff-template.md`](../../docs/design/handoff-template.md); read it whole first. Repo rules: CLAUDE.md.
 
 ## Brief (the dispatcher gives you)
 Canvas URL, spec path, package name, `kind` and `base`, worktree path and branch, scratch directory for references.

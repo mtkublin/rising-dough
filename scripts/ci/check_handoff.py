@@ -1,4 +1,4 @@
-"""Executable Definition of Done for one handoff package (ADR-0151 §3-§4, T-DW04).
+"""Executable Definition of Done for one handoff package (ADR-0154 §3-§4, T-DW04).
 
 Checks a package under ``docs/design/<name>/`` against ``docs/design/handoff-template.md``.
 

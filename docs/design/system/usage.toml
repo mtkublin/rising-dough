@@ -1,4 +1,4 @@
-# Usage notes for the generated tokens.json (scripts/design_system.py, ADR-0151 §1).
+# Usage notes for the generated tokens.json (scripts/design_system.py, ADR-0154 §1).
 # Values come from tokens.css; only the words live here. Light first, then dark.
 color-ground = "Page ground. Light: plain white. Dark: near-black."
 color-panel = "The panel that rises under the bake field; sheets and dialogs. A whisper warmer than ground in light."

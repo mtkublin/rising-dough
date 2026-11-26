@@ -1,6 +1,6 @@
 # Guard docstrings and teaching messages are prose; long lines are intentional.
 # ruff: noqa: E501
-"""G33: a UI-facing change passes the mechanical UI checks and carries a UI review verdict (ADR-0152 §3, T-DW11).
+"""G33: a UI-facing change passes the mechanical UI checks and carries a UI review verdict (ADR-0155 §3, T-DW11).
 
 The branch diff against its base (``origin/main``, else ``main``) is checked by ``scripts/ci/check_ui.py``
 (colours, lengths and tokens on the added lines of templates and static CSS/JS/SVG). When the diff touches a
@@ -27,7 +27,7 @@ RECORD = re.compile(r"^docs/audits/\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$")
 REVIEW = re.compile(r"^## UI review\b(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 VERDICT = re.compile(r"^VERDICT:\s*(PASS|RETURN|ESCALATE)\b", re.MULTILINE)
 TEACH = (
-    "G33 UI review (ADR-0152): a UI-facing change passes `just check-ui` (tokens only: no colour literal, no "
+    "G33 UI review (ADR-0155): a UI-facing change passes `just check-ui` (tokens only: no colour literal, no "
     "literal spacing/radius/type length, every var() defined, no new design-system token outside "
     "docs/design/system/) and its docs/audits/<date>-<slug>.md record carries the `ui-reviewer` agent's "
     "'## UI review' section with 'VERDICT: PASS' (run /ui-review). RETURN means fix; ESCALATE means ask the operator."

@@ -1,6 +1,6 @@
-# ADR-0151: Design Work From the Repo: a Designer Skill, a Handoff Builder and One Package Template
+# ADR-0154: Design Work From the Repo: a Designer Skill, a Handoff Builder and One Package Template
 
-- **Status**: Accepted (§6 amended 2026-11-26 by ADR-0152)
+- **Status**: Accepted (§6 amended 2026-11-26 by ADR-0155)
 - **Date**: 2026-11-25
 - **Amends**: [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md) §1 (who produces a handoff and the "byte-identical" rule, for new packages only); [ADR-0129](0129-goals-starter-handoff-vendored-standalone.md) (new feature packages extend the base package instead of standing alone)
 - **Related**: [ADR-0106](0106-ui-behaviour-test-harness.md), [ADR-0113](0113-csp-compatible-frontend.md), [ADR-0123](0123-frontend-stays-server-rendered-no-spa-framework.md), [ADR-0147](0147-handoff-parity-ci-rendered-references-and-data-overlay.md), [ADR-0150](0150-orchestrator-role-agents-executable-dod-and-wave-testing.md)
@@ -71,7 +71,7 @@ A canvas made from the claude.ai Design type is a set of `.dc.html` artboards un
 
 ### 6. Design gate: every UI-facing change goes through the designer
 
-> **Amended 2026-11-26 by [ADR-0152](0152-ui-reviewer-layered-design-references.md) §2:** only new design (a new screen, flow, dialog, component, pattern or token, or a redesign) needs a designer round first; every UI-facing change goes through the UI reviewer, which checks the design system, the established base UI and the design reference when there is one. The "no reference, no UI change" rule below no longer applies; T-DW10 is folded into G33.
+> **Amended 2026-11-26 by [ADR-0155](0155-ui-reviewer-layered-design-references.md) §2:** only new design (a new screen, flow, dialog, component, pattern or token, or a redesign) needs a designer round first; every UI-facing change goes through the UI reviewer, which checks the design system, the established base UI and the design reference when there is one. The "no reference, no UI change" rule below no longer applies; T-DW10 is folded into G33.
 
 Operator decision (2026-11-25). A **UI-facing change** is any change a user can see or interact with: templates, CSS, static JS, user-visible copy, icons and images, layout and breakpoints, HTMX swap targets and what they render, a new screen, state, dialog, flow or interaction.
 

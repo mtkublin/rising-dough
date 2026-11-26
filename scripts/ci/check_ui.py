@@ -1,8 +1,8 @@
-"""Mechanical half of the UI review (ADR-0152 §3, T-DW11).
+"""Mechanical half of the UI review (ADR-0155 §3, T-DW11).
 
 Checks the lines a branch adds under ``src/budget_planner/web/templates/`` and
 ``src/budget_planner/web/static/`` against its merge base, and reports which design
-reference layers apply (ADR-0152 §1).
+reference layers apply (ADR-0155 §1).
 
 FAIL ``colours``: a colour literal outside a ``tokens.css``.
 FAIL ``lengths``: a literal length in a spacing, radius or type property.

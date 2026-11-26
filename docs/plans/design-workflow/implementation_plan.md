@@ -1,6 +1,6 @@
 # Design Workflow From the Repo — Implementation Plan
 
-Decision: [ADR-0151](../../adr/0151-designer-skill-handoff-builder-and-package-template.md). Tasks: [tasks.md](tasks.md).
+Decision: [ADR-0154](../../adr/0154-designer-skill-handoff-builder-and-package-template.md). Tasks: [tasks.md](tasks.md).
 
 ## Flow
 

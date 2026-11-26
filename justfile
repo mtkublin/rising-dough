@@ -177,16 +177,16 @@ merge-item ID MSG:
 check-item ID *OWNED:
     set -f; uv run python scripts/ci/check_item.py --item "{{ID}}" --owned {{OWNED}}
 
-# Executable Definition of Done for a handoff package (ADR-0151 §4, T-DW04).
+# Executable Definition of Done for a handoff package (ADR-0154 §4, T-DW04).
 # just check-handoff docs/design/<name> [--render] [--parity <refs>] [--write-manifest]
 check-handoff DIR *FLAGS:
     uv run python scripts/ci/check_handoff.py "{{DIR}}" {{FLAGS}}
 
-# Mechanical half of the UI review on the branch diff (ADR-0152 §3, T-DW11): colours, lengths, tokens, hints, layers.
+# Mechanical half of the UI review on the branch diff (ADR-0155 §3, T-DW11): colours, lengths, tokens, hints, layers.
 check-ui BASE="":
     uv run python scripts/ci/check_ui.py {{ if BASE == "" { "" } else { "--base " + BASE } }}
 
-# Regenerate docs/design/system/project/tokens.json from the base tokens.css (ADR-0151 §1, T-DW02); --check fails when stale.
+# Regenerate docs/design/system/project/tokens.json from the base tokens.css (ADR-0154 §1, T-DW02); --check fails when stale.
 design-system *FLAGS:
     uv run python scripts/design_system.py {{FLAGS}}
 

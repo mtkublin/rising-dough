@@ -1,8 +1,8 @@
 # Handoff package template (v1)
 
-Every package made under [ADR-0151](../adr/0151-designer-skill-handoff-builder-and-package-template.md) has this shape. The `handoff-builder` agent writes it; `just check-handoff docs/design/<name> --render --parity <refs> --write-manifest` is its Definition of Done. Each rule names the check that enforces it (`scripts/ci/check_handoff.py`), or "reviewer" when no script can.
+Every package made under [ADR-0154](../adr/0154-designer-skill-handoff-builder-and-package-template.md) has this shape. The `handoff-builder` agent writes it; `just check-handoff docs/design/<name> --render --parity <refs> --write-manifest` is its Definition of Done. Each rule names the check that enforces it (`scripts/ci/check_handoff.py`), or "reviewer" when no script can.
 
-`rising-dough-frontend/` and `rising-dough-goals-starter/` predate this template and are not checked against it (ADR-0151 §5).
+`rising-dough-frontend/` and `rising-dough-goals-starter/` predate this template and are not checked against it (ADR-0154 §5).
 
 ## 1. Manifest: `handoff.toml` (check `manifest`)
 

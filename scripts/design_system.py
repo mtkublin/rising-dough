@@ -1,4 +1,4 @@
-"""Generate the repo design system's ``tokens.json`` from the shipped tokens (ADR-0151 §1, T-DW02).
+"""Generate the repo design system's ``tokens.json`` from the shipped tokens (ADR-0154 §1, T-DW02).
 
 Source: the base handoff's ``static/css/tokens.css`` (light in ``:root``, dark in
 ``:root[data-theme="dark"]``), which the app copies. Output: ``tokens.json`` in the
@@ -9,7 +9,7 @@ names without ``--``, so a value on a canvas is found in CSS by name.
 Usage notes come from ``usage.toml`` next to the output, else from the token's
 trailing CSS comment, else a pointer to the property.
 
-Components (ADR-0151 §1): ``components/bundle.css`` is the base package's component
+Components (ADR-0154 §1): ``components/bundle.css`` is the base package's component
 CSS (its ``main.css`` imports in layer order, the page CSS left out except the
 components board) plus the base tokens the design system does not carry; one
 ``components/<Name>/preview.html`` and ``README.md`` per section of the base

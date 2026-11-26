@@ -1,6 +1,6 @@
 # Designer change requests
 
-A design proposal that changes scope (a new feature, a changed flow, data the app lacks, a requirement it contradicts) is written here as `<YYYY-MM-DD>-<slug>.md` by the `/designer` skill ([ADR-0151](../../adr/0151-designer-skill-handoff-builder-and-package-template.md) §2). The designer proposes; the operator decides. An accepted request changes `docs/requirements.md` or adds an ADR before any package or code is built (CLAUDE.md change policy).
+A design proposal that changes scope (a new feature, a changed flow, data the app lacks, a requirement it contradicts) is written here as `<YYYY-MM-DD>-<slug>.md` by the `/designer` skill ([ADR-0154](../../adr/0154-designer-skill-handoff-builder-and-package-template.md) §2). The designer proposes; the operator decides. An accepted request changes `docs/requirements.md` or adds an ADR before any package or code is built (CLAUDE.md change policy).
 
 ## Template
 

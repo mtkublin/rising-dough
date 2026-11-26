@@ -25,7 +25,7 @@ Only after the relevant docs are updated and committed (or staged in the same PR
 | Phased implementation plan + handoff rules | `docs/plans/<plan>/implementation_plan.md` |
 | Prevention regime (guards, allowlists, zero-violation policy) | [ADR-0130](docs/adr/0130-prevention-regime-and-full-architectural-compliance.md), `docs/requirements.md` §3.3 |
 | Decisions (and *why*) | `docs/adr/README.md` |
-| Design work: design system, handoff template, specs, change requests | `docs/design/README.md`, `/designer` skill, `handoff-builder` agent ([ADR-0151](docs/adr/0151-designer-skill-handoff-builder-and-package-template.md)) |
+| Design work: design system, handoff template, specs, change requests | `docs/design/README.md`, `/designer` skill, `handoff-builder` agent ([ADR-0154](docs/adr/0154-designer-skill-handoff-builder-and-package-template.md)) |
 
 Always read the relevant ADR before changing an area it covers.
 
@@ -106,8 +106,8 @@ just test-e2e     # optional locally; e2e runs on GitHub (e2e.yml) on every PR, 
 just merge-item <ID> "<msg>"   # orchestrator: gated merge of wi/<work>/<ID> (guards, lint-imports, ruff, mypy, push, prune; T-Q304)
 just check-item <ID> <globs>   # orchestrator DoD for wi/<current>/<ID>: owned files, hotspots, subjects, allowlists, audit record (T-Q326)
 just guards       # tests/architecture/ + import-linter only (fast, run before every commit)
-just check-handoff docs/design/<name> --render --parity <refs> --write-manifest   # handoff package DoD (ADR-0151)
-just check-ui [base]     # mechanical half of the UI review on the branch diff (ADR-0152, G33)
+just check-handoff docs/design/<name> --render --parity <refs> --write-manifest   # handoff package DoD (ADR-0154)
+just check-ui [base]     # mechanical half of the UI review on the branch diff (ADR-0155, G33)
 just design-system  # regenerate the design system tokens.json from the base tokens.css; --check fails when stale
 just mutate       # Mutmut on domain + services (slow, background; ADR-0131); mutate-report, mutate-clean
 just demo-build   # rebuild data/demo.sqlite from prod (read-only on prod)
@@ -137,7 +137,7 @@ For work split across parallel subagents, use the `orchestrator-mode` skill (`.c
 
 ## Design gate (MANDATORY)
 
-**Every UI-facing change gets a UI review; new design goes through the designer first** ([ADR-0152](docs/adr/0152-ui-reviewer-layered-design-references.md), amending [ADR-0151](docs/adr/0151-designer-skill-handoff-builder-and-package-template.md) §6). UI-facing = anything a user sees or interacts with: templates, CSS, static JS, user-visible copy, icons, layout and breakpoints, HTMX swap targets, a new screen, state, dialog or flow.
+**Every UI-facing change gets a UI review; new design goes through the designer first** ([ADR-0155](docs/adr/0155-ui-reviewer-layered-design-references.md), amending [ADR-0154](docs/adr/0154-designer-skill-handoff-builder-and-package-template.md) §6). UI-facing = anything a user sees or interacts with: templates, CSS, static JS, user-visible copy, icons, layout and breakpoints, HTMX swap targets, a new screen, state, dialog or flow.
 
 - **New design starts with `/designer`:** a new screen, flow, dialog or component, a new pattern or token, or a visible redesign. Its agreed spec or package page is the change's design reference; name it in the task, the brief and the PR (or a `Design-Ref: <path>` commit trailer).
 - **Everything else** (a fix, a copy tweak, a new field in an existing form, a missing state) needs no designer round: build it from existing components and tokens only.

@@ -1,6 +1,6 @@
 # Handoff specs
 
-One file per design job, `<slug>.md`, written by the `/designer` skill when the canvas is agreed ([ADR-0151](../../adr/0151-designer-skill-handoff-builder-and-package-template.md) §2). The `handoff-builder` agent builds the package from the canvas and this spec; where they disagree, the canvas wins and the builder records a deviation.
+One file per design job, `<slug>.md`, written by the `/designer` skill when the canvas is agreed ([ADR-0154](../../adr/0154-designer-skill-handoff-builder-and-package-template.md) §2). The `handoff-builder` agent builds the package from the canvas and this spec; where they disagree, the canvas wins and the builder records a deviation.
 
 ## Template
 

@@ -1,6 +1,6 @@
 # Rising Dough — Sourdough design system (repo copy)
 
-The one design system for Rising Dough design work ([ADR-0151](../../adr/0151-designer-skill-handoff-builder-and-package-template.md) §1): light and dark themes, in the claude.ai Design System file layout.
+The one design system for Rising Dough design work ([ADR-0154](../../adr/0154-designer-skill-handoff-builder-and-package-template.md) §1): light and dark themes, in the claude.ai Design System file layout.
 
 | Field | Value |
 |---|---|

@@ -1,14 +1,14 @@
-# ADR-0152: A UI Reviewer That Checks Every UI Change Against Layered Design References
+# ADR-0155: A UI Reviewer That Checks Every UI Change Against Layered Design References
 
 - **Status**: Accepted
 - **Date**: 2026-11-26
-- **Amends**: [ADR-0151](0151-designer-skill-handoff-builder-and-package-template.md) §6 (the design gate: only new design goes through the designer; every UI change goes through the UI reviewer)
+- **Amends**: [ADR-0154](0154-designer-skill-handoff-builder-and-package-template.md) §6 (the design gate: only new design goes through the designer; every UI change goes through the UI reviewer)
 - **Related**: [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md), [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md), [ADR-0147](0147-handoff-parity-ci-rendered-references-and-data-overlay.md), [ADR-0150](0150-orchestrator-role-agents-executable-dod-and-wave-testing.md)
 - **Tasks**: T-DW10 (re-scoped), T-DW11, T-DW12 (`docs/plans/design-workflow/tasks.md`)
 
 ## Context
 
-ADR-0151 §6 made every UI-facing change, however small, wait for a designer round and an agreed design reference; without one the implementer stopped and the reviewer returned. Two problems:
+ADR-0154 §6 made every UI-facing change, however small, wait for a designer round and an agreed design reference; without one the implementer stopped and the reviewer returned. Two problems:
 
 - A one-line fix (a label, a missing error state, a spacing bug) cost a canvas, a comment loop and a package. Small changes either stall or the rule gets ignored.
 - Nobody checked the result. The code `reviewer` reads diffs, the `visual-auditor` looks for overflow and console errors, and parity (ADR-0147) compares against a package page only when one exists. Whether a change looks and works like the rest of the app was nobody's job.
@@ -19,7 +19,7 @@ The operator wants a UI reviewer that checks every UI change against what is ava
 
 ### 1. Layered design references
 
-Every UI-facing change (ADR-0151 §6 definition) is reviewed against the layers that exist for it:
+Every UI-facing change (ADR-0154 §6 definition) is reviewed against the layers that exist for it:
 
 | Layer | Applies | Weight |
 |---|---|---|
@@ -32,7 +32,7 @@ A missing handoff is not a failure. The reviewer reviews against the layers that
 
 A change that follows a handoff but departs from it lists each departure in its PR description under `## Design deviations`, numbered, each with a reason (the package's own `[[deviation]]` rows cover the package against the canvas, not the app against the package).
 
-### 2. The design gate, amended (ADR-0151 §6)
+### 2. The design gate, amended (ADR-0154 §6)
 
 - **New design goes through `/designer` first:** a new screen, flow, dialog or component, a new pattern, a new token, or a visible redesign of an existing surface. The designer's spec or package is then the handoff layer.
 - **Everything else** (a fix, a copy tweak, a new field in an existing form, a missing state built from existing components) needs no designer round. It goes straight to the UI reviewer.
@@ -85,6 +85,6 @@ The agent judges against a fixed list, so findings are comparable and the noise 
 
 ## Alternatives considered
 
-- **Keep ADR-0151 §6 as written (every UI change needs a reference first)**: rejected by the operator; it blocks small fixes and still leaves nobody checking the result.
+- **Keep ADR-0154 §6 as written (every UI change needs a reference first)**: rejected by the operator; it blocks small fixes and still leaves nobody checking the result.
 - **One agent judges all layers, no script**: rejected; most design-system rules are exact and belong in a guard, where they cost nothing and cannot be talked around.
 - **Fold the UI review into the code `reviewer`**: rejected; it needs screenshots, a running app and a separate context from the code review, and the code reviewer's runtime budget is 30 minutes.

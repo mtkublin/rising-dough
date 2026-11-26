@@ -1,4 +1,4 @@
-"""scripts/ci/check_ui.py: the mechanical half of the UI review (ADR-0152 §3, T-DW11)."""
+"""scripts/ci/check_ui.py: the mechanical half of the UI review (ADR-0155 §3, T-DW11)."""
 
 from __future__ import annotations
 

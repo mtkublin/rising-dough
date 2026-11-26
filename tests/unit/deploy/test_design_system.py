@@ -1,4 +1,4 @@
-"""Repo design system generated from the shipped tokens (T-DW02, ADR-0151 §1)."""
+"""Repo design system generated from the shipped tokens (T-DW02, ADR-0154 §1)."""
 
 from __future__ import annotations
 

@@ -1,11 +1,11 @@
 ---
 name: ui-review
-description: Review the UI a branch changes before it merges (ADR-0152): dispatches the ui-reviewer agent, which checks the change against the design system, the established base UI and the designer's handoff (whichever exist) plus an aesthetics and UX rubric, and records PASS, RETURN or ESCALATE in the frontend audit record (guard G33). Mandatory for every UI-facing change. Use when the operator says "UI review", "review the UI", "check the design", or invokes /ui-review [branch].
+description: Review the UI a branch changes before it merges (ADR-0155): dispatches the ui-reviewer agent, which checks the change against the design system, the established base UI and the designer's handoff (whichever exist) plus an aesthetics and UX rubric, and records PASS, RETURN or ESCALATE in the frontend audit record (guard G33). Mandatory for every UI-facing change. Use when the operator says "UI review", "review the UI", "check the design", or invokes /ui-review [branch].
 ---
 
 # UI review
 
-Every UI-facing change (templates, CSS, static JS, user-visible copy, layout, HTMX swaps) gets a UI review before merge (CLAUDE.md "Design gate", [ADR-0152](../../../docs/adr/0152-ui-reviewer-layered-design-references.md)). This skill runs it from the main session; in an orchestrated run the orchestrator dispatches the agent itself (`orchestrator-mode` Step 3).
+Every UI-facing change (templates, CSS, static JS, user-visible copy, layout, HTMX swaps) gets a UI review before merge (CLAUDE.md "Design gate", [ADR-0155](../../../docs/adr/0155-ui-reviewer-layered-design-references.md)). This skill runs it from the main session; in an orchestrated run the orchestrator dispatches the agent itself (`orchestrator-mode` Step 3).
 
 ## Steps
 

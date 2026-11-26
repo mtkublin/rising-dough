@@ -166,7 +166,7 @@ an agent commits it). Mutation: weekly `mutation.yml`.
    implementer in one `SendMessage` (or a handover implementer), then audit and review again.
    Once the audit record is committed, dispatch the `ui-reviewer` (`.claude/agents/ui-reviewer.md`)
    into the same worktree with the routes and states, the design reference if any and the record
-   path (ADR-0152 §5). `RETURN` findings go to the implementer with the others; `ESCALATE` goes into
+   path (ADR-0155 §5). `RETURN` findings go to the implementer with the others; `ESCALATE` goes into
    the operator question batch, and the operator's answer goes into the PR before a re-review.
 3. Only `MERGE` (and `CLEAN` plus a UI review `PASS` for a frontend item) merges. Before merging, run
    `just check-item <ID> <owned globs>` yourself on the final sha: it confirms the audit record
