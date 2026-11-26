@@ -155,7 +155,11 @@ def test_formula_with_one_component_hides_remove_and_omits_empty_result() -> Non
         options=(_SALARY,),
     )
     assert _html.count(html, f.component_remove(1)) == 0  # hidden while it is the only one
-    assert _html.text_of(html, f.formula_result) == ""
+    assert _html.count(html, f.formula_result) == 0  # the empty live region is hidden (Q1)
+    output = BeautifulSoup(html, "html.parser").select_one("output.rd-formula__result")
+    assert output is not None
+    assert output.has_attr("hidden")
+    assert output.get_text() == ""
 
 
 def test_formula_component_sign_percent_and_selected_categories() -> None:
@@ -166,6 +170,8 @@ def test_formula_component_sign_percent_and_selected_categories() -> None:
         comp=_COMPONENTS[1],
         options=(_SALARY, _GROCERIES, _TAKEAWAY),
         list_id="formula-1-1-list",
+        pct_err=None,
+        cat_err=None,
         single=False,
     )
     add = _html.resolve_one(html, f.component_sign(2, "add"))
@@ -195,6 +201,8 @@ def test_formula_component_without_categories_shows_placeholder() -> None:
         comp=comp,
         options=(_SALARY,),
         list_id="x-0-list",
+        pct_err=None,
+        cat_err=None,
         single=True,
     )
     assert "pick categories" in _html.page_text(html)
@@ -427,3 +435,28 @@ def test_pagination_first_and_last_page_omit_missing_links() -> None:
     assert _html.count(html, f.newer) == 0
     assert _html.count(html, f.recently_deleted) == 0
     assert _html.text_of(html, f.pagination) == "page 1"
+
+
+def test_formula_component_errors_are_linked_and_announced() -> None:
+    comp = {"sign": "+", "percent": "x", "category_ids": ()}
+    html = _render(
+        "fields/formula-component",
+        index=0,
+        number=1,
+        comp=comp,
+        options=(_SALARY,),
+        list_id="x-0-list",
+        pct_err="Enter a percentage",
+        cat_err="Pick a category",
+        single=True,
+    )
+    percent = _html.resolve_one(html, f.component_percents)
+    assert percent.get("aria-invalid") == "true"
+    assert percent.get("aria-describedby") == "x-0-list-pct-err"
+    alert = BeautifulSoup(html, "html.parser").select_one('[role="alert"]')
+    assert alert is not None
+    assert alert.get_text(" ", strip=True) == "Component 1: Enter a percentage Pick a category"
+    lines = [
+        p.get_text(strip=True) for p in BeautifulSoup(html, "html.parser").select("p.rd-comp__err")
+    ]
+    assert lines == ["\u25b2 Enter a percentage", "\u25b2 Pick a category"]
