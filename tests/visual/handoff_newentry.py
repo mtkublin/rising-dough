@@ -108,7 +108,7 @@ def _repeats_formula(page: Page) -> None:
     page.fill("#modal-root input[name=day_of_month]", "31")
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)  # the formula preview settles
     # The file shows the close button with its focus ring and no hover (README "Normalised state"):
-    # a keyboard user's Shift+Tab back to the dialog start lands there, the pointer rests off the form.
+    # a keyboard user's Shift+Tab back to the dialog start lands there; the pointer rests off.
     _scroll_back_up(page)
     page.keyboard.press("Shift")  # keyboard modality, so :focus-visible shows the ring
     page.focus(f"{_DIALOG} .rd-dialog__close")
