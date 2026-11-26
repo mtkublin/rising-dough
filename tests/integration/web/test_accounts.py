@@ -459,7 +459,7 @@ def test_liability_available_shows_two_decimals(client: TestClient, _migrated: S
     assert "available 3,765 of" not in cards
 
 
-def test_create_reloads_page_without_swap(client: TestClient) -> None:
+def test_create_flashes_and_refetches_without_reload(client: TestClient) -> None:
     # T-D150: the accounts table has no region that refetches on a trigger.
     r = client.post(
         "/accounts",
@@ -468,7 +468,8 @@ def test_create_reloads_page_without_swap(client: TestClient) -> None:
     )
     assert r.status_code == 200
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Travel created" in r.text
     assert "balance-stale" in r.headers["HX-Trigger"]
 
 

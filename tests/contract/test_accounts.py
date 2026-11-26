@@ -161,12 +161,14 @@ def test_new_form_requires_login(anon_client: TestClient) -> None:
 
 
 @covers("POST /accounts")
-def test_create_persists_audits_and_reloads_page(client: TestClient, _migrated: Settings) -> None:
+def test_create_persists_audits_and_flashes(client: TestClient, _migrated: Settings) -> None:
     r = client.post("/accounts", data=NEW_ACCOUNT, headers={"HX-Request": "true"})
     assert r.status_code == 200
     assert json.loads(r.headers["HX-Trigger"]) == {"balance-stale": True}
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Travel created" in r.text
+    assert 'id="flash-region"' in r.text
     rows = _account_rows(_migrated)
     assert len(rows) == 1
     assert (rows[0]["name"], rows[0]["currency"], rows[0]["user_id"]) == ("Travel", "EUR", USER_ID)

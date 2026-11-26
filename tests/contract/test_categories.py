@@ -77,12 +77,16 @@ def test_new_form_requires_login(anon_client: TestClient) -> None:
 
 
 @covers("POST /categories")
-def test_create_persists_audits_and_reloads(client: TestClient, _migrated: Settings) -> None:
+def test_create_persists_audits_and_flashes(client: TestClient, _migrated: Settings) -> None:
     r = client.post("/categories", data=NEW, headers=HX)
     assert r.status_code == 200
-    assert "budget-stale" in json.loads(r.headers["HX-Trigger"])
+    assert json.loads(r.headers["HX-Trigger"]) == {
+        "budget-stale": True,
+        "settings-categories-stale": True,
+    }
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Category created" in r.text
     row = _category(_migrated, "Rent")
     assert (row["direction"], row["user_id"], row["color"]) == ("expense", USER_ID, None)
     assert ("create", row["id"]) in audit_ops(_migrated, "category")
