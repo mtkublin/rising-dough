@@ -381,6 +381,8 @@ def test_create_account_from_accounts_submits_under_csp(
     _fill(page, accounts.form_currency, "EUR", accounts.account_form)
     _submit(page, accounts.create_account, accounts.new_dialog)
     expect(to_playwright(page, accounts.new_dialog)).to_have_count(0)
+    # No page reload (ADR-0143): the out-of-band flash survives and the list refetches.
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("Travel wallet created")
     account_id = db_probe.account_id(db_path, "Travel wallet")
     assert (
         db_probe.scalar(db_path, "SELECT currency FROM accounts WHERE id = ?", account_id) == "EUR"
@@ -414,6 +416,7 @@ def test_create_category_submits_under_csp(
     _fill(page, settings.category_name, "Pets", settings.category_form)
     _submit(page, settings.create_category, settings.category_form)
     expect(to_playwright(page, settings.category_form)).to_have_count(0)
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("Category created")
     expect(to_playwright(page, settings.panel)).to_contain_text("Pets")
     assert db_probe.category_id(db_path, "Pets")
 
