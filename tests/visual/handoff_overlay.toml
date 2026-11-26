@@ -58,8 +58,17 @@ value = "16 percent spent, 84 percent left"
 reason = "value-inventory 5 row 7: 12,521.63 of 14,977.37 is 84% available, not 80%"
 
 # --- row 12 / ADR-0151: Reconciliation is system-only, so N = 25 - 1 = 24.
-# The search input placeholder carries the same count but `placeholder` is not
-# an allowed overlay attribute (ADR-0147 section 4); see the item report.
+# The search input placeholder carries the same count (`placeholder` is an allowed overlay
+# attribute, operator decision Q3, 2026-11-25).
+
+[[row]]
+page = "pages/overlays/*.html"
+select = "input.rd-catpick__input"
+field = "placeholder"
+old = "search all 21 categories"
+value = "search all 24 categories"
+optional = true  # only the overlays with a category picker
+reason = "seed value via categories.picker_summary: total_count, the live categories without the system-only Reconciliation (ADR-0151)"
 
 [[row]]
 page = "pages/overlays/*.html"
@@ -68,7 +77,7 @@ field = "text"
 old = "search all 21 categories"
 value = "search all 24 categories"
 optional = true  # only the overlays with a category picker
-reason = "value-inventory 5 row 12, ADR-0151: the seed's 25 categories minus system-only Reconciliation (PAR-D added Wyjscia na miasto)"
+reason = "seed value via categories.picker_summary: total_count, the live categories without the system-only Reconciliation (ADR-0151)"
 
 # --- row 19 / ADR-0151 section 1: edited entry is left out of "before".
 

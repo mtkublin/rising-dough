@@ -97,7 +97,6 @@ def _back_url(request: Request) -> str:
 
 def _flash_fragment(
     request: Request,
-    kind: str,
     message: str,
     status: int,
     *,
@@ -109,13 +108,12 @@ def _flash_fragment(
     The fragment carries `hx-swap-oob="true"` + the live-region target, so the body is
     otherwise empty and HTMX will not clobber the originating target.
     """
-    region = "flash-region-assertive" if kind == "error" else "flash-region"
     return _render(
         request,
         "fragments/flash/error.html",
         status,
         message=message,
-        region=region,
+        region="flash-region",
         retry=retry,
         reference=reference,
     )
@@ -126,7 +124,6 @@ async def handle_not_found(request: Request, exc: Exception) -> HTMLResponse:
     if _is_htmx(request):
         return _flash_fragment(
             request,
-            "error",
             f"{nf.entity.capitalize()} not found",
             status=404,
         )
@@ -164,7 +161,7 @@ async def handle_http_exception(request: Request, exc: Exception) -> Response:
 async def handle_conflict(request: Request, exc: Exception) -> HTMLResponse:
     cf = exc if isinstance(exc, ConflictError) else ConflictError(message="conflict")
     if _is_htmx(request):
-        return _flash_fragment(request, "warning", cf.message, status=409)
+        return _flash_fragment(request, cf.message, status=409)
     return _render(
         request,
         "pages/errors/409.html",
@@ -187,7 +184,7 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     # routers short-circuit with a fully populated form partial before raising.
     message = next(iter(v.fields.values()), "validation failed")
     if _is_htmx(request):
-        return _flash_fragment(request, "error", message, status=422)
+        return _flash_fragment(request, message, status=422)
     field_count, field_errors = validation_summary(v.fields)
     return _render(
         request,
@@ -215,7 +212,7 @@ async def handle_request_validation(request: Request, exc: Exception) -> Respons
         return await request_validation_exception_handler(request, exc)
     names = dict.fromkeys(str(e["loc"][-1]) for e in errors)
     labels = ", ".join(field_label(name) for name in names)
-    response = _flash_fragment(request, "error", f"Some fields need fixing: {labels}", status=422)
+    response = _flash_fragment(request, f"Some fields need fixing: {labels}", status=422)
     response.headers[HX_RESWAP] = "none"
     return response
 
@@ -241,7 +238,6 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
         # a retry; the support reference moves to the tooltip.
         return _flash_fragment(
             request,
-            "error",
             SAVE_FAILED_MESSAGE,
             status=500,
             retry=True,
@@ -249,7 +245,7 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
         )
     if _is_htmx(request):
         reference = f"{message} Reference: {rid}" if rid else message
-        return _flash_fragment(request, "error", reference, status=500)
+        return _flash_fragment(request, reference, status=500)
     return _render(
         request,
         "pages/errors/500.html",
@@ -264,7 +260,7 @@ async def handle_missing_quote(request: Request, exc: Exception) -> HTMLResponse
     logger.warning("fx rate unavailable on %s %s: %s", request.method, request.url.path, exc)
     message = f"Exchange rate unavailable: {exc}"
     if _is_htmx(request):
-        return _flash_fragment(request, "error", message, status=503)
+        return _flash_fragment(request, message, status=503)
     return _render(request, "pages/errors/500.html", status=503, status_code=503, message=message)
 
 

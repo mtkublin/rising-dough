@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Final
 
+from budget_planner.domain import category_colors
 from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import name_error
@@ -93,13 +94,33 @@ def parse_new_category(
     )
 
 
+def _keeps_stored_colour(color: str | None, stored: str | None) -> bool:
+    """True when the posted colour is the dialog's own preselection for ``stored``.
+
+    The dialog preselects the swatch nearest to a stored hue that is none of the ten swatches
+    (D11-S). Posting that swatch back is an unchanged save: the stored hue stays, so a plain save
+    never recolours a category. Picking another swatch, or the default, is a real change.
+    """
+    if not color or not stored:
+        return False
+    # ``color`` is already normalised by the form parser; the DB CHECK constrains ``stored``.
+    posted, kept = color.lower(), stored.lower()
+    return posted != kept and posted == category_colors.nearest_form_swatch(kept).cat
+
+
 def parse_category_patch(
-    *, name: str, color: str | None, clear_color: str | None
+    *,
+    name: str,
+    color: str | None,
+    clear_color: str | None,
+    stored_color: str | None = None,
 ) -> ParsedCategoryPatch:
-    """Validate the edit form (name, colour)."""
+    """Validate the edit form (name, colour); ``stored_color`` is the category's current colour."""
     errors, resolved, cleared = _name_and_color(name, color, clear_color)
     if errors:
         return ParsedCategoryPatch(patch=None, errors=errors)
+    if not cleared and _keeps_stored_colour(resolved, stored_color):
+        resolved = None
     return ParsedCategoryPatch(
         patch=PatchCategory(name=name.strip(), color=resolved, clear_color=cleared)
     )

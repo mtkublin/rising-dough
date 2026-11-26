@@ -94,7 +94,7 @@ def _flash(page: Page) -> None:
     _afford_250(page)
     for path, region in (
         ("/dev/shell/dialog/confirm", "#flash-region .rd-flash--success"),
-        ("/dev/shell/fail/500", "#flash-region-assertive .rd-flash--error"),
+        ("/dev/shell/fail/500", "#flash-region .rd-flash--error"),
         ("/dev/shell/toast", "#toast-root [data-js='toast']"),
     ):
         page.evaluate(

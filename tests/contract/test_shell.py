@@ -186,7 +186,7 @@ def test_add_overlay_renders_for_each_tab_without_writing(
 def test_add_overlay_unknown_tab_is_422_naming_the_param(client: TestClient) -> None:
     r = client.get("/add?when=unknown-tab", headers=HX)
     assert r.status_code == 422
-    assert "when" in _html.text_of(r.text, by_id("flash-region-assertive"))
+    assert "when" in _html.text_of(r.text, by_id("flash-region"))
 
 
 @covers("GET /add")
