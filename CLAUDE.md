@@ -25,6 +25,7 @@ Only after the relevant docs are updated and committed (or staged in the same PR
 | Phased implementation plan + handoff rules | `docs/plans/<plan>/implementation_plan.md` |
 | Prevention regime (guards, allowlists, zero-violation policy) | [ADR-0130](docs/adr/0130-prevention-regime-and-full-architectural-compliance.md), `docs/requirements.md` §3.3 |
 | Decisions (and *why*) | `docs/adr/README.md` |
+| Design work: design system, handoff template, specs, change requests | `docs/design/README.md`, `/designer` skill, `handoff-builder` agent ([ADR-0154](docs/adr/0154-designer-skill-handoff-builder-and-package-template.md)) |
 
 Always read the relevant ADR before changing an area it covers.
 
@@ -105,6 +106,9 @@ just test-e2e     # optional locally; e2e runs on GitHub (e2e.yml) on every PR, 
 just merge-item <ID> "<msg>"   # orchestrator: gated merge of wi/<work>/<ID> (guards, lint-imports, ruff, mypy, push, prune; T-Q304)
 just check-item <ID> <globs>   # orchestrator DoD for wi/<current>/<ID>: owned files, hotspots, subjects, allowlists, audit record (T-Q326)
 just guards       # tests/architecture/ + import-linter only (fast, run before every commit)
+just check-handoff docs/design/<name> --render --parity <refs> --write-manifest   # handoff package DoD (ADR-0154)
+just check-ui [base]     # mechanical half of the UI review on the branch diff (ADR-0155, G33)
+just design-system  # regenerate the design system tokens.json from the base tokens.css; --check fails when stale
 just mutate       # Mutmut on domain + services (slow, background; ADR-0131); mutate-report, mutate-clean
 just demo-build   # rebuild data/demo.sqlite from prod (read-only on prod)
 just set-password # set a user's password on an explicit --db=<path> (no default DB)
@@ -125,8 +129,20 @@ For work split across parallel subagents, use the `orchestrator-mode` skill (`.c
 | Name | Kind | Use when |
 |---|---|---|
 | `orchestrator-mode` | skill (`.claude/skills/orchestrator-mode/SKILL.md`) | Work splits into parallel items, or the operator says "orchestrate" / "dispatch agents". The main agent then only plans, dispatches, merges and reads verdicts. |
+| `designer` | skill (`.claude/skills/designer/SKILL.md`) | New design: a new screen, flow, dialog, component, pattern or token, a redesign, or a new UI idea (mandatory for those, see "Design gate"): learn the current UI, canvas with light and dark artboards, agree with the operator, write the spec and change requests. Runs in the main session. |
+| `ui-review` / `ui-reviewer` | skill (`.claude/skills/ui-review/SKILL.md`) dispatching the agent (`.claude/agents/ui-reviewer.md`) | Every UI-facing change before merge (mandatory, see "Design gate"): design system, base UI, handoff and a UX rubric; records `VERDICT` in the audit record (G33). The orchestrator dispatches the agent after the `visual-auditor`. |
+| `handoff-builder` | agent (`.claude/agents/handoff-builder.md`) | After `/designer` agrees a canvas: builds the static handoff package; done when `just check-handoff --render --parity` passes. |
 | `frontend-visual-audit` | skill (`.claude/skills/frontend-visual-audit/SKILL.md`) | Any change to templates, CSS, breakpoints or HTMX swap targets (mandatory, see below), or a reported visual bug. |
 | `explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor` | role agents (`.claude/agents/`) | Only inside an `orchestrator-mode` run, each with a brief from `brief-common.md`. Not for ad-hoc use: the guard applies their role limits (test scope, waits, runtime budget) in any session. For one-off research or edits outside a run, use the general agents. |
+
+## Design gate (MANDATORY)
+
+**Every UI-facing change gets a UI review; new design goes through the designer first** ([ADR-0155](docs/adr/0155-ui-reviewer-layered-design-references.md), amending [ADR-0154](docs/adr/0154-designer-skill-handoff-builder-and-package-template.md) §6). UI-facing = anything a user sees or interacts with: templates, CSS, static JS, user-visible copy, icons, layout and breakpoints, HTMX swap targets, a new screen, state, dialog or flow.
+
+- **New design starts with `/designer`:** a new screen, flow, dialog or component, a new pattern or token, or a visible redesign. Its agreed spec or package page is the change's design reference; name it in the task, the brief and the PR (or a `Design-Ref: <path>` commit trailer).
+- **Everything else** (a fix, a copy tweak, a new field in an existing form, a missing state) needs no designer round: build it from existing components and tokens only.
+- **Comply** with the design system (`docs/design/system/`: tokens only, both themes; always), the established app design (once the base UI is on `main`) and the design reference (when there is one; departures listed in the PR under `## Design deviations` with a reason).
+- **UI review before merge:** `just check-ui` (mechanical) and the `ui-reviewer` agent (`/ui-review`, or the orchestrator) record `VERDICT: PASS` in the audit record; guard G33 checks both. `RETURN` is fixed; `ESCALATE` goes to the operator (for example "new design without /designer").
 
 ## Frontend validation (MANDATORY)
 
@@ -199,7 +215,7 @@ Before marking a task done:
 2. **Reuse check.** Searched the Canonical modules table and the tree before writing a helper; reused the canonical function, or registered the new one in `canonical_modules.toml` (why none fit is in the report).
 3. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI and the gate drill's `ci / just ci` job ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md)). The hook excludes `tests/e2e`: item agents run no manual suites beyond special cases (the `frontend-visual-audit` skill, a migration rehearsal); an agent that truly needs the full e2e pushes its `wi/**` branch and reads the `e2e.yml` run. `tests/e2e` runs on GitHub (`e2e.yml`, pinned Playwright container) on every PR to `main` and is a required check, so no local pre-PR e2e run is needed; `just test-e2e` stays optional, and the orchestrator may still run it alone after a wave ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md) and [ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md) amendments 2026-11-22, T-Q297). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
 4. **Architecture guards green; allowlist counts only went down.** Entries for violations you fixed are deleted; no new allowlist entry or suppression without a reason and an ADR-0130 amendment; any new dependency is justified in the commit. Fixes remove the cause; never satisfy a guard by syntax only.
-5. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
+5. **UI-facing tasks**: new design has its `/designer` reference named and matched (see "Design gate"); the `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports, findings resolved or triaged (see "Frontend validation" above); then `just check-ui` passes and the `ui-reviewer` recorded `VERDICT: PASS` in the same audit record.
 6. The task line in `docs/plans/<plan>/tasks.md` prefixed with `✅`.
 7. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
 8. Append a dated line to `docs/CHANGELOG.md` (create on first use).

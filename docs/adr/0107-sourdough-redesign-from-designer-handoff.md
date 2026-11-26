@@ -110,3 +110,8 @@ The handoff README §4 lists values the server sets as attributes or classes. Th
 - **Restyle the existing templates toward the mockups.** Rejected by the operator: carries old structure and Tailwind utility markup into the new design.
 - **Keep Tailwind and port the handoff's CSS into utilities.** Rejected: the handoff is token- and BEM-based plain CSS that already passes its checks; translating it creates drift from the source of truth.
 - **Ship surface by surface to prod.** Rejected: mixed chrome for weeks, two CSS stacks in production, more release risk for a single-user app with no benefit.
+
+## Amendment 2026-11-25 (ADR-0154)
+
+- §1 for **new** packages only: a handoff produced under [ADR-0154](0154-designer-skill-handoff-builder-and-package-template.md) comes from the `handoff-builder` agent, follows `docs/design/handoff-template.md`, and is byte-identical to the builder's last passing `just check-handoff` run rather than to a designer zip. It is regenerated whole, never hand-edited.
+- `rising-dough-frontend/` stays as delivered; the `ui/sourdough` migration consumes it unchanged. A base re-delivery through the builder waits until that migration is merged.

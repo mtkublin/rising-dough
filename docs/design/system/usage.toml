@@ -1,0 +1,18 @@
+# Usage notes for the generated tokens.json (scripts/design_system.py, ADR-0154 §1).
+# Values come from tokens.css; only the words live here. Light first, then dark.
+color-ground = "Page ground. Light: plain white. Dark: near-black."
+color-panel = "The panel that rises under the bake field; sheets and dialogs. A whisper warmer than ground in light."
+color-raised = "Raised surfaces inside a panel: inputs, hovered rows, segmented tracks."
+color-rule = "1px hairlines between data rows and around fields."
+color-ink = "Text on ground and panel."
+color-ink-muted = "Labels, axes, timestamps, empty bar cells (about 6:1 on panel in both themes)."
+color-bake = "The hero field, one per screen. Light: pale apricot. Dark: full oven orange."
+color-crumb = "ASCII loaf texture printed on the bake field. Decorative only, never text; 3:1 on bake."
+color-ink-deep = "Text on bake and on now-fill, in both themes."
+color-now = "The current thing and growth, as text: positive deltas, the current period label, savings figures. Light: burnt orange. Dark: lime."
+color-now-fill = "Solid fill for the current thing: the current loaf bar, the selected chip, the primary button on panel. Text on it is ink-deep."
+color-now-edge = "1px ring around every now-fill shape (`--ring-now`). Light: gives oven orange 4.7:1 on panel. Dark: same as now-fill, so invisible."
+color-past = "Past-period loaf bars. Decorative."
+color-over = "Overspend, text-safe on ground and panel. Light: deep berry. Dark: pink. Never reads as progress."
+color-annotation = "Design annotations and dashed guides on component boards; not used in app screens."
+color-scrim = "Backdrop behind dialogs and sheets."

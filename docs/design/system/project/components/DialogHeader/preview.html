@@ -1,0 +1,23 @@
+<!-- @dsCard group="Overlays" height=360 width=960 subtitle="dialog headers" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>DialogHeader</title></head>
+<body class="rd-app rd-app--bare">
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<section class="rd-card rd-comp-card" aria-label="dialog headers"><h2 class="rd-caption rd-caption--upper">dialog headers</h2><div class="rd-comp-dialogs">
+<div class="rd-dialog rd-dialog--static"><div class="rd-dialog__band"><div class="rd-dialog__band-head"><p class="rd-dialog__title">edit transaction · Takeaway</p><button type="button" class="rd-dialog__close" aria-label="Close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div><div class="rd-dialog__hero-row"><span class="rd-dialog__sign" aria-hidden="true">−</span><label class="u-visually-hidden" for="cmp-hero">Amount</label><input class="rd-dialog__amount" id="cmp-hero" name="amount" inputmode="decimal" autocomplete="off" value="35.50" placeholder="0.00" data-js="amount-input" required><span class="rd-dialog__cur">PLN</span></div></div><div class="rd-dialog__body"><div class="rd-dialog__actions"><button type="button" class="rd-btn rd-btn--lg rd-btn--primary">[ save ]</button></div></div></div>
+<div class="rd-dialog rd-dialog--static"><div class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><p class="rd-dialog__title">edit account · Investments A</p><button type="button" class="rd-dialog__close" aria-label="Close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></div><div class="rd-dialog__body"><div class="rd-dialog__actions"><button type="button" class="rd-btn rd-btn--lg rd-btn--primary">[ save ]</button></div></div></div>
+<div class="rd-dialog rd-dialog--static rd-dialog--confirm"><div class="rd-dialog__confirm"><p class="rd-dialog__confirm-title">Delete Investments D?</p><p>This can’t be undone.</p><div class="rd-dialog__actions"><button type="button" class="rd-btn rd-btn--lg rd-btn--quiet">cancel</button><button type="button" class="rd-btn rd-btn--lg rd-btn--danger">delete</button></div></div></div>
+</div><p class="rd-caption">amount dialogs: orange band + hero value · other dialogs: slim band with action · object · confirms: no band. Live versions: see the overlay pages.</p></section>
+</body>
+</html>
