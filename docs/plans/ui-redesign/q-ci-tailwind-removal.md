@@ -1,5 +1,7 @@
 # Operator edit: Tailwind steps in `.github/workflows/ci.yml` (T-UR15d)
 
+Done 2026-11-26 (CI1): the Tailwind build step is deleted, the Node step is renamed to stylelint, the pre-commit comment is fixed, and the `css` npm script is removed from `package.json` (no other caller).
+
 The agent token cannot push `.github/workflows/*`, so `ci.yml` is unchanged. It still works after UR15d:
 
 - `npm ci` runs against the slimmed `package-lock.json` (Tailwind removed; stylelint, stylelint-config-standard, pixelmatch, pngjs stay for the rd CSS).
