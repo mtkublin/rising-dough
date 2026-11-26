@@ -239,7 +239,7 @@ def invite_revoke(
     return saved_response(request, None, {}, message=f"Revoked the invite for {invite.email}.")
 
 
-@router.get("/{user_id}/edit", response_class=HTMLResponse)
+@router.get("/{user_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     request: Request,
     user_id: int,
@@ -254,7 +254,7 @@ def edit_form(
     return user_dialog(request, conn, admin, EDIT_DIALOG, user)
 
 
-@router.get("/{user_id}/reset-password", response_class=HTMLResponse)
+@router.get("/{user_id:int}/reset-password", response_class=HTMLResponse)
 def reset_form(
     request: Request,
     user_id: int,
@@ -269,7 +269,7 @@ def reset_form(
     return user_dialog(request, conn, admin, RESET_DIALOG, user)
 
 
-@router.get("/{user_id}/delete", response_class=HTMLResponse)
+@router.get("/{user_id:int}/delete", response_class=HTMLResponse)
 def delete_form(
     request: Request,
     user_id: int,
@@ -284,7 +284,7 @@ def delete_form(
     return user_dialog(request, conn, admin, DELETE_DIALOG, user)
 
 
-@router.post("/{user_id}", response_model=None, dependencies=[Depends(require_recent_auth)])
+@router.post("/{user_id:int}", response_model=None, dependencies=[Depends(require_recent_auth)])
 def save_user(
     request: Request,
     user_id: int,
@@ -324,7 +324,7 @@ def save_user(
 
 
 @router.post(
-    "/{user_id}/reset-password",
+    "/{user_id:int}/reset-password",
     response_class=HTMLResponse,
     dependencies=[Depends(require_recent_auth)],
 )
@@ -348,7 +348,9 @@ def reset_password(
     return render_toast(request, conn, admin, password_toast(user, password, kind="reset"))
 
 
-@router.post("/{user_id}/delete", response_model=None, dependencies=[Depends(require_recent_auth)])
+@router.post(
+    "/{user_id:int}/delete", response_model=None, dependencies=[Depends(require_recent_auth)]
+)
 def delete_user(
     request: Request,
     user_id: int,

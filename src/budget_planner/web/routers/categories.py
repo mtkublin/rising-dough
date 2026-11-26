@@ -88,7 +88,7 @@ def create_category(
     return response
 
 
-@router.get("/{category_id}/edit", response_class=HTMLResponse)
+@router.get("/{category_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     category_id: int,
     request: Request,
@@ -112,7 +112,7 @@ def edit_form(
     )
 
 
-@router.get("/{category_id}/archive", response_class=HTMLResponse)
+@router.get("/{category_id:int}/archive", response_class=HTMLResponse)
 def archive_form(
     category_id: int,
     request: Request,
@@ -134,7 +134,7 @@ def archive_form(
     )
 
 
-@router.post("/{category_id}")
+@router.post("/{category_id:int}")
 def update_category(
     category_id: int,
     request: Request,
@@ -173,7 +173,7 @@ def update_category(
     )
 
 
-@router.post("/{category_id}/delete")
+@router.post("/{category_id:int}/delete")
 def delete_category(
     category_id: int,
     conn: sqlite3.Connection = Depends(get_db),
@@ -193,7 +193,7 @@ def delete_category(
 # ---------------------------------------------------------------------------
 # T-R44 — Archive + Restore (ADR-0056 §6, ADR-0022 soft delete, ADR-0019 audit)
 # ---------------------------------------------------------------------------
-@router.post("/{category_id}/archive")
+@router.post("/{category_id:int}/archive")
 def archive_category(
     category_id: int,
     conn: sqlite3.Connection = Depends(get_db),
@@ -223,7 +223,7 @@ def archive_category(
     return resp
 
 
-@router.post("/{category_id}/restore")
+@router.post("/{category_id:int}/restore")
 def restore_category(
     category_id: int,
     conn: sqlite3.Connection = Depends(get_db),
