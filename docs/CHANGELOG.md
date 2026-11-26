@@ -1,5 +1,71 @@
 # Changelog
 
+2026-11-26 feat(N2): T-UR00b: recipe fixes (scroll back, close-button ring, home key, answer wait) (1d48851).
+
+2026-11-26 feat(I1): T-UR00b: one flash region, category swatch snap (unchanged save keeps colour), picker placeholder row (20a1799).
+
+2026-11-26 fix(X7): T-UR00b: formula fragment tests, patch files excluded from whitespace hooks (db4357a).
+
+2026-11-26 docs(P1): T-UR00b: operator options for blocked handoff comparisons (measured) (d9f28d0).
+
+2026-11-26 feat(Q1): T-UR00b: formula component errors, live region, chart cap decimals, recurring dialog rows (73fc6f5).
+
+2026-11-26 feat(F9): T-UR00b: recent chip lead on pointer pick, formula preview line, recipe normalisation docs (d4c06a8).
+
+2026-11-26 feat(V1): T-UR00b: viewport-specific harness fixes (row menus, year cell, long board marks, one-time password) (254bd6d).
+
+2026-11-25 fix(X6): T-UR00b: CI tests after N1/R1/F8 merges (e92f3d3).
+
+2026-11-25 feat(F8): T-UR00b: new-entry dialog parity (account order, grouped hero, credit line, picker a11y) (81c0fdf).
+
+2026-11-25 feat(N1): T-UR00b: near-pass fixes (keyboard row menus, afford text run, aria-invalid glue bug, rule titles, promote-all hidden overlay) (8bac99c).
+
+2026-11-25 feat(R1): T-UR00b: recent chips = most used in the last 90 days (handoff rule), seed history shaped (f33072c).
+
+2026-11-25 fix(X5): T-UR00b: tests for the F6 picker rule (ruff) (c70d6ee).
+
+2026-11-25 feat(F6): T-UR00b: ledger dialogs parity (chips lead, grouped amounts, credit line, override remove) (63013b5).
+
+2026-11-25 feat(F4b): T-UR00b: accounts parity (checked date, sparkline rows, new-account dialog, credit card option) (ea03dc6).
+
+2026-11-25 feat(O1): T-UR00b: overlay absent/class/app-value row kinds; no-matches, forecast net, analytics deltas (75d65c4).
+
+2026-11-25 feat(H4): T-UR00b: harness mapping (settings categories modifier, long board route) (b75e9d4).
+
+2026-11-25 feat(F7): T-UR00b: plan dialogs, inline year-cell editor, UNMAPPED_OVERLAYS empty (1182712).
+
+2026-11-25 fix(X3): T-UR00b: CI tests aligned after F3/F4/F5 merges (3488f95).
+
+2026-11-25 feat(F3): T-UR00b: settings parity (duplicate category 422, security/users copy, category dialogs, one-time password copy) (2eb889a).
+
+2026-11-25 feat(F2): T-UR00b: ledger planned/recurring/actual parity (entry order, expanded override rows, seed shape) (58624ad).
+
+2026-11-25 feat(F5): T-UR00b: Today / new-entry / shell parity (skeleton, flash copy, empty seed, exact bar cells) (afec381).
+
+2026-11-25 feat(H3): T-UR00b: afford 250.00 mapping on Today pages, row-menu pointer parked (88675c4).
+
+2026-11-25 feat(F4): T-UR00b: accounts/auth/errors parity (error pages, offline card, auth copy, currency validation) (108b685).
+
+2026-11-25 fix(X2): T-UR00b: CI tests aligned with F1 plan rules and seed (9e0a261).
+
+2026-11-25 feat(W4a+W4b+W3): T-UR00b: integrate W4a/W4b/W3 overlay mappings (UNMAPPED_OVERLAYS now only override--year-cell) (40bfc05).
+
+2026-11-25 feat(F1): T-UR00b: plan surface handoff parity (budget rows, year rows, seed, overlay rows) (16304ef).
+
+2026-11-25 feat(E1): T-UR00b: state recipes for error/auth/today state pages (654c0de).
+
+2026-11-25 fix(X1): T-UR00b: detect-secrets false positive in mapping test (badede2).
+
+2026-11-25 feat(W2): T-UR00b: users and invites overlay openers (6c18fec).
+
+2026-11-25 feat(W1): T-UR00b: click recipes for client-side overlays (85e8447).
+
+2026-11-25 feat(H2): T-UR00b: page routes, anonymous auth, modifiers, settings tabs (281812b).
+
+2026-11-25 feat(S1): T-UR00b: seed + Today cap + ledger glyph match the handoff (fa6c0e1).
+
+2026-11-25 feat(H1): T-UR00b: overlays render over their handoff base surface (ADR-0147) (0b52f5a).
+
 2026-11-25 PAR-B: dialog 422 summary box removed; dialog-level visible errors for every failed save (b43d8c6b, Q18).
 
 2026-11-25 UR15d: old CSS, fonts, Tailwind toolchain and dead helpers removed; kept JS relocated (d8e57560, ADR-0107 §2, T-UR15).
