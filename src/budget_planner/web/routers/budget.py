@@ -37,7 +37,7 @@ from budget_planner.web import (
     plan_redirects,
     plan_year_view,
 )
-from budget_planner.web.budget_forms import non_negative_amount
+from budget_planner.web.budget_forms import OVERRIDE_YEARS, non_negative_amount
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.dialogs import dialog_response
 from budget_planner.web.errors import not_found_response
@@ -197,6 +197,8 @@ def set_one_off(
         return not_found_response(request, "category", category_id)
     if not valid_month(month):
         return Response(status_code=422, content="invalid month")
+    if year not in OVERRIDE_YEARS:
+        return Response(status_code=422, content="invalid year")
     minor = non_negative_amount(amount, settings.base_currency)
     if minor is None:
         return Response(status_code=422, content="invalid amount")
