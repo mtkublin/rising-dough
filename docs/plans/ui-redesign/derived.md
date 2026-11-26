@@ -212,4 +212,4 @@ Pages that differ from the handoff by operator decision ([ADR-0147](../../adr/01
 | accounts, delete-account--blocked, delete-account--blocked-planned, new-account, new-account--error, new-account--filled, edit-account, row-menu--account | 1440 and 1024, light and dark | D6-B | "After planned" keeps counting overdue and due-today unpaid items (ADR-0089, consistent with D4-a) | operator 2026-11-26, operator-decisions-2026-11-26.md |
 | auth/force-password, auth/force-password--error | all | D7 | The current-password field stays on the forced change page (ADR-0074) | operator 2026-11-26, operator-decisions-2026-11-26.md |
 | overlays/edit-account--liability | all | D8-L | The credit limit stays required for every liability | operator 2026-11-26, operator-decisions-2026-11-26.md |
-| overlays/new-account--error | focus ring after the 422 | a11y | The app focuses the first invalid field | operator 2026-11-26, operator-decisions-2026-11-26.md |
+| overlays/new-account--error | 1440 and 1024, light and dark (focus ring after the 422) | a11y | The app focuses the first invalid field | operator 2026-11-26, operator-decisions-2026-11-26.md |

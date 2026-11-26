@@ -47,6 +47,7 @@ from tests.visual.handoff_states import (
     setup_server_env,
     state_recipe,
 )
+from tests.visual.intended import load as load_intended
 
 pytestmark = pytest.mark.visual
 
@@ -245,6 +246,10 @@ def references(request: pytest.FixtureRequest) -> int:
     return handoff.generate(surface)
 
 
+# Intended differences (derived.md table): strict xfail in the app comparison, not tolerances.
+INTENDED = load_intended(frozenset(handoff.pages()))
+
+
 def _selected(config: pytest.Config) -> list[str]:
     if config.getoption("--reference") != "handoff":
         return []
@@ -306,6 +311,9 @@ def test_app_matches_handoff(
     browser: Browser,
     request: pytest.FixtureRequest,
 ) -> None:
+    reason = INTENDED.get((handoff_page, viewport, theme))
+    if reason:
+        request.applymarker(pytest.mark.xfail(strict=True, reason=reason))
     route = route_for(handoff_page)
     modifiers = modifiers_for(handoff_page)
     with contextlib.ExitStack() as stack:
