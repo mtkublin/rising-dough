@@ -78,6 +78,7 @@
       {% if (c.color|category_color).name %} data-color="{{ (c.color|category_color).name }}"{% endif %}>{{ c.name }}</span></label>
     {% endfor %}
   </div>
+  {% if pct_err or cat_err %}<span class="u-visually-hidden" role="alert">Component {{ number }}: {{ pct_err }} {{ cat_err }}</span>{% endif %}
   {% if pct_err %}<p class="rd-field__error rd-comp__err rd-comp__err--pct"
    id="{{ list_id }}-pct-err">▲ {{ pct_err }}</p>{% endif %}
   {% if cat_err %}<p class="rd-field__error rd-comp__err rd-comp__err--cat"

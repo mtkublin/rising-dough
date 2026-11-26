@@ -1,6 +1,6 @@
 {# fragment: dialogs/formula-result (T-UR10, ADR-0056 section 4, ADR-0107)
    The live preview of a draft formula, replaces the dialog's output.rd-formula__result (outerHTML: empty it is hidden, so no gap) from
-   POST /recurring/formula/preview. Context: is_ok, quiet, next_amount (formatted, with currency), result
+   POST /recurring/formula/preview. Context: is_ok, quiet (the hidden live region .rd-formula__live announces the figure or the reason, out of band), next_amount (formatted, with currency), result
    (services.recurring_formula.PreviewOk | PreviewError). 200 with the next amount, 422 with the reason.
    The "empty" reason and an incomplete component (invalid_source without a stale source: no percent or
    category yet) stay in the markup, hidden: the handoff's empty and incomplete states show no result
@@ -11,3 +11,4 @@
       data-code="{{ result.code }}"
       {% if quiet %}hidden {% endif %}
       {% if result.offending_term_index is not none %}data-term-index="{{ result.offending_term_index }}"{% endif %}>▲ {{ result.message }}</span>{% endif %}</output>
+<p class="u-visually-hidden rd-formula__live" aria-live="polite" hx-swap-oob="innerHTML:.rd-formula__live">{% if is_ok %}next amount {{ next_amount }}{% elif not quiet %}{{ result.message }}{% endif %}</p>
