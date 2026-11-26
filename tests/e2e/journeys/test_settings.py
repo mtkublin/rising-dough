@@ -93,4 +93,4 @@ def test_new_income_category_appears_in_the_income_anchor_without_reload(world: 
 
     row = world.wait_rows("SELECT id FROM categories WHERE name = 'Bonus'")[0]
     expect(world.find(settings.category_row(row["id"]))).to_contain_text("Bonus")
-    expect(world.find(settings.income_anchor).locator("option", has_text="Bonus")).to_have_count(1)
+    expect(world.find(settings.anchor_option("Bonus"))).to_have_count(1)
