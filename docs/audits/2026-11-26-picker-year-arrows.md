@@ -35,3 +35,10 @@ Light, per route and width: open picker (2026), Next year -> 2027, Previous year
 2. Cosmetic (not blocking): the note under the grid ("nov = 1 nov -> 1 dec") belongs to the page period and stays unchanged when browsing other years.
 
 Verdict: no blocking diagnostics; one minor focus finding.
+
+## Re-check after fix
+
+Both findings fixed.
+
+1. Focus: the year arrows now carry stable ids (`<picker id>-prev-year`, `<picker id>-next-year`), so htmx restores focus to the same arrow in the swapped content (one id per arrow, no duplicates). Verified by `test_picker_year_arrow_swaps_the_grid_without_navigating` (e2e): after the next-year click the arrow is focused, Enter moves 2027 -> 2028 and the arrow is focused again.
+2. Note: `month_period` (view model) renders the note only when the shown year equals the picked year. Verified by the same e2e journey (note absent on 2027, present again on 2026) and by the integration assertions in `test_picker_year_arrows_swap_only_the_picker_year` and `test_picker_year_defaults_to_the_picked_year`.

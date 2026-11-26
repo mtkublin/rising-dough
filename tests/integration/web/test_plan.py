@@ -364,6 +364,8 @@ def test_picker_year_arrows_swap_only_the_picker_year(client: TestClient, world:
     picker_text = _html.text_of(r.text, rd_fragments.period_picker)
     assert "2027" in picker_text
     assert "2026" not in picker_text
+    # The note describes the page period, so it is absent on another year.
+    assert "oct = " not in picker_text
     assert _html.resolve_one(r.text, rd_fragments.period_cell("Oct")).get("href") == (
         "/plan?tab=budget&year=2027&month=10"
     )
@@ -383,6 +385,7 @@ def test_picker_year_arrows_swap_only_the_picker_year(client: TestClient, world:
 def test_picker_year_defaults_to_the_picked_year(client: TestClient, world: None) -> None:
     r = client.get("/plan?tab=budget&year=2026&month=10")
 
+    assert "oct = " in _html.text_of(r.text, rd_fragments.period_picker)
     assert _html.resolve_one(r.text, rd_fragments.period_cell("Oct")).get("aria-current") == "true"
     assert _html.resolve_one(r.text, rd_fragments.period_prev_year).get("hx-get") == (
         "/plan?tab=budget&year=2026&month=10&pick_year=2025"

@@ -416,7 +416,7 @@ def month_period(
             )
             for n in range(1, 13)
         ),
-        note=note,
+        note=note if shown == picked.year else "",
     )
     return BudgetPeriod(
         label=f"{month_name(picked.month)} {picked.year}",
