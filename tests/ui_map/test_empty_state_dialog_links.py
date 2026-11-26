@@ -6,6 +6,8 @@ must carry the same ``hx-get`` / ``#modal-root`` attributes as the working heade
 
 from __future__ import annotations
 
+from bs4 import Tag
+
 from budget_planner.config import Settings
 from budget_planner.web.templating import build_jinja_env
 from tests.ui_map import _html, accounts
@@ -16,8 +18,8 @@ def _render(fragment: str, /, **context: object) -> str:
     return build_jinja_env(Settings(_env_file=None)).get_template(fragment).render(**context)
 
 
-def _opens_in_modal(link: object, url: str) -> None:
-    attrs = link.attrs  # type: ignore[attr-defined]
+def _opens_in_modal(link: Tag, url: str) -> None:
+    attrs = link.attrs
     assert (attrs["href"], attrs["hx-get"], attrs["hx-target"], attrs["hx-swap"]) == (
         url,
         url,
