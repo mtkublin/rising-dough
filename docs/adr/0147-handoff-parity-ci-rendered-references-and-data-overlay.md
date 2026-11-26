@@ -82,6 +82,15 @@ Amendment 2026-11-26 (T-UR00b, operator option D1-a): `placeholder` is an allowe
 - The handoff's data becomes consistent with what the app computes, at the cost of a maintained overlay. Every correction is a visible, reasoned row; the designer's files are never edited.
 - Data the handoff shows but the app cannot compute surfaces early (value inventory), before any template is written.
 
+## Amendment 2026-11-26 (operator decisions 2026-11-26)
+
+Source: [operator-decisions-2026-11-26.md](../plans/ui-redesign/operator-decisions-2026-11-26.md).
+
+- **Overlay op `insert_row` (D8-E).** Copies an existing element's markup within the same parent and changes text and allowed attributes only. Tags, classes, ids, CSS and JS of the copy are those of the source element. `test_handoff_overlay.py` accepts only that and rejects any other structural op. First use: the 11th account row of the `delete-account` backdrop.
+- **Seed modifier "archive after seeding" (D1-c(i)).** Modifier `picker-handoff-list` archives the four extra categories after seeding, for the two category-picker pages (`category-picker`, `category-picker--no-match`), so the count rows read 20 as in the handoff.
+- **Intended differences.** Pages that differ from the handoff by operator decision are listed in `derived.md` "Intended differences" (page, shards, decision id, sign-off) and marked `xfail(strict=True)` in `tests/visual/test_reference.py`. They are not tolerance exceptions: a new or vanished difference still fails the run.
+- **Reference job stays advisory** (`continue-on-error`, not in `visual-gate`). Follow-up: once the operator accepts the UI, the accepted app screenshots become the reference (own ADR, supersedes the handoff-as-reference parts for regression), and only then is the job required.
+
 ## Alternatives considered
 
 - **0.05 % ratio only** (operator's first proposal). Rejected: still about 2,150 pixels on a long page, so a whole wrong word passes; the cluster cap targets that case directly.
