@@ -47,9 +47,7 @@
            hx-swap="outerHTML"
            hx-disinherit="hx-select hx-swap">
         {% if color_rules %}
-          <style nonce="{{ csp_nonce }}">
-              {{ color_rules|safe }}
-          </style>
+          <span hidden data-color-rules="{{ color_rules }}"></span>
         {% endif %}
         {% for group in groups %}
           <section class="rd-catlist" aria-labelledby="cg-{{ group.key }}">

@@ -9,9 +9,7 @@
          hx-trigger="ledger-stale from:body, settings-categories-stale from:body"
          hx-swap="outerHTML">
   {% if color_rules %}
-    <style nonce="{{ csp_nonce }}">
-        {{ color_rules|safe }}
-    </style>
+    <span hidden data-color-rules="{{ color_rules }}"></span>
   {% endif %}
   <section class="rd-deleted__group" aria-labelledby="del-tx">
     <h2 class="rd-deleted__title" id="del-tx">

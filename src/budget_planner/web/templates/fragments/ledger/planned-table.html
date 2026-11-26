@@ -13,9 +13,7 @@
      hx-disinherit="hx-include">
   <div id="planned-table" data-ledger-table data-view="planned">
     {% if color_rules %}
-      <style nonce="{{ csp_nonce }}">
-          {{ color_rules|safe }}
-      </style>
+      <span hidden data-color-rules="{{ color_rules }}"></span>
     {% endif %}
     {% if planned_rows %}
       <div class="rd-table-scroll"

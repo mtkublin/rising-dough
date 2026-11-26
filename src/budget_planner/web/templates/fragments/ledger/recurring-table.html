@@ -13,9 +13,7 @@
      hx-disinherit="hx-include">
   <div id="recurring-table" data-ledger-table data-view="recurring">
     {% if color_rules %}
-      <style nonce="{{ csp_nonce }}">
-          {{ color_rules|safe }}
-      </style>
+      <span hidden data-color-rules="{{ color_rules }}"></span>
     {% endif %}
     {% if groups %}
       <div class="rd-table-scroll"

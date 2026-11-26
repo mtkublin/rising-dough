@@ -14,9 +14,7 @@
      hx-disinherit="hx-include">
   <div id="txn-table" data-ledger-table data-view="actual">
     {% if color_rules %}
-      <style nonce="{{ csp_nonce }}">
-          {{ color_rules|safe }}
-      </style>
+      <span hidden data-color-rules="{{ color_rules }}"></span>
     {% endif %}
     {% if days %}
       <form id="tx-bulk" method="get" action="/ledger" class="rd-ledger-form">

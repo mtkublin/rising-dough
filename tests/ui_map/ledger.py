@@ -104,9 +104,10 @@ def day_heads(source: _html.Source) -> list[str]:
 
 
 def color_rules(source: _html.Source) -> str:
-    """CSS rules of the table's nonce'd style blocks (custom category hues), whitespace-free."""
+    """Custom-hue CSS rules of the table (`data-color-rules`), whitespace-free."""
     root = _html.resolve_one(source, by_id("ledger-table"))
-    return "".join("".join(style.get_text().split()) for style in root.find_all("style"))
+    blocks = root.select("[data-color-rules]")
+    return "".join("".join(str(block.get("data-color-rules", "")).split()) for block in blocks)
 
 
 def chips(source: _html.Source) -> dict[str, str | None]:

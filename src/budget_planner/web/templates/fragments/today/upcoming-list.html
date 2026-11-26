@@ -8,9 +8,7 @@
      hx-select="#upcoming-list"
      hx-swap="outerHTML">
   {% if upcoming.color_rules %}
-    <style nonce="{{ csp_nonce }}">
-        {{ upcoming.color_rules|safe }}
-    </style>
+    <span hidden data-color-rules="{{ upcoming.color_rules }}"></span>
   {% endif %}
   {% for group in upcoming.groups %}
     <h3 class="rd-upcoming__group rd-caption">{{ group.heading }}</h3>
