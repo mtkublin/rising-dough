@@ -132,6 +132,9 @@ def new_account_errors(data: NewAccount) -> dict[str, str]:
     )
 
 
+KIND_FIXED_MESSAGE = "can't be changed after the account is created"
+
+
 def patch_account_errors(patch: PatchAccount) -> dict[str, str]:
     """Field errors for an account patch (empty when valid)."""
     return _non_empty(

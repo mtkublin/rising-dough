@@ -14,6 +14,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from budget_planner.domain.accounts import (
+    KIND_FIXED_MESSAGE,
     Account,
     AccountReferences,
     NewAccount,
@@ -211,8 +212,16 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
 
 
 def update(conn: sqlite3.Connection, user_id: int, account_id: int, data: PatchAccount) -> Account:
-    """Patch an account. Raises :class:`ValidationError` for an invalid name or credit limit."""
-    _raise_if_invalid(patch_account_errors(data))
+    """Patch an account.
+
+    Raises :class:`ValidationError` for an invalid name or credit limit, or a changed
+    asset/liability kind (fixed at creation; the form is not trusted).
+    """
+    errors = patch_account_errors(data)
+    stored = accounts_repo.find_by_id(conn, user_id, account_id)
+    if stored is not None and data.is_liability not in (None, stored.is_liability):
+        errors = {**errors, "is_liability": KIND_FIXED_MESSAGE}
+    _raise_if_invalid(errors)
     return accounts_repo.update(conn, user_id, account_id, data)
 
 
