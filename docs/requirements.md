@@ -633,3 +633,29 @@ Two features in two releases: savings goals first (useful on their own), then a 
 - Shared or household goals; recurring or automatic allocations; goals linked to whole accounts; tagging transactions to goals.
 - Starter levels or growing jars, leaderboards, social sharing, push or e-mail notifications, sound.
 - Resetting the starter or its milestones.
+
+---
+
+## 13. Public Landing Page (added 2026-11-26)
+
+> Decision: [ADR-0151](adr/0151-public-landing-page-on-the-root-domain.md) (Proposed; hosting and app subdomain open). Plan: [`docs/plans/landing-page/`](plans/landing-page/README.md).
+
+### 13.1 Scope
+
+- **LP1.1** `https://rising-dough.eu` serves one static landing page: general product info and a call to action that links to the app's login.
+- **LP1.2** The landing page has no login, sets no cookies and loads no third-party script, font or image. It works without JavaScript.
+- **LP1.3** Light and dark themes from the shared design system tokens; usable at 375, 1024 and 1440 px.
+- **LP1.4** A short privacy notice, linked from the landing page.
+- **LP1.5** The app keeps its own subdomain (`budget.rising-dough.eu`; `app.` is an open operator decision, ADR-0151 §6.2). If the subdomain changes, the old name redirects with 308 and the WebAuthn RP ID, trusted hosts, runbooks and `scripts/prod_db_seed.sh` follow.
+
+### 13.2 Non-functional
+
+- Published without a prod Terraform apply; an app outage does not take the landing page down (except the stopgap host of ADR-0151 §6.1 (b)).
+- HTTPS only, HSTS `max-age=31536000; includeSubDomains` without `preload`; CAA on the root domain names only the host's CA.
+- Root-domain DNS records are Terraform-managed in the existing zone, separate from the app's records (ADR-0088, ADR-0092).
+- New design goes through the design gate (`/designer`, spec, `handoff-builder` package as an `extension` of the base package; ADR-0154 / ADR-0155, PR #59).
+
+### 13.3 Non-goals
+
+- Moving the app to the root domain (rejected, ADR-0151).
+- Signup on the landing page, pricing, blog, docs, analytics, newsletter, cookie banner, HSTS preload submission.
