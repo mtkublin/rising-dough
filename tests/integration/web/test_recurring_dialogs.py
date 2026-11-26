@@ -268,8 +268,10 @@ def test_empty_formula_is_a_human_422_and_writes_nothing(
     r = client.post(f"/recurring/{ids['taxes_rule']}", data=form, headers=_FROM_DIALOG)
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
+    # each missing field is named under its own component (handoff edit-recurring--incomplete)
     assert _html.error_lines(r.text) == {
-        "field-formula": "▲ coefficient is required for formula rules",
+        "formula-edit-recurring-0-list-pct-err": "▲ Enter a percentage, e.g. 19 or 12.5",
+        "formula-edit-recurring-0-list-cat-err": "▲ Pick at least one category",
     }
     # the dialog comes back in the formula state with the posted note
     scope = edit_dialogs.recurring_dialog("note")

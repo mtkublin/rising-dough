@@ -102,6 +102,11 @@ def _incomplete(page: Page) -> None:
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
     page.click(f"{_DIALOG} button[type=submit]")
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
+    # The 422 dialog focuses its first invalid field (dialog.js); the handoff file shows no focus
+    # ring there, so the user's click on the dialog title takes the focus away (README
+    # "Normalised state"); a script blur leaves Chromium's :has(:focus-visible) ring painted.
+    page.click(f"{_DIALOG} .rd-dialog__title")
+    page.mouse.move(0, 0)
 
 
 def _picking(page: Page) -> None:
