@@ -197,7 +197,7 @@ _DIALOG_TEXT = {
     "new-category--filled": "new category",
     "new-category--error": "new category",
     "edit-account": "Investments A",
-    "edit-account--liability": "Investments A",
+    "edit-account--liability": "Credit Card",
     "delete-account--blocked": "Checking",
     "reconcile": "Checking",
     "reconcile--liability": "Credit Card",
@@ -568,10 +568,8 @@ _STATES = {
 def test_state_overlays_are_mapped_with_their_base_pages() -> None:
     assert {p.split("/")[-1][:-5] for p in STATE_PAGES} == set(_STATES) == set(STATE_SOURCE)
     assert not {n for n in STATE_SOURCE if f"pages/overlays/{n}.html" in OPENER_PAGES}
-    # edit-account--liability is a recipe on the routed edit dialog (no source of its own)
-    assert set(STATE_RECIPES) == (set(STATE_SOURCE) - {"override--remove"}) | {
-        "edit-account--liability"
-    }
+    # edit-account--liability opens the Credit Card edit dialog (kind is read-only on edit, R9)
+    assert set(STATE_RECIPES) == set(STATE_SOURCE) - {"override--remove"}
     for stem in ("edit-recurring--empty", "edit-recurring--incomplete", "edit-recurring--picking"):
         page = f"pages/overlays/{stem}.html"
         assert route_for(page) == "/ledger?view=recurring"

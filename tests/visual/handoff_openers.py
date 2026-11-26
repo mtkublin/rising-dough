@@ -36,7 +36,7 @@ OWNER_ID: Final = 1
 OPENERS: Final[dict[str, str]] = {
     "new-account": "/accounts/new",
     "edit-account": "/accounts/{account:Investments A}/edit",
-    "edit-account--liability": "/accounts/{account:Investments A}/edit",
+    "edit-account--liability": "/accounts/{account:Credit Card}/edit",
     "delete-account--blocked": "/accounts/{account:Checking}/edit?intent=delete",
     "delete-account": "/accounts/{account:Investments E}/edit?intent=delete",
     "delete-account--blocked-planned": "/accounts/{account:Investments D}/edit?intent=delete",
