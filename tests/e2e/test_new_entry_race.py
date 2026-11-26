@@ -100,6 +100,38 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     assert [row[0] for row in stored] == ["typed-in-flight"]
 
 
+_LEAVE_AMOUNT_JS = """
+() => new Promise((resolve) => {
+  const amount = document.querySelector('#modal-root input.rd-dialog__amount');
+  const note = document.querySelector('#modal-root #field-description');
+  note.focus();  // the dialog opened on the amount: leave it, so the next focus is a focusin
+  amount.focus();
+  note.focus();  // the user tabs on before the next frame
+  requestAnimationFrame(() => requestAnimationFrame(() => resolve(document.activeElement.id)));
+})
+"""
+
+
+def test_leaving_the_amount_before_the_next_frame_keeps_focus_on_the_note(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """RACE (T-UR44): the amount's focus-select frame never pulls focus back from the next field.
+
+    Chromium's select() focuses the input: a select queued by the amount's focusin that runs after
+    the user moved on sent the note's text to the amount, which drops letters (QFIX10 on CI).
+    """
+    base_url, _ = live_server
+    _seed(base_url, page)
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    quiesce(page)
+    assert page.evaluate(_LEAVE_AMOUNT_JS) == "field-description"
+    note = to_playwright(page, entries.field_note)
+    note.fill("kept")
+    expect(note).to_have_value("kept")
+    expect(to_playwright(page, entries.hero_amount)).to_have_value("")
+
+
 _TRACE_JS = """
 (() => {
   const log = (window.__trace = []);
@@ -119,6 +151,9 @@ _TRACE_JS = """
       stamp(n + ' ' + path + ' target=' + id(e.detail.target));
     }));
   document.addEventListener('reset', () => stamp('reset'), true);
+  ['focusin', 'beforeinput'].forEach((n) => document.addEventListener(n, (e) => {
+    stamp(n + ' ' + id(e.target) + (e.data ? '=' + e.data : ''));
+  }, true));
   document.addEventListener('input', (e) => {
     stamp('input ' + id(e.target) + '=' + e.target.value);
   }, true);
