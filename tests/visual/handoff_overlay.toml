@@ -3143,6 +3143,15 @@ reason = "handoff inconsistent, app right: the --long board lists three 1,234,56
 
 [[row]]
 page = "pages/ledger/actual--long.html"
+select = ".rd-hero__figure"
+field = "data-marks"
+old = "2"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the figure above (2,469,135.78) has three grouping and decimal marks; the board's data-marks counts the two of 5,014.55, and the hero fit reads it"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
 select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
 field = "text"
 old = "actual 616"
