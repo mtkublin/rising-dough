@@ -14,12 +14,16 @@ from playwright.sync_api import Page, ViewportSize, expect
 
 from tests.e2e import db_probe
 from tests.ui_map import entries, rd_shell
-from tests.ui_map.locator import to_playwright
+from tests.ui_map.locator import by_id, role, to_playwright
 
 pytestmark = pytest.mark.e2e
 
 PHONE: ViewportSize = {"width": 375, "height": 812}
 MIN_FONT_PX = 16
+FILTERS_TOGGLE = role("button", "filters", exact=True)
+FILTERS_EXTRA = by_id("f-extra")
+FILTER_FROM = by_id("f-from")
+FILTER_TO = by_id("f-to")
 
 # Visible text-like controls under ``root`` whose computed font size is below the minimum.
 _SMALL_FIELDS_JS = """
@@ -95,12 +99,12 @@ def test_today_and_ledger_inputs_are_16px_and_filters_fit(
     assert _small(page) == []
     page.goto(f"{base_url}/ledger")
     page.wait_for_function("typeof window.htmx === 'object'")
-    page.locator("[data-js='filters-toggle']").click()
-    expect(page.locator("#f-extra")).to_be_visible()
+    to_playwright(page, FILTERS_TOGGLE).click()
+    expect(to_playwright(page, FILTERS_EXTRA)).to_be_visible()
     assert _small(page) == []
     assert page.evaluate(_LAYOUT_PROBLEMS_JS, "#f-extra") == []
-    from_box = page.locator("#f-from").bounding_box()
-    to_box = page.locator("#f-to").bounding_box()
+    from_box = to_playwright(page, FILTER_FROM).bounding_box()
+    to_box = to_playwright(page, FILTER_TO).bounding_box()
     assert from_box is not None
     assert to_box is not None
     assert from_box["x"] >= 0
@@ -143,6 +147,6 @@ def test_repeats_formula_component_fits_the_phone(
     assert _small(page, "dialog") == []
     assert page.evaluate(_LAYOUT_PROBLEMS_JS, "fieldset.rd-comp") == []
     # the category control keeps a usable width
-    trigger = page.locator("fieldset.rd-comp .rd-msel__trigger").first.bounding_box()
+    trigger = to_playwright(page, entries.formula_pick).first.bounding_box()
     assert trigger is not None
     assert trigger["width"] >= 120
