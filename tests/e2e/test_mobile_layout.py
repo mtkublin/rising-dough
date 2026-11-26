@@ -1,0 +1,148 @@
+"""E2E: phone layout at 375px (T-UR61 R10, T-UR62 R11, T-UR63 R12).
+
+Inputs render at >= 16px so mobile browsers do not auto-zoom on focus, the ledger filter
+from/to fields neither overlap nor leave the viewport, and the repeats formula component keeps
+its category control inside the dialog.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from playwright.sync_api import Page, ViewportSize, expect
+
+from tests.e2e import db_probe
+from tests.ui_map import entries, rd_shell
+from tests.ui_map.locator import to_playwright
+
+pytestmark = pytest.mark.e2e
+
+PHONE: ViewportSize = {"width": 375, "height": 812}
+MIN_FONT_PX = 16
+
+# Visible text-like controls under ``root`` whose computed font size is below the minimum.
+_SMALL_FIELDS_JS = """
+([rootSel, min]) => {
+  const root = rootSel ? document.querySelector(rootSel) : document;
+  const skip = new Set(['hidden', 'checkbox', 'radio', 'submit', 'button', 'file', 'range']);
+  return [...root.querySelectorAll('input, select, textarea')]
+    .filter((el) => !skip.has(el.type) && el.getClientRects().length > 0)
+    .map((el) => ({
+      id: el.id || el.name || el.className,
+      px: parseFloat(getComputedStyle(el).fontSize),
+    }))
+    .filter((f) => f.px < min);
+}
+"""
+
+# Visible controls under ``root`` that leave the root or the viewport, or overlap each other.
+_LAYOUT_PROBLEMS_JS = """
+(rootSel) => {
+  const root = document.querySelector(rootSel);
+  const rr = root.getBoundingClientRect();
+  const boxes = [...root.querySelectorAll('input, select, button, .rd-segmented, .rd-comp__of')]
+    .filter((el) => el.getClientRects().length > 0 && !el.closest('[hidden]'))
+    .map((el) => ({ name: el.id || el.name || el.className || el.tagName,
+                    r: el.getBoundingClientRect() }));
+  const out = [];
+  for (const b of boxes) {
+    if (b.r.left < rr.left - 1 || b.r.right > rr.right + 1 || b.r.left < 0
+        || b.r.right > window.innerWidth) out.push('outside ' + b.name);
+  }
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i].r, c = boxes[j].r;
+      if (a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1
+          && c.top < a.bottom - 1) out.push('overlap ' + boxes[i].name + ' / ' + boxes[j].name);
+    }
+  }
+  return out;
+}
+"""
+
+
+def _small(page: Page, root: str | None = None) -> list[dict[str, object]]:
+    result: list[dict[str, object]] = page.evaluate(_SMALL_FIELDS_JS, [root, MIN_FONT_PX])
+    return result
+
+
+def open_new_entry(page: Page) -> None:
+    """Open the new-entry dialog from the phone tab bar."""
+    to_playwright(page, rd_shell.tabbar_new_entry).click()
+    expect(to_playwright(page, entries.dialog)).to_be_visible()
+
+
+def _seed(base_url: str, db_path: Path, page: Page) -> None:
+    assert page.request.post(
+        f"{base_url}/accounts",
+        form={"name": "Checking", "currency": "PLN", "opening_balance": "0.00"},
+    ).ok
+    for name, direction in (("Salary", "income"), ("Savings", "expense")):
+        assert page.request.post(
+            f"{base_url}/categories", form={"name": name, "direction": direction}
+        ).ok
+    assert db_probe.account_id(db_path, "Checking")
+
+
+def test_today_and_ledger_inputs_are_16px_and_filters_fit(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, db_path = live_server
+    _seed(base_url, db_path, page)
+    page.set_viewport_size(PHONE)
+    page.goto(f"{base_url}/today")
+    assert _small(page) == []
+    page.goto(f"{base_url}/ledger")
+    page.wait_for_function("typeof window.htmx === 'object'")
+    page.locator("[data-js='filters-toggle']").click()
+    expect(page.locator("#f-extra")).to_be_visible()
+    assert _small(page) == []
+    assert page.evaluate(_LAYOUT_PROBLEMS_JS, "#f-extra") == []
+    from_box = page.locator("#f-from").bounding_box()
+    to_box = page.locator("#f-to").bounding_box()
+    assert from_box is not None
+    assert to_box is not None
+    assert from_box["x"] >= 0
+    assert to_box["x"] + to_box["width"] <= PHONE["width"]
+    # side by side or stacked, never overlapping
+    assert from_box["x"] + from_box["width"] <= to_box["x"] + 1 or (
+        from_box["y"] + from_box["height"] <= to_box["y"] + 1
+    )
+
+
+@pytest.mark.parametrize("tab", ["happened", "planned", "repeats"])
+def test_new_entry_tabs_inputs_are_16px(
+    live_server: tuple[str, Path], page: Page, tab: str
+) -> None:
+    base_url, db_path = live_server
+    _seed(base_url, db_path, page)
+    page.set_viewport_size(PHONE)
+    page.goto(f"{base_url}/today")
+    page.wait_for_function("typeof window.htmx === 'object'")
+    open_new_entry(page)
+    if tab != "happened":
+        link = to_playwright(page, getattr(entries, f"tab_{tab}"))
+        link.click()
+        expect(link).to_have_attribute("aria-current", "page")
+    assert _small(page, "dialog") == []
+
+
+def test_repeats_formula_component_fits_the_phone(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, db_path = live_server
+    _seed(base_url, db_path, page)
+    page.set_viewport_size(PHONE)
+    page.goto(f"{base_url}/today")
+    page.wait_for_function("typeof window.htmx === 'object'")
+    open_new_entry(page)
+    to_playwright(page, entries.tab_repeats).click()
+    to_playwright(page, entries.amount_formula).check(force=True)
+    expect(to_playwright(page, entries.formula_group)).to_be_visible()
+    assert _small(page, "dialog") == []
+    assert page.evaluate(_LAYOUT_PROBLEMS_JS, "fieldset.rd-comp") == []
+    # the category control keeps a usable width
+    trigger = page.locator("fieldset.rd-comp .rd-msel__trigger").first.bounding_box()
+    assert trigger is not None
+    assert trigger["width"] >= 120
