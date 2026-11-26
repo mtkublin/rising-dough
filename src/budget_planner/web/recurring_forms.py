@@ -24,6 +24,7 @@ from budget_planner.domain.recurring import (
     NewRecurringRule,
     PatchRecurringRule,
     RecurringRule,
+    day_of_month_error,
     end_date_error,
 )
 from budget_planner.services import (
@@ -406,6 +407,18 @@ def _lookup_refs(
     return acc, cat, dest_id, {**errors, **dest_errors}
 
 
+def parse_day_of_month(raw: str) -> tuple[int | None, dict[str, str]]:
+    """Anchor day text to ``(day, {})``; blank is ``(None, {})``, bad is a field error."""
+    text = raw.strip()
+    if not text:
+        return None, {}
+    day = parse_int(text, minimum=0)
+    bad = day_of_month_error(day if day is not None else 0)
+    if day is None or bad is not None:
+        return None, {"day_of_month": bad or day_of_month_error(0) or ""}
+    return day, {}
+
+
 def _missing_id_errors(fields: RuleFields) -> dict[str, str]:
     """Per-field messages for a category or account that is blank or not a number."""
     errors: dict[str, str] = {}
@@ -430,6 +443,7 @@ def validate_rule_draft(
     cadence = validate_cadence(fields.cadence)
     start = parse_date(fields.start_date)
     end, errors = _date_errors(fields, cadence, start, cadence_error)
+    errors = {**errors, **parse_day_of_month(fields.day_of_month)[1]}
     if ids is None:
         return RuleDraft(None, {**errors, **_missing_id_errors(fields)})
     category_id, account_id = ids
@@ -473,7 +487,7 @@ def new_rule_from(fields: RuleFields, valid: ValidRule, today: date) -> NewRecur
             dest_account_id=valid.dest_id,
             default_amount=valid.amount_minor,
             default_description=fields.default_description,
-            day_of_month=parse_int(fields.day_of_month),
+            day_of_month=parse_day_of_month(fields.day_of_month)[0],
             amount_formula=valid.formula,
             active=initial_active,
         )
@@ -493,6 +507,7 @@ def rule_patch_from(
         "default_amount": valid.amount_minor,
         "default_description": fields.default_description,
         "amount_formula": valid.formula,
+        "day_of_month": parse_day_of_month(fields.day_of_month)[0],
         # An empty end date clears it (forms always carry the field).
         "end_date": valid.end,
     }
