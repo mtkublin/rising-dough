@@ -7,9 +7,10 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
+        # operator-options/*.patch are generated diffs: trailing whitespace and EOLs are content (P1)
+        exclude: ^(package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*|docs/plans/ui-redesign/operator-options/.*\.patch)$
       - id: end-of-file-fixer
-        exclude: ^(package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
+        exclude: ^(package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*|docs/plans/ui-redesign/operator-options/.*\.patch)$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
