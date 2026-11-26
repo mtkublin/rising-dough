@@ -7,7 +7,11 @@
   document.addEventListener('focusin', (event) => {
     const input = event.target;
     if (input.matches && input.matches('[data-js="amount-input"]') && !input.readOnly) {
-      window.requestAnimationFrame(() => input.select());
+      /* select() also focuses the input (Chromium): when the user has moved on before the frame
+         (tab, click, a fast fill), selecting would pull focus back and send the next field's text here. */
+      window.requestAnimationFrame(() => {
+        if (document.activeElement === input) input.select();
+      });
     }
   });
 

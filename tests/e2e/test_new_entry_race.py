@@ -77,6 +77,7 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     _seed(base_url, page)
     page.goto(f"{base_url}/today")
     open_new_entry(page)
+    page.evaluate(_TRACE_JS)
     to_playwright(page, entries.tab_planned).click()
     expect(to_playwright(page, entries.tab_planned)).to_have_attribute("aria-current", "page")
     choose_category(page, "Groceries")
@@ -86,6 +87,10 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     to_playwright(page, entries.hero_amount).fill("25")
     note = to_playwright(page, entries.field_note)
     note.fill("typed-in-flight")
+    try:  # typed while the refresh is still held: nothing may clear it
+        expect(note).to_have_value("typed-in-flight")
+    except AssertionError as err:
+        raise AssertionError(f"note lost before the refresh landed\n{_trace(page)}") from err
     held[0].continue_()
     expect(to_playwright(page, entries.dialog)).to_contain_text("JPY")
     expect(note).to_have_value("typed-in-flight")
@@ -93,6 +98,71 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     assert "description=typed-in-flight" in posted, posted
     stored = db_probe.rows(db_path, "SELECT description FROM planned_transactions")
     assert [row[0] for row in stored] == ["typed-in-flight"]
+
+
+_LEAVE_AMOUNT_JS = """
+() => new Promise((resolve) => {
+  const amount = document.querySelector('#modal-root input.rd-dialog__amount');
+  const note = document.querySelector('#modal-root #field-description');
+  note.focus();  // the dialog opened on the amount: leave it, so the next focus is a focusin
+  amount.focus();
+  note.focus();  // the user tabs on before the next frame
+  requestAnimationFrame(() => requestAnimationFrame(() => resolve(document.activeElement.id)));
+})
+"""
+
+
+def test_leaving_the_amount_before_the_next_frame_keeps_focus_on_the_note(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """RACE (T-UR44): the amount's focus-select frame never pulls focus back from the next field.
+
+    Chromium's select() focuses the input: a select queued by the amount's focusin that runs after
+    the user moved on sent the note's text to the amount, which drops letters (QFIX10 on CI).
+    """
+    base_url, _ = live_server
+    _seed(base_url, page)
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    quiesce(page)
+    assert page.evaluate(_LEAVE_AMOUNT_JS) == "field-description"
+    note = to_playwright(page, entries.field_note)
+    note.fill("kept")
+    expect(note).to_have_value("kept")
+    expect(to_playwright(page, entries.hero_amount)).to_have_value("")
+
+
+_TRACE_JS = """
+(() => {
+  const log = (window.__trace = []);
+  const t0 = performance.now();
+  const stamp = (m) => log.push(Math.round(performance.now() - t0) + 'ms ' + m);
+  const id = (n) => (n && n.nodeType === 1) ? (n.id || n.className || n.tagName) : '#text';
+  new MutationObserver((recs) => recs.forEach((r) => {
+    if (r.type === 'childList' && (r.addedNodes.length || r.removedNodes.length)) {
+      const add = [...r.addedNodes].map(id);
+      const del = [...r.removedNodes].map(id);
+      stamp('mutate ' + id(r.target) + ' +' + add + ' -' + del);
+    }
+  })).observe(document.querySelector('#modal-root'), { childList: true, subtree: true });
+  ['htmx:beforeRequest', 'htmx:afterSwap', 'htmx:afterSettle'].forEach((n) =>
+    document.addEventListener(n, (e) => {
+      const path = (e.detail.pathInfo || {}).requestPath || '';
+      stamp(n + ' ' + path + ' target=' + id(e.detail.target));
+    }));
+  document.addEventListener('reset', () => stamp('reset'), true);
+  ['focusin', 'beforeinput'].forEach((n) => document.addEventListener(n, (e) => {
+    stamp(n + ' ' + id(e.target) + (e.data ? '=' + e.data : ''));
+  }, true));
+  document.addEventListener('input', (e) => {
+    stamp('input ' + id(e.target) + '=' + e.target.value);
+  }, true);
+})();
+"""
+
+
+def _trace(page: Page) -> str:
+    return "\n".join(page.evaluate("window.__trace || []"))
 
 
 def _selected_account(page: Page) -> str:
