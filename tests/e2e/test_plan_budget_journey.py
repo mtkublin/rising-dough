@@ -149,6 +149,11 @@ def test_picker_year_arrow_swaps_the_grid_without_navigating(
     expect(picker).to_be_visible()
     # Keyboard: focus stays on the swapped next-year arrow, so Enter again goes to 2028.
     expect(_find(journey, rd_fragments.period_next_year)).to_be_focused()
+    # htmx restores focus before it processes the swapped nodes (settle delay); an Enter in that
+    # window would follow the plain href, so wait for the settle like a person would.
+    journey.page.wait_for_function(
+        "document.querySelector('[role=dialog] .htmx-added, [role=dialog] .htmx-settling') === null"
+    )
     journey.page.keyboard.press("Enter")
     expect(picker).to_contain_text("2028")
     expect(_find(journey, rd_fragments.period_next_year)).to_be_focused()
