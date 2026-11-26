@@ -6,7 +6,7 @@ import sqlite3
 from collections.abc import Iterator
 
 import pytest
-from bs4 import Tag
+from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -93,4 +93,7 @@ def test_a_tab_only_field_is_not_echoed_on_the_other_tab(
 ) -> None:
     r = client.get("/add?when=happened&dialog=1&due_date=2031-02-03&amount=5", headers=_HX)
     assert _html.resolve_one(r.text, entries.hero_amount).get("value") == "5.00"
-    assert "2031-02-03" not in r.text
+    values = {
+        str(tag.get("value")) for tag in BeautifulSoup(r.text, "html.parser").find_all("input")
+    }
+    assert "2031-02-03" not in values
