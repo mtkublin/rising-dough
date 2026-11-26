@@ -79,6 +79,7 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     open_new_entry(page)
     to_playwright(page, entries.tab_planned).click()
     expect(to_playwright(page, entries.tab_planned)).to_have_attribute("aria-current", "page")
+    quiesce(page)  # the tab swap has settled (dialog opened, focus placed) before anything is typed
     choose_category(page, "Groceries")
     held = _hold_hero(page)
     to_playwright(page, entries.field_account).select_option(label="Yen")
@@ -86,6 +87,7 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     to_playwright(page, entries.hero_amount).fill("25")
     note = to_playwright(page, entries.field_note)
     note.fill("typed-in-flight")
+    expect(note).to_have_value("typed-in-flight")  # typed while the refresh is still held
     held[0].continue_()
     expect(to_playwright(page, entries.dialog)).to_contain_text("JPY")
     expect(note).to_have_value("typed-in-flight")
