@@ -84,13 +84,20 @@ def dialog_tier(state: str) -> str:
     return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_ONE_OFF
 
 
+_ORIGIN_TIER: Final = MappingProxyType(
+    {
+        "one_off": TIER_ONE_OFF,
+        "recurring": TIER_RECURRING,
+        "default": TIER_DEFAULT,
+        "unset": TIER_DEFAULT,
+    }
+)
+
+
 def row_tier(state: OverrideState) -> str:
     """Scope a budget row's edit dialog opens on: the tier its figure comes from (R4, R5)."""
-    if state.one_off is not None:
-        return TIER_ONE_OFF
-    if state.recurring is not None:
-        return TIER_RECURRING
-    return TIER_DEFAULT
+    _, origin = budget_service.pick_tier(state.one_off, state.recurring, state.default)
+    return _ORIGIN_TIER.get(origin, TIER_DEFAULT)
 
 
 # --- Year grid ---------------------------------------------------------------
