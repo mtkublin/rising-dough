@@ -47,7 +47,7 @@ def test_create_persists_audits_and_signals(
     r = client.post("/recurring", data=rule_form(seeded))
     assert r.status_code == 200
     assert hx_events(r) == {**FORECAST_LEDGER, "today-stale": True}
-    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Reswap" not in r.headers
     assert "HX-Refresh" not in r.headers
     assert _html.text_of(r.text, shell.modal_root) == ""
     assert _html.all_text(r.text, errors.status) == "● Recurring rule saved"
@@ -310,7 +310,7 @@ def test_promote_creates_transaction_and_advances_rule(
     )
     assert r.status_code == 200
     assert hx_events(r) == {**PROMOTE_EVENTS, "today-stale": True}
-    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Reswap" not in r.headers
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before + 1
     assert _next_due(_migrated, rid) > due_before
     assert audit_ops(_migrated, "recurring_rule", rid)[-1] == "update"

@@ -188,7 +188,7 @@ def test_create_off_ledger_refreshes_page_without_swap(
         headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/today"},
     )
     assert r.status_code == 200
-    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Reswap" not in r.headers
     assert "HX-Refresh" not in r.headers
     assert "today-stale" in r.headers["HX-Trigger"]
 

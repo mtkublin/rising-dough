@@ -68,16 +68,16 @@ def trigger(response: Response, *events: Event, toast: Mapping[str, object] | No
 
 
 def refresh_unless_on(request: Request, response: Response, path_prefix: str) -> None:
-    """Skip the swap; off ``path_prefix`` also fire ``today-stale`` so the open page refetches.
+    """On ``path_prefix`` skip the swap; elsewhere fire ``today-stale`` so the open page refetches.
 
     The page a form was submitted from is read from ``HX-Current-URL``. A full
     ``HX-Refresh`` reload would drop the out-of-band success flash, so no page
     reloads: the caller's events (and ``today-stale`` off the prefix, which the
     Today regions listen to) refresh the page's own regions (ADR-0143).
     """
-    response.headers[HX_RESWAP] = "none"
     current = urlparse(request.headers.get(HX_CURRENT_URL, "")).path
     if current.startswith(path_prefix):
+        response.headers[HX_RESWAP] = "none"
         return
     raw = response.headers.get(HX_TRIGGER)
     payload: dict[str, object] = json.loads(raw) if raw else {}
