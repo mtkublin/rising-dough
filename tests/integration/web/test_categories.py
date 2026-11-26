@@ -22,7 +22,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, errors, settings as ui
+from tests.ui_map import _html, errors, rd_shell, settings as ui
 from tests.ui_map.locator import Locator, by_id
 
 USER_ID = 1
@@ -434,7 +434,7 @@ def test_create_flashes_and_refetches_without_reload(client: TestClient) -> None
     assert r.status_code == 200
     assert r.headers["HX-Reswap"] == "none"
     assert "HX-Refresh" not in r.headers
-    assert "Category created" in r.text
+    assert "Category created" in _html.text_of(r.text, rd_shell.flash_saved)
     assert "settings-categories-stale" in r.headers["HX-Trigger"]
     assert "budget-stale" in r.headers["HX-Trigger"]
 

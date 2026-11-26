@@ -21,7 +21,7 @@ from tests.contract.web_helpers_t_ut04e import (
     make_category,
     system_category_id,
 )
-from tests.ui_map import _html, settings as ui
+from tests.ui_map import _html, rd_shell, settings as ui
 
 pytest_plugins = ["tests.contract.web_support_t_ut04e"]  # client, anon_client, raw_client
 
@@ -86,7 +86,7 @@ def test_create_persists_audits_and_flashes(client: TestClient, _migrated: Setti
     }
     assert r.headers["HX-Reswap"] == "none"
     assert "HX-Refresh" not in r.headers
-    assert "Category created" in r.text
+    assert "Category created" in _html.text_of(r.text, rd_shell.flash_saved)
     row = _category(_migrated, "Rent")
     assert (row["direction"], row["user_id"], row["color"]) == ("expense", USER_ID, None)
     assert ("create", row["id"]) in audit_ops(_migrated, "category")

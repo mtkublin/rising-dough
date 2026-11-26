@@ -23,7 +23,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import balance as balance_service
-from tests.ui_map import _html, accounts, errors, shell
+from tests.ui_map import _html, accounts, errors, rd_shell, shell
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -469,7 +469,7 @@ def test_create_flashes_and_refetches_without_reload(client: TestClient) -> None
     assert r.status_code == 200
     assert r.headers["HX-Reswap"] == "none"
     assert "HX-Refresh" not in r.headers
-    assert "Travel created" in r.text
+    assert "Travel created" in _html.text_of(r.text, rd_shell.flash_saved)
     assert "balance-stale" in r.headers["HX-Trigger"]
 
 
