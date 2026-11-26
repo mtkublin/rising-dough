@@ -6,11 +6,13 @@ on the server, so ``combobox.js`` moves the checked chip to the front when one i
 
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Page, expect
 
+from budget_planner.clock import utc_now
 from tests.e2e.forms import add_happened, wait_for_htmx
 from tests.e2e.ui_actions import open_new_entry
 from tests.ui_map import entries, rd_fragments as f
@@ -18,6 +20,7 @@ from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
+_YESTERDAY = (utc_now().date() - timedelta(days=1)).isoformat()  # inside the 90-day recent window
 _CHIP_NAMES = "els => els.map(e => e.parentElement.textContent.trim())"
 
 
@@ -40,7 +43,7 @@ def test_picked_chip_moves_to_the_front_and_nothing_is_dropped(
             category=category,
             account="Checking",
             amount="1.00",
-            day="2026-01-15",
+            day=_YESTERDAY,
             note=category,
         )
     page.goto(f"{base_url}/ledger?view=actual")
@@ -78,7 +81,7 @@ def test_arrow_keys_walk_the_group_without_reordering(
             category=category,
             account="Checking",
             amount="1.00",
-            day="2026-01-15",
+            day=_YESTERDAY,
             note=category,
         )
     page.goto(f"{base_url}/ledger?view=actual")
