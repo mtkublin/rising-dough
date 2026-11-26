@@ -1,7 +1,7 @@
 {# fragment: rows/budget-line
    Inputs: line (view_models.BudgetLineView), base_ccy, year and month (the picked period, for the
    override link). One category row of the budget table: chip, block bar, spent / budget, status, and
-   a one-item row menu (override). Popover and menu ids derive from the category id. #}
+   a one-item row menu (edit budget, or "set budget" while unbudgeted). Popover and menu ids derive from the category id. #}
 <tr class="rd-row rd-row--budget">
   <td class="rd-budget__cat">
     <span class="rd-chip"
@@ -14,6 +14,12 @@
   </td>
   <td class="rd-budget__spent rd-num">
     {{ line.line.spent_minor|money_num(base_ccy) }} <span class="rd-muted">/ {% if line.has_budget %}{{ line.budgeted_minor|money_num(base_ccy) }}{% else %}—{% endif %}</span>
+    {% if not line.has_budget %}
+      <button type="button"
+              class="rd-btn"
+              hx-get="/budget/rules/{{ line.line.category_id }}/overrides/new?year={{ year }}&amp;month={{ month }}&amp;tier=default"
+              hx-target="#modal-root">set budget</button>
+    {% endif %}
   </td>
   {% if not line.has_budget %}
     <td class="rd-budget__status rd-budget__status--none rd-num">no budget</td>
@@ -23,32 +29,34 @@
     <td class="rd-budget__status rd-num">left {{ line.remaining_after_minor|money_num(base_ccy) }}</td>
   {% endif %}
   <td class="rd-row__actions">
-    <button type="button"
-            class="rd-btn rd-btn--icon"
-            aria-label="Row menu"
-            aria-haspopup="menu"
-            popovertarget="menu-budget-{{ line.line.category_id }}"
-            data-js="row-menu">
-      <svg class="rd-icon" aria-hidden="true" focusable="false">
-        <use href="/static/rd/icons/sprite.svg#icon-more"></use>
-      </svg>
-    </button>
-    <div class="rd-menu"
-         id="menu-budget-{{ line.line.category_id }}"
-         popover
-         role="menu"
-         aria-label="{{ line.line.category_name }} actions">
-      <span class="rd-menu__grabber" aria-hidden="true"></span>
-      <a class="rd-menu__item"
-         role="menuitem"
-         href="/budget/rules/{{ line.line.category_id }}/overrides/new?year={{ year }}&amp;month={{ month }}"
-         hx-get="/budget/rules/{{ line.line.category_id }}/overrides/new?year={{ year }}&amp;month={{ month }}"
-         hx-target="#modal-root">override</a>
+    {% if line.has_budget %}
       <button type="button"
-              class="rd-menu__item rd-menu__cancel"
-              role="menuitem"
+              class="rd-btn rd-btn--icon"
+              aria-label="Row menu"
+              aria-haspopup="menu"
               popovertarget="menu-budget-{{ line.line.category_id }}"
-              popovertargetaction="hide">cancel</button>
-    </div>
+              data-js="row-menu">
+        <svg class="rd-icon" aria-hidden="true" focusable="false">
+          <use href="/static/rd/icons/sprite.svg#icon-more"></use>
+        </svg>
+      </button>
+      <div class="rd-menu"
+           id="menu-budget-{{ line.line.category_id }}"
+           popover
+           role="menu"
+           aria-label="{{ line.line.category_name }} actions">
+        <span class="rd-menu__grabber" aria-hidden="true"></span>
+        <a class="rd-menu__item"
+           role="menuitem"
+           href="{{ line.edit_url }}"
+           hx-get="{{ line.edit_url }}"
+           hx-target="#modal-root">edit budget</a>
+        <button type="button"
+                class="rd-menu__item rd-menu__cancel"
+                role="menuitem"
+                popovertarget="menu-budget-{{ line.line.category_id }}"
+                popovertargetaction="hide">cancel</button>
+      </div>
+    {% endif %}
   </td>
 </tr>

@@ -88,13 +88,14 @@ def test_period_picker_lists_twelve_months(
         expect(_find(journey, rd_fragments.period_cell(month))).to_be_visible()
 
 
-def test_row_menu_offers_override_and_escape_closes_it(
+def test_row_menu_offers_the_budget_edit_and_escape_closes_it(
     journey: Journey, request: pytest.FixtureRequest
 ) -> None:
     _open(journey, request)
     _find(journey, plan_budget.row_menu_button(_SAMPLE_ROW)).click()
     expect(_find(journey, plan_budget.row_menu(_SAMPLE_ROW))).to_be_visible()
-    expect(_find(journey, plan_budget.override_item(_SAMPLE_ROW))).to_be_visible()
+    item = plan_budget.edit_budget_item if journey.target == "app" else plan_budget.override_item
+    expect(_find(journey, item(_SAMPLE_ROW))).to_be_visible()
     journey.page.keyboard.press("Escape")
     expect(_find(journey, plan_budget.row_menu(_SAMPLE_ROW))).to_be_hidden()
 
@@ -151,8 +152,8 @@ def test_picker_year_arrow_swaps_the_grid_without_navigating(
     expect(_find(journey, rd_fragments.period_next_year)).to_be_focused()
     # htmx restores focus before it processes the swapped nodes (settle delay); an Enter in that
     # window would follow the plain href, so wait for the settle like a person would.
-    journey.page.wait_for_function(
-        "document.querySelector('[role=dialog] .htmx-added, [role=dialog] .htmx-settling') === null"
+    expect(_find(journey, rd_fragments.period_next_year)).not_to_have_class(
+        re.compile(r"htmx-(added|settling)")
     )
     journey.page.keyboard.press("Enter")
     expect(picker).to_contain_text("2028")

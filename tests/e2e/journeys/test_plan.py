@@ -1,8 +1,8 @@
 """Year grid and budget override dialogs: tiers, remove and period navigation (T-UR11b).
 
 A plain click on a year cell edits it in place (one-off); a Shift click opens the override dialog,
-whose scope radio picks the stored row (this month only, every <month>, new default). A saved or
-removed override closes the dialog and reloads the grid.
+whose scope radio picks the stored row (this month only, every <month>,
+every month (default)). A saved or removed override closes the dialog and reloads the grid.
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ def test_override_every_month_writes_a_recurring_override(world: World) -> None:
 
 def test_override_new_default_replaces_the_default(world: World) -> None:
     category = _budgeted(world)
-    _override_in_march(world, "new default", "650.00")
+    _override_in_march(world, "every month (default)", "650.00")
 
     world.wait_rows(
         "SELECT 1 FROM budget_defaults WHERE category_id = ? AND amount = 65000 "

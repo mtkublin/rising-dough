@@ -112,7 +112,20 @@ def budget_view_for(
         for line in summary.lines
         if line.budgeted_minor is not None or line.category_id in used
     )
-    return view_models.budget_view(replace(summary, lines=lines), today, settings.base_currency)
+    edit_urls = {
+        line.category_id: plan_year_view.OverrideTarget(
+            line.category_id, line.category_name, picked.year, picked.month
+        ).url(
+            plan_year_view.row_tier(
+                override_state(conn, user_id, line.category_id, picked.year, picked.month)
+            )
+        )
+        for line in lines
+        if line.budgeted_minor is not None
+    }
+    return view_models.budget_view(
+        replace(summary, lines=lines), today, settings.base_currency, edit_urls
+    )
 
 
 def budget_period_for(

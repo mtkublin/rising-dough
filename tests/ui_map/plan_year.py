@@ -63,11 +63,25 @@ def unbudgeted(category_name: str) -> Locator:
 
 # --- Override dialogs (budget row menu and year cell) -------------------------
 def dialog(category_name: str, period_label: str) -> Locator:
+    """The app's dialog of a budgeted category (R4: "edit budget")."""
+    return rd_dialogs.dialog(f"edit budget · {category_name} · {period_label}")
+
+
+def set_dialog(category_name: str) -> Locator:
+    """The app's dialog of a category without a budget (R4: "set budget")."""
+    return rd_dialogs.dialog(f"set budget · {category_name}")
+
+
+def handoff_dialog(category_name: str, period_label: str) -> Locator:
+    """The handoff's dialog title (pre-R4: "override budget"); the app no longer prints it."""
     return rd_dialogs.dialog(f"override budget · {category_name} · {period_label}")
 
 
 def tier(scope: Locator, label_text: str) -> Locator:
-    """A scope radio: ``this month only`` / ``every <month>`` / ``new default``."""
+    """A scope radio: ``this month only`` / ``every <month>`` / ``every month (default)``.
+
+    The handoff still prints ``new default`` for the last one.
+    """
     return role("radio", label_text, exact=True).inside(scope)
 
 

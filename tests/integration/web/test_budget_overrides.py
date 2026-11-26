@@ -88,7 +88,7 @@ def test_month_dialog_shows_the_stored_one_off_and_the_default(
     assert _html.count(page, dlg) == 1
     assert _html.resolve_one(page, plan_year.amount(dlg)).get("value") == "321.00"
     assert "default 500.00" in _html.all_text(page, dlg)
-    labels = ["this month only", "every march", "new default"]
+    labels = ["this month only", "every march", "every month (default)"]
     assert _checked(page, dlg, labels) == ["this month only"]
     assert _html.count(page, plan_year.remove_override(dlg)) == 1
     assert _html.count(page, plan_year.save(dlg)) == 1
@@ -100,14 +100,16 @@ def test_scope_opens_on_the_requested_tier_with_its_own_stored_amount(
     page = _open(client, groceries, "year=2026&month=6&tier=recurring")
 
     dlg = plan_year.dialog("Groceries", "Jun 2026")
-    assert _checked(page, dlg, ["this month only", "every june", "new default"]) == ["every june"]
+    assert _checked(page, dlg, ["this month only", "every june", "every month (default)"]) == [
+        "every june"
+    ]
     assert _html.resolve_one(page, plan_year.amount(dlg)).get("value") == "700.00"
     default_page = _open(client, groceries, f"{MARCH}&tier=default")
     default_dlg = plan_year.dialog("Groceries", "Mar 2026")
     assert _html.resolve_one(default_page, plan_year.amount(default_dlg)).get("value") == "500.00"
     assert _checked(
-        default_page, default_dlg, ["this month only", "every march", "new default"]
-    ) == ["new default"]
+        default_page, default_dlg, ["this month only", "every march", "every month (default)"]
+    ) == ["every month (default)"]
 
 
 def test_month_without_override_prefills_the_resolved_amount_and_offers_no_remove(
