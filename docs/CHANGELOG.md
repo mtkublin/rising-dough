@@ -1,5 +1,9 @@
 # Changelog
 
+2026-11-26 MOBILE: touch-width inputs 16px, ledger from/to and dialog field pairs stack at <48rem, formula component and scope selector fit 375 (T-UR61..T-UR63) (b731025c).
+
+2026-11-26 FORM: repeats formula preview evaluates in the start month and retriggers on start date, one message at a time, add component keeps the sign (T-UR58) (5472d1a2).
+
 2026-11-26 BUDUX: budget tab: set budget on unbudgeted rows, edit budget opens on the row's tier, every month (default) label (T-UR55, F4.6c) (0bf5cd4a).
 
 2026-11-26 CIFIX2: contract and mockup-map tests follow the fixed account kind and the anchor locators (088adb7b).

@@ -498,7 +498,7 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Scope: spec change + fix: Month picker arrows change the picker year only.
 - Source: operator-review-2026-11-26.md R6.
 
-### ◻ T-UR58 [P] Recurring formula always warns non-positive amount
+### ✅ T-UR58 [P] Recurring formula always warns non-positive amount
 - Scope: bug: Recurring formula always warns non-positive amount.
 - Source: operator-review-2026-11-26.md R7.
 
@@ -512,15 +512,15 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Scope: spec change + fix: Account kind read-only after creation (UI and server).
 - Source: operator-review-2026-11-26.md R9.
 
-### ◻ T-UR61 [S] No auto-zoom on input focus on touch widths
+### ✅ T-UR61 [S] No auto-zoom on input focus on touch widths
 - Scope: spec change + fix (inputs >= 16px on touch widths; do NOT disable pinch zoom: a11y): No auto-zoom on input focus on touch widths.
 - Source: operator-review-2026-11-26.md R10.
 
-### ◻ T-UR62 [S] Mobile overlays squeezed (formula row, override scope)
+### ✅ T-UR62 [S] Mobile overlays squeezed (formula row, override scope)
 - Scope: bug: Mobile overlays squeezed (formula row, override scope).
 - Source: operator-review-2026-11-26.md R11.
 
-### ◻ T-UR63 [P] Mobile ledger filter from/to overlap
+### ✅ T-UR63 [P] Mobile ledger filter from/to overlap
 - Scope: bug: Mobile ledger filter from/to overlap.
 - Source: operator-review-2026-11-26.md R12.
 
