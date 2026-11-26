@@ -3,8 +3,6 @@
    percent text, category_ids), options (selectable categories, ordered), list_id (unique id of the
    category list), single (bool: only component, so the remove button is hidden).
    formula.js re-indexes names and labels after add/remove. #}
-{% set pct_err = errors['components[' ~ index ~ '][percent]']|default(none) if errors is defined and errors else none %}
-{% set cat_err = errors['components[' ~ index ~ '][categories]']|default(none) if errors is defined and errors else none %}
 <fieldset class="rd-comp" data-js="formula-component">
   <legend class="u-visually-hidden">Component {{ number }}</legend>
   <div class="rd-segmented rd-segmented--sign"

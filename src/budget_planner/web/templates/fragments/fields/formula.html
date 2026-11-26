@@ -1,7 +1,7 @@
 {# fragment: fields/formula
    Inputs: formula_id (unique id prefix), components (list of sign/percent/category_ids; at least
    one), options (selectable categories), next_amount (formatted text with currency, or none).
-   Renders each component through fields/formula-component. The server computes the next
+   Renders each component (pct_err / cat_err: the component's own error lines from errors) through fields/formula-component. The server computes the next
    amount (HTMX); formula.js only adds, removes and re-indexes components. #}
 <div class="rd-formula"
      data-js="formula"
@@ -9,7 +9,7 @@
      aria-labelledby="{{ formula_id }}-label">
   <p class="rd-field__label" id="{{ formula_id }}-label">formula</p>
   {% for comp in components %}
-    {% with index=loop.index0, number=loop.index, list_id=formula_id ~ "-" ~ loop.index0 ~ "-list", single=(components|length == 1) %}
+    {% with index=loop.index0, number=loop.index, pct_err=(errors|default({}))['components[' ~ loop.index0 ~ '][percent]']|default(none), cat_err=(errors|default({}))['components[' ~ loop.index0 ~ '][categories]']|default(none), list_id=formula_id ~ "-" ~ loop.index0 ~ "-list", single=(components|length == 1) %}
       {% include "fragments/fields/formula-component.html" %}
     {% endwith %}
   {% endfor %}
