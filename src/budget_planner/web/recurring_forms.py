@@ -186,6 +186,37 @@ def _category_ids(value: object) -> list[int]:
     return [int(str(v)) for v in value] if isinstance(value, list | tuple) else []
 
 
+PERCENT_REQUIRED = "Enter a percentage, e.g. 19 or 12.5"
+CATEGORY_REQUIRED = "Pick at least one category"
+
+
+def component_error_key(index: int, field: str) -> str:
+    """Error key of one formula component field (``percent`` or ``categories``), as posted."""
+    return f"components[{index}][{field}]"
+
+
+def component_errors(term_inputs: list[TermInput]) -> dict[str, str]:
+    """Per-component messages of the dialog's formula (handoff: under the failing component).
+
+    A missing percentage and a missing category are reported on their own component, so the
+    dialog marks the field and prints the line beneath it; a bad sign or a formula-level failure
+    stays the single ``formula`` error.
+    """
+    errors: dict[str, str] = {}
+    for index, term in enumerate(term_inputs):
+        percent = _text(term.get("coefficient_percent"), "").strip()
+        if not percent:
+            errors[component_error_key(index, "percent")] = PERCENT_REQUIRED
+        else:
+            try:
+                formula_svc.parse_percent_to_bps(percent)
+            except formula_svc.FormulaError as exc:
+                errors[component_error_key(index, "percent")] = str(exc)
+        if not _category_ids(term.get("source_category_ids")):
+            errors[component_error_key(index, "categories")] = CATEGORY_REQUIRED
+    return errors
+
+
 def _resolve_formula(
     conn: sqlite3.Connection,
     user_id: int,
@@ -197,6 +228,8 @@ def _resolve_formula(
     target_ccy: str,
     posting_category_id: int | None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
+    if component_failures := component_errors(term_inputs):
+        return None, None, component_failures
     try:
         terms = [
             formula_svc.build_term(

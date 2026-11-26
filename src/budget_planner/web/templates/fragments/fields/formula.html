@@ -17,5 +17,6 @@
           class="rd-btn rd-btn--quiet rd-formula__add"
           data-js="formula-add">+ add component</button>
   <output class="rd-formula__result"
+          {% if not next_amount|default(none) %}hidden{% endif %}
           {% if result_id|default(none) %}id="{{ result_id }}"{% endif %}>{% if next_amount|default(none) %}→ next amount {{ next_amount }}{% endif %}</output>
 </div>

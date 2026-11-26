@@ -2349,6 +2349,15 @@ optional = true
 reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
 
 [[row]]
+page = "pages/overlays/edit-recurring--*.html"
+exclude = ["pages/overlays/edit-recurring--fixed.html"]
+select = "#rr-start"
+field = "value"
+old = "2026-11-12"
+value = "2026-10-12"
+reason = "handoff inconsistent, app right: the same board lists an Oct 2026 override of the Taxes rule, which only exists for a rule that started on or before 12 Oct; the seed starts it 2026-10-12 (the handoff dialog prints 2026-11-12, its next due date)"
+
+[[row]]
 page = "pages/overlays/edit-recurring*.html"
 select = ".rd-formula__next"
 field = "text"
@@ -2457,6 +2466,22 @@ old = "Bank fees"
 value = "Bank Fees #18"
 count = 1
 reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = "dialog .rd-dialog__amount--static"
+field = "text"
+old = "3,488.75"
+value = "3,002.00"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero over the seed's Taxes rule), checked against the served dialog by test_overlay_values_ledger; the handoff prints its own figure for the Salary and Side Income component"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = "dialog .rd-formula__result"
+field = "text"
+old = "\u2192 next amount 3,488.75 PLN"
+value = "\u2192 next amount 3,002.00 PLN"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero), the hero figure above"
 
 [[row]]
 page = "pages/overlays/edit-recurring--formula.html"

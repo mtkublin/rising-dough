@@ -81,7 +81,7 @@
          hx-trigger="change, keyup changed delay:400ms"
          hx-include="closest form"
          hx-target="find .rd-formula__result"
-         hx-swap="innerHTML">
+         hx-swap="outerHTML">
       {% with formula_id="formula-new-entry", options=source_categories, next_amount=hero.next_amount|default(none) %}
         {% include "fragments/fields/formula.html" %}
       {% endwith %}
