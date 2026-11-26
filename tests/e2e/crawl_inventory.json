@@ -797,7 +797,7 @@
     },
     {
       "kind": "hx-get",
-      "name": "Expense \u00b7 1 Expense categories Name Colour Actions Groceries...",
+      "name": "INCOME ANCHOR none Paycheck each period starts on its next d...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings?tab=categories"
     },

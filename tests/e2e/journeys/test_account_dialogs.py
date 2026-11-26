@@ -70,7 +70,7 @@ def test_empty_accounts_new_account_opens_the_dialog_and_saves(world: World) -> 
     world.find(accounts.new_account_cta).click()
     expect(world.find(accounts.new_dialog)).to_be_visible()
     world.find(accounts.form_name).fill("Savings")
-    world.find(accounts.form_currency).fill("EUR")
+    world.find(accounts.form_currency).fill("PLN")
     world.find(accounts.form_opening_balance).fill("10.00")
     world.find(accounts.create_account).click()
 
