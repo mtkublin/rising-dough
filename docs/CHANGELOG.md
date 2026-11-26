@@ -1,5 +1,19 @@
 # Changelog
 
+2026-11-26 OVL1: harness: D2-b/D3-a overlay rows, D10-A test token port + guard, RGB compare, picker-handoff-list seed modifier (b3940d92).
+
+2026-11-26 CI1: ci.yml: guard checkout fetch-depth 0 + blob:none (Q2); Tailwind step removed (T-UR15 leftover) (51718efc).
+
+2026-11-26 AMT: amount input accepts space/nbsp thousands grouping (T-UR46) (a2e070fc).
+
+2026-11-26 D1B: app-owned rd/app/overrides.css; vendored rd CSS byte-identical; D1-b picker underline (7ad71800).
+
+2026-11-26 D5: new-entry tabs carry typed amount, category, account, note (D5-b, T-UR44) (54cabd3b).
+
+2026-11-26 DOC2: requirements F1.1/F1.1a/F2.5 and tasks T-UR44..T-UR51 (fc9c0aab).
+
+2026-11-26 DOC1: ADR-0147/0107 amendments, derived.md "Intended differences", decisions-file correction (352fbe4c).
+
 2026-11-26 SCRIBE8: docs: ui-sourdough run log refresh (final state, QFIX10-14), ADR-0150 amendment 2026-11-26, orchestrator pre-push checklist.
 
 2026-11-26 feat(N2): T-UR00b: recipe fixes (scroll back, close-button ring, home key, answer wait) (1d48851).
