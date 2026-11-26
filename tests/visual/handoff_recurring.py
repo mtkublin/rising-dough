@@ -74,6 +74,8 @@ def _clear_component(page: Page, index: int) -> None:
     trigger = comp.locator("[data-js='multiselect']")
     trigger.click()
     page.wait_for_selector(f"{_COMPONENT} .rd-msel:not([hidden])", timeout=_TIMEOUT_MS)
+    # The handoff file shows the close button's keyboard-focus ring, as for the other two states.
+    _focus_close_ring(page)
     checked = comp.locator(".rd-msel__opt:has(input:checked)")
     while checked.count():
         checked.first.click()
