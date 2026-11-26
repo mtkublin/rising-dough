@@ -62,3 +62,16 @@ def test_delete_is_blocked_by_a_transaction_and_writes_nothing(world: World) -> 
     expect(world.find(accounts.row(account))).to_be_visible()
     assert world.scalar("SELECT deleted_at FROM accounts WHERE id = ?", (account,)) is None
     assert world.audit_ops("account", account) == ["create"]
+
+
+def test_empty_accounts_new_account_opens_the_dialog_and_saves(world: World) -> None:
+    world.goto("/accounts")
+    world.find(accounts.new_account_cta).click()
+    expect(world.find(accounts.new_dialog)).to_be_visible()
+    world.find(accounts.form_name).fill("Savings")
+    world.find(accounts.form_currency).fill("PLN")
+    world.find(accounts.form_opening_balance).fill("10.00")
+    world.find(accounts.create_account).click()
+
+    row = world.wait_rows("SELECT id FROM accounts WHERE name = 'Savings'")[0]
+    expect(world.find(accounts.row(row["id"]))).to_contain_text("Savings")
