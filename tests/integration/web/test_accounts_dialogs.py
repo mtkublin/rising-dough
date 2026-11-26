@@ -86,6 +86,27 @@ def test_edit_dialog_prefills_and_freezes_the_currency(
     assert form["hx-target"] == f"#account-{acc}"
 
 
+@pytest.mark.parametrize("liability", [False, True])
+def test_edit_dialog_shows_the_kind_read_only(
+    client: TestClient, db: sqlite3.Connection, *, liability: bool
+) -> None:
+    acc = _account(db, is_liability=liability, credit_limit_minor=100_000 if liability else None)
+    r = client.get(f"/accounts/{acc}/edit")
+    assert r.status_code == 200
+    kind = _html.resolve_one(r.text, accounts.form_counts_as)
+    assert (kind["value"], kind.has_attr("readonly")) == (
+        "liability" if liability else "asset",
+        True,
+    )
+    assert not _html.exists(r.text, accounts.form_liability)
+    assert not _html.exists(r.text, accounts.form_counts_as_toggle)
+
+
+def test_new_dialog_keeps_the_kind_toggle(client: TestClient) -> None:
+    r = client.get("/accounts/new")
+    assert _html.exists(r.text, accounts.form_liability)
+
+
 def test_update_swaps_the_row_closes_the_dialog_and_flashes(
     client: TestClient, db: sqlite3.Connection
 ) -> None:
@@ -104,7 +125,7 @@ def test_update_swaps_the_row_closes_the_dialog_and_flashes(
 def test_update_validation_error_keeps_the_row_and_reopens_the_dialog(
     client: TestClient, db: sqlite3.Connection
 ) -> None:
-    acc = _account(db)
+    acc = _account(db, is_liability=True, credit_limit_minor=100_000)
     r = client.post(
         f"/accounts/{acc}", data={"name": "V", "is_liability": "on", "credit_limit": ""}
     )
