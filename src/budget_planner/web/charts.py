@@ -34,6 +34,7 @@ from budget_planner.domain.money import format_axis_number, major_float
 
 _BAR_KINDS = frozenset({Direction.INCOME.value, Direction.EXPENSE.value})
 _NUM_FMT = "{:.3f}"
+_TENTH_FMT = "{:.1f}"
 _NICE_FRACTIONS: tuple[float, ...] = (1.0, 2.0, 2.5, 5.0, 10.0)
 _DEFAULT_TARGET_TICKS = 5
 
@@ -657,6 +658,7 @@ __all__ = [
     "nice_scale",
     "sparkline",
     "svg_number",
+    "svg_tenth",
 ]
 
 
@@ -671,6 +673,11 @@ def line_area_minor(
 def svg_number(value: float) -> str:
     """SVG attribute text of ``value`` (fixed three decimals, never scientific notation)."""
     return _fmt(value)
+
+
+def svg_tenth(value: float) -> str:
+    """SVG attribute text with one decimal (the handoff prints a loaf cap height that way)."""
+    return _TENTH_FMT.format(value)
 
 
 def nice_scale(data_min: float, data_max: float) -> tuple[float, float, tuple[float, ...]]:

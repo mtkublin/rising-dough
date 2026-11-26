@@ -16,7 +16,7 @@ from datetime import date
 from budget_planner.domain.money import format_axis_number, format_figure, major_float
 from budget_planner.services.analytics import MonthlyFlow
 from budget_planner.services.forecast import MonthlyProjectionPoint
-from budget_planner.web.charts import nice_scale, svg_number as fmt
+from budget_planner.web.charts import nice_scale, svg_number as fmt, svg_tenth
 
 _EN_DASH = "\N{EN DASH}"
 _DOT = "\N{MIDDLE DOT}"
@@ -342,14 +342,18 @@ _FL_TIP_GAP = 14.0
 
 
 def _loaf_path(x: float, width: float, apex: float) -> str:
-    """Loaf outline: 4 px base corners, flat sides, a half-circle top starting at ``apex``."""
+    """Loaf outline: 4 px base corners, flat sides, a half-circle top starting at ``apex``.
+
+    The apex prints with one decimal, as the handoff does (T-UR00b, ADR-0147): three decimals
+    moved the cap arc by up to 0.014 px and rasterised it differently.
+    """
     bottom, right, radius, corner = _FL_BOTTOM, x + width, width / 2, _FL_CORNER
     return (
         f"M{fmt(x)},{fmt(bottom - corner)} Q{fmt(x)},{fmt(bottom)} "
         f"{fmt(x + corner)},{fmt(bottom)} L{fmt(right - corner)},{fmt(bottom)} "
         f"Q{fmt(right)},{fmt(bottom)} {fmt(right)},{fmt(bottom - corner)} "
-        f"L{fmt(right)},{fmt(apex)} A{fmt(radius)},{fmt(radius)} 0 0 0 "
-        f"{fmt(x)},{fmt(apex)} Z"
+        f"L{fmt(right)},{svg_tenth(apex)} A{fmt(radius)},{fmt(radius)} 0 0 0 "
+        f"{fmt(x)},{svg_tenth(apex)} Z"
     )
 
 

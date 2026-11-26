@@ -120,6 +120,15 @@ def test_a_zero_amount_draws_no_loaf_and_a_tiny_one_keeps_its_base() -> None:
     assert tiny.months[0].loaves[0].d.count("246.000") >= 1  # arc starts no lower than the base
 
 
+def test_the_loaf_cap_starts_at_a_one_decimal_height_as_the_handoff_prints_it() -> None:
+    chart = flow_chart((MonthlyFlow(2026, 1, 3_333_33, 100_000),), "PLN", current=(2026, 1))
+
+    d = chart.months[0].loaves[0].d
+    apex = float(d.split(" A", 1)[1].split(" ")[-2].split(",")[1])  # "...0 0 0 x,apex Z"
+    assert apex == round(apex, 1)
+    assert 0 < apex < 246
+
+
 def test_month_aria_label_tooltip_and_span_across_a_year() -> None:
     months = (MonthlyFlow(2025, 12, 100_000, 250_000), MonthlyFlow(2026, 1, 300_000, 100_000))
 
