@@ -42,6 +42,9 @@ def test_today_renders_shell(client: TestClient) -> None:
     soup = BeautifulSoup(body, "html.parser")
     sheets = [str(link.get("href", "")) for link in soup.find_all("link", rel="stylesheet")]
     assert any("rd/css/app.bundle.css" in href for href in sheets)
+    # D1-b: app-owned overrides load after the vendored bundle so they win the cascade
+    bundle_at = next(i for i, h in enumerate(sheets) if "rd/css/app.bundle.css" in h)
+    assert "rd/app/overrides.css" in sheets[bundle_at + 1]
     assert soup.find("main", id="main") is not None
     assert soup.find("a", href="#main") is not None
 
@@ -51,6 +54,13 @@ def test_static_css_is_served(client: TestClient) -> None:
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/css")
     assert "--color-ground" in r.content.decode()  # CSS asset body, not markup
+
+
+def test_app_overrides_css_is_served(client: TestClient) -> None:
+    r = client.get("/static/rd/app/overrides.css")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/css")
+    assert "border-bottom-width: var(--border-width-focus-strong)" in r.content.decode()
 
 
 def test_jinja_filters_registered() -> None:

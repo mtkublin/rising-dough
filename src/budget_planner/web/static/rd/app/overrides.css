@@ -1,0 +1,14 @@
+/* App-owned overrides of the vendored Rising Dough CSS (ADR-0107 amendment). Unlayered, so it
+   wins over every @layer rule in app.bundle.css. The vendored rd/css stays byte-identical. */
+
+.rd-dialog__error {
+  color: var(--color-over);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+}
+
+/* While the category picker is open focus sits in its search field; the amount keeps its focused
+   underline so the dialog does not jump by the difference in border width */
+.rd-dialog:has(.rd-catpick:not([hidden])) .rd-dialog__amount {
+  border-bottom-width: var(--border-width-focus-strong);
+}

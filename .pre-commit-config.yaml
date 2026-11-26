@@ -115,7 +115,7 @@ repos:
         name: stylelint (rising dough CSS, handoff config)
         entry: npx --no-install stylelint --config src/budget_planner/web/static/rd/.stylelintrc.json
         language: system
-        files: ^src/budget_planner/web/static/rd/css/.*\.css$
+        files: ^src/budget_planner/web/static/rd/(css|app)/.*\.css$
         exclude: ^src/budget_planner/web/static/rd/css/app\.bundle\.css$
 
       - id: css-bundle-check
