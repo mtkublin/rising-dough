@@ -20,6 +20,24 @@ Ready: do not dispatch it; finish planning or send an `explorer` first.
       error, states to seed), so the implementer builds to what the auditor checks.
 - [ ] Base sha, `<MAIN>`, heavy-lock name, role and model (Haiku test passed, if Haiku).
 - [ ] Hotspot files (`tasks.md`, `CHANGELOG.md`, ADR index) left to the scribe unless listed as owned.
+- [ ] Implementer briefs: the pre-push checklist below is in the brief, in full or by reference.
+- [ ] Reviewer briefs: name the CI run to read (`gh run list --branch wi/<MAIN>/<ID>`, the run on the
+      item's sha) and the e2e job in it. Reviewers cannot run tests here (the guard), so CI is their evidence.
+
+## Pre-push checklist (every implementer brief)
+
+Source: the ui-sourdough run, where CI found these after merges ([ADR-0150 amendment 2026-11-26](../../../docs/adr/0150-orchestrator-role-agents-executable-dod-and-wave-testing.md), §1). Run each step in the item worktree before the final push; report the results in `STEPS`.
+
+- [ ] `uv run ruff check src tests` and `uv run ruff format --check src tests` pass (CI failed on import order and format after merges).
+- [ ] `npm ci --ignore-scripts` first, then `SKIP=pytest-fast uv run pre-commit run --all-files`. No hook is skipped except `pytest-fast`; `--no-verify` is banned.
+- [ ] `just guards`, `uv run lint-imports` and `uv run mypy` pass.
+- [ ] Routes changed: `uv run python -m tests.contract.routes_md` and commit the regenerated `tests/contract/routes.md`.
+- [ ] Routes or controls changed: update `tests/e2e/crawl_inventory.json` and the classification in `tests/e2e/test_crawl.py` (`NOT_PAGES`) for the new routes.
+- [ ] No real-clock expectations: four CI jobs run the suite under shifted frozen clocks. Use the clock pattern the nearby tests use (`rg -n "frozen|clock" tests/<area>`), and seed dates inside the window the test checks.
+- [ ] Strings you change: `grep` `tests/` (e2e, `ui_map`, visual) for the old text and update every hit. A 422 that now renders differently: tests assert the rendered field error, not the raw field key.
+- [ ] Single test files only (`uv run pytest tests/<path>.py -p no:xdist`). No directory runs, no suites, no `just test*`, no `2>&1`, pipes or `&&` chains before pytest (the guard reads them as directory runs).
+- [ ] Push the `wi/<MAIN>/<ID>` branch. `e2e.yml` runs on the push; the reviewer reads that run on your sha. Do not wait for it in the foreground.
+- [ ] Never push with a hook skipped. If a hook fails, fix the cause and commit again.
 
 ## Template
 
