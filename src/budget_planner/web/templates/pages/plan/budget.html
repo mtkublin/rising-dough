@@ -19,6 +19,9 @@
         {% include "fragments/plan/period-nav.html" %}
       {% endwith %}
     </div>
+    {% if budget.no_budgets %}
+      <p class="rd-muted" id="budget-hint">Budgets are set per category: use "set budget" on a row.</p>
+    {% endif %}
     <div class="rd-table-scroll"
          tabindex="0"
          role="region"

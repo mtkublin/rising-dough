@@ -269,6 +269,8 @@ class BudgetView:
     period_day: int
     period_total_days: int
     left_text: str = ""
+    no_budgets: bool = False
+    """True while no listed category has a budget (the tab then prints the "set budget" hint)."""
 
 
 def _delta_kind(delta_minor: int) -> DeltaKind:
@@ -335,6 +337,7 @@ def budget_view(
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
         left_text=(format_figure(totals.remaining_minor, base_currency) if base_currency else ""),
+        no_budgets=not any(line.has_budget for line in lines),
     )
 
 

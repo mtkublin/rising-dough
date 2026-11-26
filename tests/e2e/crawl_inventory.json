@@ -660,7 +660,7 @@
     },
     {
       "kind": "hx-get",
-      "name": "override",
+      "name": "edit budget",
       "target": "/budget/rules/{id}/overrides/new?year={n}&month={n}",
       "via": "Row menu"
     }

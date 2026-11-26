@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from tests.ui_map.locator import Locator, role
+from tests.ui_map.locator import Locator, by_id, role
 
 hero = role("region", "budget left")
 heading = role("heading", "budget left", level=1)
@@ -53,6 +53,20 @@ def row_menu(category_name: str) -> Locator:
 
 def override_item(category_name: str) -> Locator:
     return role("menuitem", "override", exact=True).inside(row_menu(category_name))
+
+
+def edit_budget_item(category_name: str) -> Locator:
+    """The row menu item of a budgeted row (R4: "edit budget", was "override")."""
+    return role("menuitem", "edit budget", exact=True).inside(row_menu(category_name))
+
+
+def set_budget_button(category_name: str) -> Locator:
+    """The visible "set budget" button in the budget cell of an unbudgeted row (F4.6c)."""
+    return role("button", "set budget", exact=True).inside(row(category_name))
+
+
+no_budget_hint = by_id("budget-hint")
+"""One line shown only while no expense category has a budget."""
 
 
 def menu_cancel(category_name: str) -> Locator:

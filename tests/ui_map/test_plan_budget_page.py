@@ -95,7 +95,7 @@ def test_tabs_link_the_other_plan_views(page: str) -> None:
 
 
 def test_override_item_links_to_the_override_form(page: str, cat_id: int) -> None:
-    link = _html.resolve_one(page, plan_budget.override_item("Groceries"))
+    link = _html.resolve_one(page, plan_budget.edit_budget_item("Groceries"))
     assert link["href"] == f"/budget/rules/{cat_id}/overrides/new?year=2026&month=10"
 
 

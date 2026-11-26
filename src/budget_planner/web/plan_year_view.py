@@ -309,6 +309,13 @@ def _stored(state: OverrideState, tier: str) -> int | None:
     }[tier]
 
 
+def _dialog_title(target: OverrideTarget, state: OverrideState) -> str:
+    """``set budget · <category>`` while nothing is stored, else ``edit budget`` with the period."""
+    if state.one_off is None and state.recurring is None and state.default is None:
+        return f"set budget · {target.category_name}"
+    return f"edit budget · {target.category_name} · {target.period}"
+
+
 def override_dialog(
     target: OverrideTarget,
     *,
@@ -327,7 +334,7 @@ def override_dialog(
     labels = {
         TIER_ONE_OFF: "this month only",
         TIER_RECURRING: f"every {month_name(target.month).lower()}",
-        TIER_DEFAULT: "new default",
+        TIER_DEFAULT: "every month (default)",
     }
     actions: list[Mapping[str, str]] = [{"tone": "cancel"}]
     dropped = removable_tier(state, tier)
@@ -348,7 +355,7 @@ def override_dialog(
     )
     return OverrideDialog(
         target=target,
-        title=f"override budget · {target.category_name} · {target.period}",
+        title=_dialog_title(target, state),
         hero={
             "currency": currency,
             "amount_value": amount_text,

@@ -1,8 +1,9 @@
 """E2E under the prod CSP: the override scope toggle works from every entry (T-D155, ADR-0113).
 
-The scope control ("this month only / every <month> / new default") used to depend on a script that
-loaded on one tab only. The dialog (T-UR11b) is plain radios, so it must switch on the year tab
-and from the budget row menu alike, and a recurring save from the year grid lands in the cell.
+The scope control ("this month only / every <month> / every month (default)") used to depend
+on a script that loaded on one tab only. The dialog (T-UR11b) is plain radios, so it must
+switch on the year tab and from the budget row menu alike, and a recurring save from the year
+grid lands in the cell.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from tests.ui_map.locator import Locator as UiLocator, to_playwright
 pytestmark = pytest.mark.e2e
 
 _MARCH = 3
-_LABELS = ("this month only", "every march", "new default")
+_LABELS = ("this month only", "every march", "every month (default)")
 
 
 def _seed_budgeted(base_url: str, db_path: Path, page: Page) -> int:
@@ -94,7 +95,7 @@ def test_tier_toggle_on_budget_tab_dialog(live_server: tuple[str, Path], page: P
     _seed_budgeted(base_url, db_path, page)
     page.goto(f"{base_url}/plan?tab=budget&year=2026&month={_MARCH}")
     to_playwright(page, plan_budget.row_menu_button("Groceries")).click()
-    to_playwright(page, plan_budget.override_item("Groceries")).click()
+    to_playwright(page, plan_budget.edit_budget_item("Groceries")).click()
     dialog = plan_year.dialog("Groceries", "Mar 2026")
     expect(to_playwright(page, plan_year.amount(dialog))).to_be_visible()
     _assert_toggle(page, dialog)
