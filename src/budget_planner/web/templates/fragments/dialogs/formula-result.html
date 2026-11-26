@@ -14,3 +14,5 @@
 <p class="u-visually-hidden rd-formula__live"
    aria-live="polite"
    hx-swap-oob="innerHTML:.rd-formula__live">{% if is_ok %}next amount {{ next_amount }}{% elif not quiet %}{{ result.message }}{% endif %}</p>
+{# one message at a time: the answer replaces a failed save's line in the slot #}
+<p id="field-formula-error" hx-swap-oob="delete"></p>

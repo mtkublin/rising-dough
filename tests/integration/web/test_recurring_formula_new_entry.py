@@ -26,7 +26,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
-from tests.ui_map import _html
+from tests.ui_map import _html, edit_dialogs
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 FROM_DIALOG = {"HX-Request": "true", "HX-Target": "modal-root"}
@@ -200,3 +201,52 @@ def test_a_rule_starting_next_month_reads_its_sources_in_that_month(
     )
     assert r.status_code == 200
     assert [a for _, a, _ in _rules(db, ids["tax"])] == [1_000_00]
+
+
+def _hero_query(ids: dict[str, int], *, percent: str, source: str) -> str:
+    return (
+        "/add?when=repeats&dialog=1&hero=1&amount_source=formula"
+        f"&account_id={ids['acc']}&category={ids['tax']}&start_date=2026-03-10"
+        f"&components[0][sign]=%2B&components[0][percent]={percent}&components[0][categories]={source}"
+    )
+
+
+def _preview(client: TestClient, ids: dict[str, int], *, percent: str, source: int) -> str:
+    return client.post(
+        "/recurring/formula/preview",
+        data=_post(ids, sign="+", percent=percent, source=str(source), start="2026-03-10"),
+    ).text
+
+
+def test_a_failure_the_formula_shows_is_not_repeated_in_the_hero(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    hero = client.get(_hero_query(ids, percent="10", source=str(ids["groc"])), headers=FROM_DIALOG)
+    assert hero.status_code == 200
+    assert "no recurring amounts" not in _html.page_text(
+        hero.text
+    )  # the formula body says it, once
+    line = _html.resolve_one(
+        _preview(client, ids, percent="10", source=ids["groc"]), edit_dialogs.formula_result
+    )
+    assert line.get_text(strip=True).startswith("▲ the picked categories have no recurring amounts")
+    assert not line.has_attr("hidden")
+
+
+def test_an_incomplete_component_is_said_once_in_the_hero(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    hero = client.get(_hero_query(ids, percent="", source=str(ids["salary"])), headers=FROM_DIALOG)
+    assert _html.page_text(hero.text).count("coefficient is required for formula rules") == 1
+    line = _html.resolve_one(
+        _preview(client, ids, percent="", source=ids["salary"]), edit_dialogs.formula_result
+    )
+    assert line.has_attr("hidden")  # no visible line beside the hero note
+
+
+def test_a_preview_answer_clears_the_failed_save_line_of_the_slot(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    html = _preview(client, ids, percent="10", source=ids["salary"])
+    cleared = _html.resolve_one(html, by_id("field-formula-error"))
+    assert cleared.get("hx-swap-oob") == "delete"

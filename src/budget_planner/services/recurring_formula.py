@@ -625,6 +625,19 @@ class PreviewError:
 PreviewResult = PreviewOk | PreviewError
 
 
+def preview_is_quiet(result: PreviewResult) -> bool:
+    """True when ``result`` is an empty or incomplete draft (no percent or category yet).
+
+    A quiet result has no line of its own in the formula body; the hero note says why. Every
+    other failure (a stale source, a cycle, nothing to read) shows once, in the formula body.
+    """
+    if isinstance(result, PreviewOk):
+        return False
+    if result.code == "empty":
+        return True
+    return result.code == "invalid_source" and not result.message.startswith("unknown or archived")
+
+
 def preview(
     conn: sqlite3.Connection,
     user_id: int,
@@ -769,6 +782,7 @@ __all__ = [
     "live_rule_amount",
     "parse_percent_to_bps",
     "preview",
+    "preview_is_quiet",
     "resolve_rule_amount",
     "rt_expand",
     "term_input_rows",

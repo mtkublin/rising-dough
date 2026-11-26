@@ -567,7 +567,8 @@ def draft_hero(
             figure,
             f"\N{RIGHTWARDS ARROW} next amount {format_money(result.amount_minor, currency)}",
         )
-    return "\N{EM DASH}", result.message
+    # one message at a time: a failure the formula body shows is not repeated in the hero note
+    return "\N{EM DASH}", result.message if formula_svc.preview_is_quiet(result) else ""
 
 
 def _category_view(

@@ -14,7 +14,7 @@
     const list = components(formula);
     list.forEach((comp, i) => {
       comp.querySelectorAll('[name^="components["]').forEach((el) => {
-        el.name = el.name.replace(/components\[\d+\]/, `components[${i}]`);
+        el.name = el.name.replace(/components\[[^\]]+\]/, `components[${i}]`);
       });
       const legend = comp.querySelector('legend');
       if (legend) legend.textContent = `Component ${i + 1}`;
@@ -73,6 +73,11 @@
       copy.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
       copy.querySelectorAll('.rd-comp__err').forEach((el) => el.remove());
       copy.querySelectorAll('input[type="checkbox"]').forEach((el) => { el.checked = false; });
+      // Own radio group until reindex: a checked clone sharing the name would uncheck the original's sign.
+      copy.querySelectorAll('input[type="radio"]').forEach((el) => {
+        el.name = el.name.replace(/components\[[^\]]+\]/, `components[new-${uid}]`);
+        el.checked = el.value === '+';
+      });
       copy.querySelectorAll('input[inputmode="decimal"]').forEach((el) => { el.value = ''; });
       const list = copy.querySelector('.rd-msel');
       if (list) list.hidden = true;
