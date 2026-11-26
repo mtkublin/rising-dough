@@ -7,7 +7,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from budget_planner.domain.accounts import Account, NewAccount, PatchAccount, currency_error
+from budget_planner.domain.accounts import (
+    KIND_FIXED_MESSAGE,
+    Account,
+    NewAccount,
+    PatchAccount,
+    currency_error,
+)
 from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import parse_amount_minor
 from budget_planner.web.params import credit_limit_amount
@@ -91,9 +97,17 @@ def parse_account_patch(
     account: Account, *, name: str, account_type: str, is_liability: str, credit_limit: str
 ) -> ParsedAccountPatch:
     """Validate the edit form against the stored account (its currency fixes the limit unit)."""
-    if (bad_name := name_error(name)) is not None:
-        return ParsedAccountPatch(patch=None, errors={"name": bad_name})
-    liability = parse_liability(is_liability)
+    errors = {
+        **({} if (bad_name := name_error(name)) is None else {"name": bad_name}),
+        **(
+            {}
+            if parse_liability(is_liability) == account.is_liability
+            else {"is_liability": KIND_FIXED_MESSAGE}
+        ),
+    }
+    if errors:
+        return ParsedAccountPatch(patch=None, errors=errors)
+    liability = account.is_liability
     limit_minor: int | None = None
     if liability:
         limit_minor, limit_err = credit_limit_amount(credit_limit, account.currency)
