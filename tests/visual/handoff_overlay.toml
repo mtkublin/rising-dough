@@ -3587,3 +3587,80 @@ old = "search all 21 categories"
 value = "search all 20 categories"
 optional = true  # the picker's own list
 reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+# --- D8-E / delete-account (ADR-0147 amendment 2026-11-26, insert_row): the handoff dialog names
+# Investments E, an eleventh account its ten-row list does not show. The app seed adds it
+# (modifier unreferenced-account, balance 0, no snapshot, no transactions); the app sorts it
+# after Cash Wallet (balance desc, liabilities last). The row is a copy of Cash Wallet's.
+
+[[row]]
+page = "pages/overlays/delete-account.html"
+select = 'tr.rd-row--account:has(.rd-row__title:-soup-contains-own("Cash Wallet"))'
+field = "insert_row"
+old = ""
+value = "after"
+reason = "D8-E: the app list shows the unreferenced account Investments E (balance 0, never checked, 0 transactions) the dialog names; copy of the Cash Wallet row with the app's values; the source is Cash Wallet as the earlier rows leave it (29 OCT, 1 transaction)"
+
+[[row.edits]]
+select = ".rd-row__title"
+field = "text"
+old = "Cash Wallet"
+value = "Investments E"
+
+[[row.edits]]
+select = ".rd-row__sub"
+field = "text"
+old = "cash"
+value = "investment"
+
+[[row.edits]]
+select = ".rd-account__checked"
+field = "text"
+old = "29 OCT"
+value = "never"
+
+[[row.edits]]
+select = ".rd-account__txns"
+field = "text"
+old = "1"
+value = "0"
+
+[[row.edits]]
+select = ".rd-amount"
+field = "text"
+old = "85.94 "
+value = "0.00 "
+
+[[row.edits]]
+select = ".rd-menu"
+field = "aria-label"
+old = "Cash Wallet actions"
+value = "Investments E actions"
+
+[[row.edits]]
+select = ".rd-menu__title"
+field = "text"
+old = "Cash Wallet"
+value = "Investments E"
+
+[[row.edits]]
+select = ".rd-menu__sub"
+field = "text"
+old = "cash · 85.94 PLN"
+value = "investment · 0.00 PLN"
+
+[[row]]
+page = "pages/overlays/delete-account.html"
+select = ".rd-hero__label .u-hide-below-md"
+field = "text"
+old = "net worth · 10 accounts"
+value = "net worth · 11 accounts"
+reason = "D8-E: the app counts Investments E; net worth, assets and liabilities are unchanged (balance 0)"
+
+[[row]]
+page = "pages/overlays/delete-account.html"
+select = ".rd-accounts__head .rd-caption"
+field = "text"
+old = "10 ACCOUNTS"
+value = "11 ACCOUNTS"
+reason = "D8-E: the phone caption counts the accounts the list holds (eleven with Investments E)"

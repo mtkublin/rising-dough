@@ -38,12 +38,15 @@ from tests.visual.overlay import (
     GEOMETRY_ATTRIBUTES,
     GEOMETRY_SOURCES,
     HIDDEN_SETTABLE_CLASSES,
+    INSERT_ROW,
     OVERLAY_FILE,
     VALUE_SOURCES,
+    Edit,
     OverlayError,
     Row,
     apply_rows,
     class_change_violation,
+    copy_element,
     delta_rows,
     kind_violation,
     load_rows,
@@ -65,7 +68,7 @@ def row_violations(row: Row) -> list[str]:
     found: list[str] = []
     if not row.reason.strip():
         found.append("no reason")
-    if row.field not in {"text", "class"} and row.field not in ALLOWED_ATTRIBUTES:
+    if row.field not in {"text", "class", INSERT_ROW} and row.field not in ALLOWED_ATTRIBUTES:
         if row.field == "hidden" and row.absent:
             pass  # kind_violation holds it to HIDDEN_SETTABLE_CLASSES
         elif row.field in GEOMETRY_ATTRIBUTES:
@@ -113,6 +116,23 @@ def skeleton(html: str) -> list[tuple[object, ...]]:
     return out
 
 
+def expected_skeleton(pristine: str, rows: list[Row]) -> list[tuple[object, ...]]:
+    """Skeleton the overlaid page must have: the pristine one plus, per ``insert_row`` row, the
+    source element's own skeleton (ids made unique) next to it. Nothing else may change."""
+    soup = BeautifulSoup(pristine, "html.parser")
+    for row in rows:
+        if row.field == INSERT_ROW:
+            (source,) = soup.select(row.select)
+            clone = copy_element(source)
+            (source.insert_after if row.value == "after" else source.insert_before)(clone)
+    return skeleton(str(soup))
+
+
+def duplicate_ids(html: str) -> list[str]:
+    ids = [str(t["id"]) for t in BeautifulSoup(html, "html.parser").find_all(id=True)]
+    return sorted({i for i in ids if ids.count(i) > 1})
+
+
 # --- guard over the committed overlay ------------------------------------------------
 
 
@@ -140,7 +160,8 @@ def test_overlay_changes_only_text_and_allowed_attributes() -> None:
             continue
         pristine = (HANDOFF / page).read_text(encoding="utf-8")
         overlaid = apply_rows(page, pristine, ROWS)  # raises on a stale or ambiguous row
-        assert skeleton(overlaid) == skeleton(pristine), page
+        assert skeleton(overlaid) == expected_skeleton(pristine, todo), page
+        assert duplicate_ids(overlaid) == duplicate_ids(pristine), page
         changed += overlaid != pristine
         for i, row in enumerate(ROWS):
             if row.applies_to(page) and BeautifulSoup(pristine, "html.parser").select(row.select):
@@ -475,3 +496,96 @@ def test_apply_rewrites_an_existing_placeholder() -> None:
     stale = replace(row, old="search all 22 categories")
     with pytest.raises(OverlayError, match="expected"):
         apply_rows("pages/p.html", html, [stale])
+
+
+# --- insert_row (ADR-0147 amendment 2026-11-26) --------------------------------------
+
+_LIST = (
+    '<ul><li class="r" id="a" title="t"><b class="c" style="x" title="bt">one</b>'
+    '<button popovertarget="m">x</button><div id="m" popover>menu one</div></li></ul>'
+)
+_INSERT = Row(
+    page="pages/p.html",
+    select="li.r",
+    field=INSERT_ROW,
+    old="",
+    value="after",
+    reason="test",
+    edits=(Edit("b", "text", "one", "two"), Edit("div", "text", "menu one", "menu two")),
+)
+
+
+def _one_in(el: Tag | BeautifulSoup, selector: str) -> Tag:
+    found = el.select_one(selector)
+    assert found is not None
+    return found
+
+
+def test_insert_row_copies_the_source_and_changes_only_text() -> None:
+    assert row_violations(_INSERT) == []
+    out = apply_rows("pages/p.html", _LIST, [_INSERT])
+    soup = BeautifulSoup(out, "html.parser")
+    first, second = soup.select("li")
+    assert [li.get("class") for li in (first, second)] == [["r"], ["r"]]
+    assert (_one_in(first, "b").get_text(), _one_in(second, "b").get_text()) == ("one", "two")
+    assert _one_in(second, "b")["style"] == "x"
+    assert (second["id"], _one_in(second, "button")["popovertarget"]) == ("a-copy", "m-copy")
+    assert _one_in(second, "div")["id"] == "m-copy"
+    assert duplicate_ids(out) == []
+    assert skeleton(out) == expected_skeleton(_LIST, [_INSERT])
+    before = apply_rows("pages/p.html", _LIST, [replace(_INSERT, value="before")])
+    assert BeautifulSoup(before, "html.parser").select("li b")[0].get_text() == "two"
+
+
+def test_insert_row_attribute_edit_uses_an_allowed_attribute() -> None:
+    row = replace(_INSERT, edits=(Edit("b", "title", "bt", "bu"),))
+    assert row_violations(row) == []
+    out = apply_rows("pages/p.html", _LIST, [row])
+    assert [b["title"] for b in BeautifulSoup(out, "html.parser").select("li b")] == ["bt", "bu"]
+
+
+@pytest.mark.parametrize("field", ["class", "id", "style", "src", "hidden", "onclick", "name"])
+def test_insert_row_refuses_a_tag_class_id_style_or_script_edit(field: str) -> None:
+    assert row_violations(replace(_INSERT, edits=(Edit("b", field, "c", "d"),)))
+
+
+def test_insert_row_refuses_other_malformed_rows() -> None:
+    assert row_violations(replace(_INSERT, value="inside"))
+    assert row_violations(replace(_INSERT, old="x"))
+    assert row_violations(replace(_INSERT, absent=True))
+    assert row_violations(replace(_INSERT, edits=(Edit("b", "text", "one", "one"),)))
+    assert row_violations(replace(_BASE, edits=(Edit("b", "text", "x", "y"),)))
+    with pytest.raises(OverlayError, match="matched 0"):
+        apply_rows("pages/p.html", _LIST, [replace(_INSERT, edits=(Edit("i", "text", "a", "b"),))])
+    with pytest.raises(OverlayError, match="text nodes"):
+        apply_rows("pages/p.html", _LIST, [replace(_INSERT, edits=(Edit("b", "text", "x", "y"),))])
+
+
+def test_a_copy_that_changed_a_tag_or_class_breaks_the_skeleton_guard() -> None:
+    out = apply_rows("pages/p.html", _LIST, [_INSERT])
+    expected = expected_skeleton(_LIST, [_INSERT])
+    assert skeleton(out) == expected
+    tampered = (
+        ('<b class="c" style="x" title="bt">two</b>', '<i class="c" style="x" title="bt">two</i>'),
+        ('class="c" style="x" title="bt">two', 'class="d" style="x" title="bt">two'),
+        ('id="m-copy"', 'id="m"'),
+        ("</li></ul>", "<script>1</script></li></ul>"),
+    )
+    for old, new in tampered:
+        changed = out.replace(old, new)
+        assert changed != out, old
+        assert skeleton(changed) != expected, old
+
+
+def test_delete_account_board_lists_investments_e_after_cash_wallet() -> None:
+    page = "pages/overlays/delete-account.html"
+    out = overlay_page(page, (HANDOFF / page).read_text(encoding="utf-8"))
+    soup = BeautifulSoup(out, "html.parser")
+    titles = [t.get_text() for t in soup.select("tr.rd-row--account .rd-row__title")]
+    assert titles.index("Investments E") == titles.index("Cash Wallet") + 1
+    assert len(titles) == 11
+    row = soup.select("tr.rd-row--account")[titles.index("Investments E")]
+    assert _one_in(row, ".rd-amount").get_text(strip=True) == "0.00PLN"
+    assert _one_in(row, ".rd-account__txns").get_text() == "0"
+    assert _one_in(row, ".rd-account__checked").get_text(strip=True) == "· checkednever"
+    assert duplicate_ids(out) == []
