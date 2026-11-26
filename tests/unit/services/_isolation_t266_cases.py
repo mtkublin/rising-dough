@@ -66,8 +66,6 @@ def _case_reconcile_account(conn: sqlite3.Connection, world: World) -> None:
             account_id=world.owner.account_id,
             actual_balance_minor=1,
             today=WORLD_TODAY,
-            category_id=None,
-            save_snapshot=True,
         )
     assert accounts.list_snapshots_for_account(conn, OWNER_ID, world.owner.account_id) == []
     account_reconcile.reconcile_account(
@@ -76,8 +74,6 @@ def _case_reconcile_account(conn: sqlite3.Connection, world: World) -> None:
         account_id=world.owner.account_id,
         actual_balance_minor=OWNER_BALANCE,
         today=WORLD_TODAY,
-        category_id=world.owner.income_category_id,  # positive delta needs income (Q-005)
-        save_snapshot=True,
     )
     snaps = accounts.list_snapshots_for_account(conn, OWNER_ID, world.owner.account_id)
     assert [(s.balance, s.note) for s in snaps] == [(OWNER_BALANCE, "reconcile snapshot")]

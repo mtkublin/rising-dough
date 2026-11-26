@@ -19,10 +19,8 @@ from budget_planner.repositories import accounts
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
 from budget_planner.web.account_forms import (
     parse_account_patch,
-    parse_category_id,
     parse_liability,
     parse_new_account,
-    parse_save_snapshot,
 )
 from budget_planner.web.budget_forms import parse_override
 from budget_planner.web.recurring_forms import (
@@ -124,8 +122,6 @@ def test_checkbox_and_id_parsers() -> None:
         False,
         False,
     ]
-    assert [parse_save_snapshot(v) for v in ("yes", "on", "0", "")] == [True, True, False, False]
-    assert [parse_category_id(v) for v in ("12", " 7 ", "", "x")] == [12, 7, None, None]
 
 
 def test_account_patch_clears_limit_for_non_liability(conn: sqlite3.Connection) -> None:

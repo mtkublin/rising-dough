@@ -353,8 +353,6 @@ def reconcile_modal_error(
     acc: Account,
     message: str,
     actual_text: str = "",
-    category_id: str = "",
-    save_snapshot: bool = False,
 ) -> Response:
     """The reconcile dialog again with the rejected amount (422, ADR-0143)."""
     ctx, _ = accounts_data.reconcile_dialog_context(
@@ -362,8 +360,6 @@ def reconcile_modal_error(
         user_id,
         acc,
         actual_text=actual_text,
-        category_id=category_id,
-        save_snapshot=save_snapshot,
         message=message,
     )
     return invalid_dialog_response(request, _RECONCILE_DIALOG, ctx, {"actual_balance": message})
@@ -376,18 +372,21 @@ def reconcile_dialog_response(
     acc: Account,
     *,
     actual_text: str = "",
-    category_id: str = "",
-    save_snapshot: bool = False,
+    hero_only: bool = False,
 ) -> Response:
-    """The reconcile dialog for an optional typed amount: 200, or 422 when the amount is bad."""
+    """The reconcile dialog for an optional typed amount: 200, or 422 when the amount is bad.
+
+    ``hero_only`` is the live refresh while typing (ADR-0011 amendment 2026-11-26): 200 with the
+    difference of what is typed so far, never an error; the page swaps only ``.rd-dialog__hero``.
+    """
     ctx, errors = accounts_data.reconcile_dialog_context(
         conn,
         user_id,
         acc,
         actual_text=actual_text,
-        category_id=category_id,
-        save_snapshot=save_snapshot,
     )
+    if hero_only:
+        return render_context(request, _RECONCILE_DIALOG, {**ctx, "errors": {}})
     if errors:
         return invalid_dialog_response(request, _RECONCILE_DIALOG, ctx, errors)
     return dialog_response(request, _RECONCILE_DIALOG, {**ctx, "errors": {}})

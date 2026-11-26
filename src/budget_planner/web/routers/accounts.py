@@ -24,7 +24,6 @@ from budget_planner.web import accounts_data, form_responses
 from budget_planner.web.account_forms import (
     parse_account_patch,
     parse_new_account,
-    parse_save_snapshot,
 )
 from budget_planner.web.accounts_view import (
     account_dialog,
@@ -241,15 +240,18 @@ def take_snapshot(
 def reconcile_form(
     account_id: int,
     request: Request,
+    *,
     actual_balance: str = "",
+    hero: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    """The reconcile dialog; ``hero=1`` re-renders it for the live difference while typing."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return not_found_response(request, "account", account_id)
     return form_responses.reconcile_dialog_response(
-        request, conn, user_id, acc, actual_text=actual_balance
+        request, conn, user_id, acc, actual_text=actual_balance, hero_only=bool(hero)
     )
 
 
@@ -259,28 +261,18 @@ def reconcile_submit(
     request: Request,
     *,
     actual_balance: str = Form(""),
-    category_id: str = Form(""),
-    save_snapshot: str = Form(""),
-    preview: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    """Book the reconcile adjustment; ``?preview=1`` only re-renders the dialog's difference."""
+    """Book the reconcile adjustment to Reconciliation and save a snapshot (ADR-0011 2026-11-26)."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return not_found_response(request, "account", account_id)
-    typed: dict[str, Any] = {
-        "actual_text": actual_balance,
-        "category_id": category_id,
-        "save_snapshot": parse_save_snapshot(save_snapshot),
-    }
-    if preview:
-        return form_responses.reconcile_dialog_response(request, conn, user_id, acc, **typed)
-    refused = accounts_data.book_reconcile(conn, user_id, acc, settings, **typed)
+    refused = accounts_data.book_reconcile(conn, user_id, acc, settings, actual_text=actual_balance)
     if refused is not None:
         return form_responses.reconcile_modal_error(
-            request, conn, user_id, acc=acc, message=refused, **typed
+            request, conn, user_id, acc=acc, message=refused, actual_text=actual_balance
         )
     return saved_response(
         request,

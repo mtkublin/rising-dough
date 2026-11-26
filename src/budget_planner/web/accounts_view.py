@@ -457,19 +457,12 @@ def delete_dialog(acc: Account, refs: AccountReferences, balance_minor: int) -> 
 
 # --- T-UR08b: reconcile dialog ----------------------------------------------------
 @dataclass(frozen=True, slots=True)
-class CategoryChoice:
-    value: str
-    label: str
-    selected: bool
-
-
-@dataclass(frozen=True, slots=True)
 class ReconcileDialog:
     """Everything ``dialog-reconcile`` prints: the signed difference hero, facts and form."""
 
     title: str
     action: str
-    preview_url: str
+    hero_url: str
     target: str
     currency: str
     difference_text: str
@@ -478,9 +471,18 @@ class ReconcileDialog:
     hint: str
     hint_id: str
     value: str
-    categories: tuple[CategoryChoice, ...]
-    save_snapshot: bool
     snapshots: tuple[SnapshotLine, ...]
+
+
+def _dialog_snapshot(
+    acc: Account, credit: CreditUtilisation | None, snapshot: AccountSnapshot
+) -> SnapshotLine:
+    """A snapshot line in the dialog's own language: available credit when reconciling by it."""
+    line = snapshot_line(snapshot)
+    if credit is None:
+        return line
+    after = credit_utilisation(acc, snapshot.balance)
+    return line if after is None else SnapshotLine(line.taken, after.available_minor)
 
 
 def reconcile_dialog(
@@ -490,9 +492,6 @@ def reconcile_dialog(
     difference_minor: int,
     value: str,
     credit: CreditUtilisation | None,
-    categories: list[tuple[int, str]],
-    category_id: str,
-    save_snapshot: bool,
     snapshots: list[AccountSnapshot],
 ) -> ReconcileDialog:
     """Reconcile dialog values; ``credit`` is set when reconciling by available credit."""
@@ -501,19 +500,11 @@ def reconcile_dialog(
         field_label, hint = "balance in your bank", ""
     else:
         field_label = "remaining balance in your bank"
-        hint = (
-            "enter what you can still spend (limit \u2212 spent). "
-            f"Limit {format_money(credit.limit_minor, ccy)} \u00b7 "
-            f"implied used {format_money(credit.used_minor, ccy)}"
-        )
-    choices = [CategoryChoice("", "\u00b1ADJUST \u00b7 Reconciliation (system)", category_id == "")]
-    choices += [
-        CategoryChoice(str(cid), label, category_id == str(cid)) for cid, label in categories
-    ]
+        hint = "enter what you can still spend (limit \u2212 spent)"
     return ReconcileDialog(
         title=f"reconcile \u00b7 {acc.name}",
         action=f"/accounts/{acc.id}/reconcile",
-        preview_url=f"/accounts/{acc.id}/reconcile?preview=1",
+        hero_url=f"/accounts/{acc.id}/reconcile?hero=1",
         target=f"#account-{acc.id}",
         currency=ccy,
         difference_text=format_figure(difference_minor, ccy, plus=True),
@@ -522,7 +513,5 @@ def reconcile_dialog(
         hint=hint,
         hint_id="rec-available-help",
         value=value,
-        categories=tuple(choices),
-        save_snapshot=save_snapshot,
-        snapshots=tuple(snapshot_line(s) for s in snapshots),
+        snapshots=tuple(_dialog_snapshot(acc, credit, s) for s in snapshots),
     )

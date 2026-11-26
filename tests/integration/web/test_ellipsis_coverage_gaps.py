@@ -278,7 +278,7 @@ def test_update_category_rejects_bad_color_and_keeps_name(
 # --- accounts router -----------------------------------------------------
 
 
-def test_reconcile_non_numeric_category_falls_back_and_saves_snapshot(
+def test_reconcile_ignores_a_posted_category_and_saves_a_snapshot(
     client: TestClient, ctx: dict[str, int], _migrated: Settings
 ) -> None:
     r = client.post(

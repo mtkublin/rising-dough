@@ -1,4 +1,4 @@
-"""Reconcile an account and optionally snapshot it in one transaction (T-Q266).
+"""Reconcile an account and snapshot it in one transaction (T-Q266).
 
 The reconcile POST used to orchestrate ``reconcile`` and ``create_snapshot`` from the router in two
 separate transactions. This service owns both writes under one ``db_transaction`` (G8): a failed
@@ -89,10 +89,11 @@ def reconcile_account(
     account_id: int,
     actual_balance_minor: int,
     today: dt.date,
-    category_id: int | None,
-    save_snapshot: bool,
 ) -> None:
-    """Insert the adjustment (a zero delta is fine) and, when asked, snapshot the new balance."""
+    """Book the adjustment to the Reconciliation category and snapshot the new balance.
+
+    A zero delta books nothing but still snapshots (ADR-0011 amendment 2026-11-26).
+    """
     with db_transaction(conn):
         with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
             reconciliation_service.reconcile(
@@ -101,14 +102,12 @@ def reconcile_account(
                 account_id=account_id,
                 actual_balance_minor=actual_balance_minor,
                 today=today,
-                category_id=category_id,
             )
-        if save_snapshot:
-            balance = balance_service.derive_balance(conn, user_id, account_id)
-            accounts_service.create_snapshot(
-                conn,
-                user_id,
-                NewAccountSnapshot(
-                    account_id=account_id, balance=balance, note=RECONCILE_SNAPSHOT_NOTE
-                ),
-            )
+        balance = balance_service.derive_balance(conn, user_id, account_id)
+        accounts_service.create_snapshot(
+            conn,
+            user_id,
+            NewAccountSnapshot(
+                account_id=account_id, balance=balance, note=RECONCILE_SNAPSHOT_NOTE
+            ),
+        )

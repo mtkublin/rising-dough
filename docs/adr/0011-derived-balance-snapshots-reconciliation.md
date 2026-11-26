@@ -48,3 +48,14 @@ The adjustment is excluded from income/expense statistics (same mechanism as tra
 ## Amendment (T-D52)
 
 For liability accounts that have a `credit_limit_minor`, the reconcile dialog takes the user-observed **available** credit (what the bank app shows). The service converts it to the target derived balance: `used = credit_limit - available`, `target = -used` (liabilities store owed amounts as negative balances). The existing flow then applies unchanged: `delta = target - derived`, a signed `adjustment` transaction (ADR-0008 exception). `available` must satisfy `0 <= available <= credit_limit`; values outside are rejected (422) because a positive (overpaid) balance would be displayed with available clamped to the limit. Liabilities without a limit and asset accounts continue to enter the balance directly. Conversion is a pure function `available_to_target_balance` in `services/reconciliation.py`.
+
+## Amendment 2026-11-26 (T-UR45, operator D8-R): the reconcile dialog follows the handoff
+
+The reconcile dialog has one field, the balance in the bank (for a liability with a limit, the remaining available credit, T-D52). The hero shows the signed difference live while the user types: the balance field re-renders the hero fragment through HTMX (`hx-get`, `input changed delay:300ms`) from the service `preview_difference`; no arithmetic in the browser or the template. On submit:
+
+- the adjustment is always booked to the system `Reconciliation` category (`adjustment` direction, signed delta); the dialog has no category choice and `reconcile_account` takes no `category_id`;
+- a balance snapshot is always saved in the same `db_transaction` (G8), after the adjustment; there is no "also save a snapshot" option;
+- there is no preview button and no `?preview=1` POST;
+- a refused amount (empty, not a number, impossible available credit) answers 422 on the dialog with the field error and the typed value kept.
+
+`reconciliation.reconcile` keeps its optional `category_id` (the T-Q217 rule in ADR-0008 still guards it); the dialog never passes one.
