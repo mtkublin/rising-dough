@@ -142,7 +142,7 @@ def test_repeats_formula_component_fits_the_phone(
     page.wait_for_function("typeof window.htmx === 'object'")
     open_new_entry(page)
     to_playwright(page, entries.tab_repeats).click()
-    to_playwright(page, entries.amount_formula).check(force=True)
+    to_playwright(page, entries.amount_formula).evaluate("el => el.click()")
     expect(to_playwright(page, entries.formula_group)).to_be_visible()
     assert _small(page, "dialog") == []
     assert page.evaluate(_LAYOUT_PROBLEMS_JS, "fieldset.rd-comp") == []
