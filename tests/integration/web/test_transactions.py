@@ -126,7 +126,12 @@ def test_create_valid_persists_and_triggers(
     assert _html.text_of(r.text, shell.modal_root) == ""
     assert _html.all_text(r.text, errors.status) == "● Transaction saved"
     hx = json.loads(r.headers["HX-Trigger"])
-    assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
+    assert hx == {
+        "balance-stale": True,
+        "forecast-stale": True,
+        "ledger-stale": True,
+        "today-stale": True,
+    }
     conn = get_connection(_migrated)
     try:
         row = conn.execute("SELECT amount, description FROM transactions").fetchone()
@@ -156,7 +161,8 @@ def test_create_off_ledger_refreshes_page_without_swap(
     )
     assert r.status_code == 200
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "today-stale" in r.headers["HX-Trigger"]
 
 
 def test_create_on_ledger_does_not_refresh_page(client: TestClient, seeded: dict[str, int]) -> None:

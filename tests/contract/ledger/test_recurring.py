@@ -46,9 +46,9 @@ def test_create_persists_audits_and_signals(
 ) -> None:
     r = client.post("/recurring", data=rule_form(seeded))
     assert r.status_code == 200
-    assert hx_events(r) == FORECAST_LEDGER
+    assert hx_events(r) == {**FORECAST_LEDGER, "today-stale": True}
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
     assert _html.text_of(r.text, shell.modal_root) == ""
     assert _html.all_text(r.text, errors.status) == "● Recurring rule saved"
     new_id = scalar(_migrated, "SELECT MAX(id) FROM recurring_rules")
@@ -309,7 +309,7 @@ def test_promote_creates_transaction_and_advances_rule(
         data={"operation_date": "2026-11-02", "amount": "33", "description": "promoted rule"},
     )
     assert r.status_code == 200
-    assert hx_events(r) == PROMOTE_EVENTS
+    assert hx_events(r) == {**PROMOTE_EVENTS, "today-stale": True}
     assert r.headers["HX-Reswap"] == "none"
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before + 1
     assert _next_due(_migrated, rid) > due_before
