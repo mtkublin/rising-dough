@@ -633,3 +633,35 @@ Two features in two releases: savings goals first (useful on their own), then a 
 - Shared or household goals; recurring or automatic allocations; goals linked to whole accounts; tagging transactions to goals.
 - Starter levels or growing jars, leaderboards, social sharing, push or e-mail notifications, sound.
 - Resetting the starter or its milestones.
+
+---
+
+## 13. Capacity and Performance (added 2026-11-26)
+
+Get the app ready for each distribution stage without an architecture change until a measurement asks for one. Plan: `docs/plans/scaling/` (T-SC01..T-SC16). Decision: [ADR-0151](adr/0151-capacity-and-scaling-strategy-per-distribution-stage.md); stack proposals [ADR-0152](adr/0152-python-upgrade-and-native-arm64-dev-interpreter.md) (Python upgrade) and [ADR-0153](adr/0153-native-hot-paths-via-pyo3.md) (PyO3 hot paths). Sign-up, email and GDPR are not part of this section and stay deferred.
+
+### 13.1 Distribution stages
+
+| Stage | Who | Users | Gate (ADR-0151) |
+|---|---|---|---|
+| 1 | Friends and family | ≤ 10 | error tracking, host heartbeat, cross-user route test, load baseline |
+| 2 | Invited finance-oriented influencers and similar | ≤ 100 | profile fixes, rehearsed resize runbook, expand/contract migrations, shorter snapshot interval |
+| 3 | Open registration | unknown | full load test and scalability plan, blue/green, warm standby, static landing, pre-scale runbook |
+
+### 13.2 Scope
+
+- **SC1** Jinja `auto_reload` only in `dev`; Caddy serves `/static` with immutable caching and per-release asset URLs; Caddy holds requests across an app restart (`lb_try_duration`).
+- **SC2** Monitoring beyond the three UptimeRobot monitors: 5xx and exception alerting with PII scrubbed, a host health heartbeat (memory, disk, sustained CPU, steal, OOM), a response-time alert, a trend view.
+- **SC3** A test generated from the route list: another user's entity id returns 404 and changes nothing, for reads and writes.
+- **SC4** A k6 load baseline and py-spy profile on a drill, recorded in `docs/plans/scaling/baseline.md`; it is also the v3 baseline for v4 T-E13.
+- **SC5** Scale order: serving fixes, measure, fix the profile's findings, a bigger instance, then 2–4 uvicorn workers (with the FX refresh running once per host), then a warm standby. Multi-host and Postgres only when an ADR-0151 §6 trigger fires; the Postgres decision is taken before v4 T-E08.
+- **SC6** Rehearsed scale-up and scale-down runbook; pre-scaling before planned campaigns is the primary answer to marketing spikes.
+- **SC7** Expand/contract migrations before stage 2; same-host blue/green before stage 3.
+- **SC8** Both a replica (host loss) and point-in-time restore (logical damage); Litestream `snapshot-interval` between 1 h and 6 h.
+
+### 13.3 Constraints
+
+- No load tests, profiling or experiments against prod (ADR-0099); drills only.
+- Capacity numbers are quoted only from `baseline.md`.
+- No microservice split; no SQL aggregation (FX owner, v4 T-E10); no full rewrite in another language.
+- Deferred until measured: ETag/304, smaller HTMX swaps, minijinja, a registration queue (last resort), autoscaling.
