@@ -14,6 +14,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from budget_planner.domain.accounts import (
+    DUPLICATE_NAME_MESSAGE,
     KIND_FIXED_MESSAGE,
     Account,
     AccountReferences,
@@ -202,12 +203,27 @@ def _raise_if_invalid(errors: dict[str, str]) -> None:
         raise ValidationError(fields=errors)
 
 
+def _duplicate_name_errors(
+    conn: sqlite3.Connection, user_id: int, name: str | None, *, own_id: int | None
+) -> dict[str, str]:
+    """A name error when another live account of the user has ``name`` (the unique index)."""
+    if name is None:
+        return {}
+    other = accounts_repo.find_by_name(conn, user_id, name)
+    if other is not None and other.id != own_id:
+        return {"name": DUPLICATE_NAME_MESSAGE}
+    return {}
+
+
 def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
     """Create an account (one repository mutation: row and audit are atomic).
 
     Raises :class:`ValidationError` naming each invalid field; writes nothing then.
     """
-    _raise_if_invalid(new_account_errors(data))
+    errors = new_account_errors(data)
+    if "name" not in errors:
+        errors = {**errors, **_duplicate_name_errors(conn, user_id, data.name, own_id=None)}
+    _raise_if_invalid(errors)
     return accounts_repo.create(conn, user_id, data)
 
 
@@ -221,6 +237,8 @@ def update(conn: sqlite3.Connection, user_id: int, account_id: int, data: PatchA
     stored = accounts_repo.find_by_id(conn, user_id, account_id)
     if stored is not None and data.is_liability not in (None, stored.is_liability):
         errors = {**errors, "is_liability": KIND_FIXED_MESSAGE}
+    if "name" not in errors:
+        errors = {**errors, **_duplicate_name_errors(conn, user_id, data.name, own_id=account_id)}
     _raise_if_invalid(errors)
     return accounts_repo.update(conn, user_id, account_id, data)
 

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
+from budget_planner.domain.errors import ValidationError
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.services import (
     accounts as accounts_service,
@@ -91,7 +92,14 @@ def create_account(
         is_liability=is_liability,
         credit_limit=credit_limit,
     )
-    if parsed.command is None:
+    errors = parsed.errors
+    acc = None
+    if parsed.command is not None:
+        try:
+            acc = accounts_service.create(conn, user_id, parsed.command)
+        except ValidationError as exc:
+            errors = exc.fields
+    if acc is None:
         values = {
             "name": name,
             "currency": currency,
@@ -105,10 +113,9 @@ def create_account(
             values=values,
             base_currency=settings.base_currency,
             today=today,
-            errors=parsed.errors,
+            errors=errors,
         )
-        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
-    acc = accounts_service.create(conn, user_id, parsed.command)
+        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, errors)
     response = saved_response(
         request,
         _ROW,
@@ -167,7 +174,15 @@ def update_account(
     parsed = parse_account_patch(
         acc, name=name, account_type=type, is_liability=is_liability, credit_limit=credit_limit
     )
-    if parsed.patch is None:
+    errors = parsed.errors
+    saved = False
+    if parsed.patch is not None:
+        try:
+            accounts_service.update(conn, user_id, account_id, parsed.patch)
+            saved = True
+        except ValidationError as exc:
+            errors = exc.fields
+    if not saved:
         values = {
             "name": name,
             "type": type,
@@ -179,10 +194,9 @@ def update_account(
             values=values,
             base_currency=settings.base_currency,
             today=today,
-            errors=parsed.errors,
+            errors=errors,
         )
-        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
-    accounts_service.update(conn, user_id, account_id, parsed.patch)
+        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, errors)
     return saved_response(
         request,
         _ROW,
