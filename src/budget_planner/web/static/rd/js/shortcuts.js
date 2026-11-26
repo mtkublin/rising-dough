@@ -53,7 +53,7 @@
       return;
     }
     if (key === '/') {
-      const search = document.querySelector('main input[type="search"], main [role="search"] input');
+      const search = document.querySelector('main input[type="search"]:not([disabled])');
       if (search) {
         event.preventDefault();
         search.focus();
