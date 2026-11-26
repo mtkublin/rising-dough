@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, Tag
@@ -40,6 +41,8 @@ def test_base_declares_htmx_config_and_today_attribute(client: TestClient) -> No
     meta = soup.find("meta", attrs={"name": "htmx-config"})
     assert isinstance(meta, Tag)
     assert '"allowEval": false' in str(meta["content"])
+    config = json.loads(str(meta["content"]))
+    assert config["attributesToSettle"] == ["class", "width", "height"]
     body = soup.body
     assert body is not None
     assert body.get("data-today-local")
