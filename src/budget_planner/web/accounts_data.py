@@ -19,7 +19,6 @@ from budget_planner.services import (
     account_reconcile as reconcile_service,
     accounts as accounts_service,
     balance as balance_service,
-    categories as categories_service,
     fortune as fortune_service,
     fx as fx_service,
     reconciliation as reconciliation_service,
@@ -155,44 +154,6 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
     }
 
 
-def available_mode_context(acc: Account, derived: int) -> dict[str, object]:
-    """T-D52: a liability with a credit limit reconciles by available credit."""
-    util = credit_utilisation(acc, derived)
-    if util is None:
-        return {"by_available": False}
-    return {
-        "by_available": True,
-        "credit_limit_minor": util.limit_minor,
-        "used_minor": util.used_minor,
-        "available_minor": util.available_minor,
-    }
-
-
-def reconcile_modal_context(
-    conn: sqlite3.Connection,
-    user_id: int,
-    acc: Account,
-    derived: int,
-    entered_minor: int | None = None,
-) -> dict[str, object]:
-    """Category choices and available-credit values shared by the modal and its rejections.
-
-    ``preview`` carries the signed difference for a typed amount (T-UR34f), else ``None``.
-    """
-    return {
-        "preview": (
-            None
-            if entered_minor is None
-            else reconcile_service.preview_difference(acc, entered_minor, derived)
-        ),
-        "account": acc,
-        "derived": derived,
-        "categories": [c for c in categories_service.list_all(conn, user_id) if not c.is_system],
-        "reconciliation_cat": categories_service.find_by_name(conn, user_id, "Reconciliation"),
-        **available_mode_context(acc, derived),
-    }
-
-
 def recent_snapshots(
     conn: sqlite3.Connection, user_id: int, account_id: int
 ) -> list[AccountSnapshot]:
@@ -228,8 +189,6 @@ def reconcile_dialog_context(
     acc: Account,
     *,
     actual_text: str = "",
-    category_id: str = "",
-    save_snapshot: bool = False,
     message: str | None = None,
 ) -> tuple[dict[str, object], dict[str, str]]:
     """Reconcile dialog view-model plus the field errors of the typed amount (T-UR08b).
@@ -244,20 +203,12 @@ def reconcile_dialog_context(
     if message is not None:
         errors = {"actual_balance": message}
     prefill = format_major(util.available_minor, acc.currency) if util is not None else ""
-    categories = [
-        (c.id, f"{c.direction.value.upper()} \u00b7 {c.name}")
-        for c in categories_service.list_all(conn, user_id)
-        if not c.is_system
-    ]
     dlg = reconcile_dialog(
         acc,
         current_minor=util.available_minor if util is not None else derived,
         difference_minor=difference,
         value=text or prefill,
         credit=util,
-        categories=categories,
-        category_id=category_id,
-        save_snapshot=save_snapshot,
         snapshots=recent_snapshots(conn, user_id, acc.id),
     )
     return {"dlg": dlg}, errors
@@ -270,8 +221,6 @@ def book_reconcile(
     settings: Settings,
     *,
     actual_text: str,
-    category_id: str,
-    save_snapshot: bool,
 ) -> str | None:
     """Book the reconcile adjustment; the field error message when the amount is refused."""
     entered = parse_amount_minor(actual_text, acc.currency)
@@ -284,8 +233,6 @@ def book_reconcile(
             account_id=acc.id,
             actual_balance_minor=reconcile_service.target_balance_minor(acc, entered),
             today=clock.today_local(settings),
-            category_id=int(category_id) if category_id.strip().isdigit() else None,
-            save_snapshot=save_snapshot,
         )
     except (
         reconciliation_service.InvalidAvailableError,

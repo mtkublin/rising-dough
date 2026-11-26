@@ -130,7 +130,12 @@ def test_create(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection)
         },
     )
     assert r.status_code == 200
-    assert json.loads(r.headers["HX-Trigger"]) == {"forecast-stale": True, "ledger-stale": True}
+    assert json.loads(r.headers["HX-Trigger"]) == {
+        "forecast-stale": True,
+        "ledger-stale": True,
+        "today-stale": True,
+        "budget-stale": True,
+    }
     assert _html.text_of(r.text, shell.modal_root) == ""
     assert _html.all_text(r.text, errors.status) == "● Recurring rule saved"
     row = db.execute(
@@ -535,7 +540,7 @@ def test_override_invalid_amount(
     )
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-amount-error": "▲ amount must be a decimal number within range",
+        "field-amount-error": "▲ Enter an amount above 0.00",
     }
     assert _state(db) == before
 
@@ -635,7 +640,12 @@ def test_promote_submit_no_edits(
     r = client.post(f"/recurring/{ctx['rule']}/promote", data={}, headers=_HTMX)
     assert r.status_code == 200
     payload = json.loads(r.headers["HX-Trigger"])
-    assert payload == {"ledger-stale": True, "forecast-stale": True, "budget-stale": True}
+    assert payload == {
+        "ledger-stale": True,
+        "forecast-stale": True,
+        "budget-stale": True,
+        "today-stale": True,
+    }
     assert _html.text_of(r.text, by_id("flash-region")).endswith("Recurring occurrence promoted")
 
     # DB side-effect: rule's next_due advanced + one new transaction exists.
@@ -665,7 +675,7 @@ def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, in
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
     assert _html.error_lines(r.text) == {
-        "field-amount-error": "▲ amount must be a decimal number within range",
+        "field-amount-error": "▲ Enter an amount above 0.00",
     }
     assert _html.resolve_one(r.text, entries.promote_amount).get("value") == "not-a-number"
 
@@ -741,7 +751,11 @@ def test_skip_next_advances(client: TestClient, ctx: dict[str, int], _migrated: 
     r = client.post(f"/recurring/{ctx['rule']}/skip-next", headers=_HTMX)
     assert r.status_code == 200
     payload = json.loads(r.headers["HX-Trigger"])
-    assert payload == {"ledger-stale": True, "forecast-stale": True, "budget-stale": True}
+    assert payload == {
+        "ledger-stale": True,
+        "forecast-stale": True,
+        "budget-stale": True,
+    }
     assert "HX-Reswap" not in r.headers
     assert _html.text_of(r.text, by_id("flash-region")).endswith("Next occurrence skipped")
     after = _get_rule_next_due(_migrated, ctx["rule"])
@@ -824,7 +838,12 @@ def test_recurring_promote_submit_advances_and_fires_triggers(
     r = client.post(f"/recurring/{ctx['rule']}/promote", data={})
     assert r.status_code == 200
     payload = json.loads(r.headers["HX-Trigger"])
-    assert payload == {"ledger-stale": True, "forecast-stale": True, "budget-stale": True}
+    assert payload == {
+        "ledger-stale": True,
+        "forecast-stale": True,
+        "budget-stale": True,
+        "today-stale": True,
+    }
     after = _get_rule_next_due(_migrated, ctx["rule"])
     assert after > before
     # One transaction created.
@@ -1190,8 +1209,9 @@ def test_create_off_ledger_refreshes_page_without_swap(
         headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/today"},
     )
     assert r.status_code == 200
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Reswap" not in r.headers
+    assert "HX-Refresh" not in r.headers
+    assert {"today-stale", "budget-stale"} <= set(json.loads(r.headers["HX-Trigger"]))
     assert "ledger-stale" in r.headers["HX-Trigger"]
 
 
@@ -1248,8 +1268,9 @@ def test_promote_off_ledger_refreshes_and_on_ledger_does_not(
 ) -> None:
     off = client.post(f"/recurring/{ctx['rule']}/promote", data={}, headers=_ON_TODAY)
     assert off.status_code == 200
-    assert off.headers["HX-Reswap"] == "none"
-    assert off.headers["HX-Refresh"] == "true"
+    assert "HX-Reswap" not in off.headers
+    assert "HX-Refresh" not in off.headers
+    assert {"today-stale", "budget-stale"} <= set(json.loads(off.headers["HX-Trigger"]))
     on = client.post(f"/recurring/{ctx['rule']}/promote", data={}, headers=_ON_LEDGER)
     assert on.headers["HX-Reswap"] == "none"
     assert "HX-Refresh" not in on.headers
@@ -1278,7 +1299,7 @@ def test_override_errors_rerender_the_dialog_with_the_message(
         (
             {"year": "2026", "month": "5", "amount": "abc"},
             "amount",
-            "amount must be a decimal number within range",
+            "Enter an amount above 0.00",
         ),
         ({"year": "2026", "month": "5", "amount": "-1"}, "amount", "Enter an amount above 0.00"),
     ):

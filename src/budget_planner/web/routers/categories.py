@@ -19,7 +19,7 @@ from budget_planner.web.dialogs import (
 )
 from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
-from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_RESWAP
 from budget_planner.web.paths import NEW_PATH
 from budget_planner.web.settings_view import (
     category_form_view,
@@ -79,12 +79,10 @@ def create_category(
         _ROW,
         {"row": category_row_view(cat)},
         message="Category created",
-        events=(Event.BUDGET_STALE,),
+        events=(Event.BUDGET_STALE, Event.SETTINGS_CATEGORIES_STALE),
     )
-    # T-D150: the page list has no region that refetches on this trigger, so skip the swap and
-    # reload to show the new item.
+    # The category list refetches on settings-categories-stale; the flash is out of band.
     response.headers[HX_RESWAP] = "none"
-    response.headers[HX_REFRESH] = "true"
     return response
 
 

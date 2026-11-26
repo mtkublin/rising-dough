@@ -31,8 +31,6 @@ def test_reconcile_inserts_adjustment_and_snapshot_of_new_balance(conn: sqlite3.
         account_id=account_id,
         actual_balance_minor=120_000,
         today=_TODAY,
-        category_id=None,
-        save_snapshot=True,
     )
 
     assert balance.derive_balance(conn, USER_ID, account_id) == 120_000
@@ -55,8 +53,6 @@ def test_zero_delta_is_not_an_error_and_still_snapshots(conn: sqlite3.Connection
         account_id=account_id,
         actual_balance_minor=100_000,
         today=_TODAY,
-        category_id=None,
-        save_snapshot=True,
     )
 
     count = conn.execute(
@@ -66,35 +62,31 @@ def test_zero_delta_is_not_an_error_and_still_snapshots(conn: sqlite3.Connection
     assert [s.balance for s in list_snapshots_for_account(conn, USER_ID, account_id)] == [100_000]
 
 
-def test_no_snapshot_unless_requested(conn: sqlite3.Connection) -> None:
+def test_negative_delta_books_a_signed_adjustment_to_reconciliation(
+    conn: sqlite3.Connection,
+) -> None:
     account_id = _account(conn)
 
     account_reconcile.reconcile_account(
-        conn,
-        USER_ID,
-        account_id=account_id,
-        actual_balance_minor=90_000,
-        today=_TODAY,
-        category_id=None,
-        save_snapshot=False,
+        conn, USER_ID, account_id=account_id, actual_balance_minor=90_000, today=_TODAY
     )
 
-    assert list_snapshots_for_account(conn, USER_ID, account_id) == []
-    assert balance.derive_balance(conn, USER_ID, account_id) == 90_000
+    row = conn.execute(
+        "SELECT t.amount, c.name, c.direction FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id WHERE t.account_id = ?",
+        (account_id,),
+    ).fetchone()
+    assert tuple(row) == (-10_000, "Reconciliation", "adjustment")
+    assert [s.balance for s in list_snapshots_for_account(conn, USER_ID, account_id)] == [90_000]
 
 
 def test_failed_reconcile_leaves_no_snapshot(conn: sqlite3.Connection) -> None:
     account_id = _account(conn)
+    conn.execute("UPDATE categories SET name = 'Gone' WHERE name = 'Reconciliation'")
 
     with pytest.raises(reconciliation.MissingSystemCategoryError):
         account_reconcile.reconcile_account(
-            conn,
-            USER_ID,
-            account_id=account_id,
-            actual_balance_minor=90_000,
-            today=_TODAY,
-            category_id=999_999,
-            save_snapshot=True,
+            conn, USER_ID, account_id=account_id, actual_balance_minor=90_000, today=_TODAY
         )
 
     assert list_snapshots_for_account(conn, USER_ID, account_id) == []
@@ -114,8 +106,6 @@ def test_second_users_account_is_not_reconcilable(conn: sqlite3.Connection) -> N
             account_id=other_account,
             actual_balance_minor=1,
             today=_TODAY,
-            category_id=None,
-            save_snapshot=True,
         )
 
     assert list_snapshots_for_account(conn, 2, other_account) == []

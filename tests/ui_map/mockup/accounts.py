@@ -68,8 +68,6 @@ NO_HANDOFF_TWIN = frozenset(
         "snapshot_item",
         "reconcile_record",
         "reconcile_difference",
-        "reconcile_preview",
-        "reconcile_snapshot_option",
         "new_account_cta",
     }
 )
@@ -123,8 +121,6 @@ reconcile_actual = _app.reconcile_actual
 reconcile_available = _app.reconcile_available
 reconcile_available_help = _app.reconcile_available_help
 reconcile_difference = _app.reconcile_difference
-reconcile_preview = _app.reconcile_preview
-reconcile_snapshot_option = _app.reconcile_snapshot_option
 last_checked_row = role("listitem")
 snapshot_item = role("listitem")
 reconcile_record = _app.reconcile_record

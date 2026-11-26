@@ -2,10 +2,11 @@
    Context: dlg (accounts_view.ReconcileDialog), errors, field_count, field_errors.
    The hero is the static signed difference (UR04f output hero); the bank figure is the body field
    actual_balance. A liability with a limit is asked for its available credit (T-D52).
-   Beyond the handoff: "record as" (category_id) and "also save a snapshot" (save_snapshot), and a
-   secondary [ preview ] that re-renders the dialog with the difference of the typed amount. #}
+   The hero follows the typed balance live: the field GETs dlg.hero_url (input, 300 ms) and only
+   .rd-dialog__hero is swapped (ADR-0011 amendment 2026-11-26, D8-R). No category choice, no snapshot
+   checkbox, no preview button: the adjustment books to Reconciliation and a snapshot is always saved. #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
-{% call dialog("reconcile-account", dlg.title, action=dlg.action, hx_post=dlg.action, hx_target=dlg.target, hx_swap="outerHTML", hero={"output": true, "amount_value": dlg.difference_text, "currency": dlg.currency ~ " difference", "amount_id": "field-actual_balance"}, actions=[{"tone": "cancel"}, {"tone": "secondary", "id": "reconcile-preview", "label": "preview", "hx_post": dlg.preview_url, "hx_target": "#modal-root", "hx_swap": "innerHTML"}, {"tone": "primary", "label": "[ reconcile ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+{% call dialog("reconcile-account", dlg.title, action=dlg.action, hx_post=dlg.action, hx_target=dlg.target, hx_swap="outerHTML", hero={"output": true, "amount_value": dlg.difference_text, "currency": dlg.currency ~ " difference", "amount_id": "field-actual_balance"}, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ reconcile ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
   <dl class="rd-recon__facts">
     <dt class="rd-muted">in rising dough</dt>
     <dd class="rd-num">
@@ -15,32 +16,13 @@
   <div class="rd-field rd-field--amount">
     <label class="rd-field__label" for="field-actual_balance">{{ dlg.field_label }}</label>
     <span class="rd-input">
-      <input class="rd-input__control" id="field-actual_balance" name="actual_balance" type="text" value="{{ dlg.value }}" inputmode="decimal" data-js="amount-input" autocomplete="off" {% if dlg.hint or errors.actual_balance|default(none) %}aria-describedby="{% if errors.actual_balance|default(none) %}field-actual_balance-error{% endif %}{% if dlg.hint and errors.actual_balance|default(none) %} {% endif %}{% if dlg.hint %}{{ dlg.hint_id }}{% endif %}"{% endif %} {% if errors.actual_balance|default(none) %}aria-invalid="true"{% endif %} required>
+      <input class="rd-input__control" id="field-actual_balance" name="actual_balance" type="text" value="{{ dlg.value }}" inputmode="decimal" data-js="amount-input" autocomplete="off" hx-get="{{ dlg.hero_url }}" hx-trigger="input changed delay:300ms" hx-target="#modal-root .rd-dialog__hero" hx-select=".rd-dialog__hero" hx-swap="outerHTML" {% if dlg.hint or errors.actual_balance|default(none) %}aria-describedby="{% if errors.actual_balance|default(none) %}field-actual_balance-error{% endif %}{% if dlg.hint and errors.actual_balance|default(none) %} {% endif %}{% if dlg.hint %}{{ dlg.hint_id }}{% endif %}"{% endif %} {% if errors.actual_balance|default(none) %}aria-invalid="true"{% endif %} required>
       <span class="rd-input__suffix">{{ dlg.currency }}</span>
     </span>
     {% if errors.actual_balance|default(none) %}<p class="rd-field__error"
    id="field-actual_balance-error">▲ {{ errors.actual_balance }}</p>{% endif %}
   </div>
   {% if dlg.hint %}<p class="rd-field__hint rd-field__hint--solo" id="{{ dlg.hint_id }}">{{ dlg.hint }}</p>{% endif %}
-  <div class="rd-field">
-    <label class="rd-field__label" for="field-category_id">record as</label>
-    <span class="rd-select-wrap">
-      <select class="rd-select rd-select--field"
-              id="field-category_id"
-              name="category_id">
-        {% for c in dlg.categories %}
-          <option value="{{ c.value }}"{% if c.selected %} selected{% endif %}>{{ c.label }}</option>
-        {% endfor %}
-      </select>
-    </span>
-  </div>
-  <label class="rd-field__hint rd-field__hint--solo">
-    <input type="checkbox"
-           name="save_snapshot"
-           value="1"
-           {% if dlg.save_snapshot %} checked{% endif %}>
-    also save a balance snapshot
-  </label>
   {% if dlg.snapshots %}
     <section class="rd-snapshots" aria-labelledby="snap-title">
       <h3 class="rd-caption" id="snap-title">SNAPSHOTS</h3>

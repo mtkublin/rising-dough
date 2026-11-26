@@ -349,7 +349,7 @@ def test_missing_amount_is_a_human_422_not_json(
     assert r.headers["content-type"].startswith("text/html")
     assert r.headers["HX-Retarget"] == "#modal-root"
     assert _html.error_lines(r.text) == {
-        "field-amount-error": "▲ amount must be a decimal number within range",
+        "field-amount-error": "▲ Enter an amount above 0.00",
     }
     assert _html.resolve_one(r.text, entries.dialog).find("form") is not None
     assert (
@@ -391,7 +391,7 @@ def test_recurring_post_without_amount_is_a_human_422(
     assert r.status_code == 422
     assert r.headers["content-type"].startswith("text/html")
     assert _html.error_lines(r.text) == {
-        "field-default_amount-error": "▲ amount must be a decimal number within range",
+        "field-default_amount-error": "▲ Enter an amount above 0.00",
     }
     assert _count(db, "recurring_rules") == before
 
@@ -414,7 +414,7 @@ def test_planned_promote_with_a_bad_or_missing_amount_is_refused(
     assert r.status_code == 422
     assert r.headers["content-type"].startswith("text/html")
     assert _html.error_lines(r.text) == {
-        "field-amount-error": "▲ amount must be a decimal number within range",
+        "field-amount-error": "▲ Enter an amount above 0.00",
     }
     assert _count(db, "transactions") == 0
     promoted = db.execute(
@@ -430,11 +430,7 @@ def test_recurring_promote_with_a_bad_amount_is_refused(
     rule = db.execute("SELECT id, next_due FROM recurring_rules ORDER BY id LIMIT 1").fetchone()
     r = client.post(f"/recurring/{rule[0]}/promote", data={"amount": amount}, headers=FROM_DIALOG)
     assert r.status_code == 422
-    message = (
-        "amount must be a decimal number within range"
-        if amount == "abc"
-        else "Enter an amount above 0.00"
-    )
+    message = "Enter an amount above 0.00"
     assert _html.error_lines(r.text) == {"field-amount-error": f"▲ {message}"}
     assert _count(db, "transactions") == 0
     assert (

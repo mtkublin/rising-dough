@@ -68,9 +68,9 @@ def test_create_persists_audits_and_signals(
 ) -> None:
     r = client.post("/planned", data=_form(seeded))
     assert r.status_code == 200
-    assert hx_events(r) == FORECAST_LEDGER
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert hx_events(r) == {**FORECAST_LEDGER, "today-stale": True, "budget-stale": True}
+    assert "HX-Reswap" not in r.headers
+    assert "HX-Refresh" not in r.headers
     assert _html.text_of(r.text, shell.modal_root) == ""
     assert _html.all_text(r.text, errors.status) == "● Planned entry saved"
     new_id = scalar(_migrated, "SELECT MAX(id) FROM planned_transactions")
@@ -196,8 +196,14 @@ def test_promote_creates_transaction_and_links_it(
         data={"operation_date": "2026-11-02", "amount": "25", "description": "promoted"},
     )
     assert r.status_code == 200
-    assert hx_events(r) == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
-    assert r.headers["HX-Reswap"] == "none"
+    assert hx_events(r) == {
+        "balance-stale": True,
+        "forecast-stale": True,
+        "ledger-stale": True,
+        "today-stale": True,
+        "budget-stale": True,
+    }
+    assert "HX-Reswap" not in r.headers
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before + 1
     linked = scalar(
         _migrated,

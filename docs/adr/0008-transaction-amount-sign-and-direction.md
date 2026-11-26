@@ -57,3 +57,7 @@ OQ-9 default taken 2026-11-21, pending operator confirmation: user-defined trans
 - `expense` with `delta < 0`.
 
 Anything else raises `CategoryDirectionMismatchError` (a `ValidationError`) inside the reconcile transaction, before the insert (ADR-0137), so no row is written. Transit categories remain rejected by the T-Q210 rule above. The accounts router maps it to 422 on the existing reconcile-modal error partial. Post-condition: `derive_balance == typed target` for every accepted reconcile.
+
+## Amendment 2026-11-26 (T-UR45): the reconcile dialog no longer chooses a category
+
+The reconcile dialog always books to the system `Reconciliation` category (ADR-0011 amendment 2026-11-26). The T-Q217 category/sign rule above stays on the service for any other caller; the dialog cannot trigger it.

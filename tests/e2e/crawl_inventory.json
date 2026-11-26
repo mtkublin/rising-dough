@@ -137,10 +137,10 @@
       "via": "reconcile"
     },
     {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "preview",
-      "target": "/accounts/{id}/reconcile?preview={n}",
+      "kind": "hx-get",
+      "name": "",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/accounts/{id}/reconcile?hero={n}",
       "via": "reconcile"
     },
     {

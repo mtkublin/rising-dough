@@ -23,8 +23,10 @@ services:
       # T-D135 / ADR-0067 §1: WebAuthn RP = the public browser hostname.
       BUDGET_WEBAUTHN_RP_ID: "${hostname}"
       BUDGET_WEBAUTHN_ORIGIN: "https://${hostname}"
+%{~ if admin_email != "" }
       BUDGET_PLANNER_ADMIN_EMAIL: "${admin_email}"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "${admin_initial_password}"
+%{~ endif }
 %{~ if setup_token_hash != "" }
       # T-UR21a / ADR-0134 section 9: sha256 of the one-time setup token.
       BUDGET_PLANNER_SETUP_TOKEN_HASH: "${setup_token_hash}"

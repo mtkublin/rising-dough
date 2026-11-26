@@ -13,7 +13,6 @@ from budget_planner.domain.money import parse_amount_minor
 from budget_planner.web.params import credit_limit_amount
 
 _TRUE_FLAGS = frozenset({"on", "true", "1"})
-_SNAPSHOT_FLAGS = frozenset({"1", "on", "true", "yes"})
 
 
 @dataclass(frozen=True)
@@ -35,17 +34,6 @@ class ParsedAccountPatch:
 def parse_liability(raw: str) -> bool:
     """Checkbox text to a bool."""
     return raw.strip().lower() in _TRUE_FLAGS
-
-
-def parse_save_snapshot(raw: str) -> bool:
-    """Reconcile-modal "also save a snapshot" checkbox text to a bool."""
-    return raw.strip().lower() in _SNAPSHOT_FLAGS
-
-
-def parse_category_id(raw: str) -> int | None:
-    """Optional category select value to an id (blank or non-numeric is ``None``)."""
-    text = raw.strip()
-    return int(text) if text.isdigit() else None
 
 
 def _currency_error(cur: str) -> dict[str, str]:

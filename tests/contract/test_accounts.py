@@ -31,7 +31,7 @@ from tests.contract.web_helpers_t_ut04b import (
     field,
     seed_other_user,
 )
-from tests.ui_map import _html, accounts, errors
+from tests.ui_map import _html, accounts, errors, rd_shell
 from tests.ui_map.locator import by_id
 
 pytest_plugins = ["tests.contract.web_support_t_ut04b"]  # client, anon_client, raw_client
@@ -161,12 +161,13 @@ def test_new_form_requires_login(anon_client: TestClient) -> None:
 
 
 @covers("POST /accounts")
-def test_create_persists_audits_and_reloads_page(client: TestClient, _migrated: Settings) -> None:
+def test_create_persists_audits_and_flashes(client: TestClient, _migrated: Settings) -> None:
     r = client.post("/accounts", data=NEW_ACCOUNT, headers={"HX-Request": "true"})
     assert r.status_code == 200
     assert json.loads(r.headers["HX-Trigger"]) == {"balance-stale": True}
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Travel created" in _html.text_of(r.text, rd_shell.flash_saved)
     rows = _account_rows(_migrated)
     assert len(rows) == 1
     assert (rows[0]["name"], rows[0]["currency"], rows[0]["user_id"]) == ("Travel", "EUR", USER_ID)
@@ -512,8 +513,7 @@ def test_reconcile_form_liability_with_limit_asks_available(
     assert r.status_code == 200
     assert field(r.text, accounts.reconcile_available)["value"] == "3765.44"
     help_text = _html.text_of(r.text, accounts.reconcile_available_help)
-    assert "Limit 5,000.00" in help_text
-    assert "1,234.56" in help_text
+    assert help_text == "enter what you can still spend (limit \N{MINUS SIGN} spent)"
 
 
 @covers("GET /accounts/{account_id}/reconcile")
@@ -524,6 +524,17 @@ def test_reconcile_form_liability_without_limit_asks_balance(
     r = client.get(f"/accounts/{card}/reconcile")
     assert not _html.exists(r.text, accounts.reconcile_available)
     assert _html.exists(r.text, accounts.reconcile_actual)
+
+
+@covers("GET /accounts/{account_id}/reconcile")
+def test_reconcile_hero_refresh_shows_the_typed_difference_and_books_nothing(
+    client: TestClient, acc_id: int, _migrated: Settings
+) -> None:
+    r = client.get(f"/accounts/{acc_id}/reconcile?hero=1&actual_balance=3,690.10")
+    assert r.status_code == 200
+    assert _html.text_of(r.text, accounts.reconcile_difference) == "+3,690.10"
+    assert _adjustments(_migrated, acc_id) == []
+    assert fetch_all(_migrated, "SELECT id FROM account_snapshots") == []
 
 
 @covers("GET /accounts/{account_id}/reconcile")
@@ -574,16 +585,15 @@ def test_reconcile_zero_delta_writes_nothing(
 
 
 @covers("POST /accounts/{account_id}/reconcile")
-def test_reconcile_can_also_save_snapshot(
+def test_reconcile_always_saves_a_snapshot_even_for_a_zero_delta(
     client: TestClient, acc_id: int, _migrated: Settings
 ) -> None:
-    r = client.post(
-        f"/accounts/{acc_id}/reconcile",
-        data={"actual_balance": "10.00", "save_snapshot": "1"},
-    )
+    r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "10.00"})
     assert r.status_code == 200
     snaps = fetch_all(_migrated, "SELECT balance, note FROM account_snapshots")
     assert snaps == [{"balance": 1_000, "note": "reconcile snapshot"}]
+    client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "10.00"})
+    assert len(fetch_all(_migrated, "SELECT id FROM account_snapshots")) == 2
 
 
 @covers("POST /accounts/{account_id}/reconcile")

@@ -77,6 +77,18 @@ variable "allow_branch_builds" {
   default     = false
 }
 
+variable "admin_email" {
+  description = "Bootstrap admin email; empty renders a compose without the admin env (T-UR22, drill default)."
+  type        = string
+  default     = "admin@example.invalid"
+}
+
+variable "setup_token_hash" {
+  description = "sha256 hex of the one-time setup token; empty renders no BUDGET_PLANNER_SETUP_TOKEN_HASH (ADR-0134 section 9)."
+  type        = string
+  default     = ""
+}
+
 locals {
   dummy_digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # pragma: allowlist secret
 }
@@ -98,7 +110,8 @@ module "compute" {
   ghcr_pull_pat     = "ghp_DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
   github_owner      = "render-check-owner"
   github_repo       = "render-check-repo"
-  admin_email       = "admin@example.invalid"
+  admin_email       = var.admin_email
+  setup_token_hash  = var.setup_token_hash
   admin_password    = "dummy-admin-password" # pragma: allowlist secret
   cookie_secret     = "dummy-cookie-secret"  # pragma: allowlist secret
   trusted_hosts_csv = var.tailnet_only ? "budget-planner-drill.tail0000.ts.net" : "render-check.example.invalid"

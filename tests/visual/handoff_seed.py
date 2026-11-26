@@ -95,6 +95,7 @@ class AccountSeed:
     checked: tuple[str, ...]  # snapshot dates (ISO), the last one is "checked"
     credit_limit_minor: int | None = None
     is_liability: bool = False
+    snapshot_minor: tuple[int, ...] = ()  # balance per ``checked`` date; empty = the page balance
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,7 +189,13 @@ ACCOUNTS: Final[tuple[AccountSeed, ...]] = (
     AccountSeed("Investments A", "investment", 1_699_129, ("2026-04-01",)),
     AccountSeed("Savings", "savings", 1_245_304, ("2026-04-01",)),
     AccountSeed("Investments C", "investment", 572_922, ("2026-07-01",)),
-    AccountSeed("Checking", "bank", 368_581, ("2026-03-01", "2026-04-01")),
+    AccountSeed(
+        "Checking",
+        "bank",
+        368_581,
+        ("2026-03-01", "2026-04-01"),
+        snapshot_minor=(341_502, 370_244),  # reconcile.html: 01 MAR 3,415.02, 01 APR 3,702.44
+    ),
     AccountSeed("Investments B", "investment", 238_368, ("2026-04-01",)),
     AccountSeed("Investments D", "investment", 228_746, ("2026-07-01",)),
     AccountSeed("Cash Wallet", "cash", 8_594, ("2026-04-01",)),
@@ -197,9 +204,11 @@ ACCOUNTS: Final[tuple[AccountSeed, ...]] = (
         "Credit Card",
         "credit_card",
         -245_574,
-        ("2026-04-01",),
+        ("2026-03-01", "2026-04-01"),
         credit_limit_minor=1_497_737,
         is_liability=True,
+        # reconcile--liability.html lists available credit: 01 MAR 13,102.55, 01 APR 12,788.10
+        snapshot_minor=(-187_482, -218_927),
     ),
     AccountSeed("Everyday Spending", "bank", -11_986, ("2026-09-01",)),
 )
@@ -904,9 +913,10 @@ def _fit_balances(conn: sqlite3.Connection, data: SeedData, acc: dict[str, int])
             acc[a.name],
             PatchAccount(opening_balance=a.balance_minor - derived[acc[a.name]]),
         )
-        for day in a.checked:
+        balances = a.snapshot_minor or (a.balance_minor,) * len(a.checked)
+        for day, snap_minor in zip(a.checked, balances, strict=True):
             snapshots_repo.create(
-                conn, OWNER_ID, NewAccountSnapshot(account_id=acc[a.name], balance=a.balance_minor)
+                conn, OWNER_ID, NewAccountSnapshot(account_id=acc[a.name], balance=snap_minor)
             )
             conn.execute(
                 "UPDATE account_snapshots SET taken_at = ? "
