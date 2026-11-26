@@ -70,7 +70,7 @@ DIALOG_SUBMITS: Final[dict[str, DialogSubmit]] = {
     "pages/overlays/new-account--error.html": DialogSubmit(
         fills=(("#modal-root input[name=currency]", "XYZ"),),
         press=_SUBMIT,
-        answer="",
+        answer="#modal-root .rd-field__error",  # the swap is done before the focus moves
         skip_validation=True,
         refocus="#modal-root input[name=opening_balance]",
     ),
