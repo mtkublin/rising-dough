@@ -47,7 +47,7 @@ def plan(
     if tab_norm == "budget":
         budget = plan_data.budget_view_for(conn, user_id, picked, today_d, settings)
         ctx["budget"] = budget
-        ctx["period"] = plan_data.budget_period_for(picked, budget)
+        ctx["period"] = plan_data.budget_period_for(picked, budget, query.get("pick_year"))
         return render(request, "pages/plan/budget.html", nav_current="plan", **ctx)
     if tab_norm == "year":
         ctx["year_page"] = plan_data.year_page_for(
@@ -73,6 +73,6 @@ def plan(
         )
         return render(request, "pages/plan/forecast.html", nav_current="plan", **ctx)
     ctx["analytics"] = plan_data.analytics_page_for(
-        conn, user_id, picked, request.query_params.get("period"), settings=settings
+        conn, user_id, picked, request.query_params, settings=settings
     )
     return render(request, "pages/plan/analytics.html", nav_current="plan", **ctx)

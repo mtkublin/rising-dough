@@ -629,9 +629,9 @@
       "via": "November 2026 \u25be"
     },
     {
-      "kind": "link",
+      "kind": "hx-get",
       "name": "Next year",
-      "target": "/plan?tab=budget&year={n}&month={n}",
+      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
       "via": "November 2026 \u25be"
     },
     {
@@ -647,9 +647,9 @@
       "via": "November 2026 \u25be"
     },
     {
-      "kind": "link",
+      "kind": "hx-get",
       "name": "Previous year",
-      "target": "/plan?tab=budget&year={n}&month={n}",
+      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
       "via": "November 2026 \u25be"
     },
     {
