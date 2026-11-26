@@ -66,6 +66,39 @@ _LAYOUT_PROBLEMS_JS = """
 }
 """
 
+# Visible select / text / date controls under ``root`` whose shown text (selected option, value,
+# or placeholder) is wider than the content box. A date adds the native picker icon (24px).
+_CLIPPED_VALUES_JS = """
+(rootSel) => {
+  const root = document.querySelector(rootSel);
+  const ctx = document.createElement('canvas').getContext('2d');
+  const out = [];
+  for (const el of root.querySelectorAll('input, select')) {
+    if (el.getClientRects().length === 0 || el.closest('[hidden]')) continue;
+    if (['hidden', 'checkbox', 'radio', 'submit', 'button'].includes(el.type)) continue;
+    const cs = getComputedStyle(el);
+    ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    let text = el.placeholder || '';
+    if (el.tagName === 'SELECT') text = el.selectedOptions[0] ? el.selectedOptions[0].text : '';
+    else if (el.type === 'date') text = el.value ? '26/11/2026' : 'dd/mm/yyyy';
+    else if (el.value) text = el.value;
+    const icon = el.type === 'date' ? 24 : 0;
+    const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const need = ctx.measureText(text).width + icon;
+    if (need > avail + 0.5 || el.scrollWidth > el.clientWidth) {
+      out.push((el.id || el.name || el.className) + ' needs ' + Math.round(need)
+               + ' has ' + Math.round(avail));
+    }
+  }
+  return out;
+}
+"""
+
+
+def _clipped(page: Page, root: str) -> list[str]:
+    result: list[str] = page.evaluate(_CLIPPED_VALUES_JS, root)
+    return result
+
 
 def _small(page: Page, root: str | None = None) -> list[dict[str, object]]:
     result: list[dict[str, object]] = page.evaluate(_SMALL_FIELDS_JS, [root, MIN_FONT_PX])
@@ -104,6 +137,9 @@ def test_today_and_ledger_inputs_are_16px_and_filters_fit(
     expect(to_playwright(page, FILTERS_EXTRA)).to_be_visible()
     assert _small(page) == []
     assert page.evaluate(_LAYOUT_PROBLEMS_JS, "#f-extra") == []
+    to_playwright(page, FILTER_FROM).fill("2026-11-26")
+    to_playwright(page, FILTER_TO).fill("2026-11-27")
+    assert _clipped(page, "#f-extra") == []
     from_box = to_playwright(page, FILTER_FROM).bounding_box()
     to_box = to_playwright(page, FILTER_TO).bounding_box()
     assert from_box is not None
@@ -122,6 +158,10 @@ def test_new_entry_tabs_inputs_are_16px(
 ) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
+    assert page.request.post(
+        f"{base_url}/accounts",
+        form={"name": "Credit Card Platinum", "currency": "PLN", "opening_balance": "0.00"},
+    ).ok
     page.set_viewport_size(PHONE)
     page.goto(f"{base_url}/today")
     page.wait_for_function("typeof window.htmx === 'object'")
@@ -131,6 +171,8 @@ def test_new_entry_tabs_inputs_are_16px(
         link.click()
         expect(link).to_have_attribute("aria-current", "page")
     assert _small(page, "dialog") == []
+    to_playwright(page, entries.field_account).select_option(label="Credit Card Platinum")
+    assert _clipped(page, "dialog") == []
 
 
 def test_repeats_formula_component_fits_the_phone(

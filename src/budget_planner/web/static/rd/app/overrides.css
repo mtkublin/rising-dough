@@ -51,6 +51,18 @@
     min-width: 0;
   }
 
+  /* T-UR63: at 16px a filled date no longer fits a half column next to the picker icon, so from
+     and to stack at full width. */
+  .rd-filters__extra {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Same for the half-width pairs in a dialog (account and start date, currency and name): a
+     value such as "Credit Card" or "26/11/2026" must show whole at 16px. */
+  .rd-dialog .rd-fields-row > .rd-field {
+    flex-basis: 100%;
+  }
+
   .rd-filters .rd-text {
     box-sizing: border-box;
     width: 100%;

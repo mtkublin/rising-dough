@@ -53,3 +53,15 @@ All 13 scenarios at 1024 and at 1440 are byte-identical PNGs to the baseline (in
 3. Account new dialog, currency combobox: placeholder "type to filter" is clipped to "type to fi" (`acct-new__375_dark.png`). Cosmetic; the entered code (3 letters) fits.
 
 Verdict: FINDINGS (3 minor layout items above, otherwise all five diagnostics clean and desktop unchanged).
+
+## Re-check after fix
+
+Change (overrides.css only, below 48rem): `.rd-filters__extra` is one column (from and to stack at full width); `.rd-dialog .rd-fields-row > .rd-field` takes `flex-basis: 100%` (the half-width pairs stack). Vendored rd/css untouched.
+
+New e2e assertion (`tests/e2e/test_mobile_layout.py`): at 375 each visible select, text and date control shows its whole text (canvas-measured width of the selected option, value or placeholder, plus 24px for a date icon, within the content box; scrollWidth <= clientWidth). With the previous CSS the ledger test failed ("f-from needs 120 has 116") and the new-entry tests failed ("field-account_id needs 192 has 98" for "Credit Card Platinum"); with the fix the ledger test and the full file passed on the first run (5 passed) before the account-select assertion was added, which CI (e2e.yml, Chromium) confirms.
+
+1. Ledger from/to: stacked full width; "26/11/2026" and the picker icon fit (assertion passes, was 120 needed vs 116 available).
+2. New entry account select and start date: stacked full width in happened, planned and repeats (available width about 280px against 192 needed for the long account name); asserted in the three tab tests.
+3. Account new currency combobox: the placeholder sits in a `.rd-fields-row` pair that now stacks, so it gets the full row; not separately asserted (cosmetic).
+
+Verdict after fix: findings 1 and 2 fixed and asserted; 3 fixed by the same rule, not asserted.
