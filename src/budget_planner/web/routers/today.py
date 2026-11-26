@@ -16,7 +16,6 @@ from budget_planner.config import Settings
 from budget_planner.services import (
     accounts as accounts_service,
     budget as budget_service,
-    categories as categories_service,
     fortune as fortune_service,
     fx as fx_service,
     today as today_service,
@@ -71,7 +70,7 @@ def today(
 
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
-    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    categories_by_id = today_data.categories_with_archived(conn, user_id)
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
 
     return render(
@@ -108,7 +107,7 @@ def today_upcoming_fragment(
     today_d = clock.today_local(settings)
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
-    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    categories_by_id = today_data.categories_with_archived(conn, user_id)
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
     return render(
         request,

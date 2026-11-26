@@ -85,7 +85,7 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
     # The handoff board (4 day groups, 11 rows) with its "pizza" search (category chip needs an id).
     "pages/ledger/actual--no-matches.html": _NO_MATCHES,
-    "pages/errors/422.html": "/budget?month=zz",
+    "pages/errors/422.html": "/plan?tab=budget&year=zz&month=zz",
     "pages/settings/preferences.html": "/settings?tab=prefs",
     "pages/settings/currency-fx.html": "/settings?tab=fx",
     "pages/settings/security.html": "/settings/security",

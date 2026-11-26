@@ -3664,3 +3664,43 @@ field = "text"
 old = "10 ACCOUNTS"
 value = "11 ACCOUNTS"
 reason = "D8-E: the phone caption counts the accounts the list holds (eleven with Investments E)"
+
+# --- INV1 / errors/422: the handoff shows a no-JS new-entry POST refused (amount and category).
+# The app answers the full-page 422 only for query/param errors; every form POST answers the
+# dialog. The recipe maps the page to the two-field year+month param error
+# (/plan?tab=budget&year=zz&month=zz), so the summary rows carry those messages.
+
+[[row]]
+page = "pages/errors/422.html"
+select = ".rd-error-summary li:nth-child(1) a"
+field = "text"
+old = "Amount is required"
+value = "year must be between 1 and 9999"
+reason = "INV1: the harness stands the two-field year and month param error in for the new-entry POST refusal (the app answers a form POST with the dialog, never this page); message text only, count and layout are the handoff's"
+
+[[row]]
+page = "pages/errors/422.html"
+select = ".rd-error-summary li:nth-child(2) a"
+field = "text"
+old = "Pick a category"
+value = "month must be between 1 and 12"
+reason = "INV1: second field of the stand-in two-field param error (see the year row)"
+
+# --- INV1 / reconcile: the dialog opens with ?actual_balance=<typed text>; the app echoes the
+# text as typed, the handoff shows it grouped.
+
+[[row]]
+page = "pages/overlays/reconcile.html"
+select = "#rc-bank"
+field = "value"
+old = "3,690.10"
+value = "3690.10"
+reason = "INV1: the app echoes the typed text (3690.10) of the opener query; the handoff groups the thousands"
+
+[[row]]
+page = "pages/overlays/reconcile--liability.html"
+select = "#rc-bank"
+field = "value"
+old = "12,400.00"
+value = "12400.00"
+reason = "INV1: the app echoes the typed text (12400.00) of the opener query; the handoff groups the thousands"

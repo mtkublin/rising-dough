@@ -369,7 +369,7 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ("pages/settings/currency-fx.html", "/settings?tab=fx", ()),
         ("pages/settings/security.html", "/settings/security", ()),
         ("pages/settings/users.html", "/settings/users", ()),
-        ("pages/errors/422.html", "/budget?month=zz", ()),
+        ("pages/errors/422.html", "/plan?tab=budget&year=zz&month=zz", ()),
     ],
 )
 def test_page_route_and_modifiers(page: str, route: str, modifiers: tuple[str, ...]) -> None:

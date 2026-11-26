@@ -158,9 +158,8 @@ def recent_snapshots(
     conn: sqlite3.Connection, user_id: int, account_id: int
 ) -> list[AccountSnapshot]:
     """The newest few snapshots for the reconcile modal."""
-    return accounts_service.list_snapshots_for_account(conn, user_id, account_id)[
-        :_RECENT_SNAPSHOTS
-    ]
+    stored = accounts_service.list_snapshots_for_account(conn, user_id, account_id)
+    return stored[::-1][:_RECENT_SNAPSHOTS]
 
 
 def row_context(

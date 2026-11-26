@@ -214,3 +214,24 @@ def test_zero_delta_submit_says_already_in_sync_and_only_snapshots(
     snaps = db.execute("SELECT balance, note FROM account_snapshots WHERE account_id = ?", (acc,))
     assert [tuple(row) for row in snaps] == [(10_000, "reconcile snapshot")]
     assert _count(db, "account_snapshots") == 1  # exactly one row in the DB: no other account's
+
+
+def test_dialog_lists_the_five_newest_snapshots_newest_first(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    for month, balance in enumerate((100_000, 200_000, 300_000, 400_000, 500_000, 600_000), 1):
+        snapshots_repo.create(db, USER_ID, NewAccountSnapshot(account_id=acc, balance=balance))
+        db.execute(
+            "UPDATE account_snapshots SET taken_at = ? "
+            "WHERE id = (SELECT max(id) FROM account_snapshots)",
+            (f"2026-0{month}-01T09:00:00.000Z",),
+        )
+    html = client.get(f"/accounts/{acc}/reconcile").text
+    assert _html.texts(html, accounts.snapshot_item) == [
+        "01 JUN 6,000.00 PLN",
+        "01 MAY 5,000.00 PLN",
+        "01 APR 4,000.00 PLN",
+        "01 MAR 3,000.00 PLN",
+        "01 FEB 2,000.00 PLN",
+    ]
