@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping, Sequence
+from types import MappingProxyType
 
 from fastapi import Request
 from fastapi.responses import Response
@@ -57,18 +58,38 @@ def from_dialog(request: Request) -> bool:
     return request.headers.get(_HX_TARGET, "") == _MODAL_ROOT_ID
 
 
+_TAB_PARAMS = frozenset({"when", "dialog", "hero"})
+_REPEATS_NAMES = MappingProxyType(
+    {"amount": "default_amount", "description": "default_description"}
+)
+
+
+def _carried(query: Mapping[str, str], tab: str) -> dict[str, str]:
+    """The form values of the tab being left, named as the tab being opened expects them."""
+    to_repeats = tab == "repeats"
+    back = {new: old for old, new in _REPEATS_NAMES.items()}
+    out: dict[str, str] = {}
+    for key, value in query.items():
+        if key not in _TAB_PARAMS:
+            out[(_REPEATS_NAMES if to_repeats else back).get(key, key)] = value
+    return out
+
+
 def open_new_entry(
     request: Request, conn: sqlite3.Connection, user_id: int, *, tab: str
 ) -> Response:
     """The new-entry dialog on ``tab``; a plain page load gets a shell page that opens it."""
     if not is_hx_request(request):
         return render(request, _NEW_ENTRY_PAGE, nav_current="", tab=tab)
+    # A tab switch sends the form's values along: the new tab opens with what was typed.
+    carried = _carried(request.query_params, tab)
     context = entry_forms.new_entry_context(
         conn,
         user_id,
         tab=tab,
         today=today_for(request),
         base_currency=request.app.state.settings.base_currency,
+        posted=carried or None,
     )
     return dialog_response(request, NEW_ENTRY_TEMPLATE, context)
 
