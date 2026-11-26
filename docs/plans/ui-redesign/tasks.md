@@ -305,6 +305,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
 - Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0134 §9, ADR-0099.
+- Operator 2026-11-26: before the release (T-UR17).
 
 ### ✅ T-UR23 [P] Account delete rule (blocked dialog) → T-UR08, T-UR33
 - Service rule shipped in Phase P (T-UR33, ADR-0148); this task builds the blocked and confirm dialogs on the returned counts. Original scope: service refuses delete while any transaction, planned or recurring item references the account; dialog links to them; state blocked by recurring only; final confirm otherwise. Tests assert DB state and audit. Requirement F2.8. ADR-0134 §3.
@@ -388,6 +389,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
 - Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
+- Operator 2026-11-26: before the release (T-UR17).
 
 ### ✅ T-UR43a [S] Stored formula cycle: 0.00 with a warning, saves must remove it (Q25)
 - Operator decision Q25 ([operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md)); rule and exact wording in the [ADR-0047](../../adr/0047-recurring-formula-linear-combination-and-chaining.md) amendment 2026-11-25.
@@ -401,28 +403,60 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
   - Q16: ADR-0152 confirmed by the operator (Status line).
   - Q9: ADR-0134 amendment: invite email NO-GO for v1 (T-UR18 and requirements wording aligned).
 
+### ◻ T-UR44 [S] New-entry tabs carry typed values (D5-b)
+- Scope: switching the new-entry tab (happened, planned, repeats) keeps the typed amount, category, account and note; tab-only fields (due date, cadence) reset. The tab links add `hx-include` with the CSRF token excluded and `form_responses.open_new_entry` reads the values as `posted`. Then finish QFIX10's regression test on the new behaviour; QFIX11/12 diagnostics may be deleted once the lost-note scenario passes without `fill_stable` retries. Requirement F1.1a.
+- Decision: D5 in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0030, ADR-0040.
+
+### ◻ T-UR45 [P] Reconcile dialog: live hero, no extras (D8-R)
+- Scope: the reconcile dialog has one balance field; the hero shows the difference live while the balance is typed; `record as` is removed and the adjustment is always booked to the system Reconciliation category; a balance snapshot is always saved (no checkbox); the `preview` button is removed; seed snapshots per the handoff. Service behaviour changes: requirement F2.5 is amended first (done in `docs/requirements.md`); the reconcile ADR amendment is the orchestrator's. Template start: `D8-R-reconcile-extras-out.patch`.
+- Decision: D8-R in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0011, ADR-0008 (T-Q217 category choice superseded for the dialog), ADR-0125 §7.
+
+### ◻ T-UR46 [S] Grouped digits accepted in amount inputs
+- Scope: `domain/money.parse_amount_str` strips thousands separators (comma, space, no-break space) before the `.` decimal; amount inputs keep rendering the bare value. Tests: exact minor units for each separator, and that a lone decimal comma (`12,5`) still parses as before. Requirement F1.1.
+- Decision: "Other decisions" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0006.
+
+### ◻ T-UR47 [P] Logged validation bugs: 500s and bad values saved
+- Scope: bad dialog input answers 422 with a visible field error, never 500 and never a stored bad value. Fix the 500s on bad `day_of_month`, year and opening balance (`abc`) and on a duplicate category name in dialogs; reject `day_of_month=45` on edit recurring and an empty or `abc` budget override amount. Tests assert the 422 body, the field error and that no row or audit entry is written. Requirement F1.1a. Fix before the release (T-UR17).
+- Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md); list in "Follow-ups logged 2026-11-25". ADR-0030.
+
+### ◻ T-UR48 [P] Logged HTMX and route bugs
+- Scope: `/today` promote success toast is not lost to `HX-Refresh`; a service-raised `ValidationError` flash (`handle_validation`) sends `HX-Reswap: none`; removed routes such as `/transactions/new` answer 404, not 405; `/accounts/9999/edit` answers the shared 404 page, not a bare `account not found` body; palette and tab-bar `+` / `n` open a new entry in place on `/ledger` instead of navigating to `/today`. Fix before the release (T-UR17).
+- Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0143, ADR-0040, T-UR41a (Q12 404 pages).
+
+### ◻ T-UR49 [S] 1024 px clipped actions column of planned and recurring tables
+- Scope: at 1024 px the actions column of the planned and recurring tables is fully visible (no clipping, no horizontal scroll); `frontend-visual-audit` at 1440 / 1024 / 375. Fix before the release (T-UR17).
+- Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0027.
+
+### ◻ T-UR50 [S] Intended differences xfail and remaining unexplained reds
+- Scope: `tests/visual/test_reference.py` marks the intended differences listed in `derived.md` as `xfail(strict=True)` (ADR-0147 amendment, the orchestrator's); fix the harness channel mismatch (RGBA vs RGB) and investigate the remaining unexplained reds: errors/422 pages, `edit-recurring--picking`, `new-entry--error` (and `new-entry--repeats-fixed` / `--repeats-formula`). The comparison stays advisory.
+- Decision: "Intended differences and the gate" and "Reds outside D1-D11" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0147.
+
+### ◻ T-UR51 [S] Dead-Python sweep
+- Scope: delete the unused template filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans`, `year_cell_state` (and their tests); key the `_orphans` macro by field name instead of message text and drop its unused `field_count` argument; delete the unused ui_map locators `any_recurring_row` and `plan_year.disclosure`. No allowlist entry added; entries of deleted code are removed.
+- Decision: "Follow-ups logged 2026-11-25" (confirmed in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md)). ADR-0130, ADR-0123.
+
 ## Follow-ups logged 2026-11-25
 
-- /today promote success sends `HX-Refresh`, so the success toast is lost.
-- At 1024 px the actions column of the planned and recurring tables is clipped.
+- → T-UR48: /today promote success sends `HX-Refresh`, so the success toast is lost.
+- → T-UR49: At 1024 px the actions column of the planned and recurring tables is clipped.
 - Double `role=alert` (the wrapper in `layouts/base.html` line 89 and `fragments/flash/error.html` line 8): accessibility.
 - WebKit e2e (advisory) failures: `test_crawl[ledger]` (export as parquet, frame load interrupted), `test_crawl[today]` (cancelled GET `/today/upcoming`), `test_csp_buttons` (x2), `test_setup_page` (timeout).
-- Amount inputs stay ungrouped (`parse_amount_str` accepts no grouping). Operator question: are grouped digits wanted in amount inputs?
+- → T-UR46: Amount inputs stay ungrouped (`parse_amount_str` accepts no grouping). Operator question: are grouped digits wanted in amount inputs?
 - `merge-item` remote-branch deletion returns 403 (token). Stale `wi/**` branches on origin to be pruned by the operator.
 - GET 422 page copy is form-oriented for plain GETs (for example `/plan?horizon=100000`).
-- The `_orphans` macro matches on message text; fragile. Key it by field name.
-- `dialog.html` `_orphans` takes an unused `field_count` argument.
-- 500s on bad `day_of_month`, year or opening balance (`abc`), and on a duplicate category name, in dialogs.
-- Bad values are accepted and saved: edit recurring with `day_of_month=45`; budget override amount empty or `abc`.
-- A service-raised `ValidationError` HTMX flash (`handle_validation`) lacks `HX-Reswap: none`.
-- Palette and tab-bar `+` / `n` navigate to `/today` to open a new entry, instead of opening it in place on `/ledger`.
-- Removed routes such as `/transactions/new` answer 405, not 404.
-- `accounts/9999/edit` answers a bare `account not found` body.
+- → T-UR51: The `_orphans` macro matches on message text; fragile. Key it by field name.
+- → T-UR51: `dialog.html` `_orphans` takes an unused `field_count` argument.
+- → T-UR47: 500s on bad `day_of_month`, year or opening balance (`abc`), and on a duplicate category name, in dialogs.
+- → T-UR47: Bad values are accepted and saved: edit recurring with `day_of_month=45`; budget override amount empty or `abc`.
+- → T-UR48: A service-raised `ValidationError` HTMX flash (`handle_validation`) lacks `HX-Reswap: none`.
+- → T-UR48: Palette and tab-bar `+` / `n` navigate to `/today` to open a new entry, instead of opening it in place on `/ledger`.
+- → T-UR48: Removed routes such as `/transactions/new` answer 405, not 404.
+- → T-UR48: `accounts/9999/edit` answers a bare `account not found` body.
 - Invite links use the configured public base URL, not the request host (see the T-UR20 note). There is no `copy link` for invites: the token is stored hashed.
 - Intermittent required Chromium e2e failure, 'note typed but not posted' (QFIX10/11/12). Root cause under investigation; QFIX10 is not merged (its branch exists on origin).
   - QFIX13: root cause NOT proven. QFIX12 scenarios: the tab swap is not the cause (filling after the planned tab is `aria-current` passes) and a hero swap alone never clears the note. Untested hypothesis: htmx 2 re-focuses the new element with the same id when a swap removes the focused element; a hero refresh swap landing between Playwright's `fill` focus step and its text-insert step, while the amount input inside the swapped `.rd-dialog__hero` still has focus, sends the typed text to the amount input about to be replaced (amount intact, note empty).
   - QFIX13 hardening applied (test side only): `tests/e2e/ui_actions.py` `quiesce` (no `.htmx-request`/`.htmx-swapping`/`.htmx-settling`, no in-flight request counted by the `window.__htmxPending` init script, stable across two animation frames) replaces the fixed 300 ms `_settle` wait; `fill_stable` quiesces, fills, checks the value, re-quiesces and retries up to 3 times. Retries are not failures: the e2e pytest terminal summary prints `e2e fill_stable retries: N` so CI logs show how often a swap beat a fill.
   - QFIX13 operator/design question (docs first, no code change yet): should typed values survive a tab switch? QFIX12 scenarios A, B2 and D lose a note typed on the happened tab when the tab swap replaces `#modal-root`: the tab links are plain `hx-get` without `hx-include`.
-- Unused ui_map locators: `any_recurring_row` and `plan_year.disclosure`.
-- Dead-Python sweep incomplete (`vulture` not installed): filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans` and `year_cell_state` are unused by templates.
+- → T-UR51: Unused ui_map locators: `any_recurring_row` and `plan_year.disclosure`.
+- → T-UR51: Dead-Python sweep incomplete (`vulture` not installed): filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans` and `year_cell_state` are unused by templates.
 - Commit subjects that deviate from the item-id rule (history not rewritten): PAR-A audit `docs(PAR-A)`; UR10a `wip(UR10a)`.
