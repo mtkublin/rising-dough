@@ -1,4 +1,4 @@
-"""Empty-state and picker links open their dialog in place (T-UR52).
+"""Empty-state links open their dialog in place (T-UR52).
 
 A plain ``href`` to a dialog fragment navigates to a page without a shell. Each link
 must carry the same ``hx-get`` / ``#modal-root`` attributes as the working header button.
