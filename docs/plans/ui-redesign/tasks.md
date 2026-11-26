@@ -467,3 +467,72 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - → T-UR51: Unused ui_map locators: `any_recurring_row` and `plan_year.disclosure`.
 - → T-UR51: Dead-Python sweep incomplete (`vulture` not installed): filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans` and `year_cell_state` are unused by templates.
 - Commit subjects that deviate from the item-id rule (history not rewritten): PAR-A audit `docs(PAR-A)`; UR10a `wip(UR10a)`.
+
+## Operator drill review 2026-11-26
+
+Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
+
+### ◻ T-UR52 [P] New account button redirects to an empty page
+- Scope: bug: New account button redirects to an empty page.
+- Source: operator-review-2026-11-26.md R1.
+
+### ◻ T-UR53 [P] New income category missing from the anchor dropdown until reload
+- Scope: bug: New income category missing from the anchor dropdown until reload.
+- Source: operator-review-2026-11-26.md R2.
+
+### ◻ T-UR54 [P] Category picker ignores mouse clicks on desktop
+- Scope: bug (likely regression of WEBKIT bea9ce19 combobox.js): Category picker ignores mouse clicks on desktop.
+- Source: operator-review-2026-11-26.md R3.
+
+### ◻ T-UR55 [S] Plan/budget: make setting the default budget discoverable
+- Scope: design decision (proposal pending): Plan/budget: make setting the default budget discoverable.
+- Proposal pending before any code (docs first).
+- Source: operator-review-2026-11-26.md R4.
+
+### ◻ T-UR56 [S] Plan/year: cell edit scopes (one-off, every year, default)
+- Scope: design decision (proposal pending): Plan/year: cell edit scopes (one-off, every year, default).
+- Proposal pending before any code (docs first).
+- Source: operator-review-2026-11-26.md R5.
+
+### ◻ T-UR57 [S] Month picker arrows change the picker year only
+- Scope: spec change + fix: Month picker arrows change the picker year only.
+- Source: operator-review-2026-11-26.md R6.
+
+### ◻ T-UR58 [P] Recurring formula always warns non-positive amount
+- Scope: bug: Recurring formula always warns non-positive amount.
+- Source: operator-review-2026-11-26.md R7.
+
+### ◻ T-UR59 [S] Answer: promoted planned payments in Ledger
+- Scope: question (answer pending): Answer: promoted planned payments in Ledger.
+- Proposal pending before any code (docs first).
+- Source: operator-review-2026-11-26.md R8.
+
+### ◻ T-UR60 [S] Account kind read-only after creation (UI and server)
+- Scope: spec change + fix: Account kind read-only after creation (UI and server).
+- Source: operator-review-2026-11-26.md R9.
+
+### ◻ T-UR61 [S] No auto-zoom on input focus on touch widths
+- Scope: spec change + fix (inputs >= 16px on touch widths; do NOT disable pinch zoom: a11y): No auto-zoom on input focus on touch widths.
+- Source: operator-review-2026-11-26.md R10.
+
+### ◻ T-UR62 [S] Mobile overlays squeezed (formula row, override scope)
+- Scope: bug: Mobile overlays squeezed (formula row, override scope).
+- Source: operator-review-2026-11-26.md R11.
+
+### ◻ T-UR63 [P] Mobile ledger filter from/to overlap
+- Scope: bug: Mobile ledger filter from/to overlap.
+- Source: operator-review-2026-11-26.md R12.
+
+### ◻ T-UR64 [S] Mobile-first redesign of wide views (plan/year, plan/forecast)
+- Scope: follow-up (designer change request: mobile-first redesign of wide views; not in this release): Mobile-first redesign of wide views (plan/year, plan/forecast).
+- Deferred follow-up (operator): not in this release; needs a designer change request.
+- Source: operator-review-2026-11-26.md R13.
+
+### ◻ T-UR65 [S] Accepted UI becomes the visual reference (ADR-0154)
+- Scope: after the operator accepts the UI (explore drill): operator dispatches `visual.yml` with `update_baselines=true`; an agent commits the artifact under `tests/visual/__snapshots__/`; operator patch removes the `reference` job from `visual.yml` ([q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 2); overlay rows and "Intended differences" xfails removed from `tests/visual/test_reference.py` and `derived.md`; render script kept as a manual tool.
+- Blocked on: operator acceptance of the UI; operator workflow patch.
+- Source: operator-decisions-2026-11-26.md "Intended differences and the gate"; ADR-0154.
+
+### ◻ T-UR66 [P] Advisory reference comparison off the per-PR path until T-UR65
+- Scope: operator patch doc [q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 1: `reference` job runs on `schedule` and `workflow_dispatch` only (`if: github.event_name != 'pull_request' && ...`), `needs: changes` kept. No app change. Done when the operator applies it.
+- Source: operator ask 2026-11-26 (b); ADR-0154 §5.
