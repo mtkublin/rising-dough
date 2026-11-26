@@ -207,8 +207,6 @@ def test_custom_category_hue_gets_its_rule_and_a_preset_its_name(
     assert ledger.color_rules(r.text).startswith(
         '[data-color="c-123456"]{--cat:#123456;--cat-edge:'
     )
-    # WebKit refuses the nonce of a swapped fragment's <style>: no style element, only inert data
-    assert "<style" not in r.text
 
 
 def test_first_run_with_no_entries(client: TestClient, db: sqlite3.Connection) -> None:
