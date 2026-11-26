@@ -93,6 +93,8 @@ def test_client_supplied_nonce_is_ignored(
     assert f"'nonce-{r.text}'" in csp
     assert "attacker" not in csp
     assert re.search(r"script-src 'self' 'nonce-[\w-]+'", csp)
+    assert f"style-src 'self' 'nonce-{r.text}';" in csp
+    assert "unsafe-inline" not in csp
 
 
 def test_non_allowed_host_is_rejected(prod_client: TestClient) -> None:

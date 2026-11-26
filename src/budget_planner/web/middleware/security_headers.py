@@ -38,11 +38,11 @@ _DEFAULT_HEADERS: tuple[tuple[str, str], ...] = (
     ),
 )
 
-# ADR-0036 §1 as amended by ADR-0113: strict script-src, no nonce in style-src
-# (a nonce would make browsers ignore 'unsafe-inline').
+# ADR-0036 §1 as amended by ADR-0113 (2026-11-26): strict script-src and
+# style-src, both 'self' plus the per-request nonce; the unsafe inline keyword is gone.
 _CSP_TEMPLATE = (
     "default-src 'self'; script-src 'self' 'nonce-{nonce}'; "
-    "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; "
+    "style-src 'self' 'nonce-{nonce}'; img-src 'self' data:; font-src 'self'; "
     "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; "
     "object-src 'none'; form-action 'self'"
 )
