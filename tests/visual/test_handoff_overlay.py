@@ -565,13 +565,16 @@ def test_a_copy_that_changed_a_tag_or_class_breaks_the_skeleton_guard() -> None:
     out = apply_rows("pages/p.html", _LIST, [_INSERT])
     expected = expected_skeleton(_LIST, [_INSERT])
     assert skeleton(out) == expected
-    as_tag = out.replace(
-        '<b class="c" style="x" title="bt">two</b>', '<i class="c" style="x" title="bt">two</i>'
+    tampered = (
+        ('<b class="c" style="x" title="bt">two</b>', '<i class="c" style="x" title="bt">two</i>'),
+        ('class="c" style="x" title="bt">two', 'class="d" style="x" title="bt">two'),
+        ('id="m-copy"', 'id="m"'),
+        ("</li></ul>", "<script>1</script></li></ul>"),
     )
-    assert skeleton(as_tag) != expected
-    assert skeleton(out.replace('class="c" style="x">two', 'class="d" style="x">two')) != expected
-    assert skeleton(out.replace('id="m-copy"', 'id="m"')) != expected
-    assert skeleton(out.replace("</li></ul>", "<script>1</script></li></ul>")) != expected
+    for old, new in tampered:
+        changed = out.replace(old, new)
+        assert changed != out, old
+        assert skeleton(changed) != expected, old
 
 
 def test_delete_account_board_lists_investments_e_after_cash_wallet() -> None:
