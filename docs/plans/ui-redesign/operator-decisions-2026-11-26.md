@@ -1,12 +1,14 @@
 # Operator decisions, 2026-11-26 (ui/sourdough)
 
-Answered by the operator in an interactive walk-through of [operator-options-2026-11-26.md](operator-options-2026-11-26.md) and the open questions of the run logs ([2026-11-24](../../runs/2026-11-24-ui-sourdough.md), [2026-11-26](../../runs/2026-11-26-handoff-reference-comparison.md)). Binding for the rest of the run. ADR amendments land with the items that apply them (docs first). The patches named below are in [operator-options/](operator-options/); they were measured on `d4c06a8`, so re-measure when applying.
+Answered by the operator in an interactive walk-through of [operator-options-2026-11-26.md](operator-options-2026-11-26.md) and the open questions of the run logs ([2026-11-24](../../runs/2026-11-24-ui-sourdough.md), [2026-11-26](../../runs/2026-11-26-handoff-reference-comparison.md)). Binding for the rest of the run.
+
+Corrected 2026-11-26: I1 had applied D1-a, D9-A and D11-S (merge 20a17990, commit 69d8b806) before this file was written; rows D1, D9 and D11 below show the remaining work only. ADR amendments land with the items that apply them (docs first). The patches named below are in [operator-options/](operator-options/); they were measured on `d4c06a8`, so re-measure when applying.
 
 ## Handoff comparison decisions (T-UR00b)
 
 | Id | Decision | Patch / work | Effect on the reference pages |
 |---|---|---|---|
-| D1 | **a + b + c(i)**: `placeholder` becomes an overlay attribute (ADR-0147 §4 amendment); the hero amount keeps its focused underline while the picker is open, shipped as an **app stylesheet rule, not an edit of the vendored `dialog.css`** (Q8 stays: vendored CSS byte-identical); seed modifier `picker-handoff-list` archives the four extra categories on the two picker pages (small seed-engine "archive after seeding"), count rows 21 → 20 on those pages. | `D1-a-placeholder.patch`, D1-b rule moved to an app sheet, D1-c(i) new | `category-picker`, `category-picker--no-match` green |
+| D1 | **a + b + c(i)**; **D1-a done by I1** (`placeholder` is an overlay attribute, ADR-0147 §4 amendment). Remaining: D1-b and D1-c(i). The hero amount keeps its focused underline while the picker is open, shipped as a rule in the app stylesheet `static/rd/app/overrides.css`, **not an edit of the vendored `dialog.css`** (Q8 stays: vendored CSS byte-identical); seed modifier `picker-handoff-list` archives the four extra categories on the two picker pages (small seed-engine "archive after seeding"), count rows 21 → 20 on those pages. | D1-a done (I1); D1-b rule in the app sheet, D1-c(i) new | `category-picker`, `category-picker--no-match` green |
 | D2 | **b**: six `aria-label` overlay rows for the budget-row bars. App rounding unchanged (left = 100 − floored spent). Not urgent. | `D2-b-bar-label-rows.patch` | `plan/budget` stays green |
 | D3 | **a**: overlay rows rewrite the `accounts--empty` hero and caption to the empty values. App unchanged. | `D3-a-overlay-rows.patch` (keep its `exclude` line, D6-A is not applied) | `accounts--empty` green |
 | D4 | **a: keep ADR-0105.** An overdue unpaid planned item stays committed and lowers "left". The 13 seed-value overlay rows stay; the ADR-0151 afford figure stays replaced by the seed figure. | none | unchanged (green) |
@@ -17,9 +19,9 @@ Answered by the operator in an interactive walk-through of [operator-options-202
 | D8-R | **Full handoff reconcile dialog**: remove `record as`, the snapshot checkbox and `preview`; the hero updates live as the balance is typed; `record as` is always the Reconciliation category; a balance snapshot is always saved; seed snapshots per the handoff. Requirements and the reconcile ADR first (service behaviour changes). | `D8-R-reconcile-extras-out.patch` as the template start, plus live hero, service and seed work | `reconcile`, `reconcile--liability` target green (the liability help line may remain; re-measure) |
 | D8-E | **Overlay op that inserts the 11th account row** into the `delete-account` handoff backdrop (ADR-0147 §4 amendment: the overlay may insert a row copied from an existing row's markup, text changed only). | new | `delete-account` green |
 | D8-T | `as of` stays out (no migration). | none | none |
-| D9 | **A: one `#flash-region`** (polite); the error flash keeps `role="alert"`. Also resolves the logged double `role=alert` follow-up. | `D9-A-merge-flash-region.patch` + the listed test selector edits | `today--flash` green |
+| D9 | **A (done by I1): one `#flash-region`** (polite); the error flash keeps `role="alert"`. Also resolves the logged double `role=alert` follow-up. | done (I1, ADR-0143 amendment 2026-11-26) | `today--flash` green |
 | D10 | **A: test-only token port** in `tests/visual/frozen_server.py` (board sample for the one-time password request, CSPRNG for everything else). Add a guard test that production wiring never uses the fixed source. Production generator unchanged (ADR-0061 §8). | `D10-A-token-port.patch` | `one-time-password` green |
-| D11 | **S: the edit dialog snaps to the nearest swatch** (preview and ring); boards keep the stored colour. A save without touching the colour stores the swatch colour: record this silent recolour in the ADR. | `D11-S-snap-to-nearest-swatch.patch` | `edit-category` green |
+| D11 | **S: the edit dialog snaps to the nearest swatch** (preview and ring); boards keep the stored colour. **Done by I1**: an unchanged save keeps the stored hue (derived.md, ADR-0107 amendment); only another swatch changes it. | done (I1) | `edit-category` green |
 
 ### Reds outside D1-D11
 
