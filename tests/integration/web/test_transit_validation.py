@@ -148,17 +148,23 @@ def test_update_planned_to_transit_without_destination_is_rejected(
     assert _scalar(_migrated, sql, pid, world["expense"]) == 1
 
 
-def test_reconcile_with_transit_category_is_rejected(
+def test_reconcile_ignores_posted_transit_category(
     client: TestClient, world: dict[str, int], _migrated: Settings
 ) -> None:
+    # D8R (ADR-0011 amendment 2026-11-26): reconcile has no category choice.
     r = client.post(
         f"/accounts/{world['a']}/reconcile",
         data={"actual_balance": "20", "category_id": str(world["transit"])},
     )
-    assert r.status_code == 422
-    assert _html.error_lines(r.text) == {
-        "field-actual_balance-error": f"▲ {NO_DEST}",
-    }
+    assert r.status_code == 200
     sql = "SELECT COUNT(*) FROM transactions WHERE category_id = ?"
     assert _scalar(_migrated, sql, world["transit"]) == 0
-    assert client.get("/accounts").status_code == 200
+    conn = get_connection(_migrated)
+    try:
+        rows = conn.execute(
+            "SELECT c.name, t.amount, c.direction FROM transactions t "
+            "JOIN categories c ON c.id = t.category_id"
+        ).fetchall()
+    finally:
+        conn.close()
+    assert [tuple(x) for x in rows] == [("Reconciliation", 1000, "adjustment")]

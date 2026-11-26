@@ -9,7 +9,6 @@ from starlette.datastructures import FormData
 
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
 from budget_planner.domain.budgets import (
-    NewBudgetDefault,
     NewBudgetOneOffOverride,
     NewBudgetRecurringOverride,
 )
@@ -147,8 +146,10 @@ def _override(**kw: str) -> tuple[object, str | None]:
     return parsed.command, parsed.error
 
 
-def test_override_default_blank_amount_is_zero() -> None:
-    assert _override(amount="") == (NewBudgetDefault(category_id=5, amount=0), None)
+def test_override_default_blank_amount_is_invalid_not_zero() -> None:
+    # T-UR47: an empty override must not be saved as 0; the dialog maps this to
+    # "enter an amount of 0 or more" (web/override_forms.py).
+    assert _override(amount="") == (None, "invalid amount")
 
 
 def test_override_recurring_and_one_off_commands() -> None:
