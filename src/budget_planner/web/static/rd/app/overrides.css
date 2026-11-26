@@ -25,3 +25,23 @@
     min-width: 900px;
   }
 }
+
+/* F4.8a: the year grid inline editor shows its scope chips as a row under the edited cell, so the
+narrow cell keeps its size and the chips overlay the rows below */
+.rd-year__cell-wrap {
+  position: relative;
+}
+
+.rd-year-editor__scope {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  z-index: 2;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-menu);
+  background: var(--color-panel);
+  white-space: nowrap;
+}

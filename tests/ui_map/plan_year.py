@@ -56,6 +56,15 @@ def cell_editor(category_name: str, month_name: str) -> Locator:
     return role("textbox", f"{category_name}, {month_name} budget", exact=True).inside(table)
 
 
+# Inline cell editor scope chips (F4.8a): one editor is open at a time
+cell_scope_group = role("radiogroup", "budget scope")
+
+
+def cell_scope(label_text: str) -> Locator:
+    """A scope chip of the inline editor: ``this month only`` / ``every <month>`` / default."""
+    return role("radio", label_text, exact=True).inside(cell_scope_group)
+
+
 def unbudgeted(category_name: str) -> Locator:
     """A category in the "without a budget" disclosure (a link in the app)."""
     return role("link", category_name, exact=True)

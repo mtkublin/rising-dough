@@ -84,6 +84,20 @@ def dialog_tier(state: str) -> str:
     return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_ONE_OFF
 
 
+def tier_labels(month: int) -> Mapping[str, str]:
+    """Scope names shared by the dialog's radios and the year cell's chips (``every June``)."""
+    return {
+        TIER_ONE_OFF: "this month only",
+        TIER_RECURRING: f"every {month_name(month).lower()}",
+        TIER_DEFAULT: "every month (default)",
+    }
+
+
+def cell_scope(state: str) -> str:
+    """Scope chip a year cell's inline editor preselects: its own tier, default when unset."""
+    return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_DEFAULT
+
+
 _ORIGIN_TIER: Final = MappingProxyType(
     {
         "one_off": TIER_ONE_OFF,
@@ -114,8 +128,10 @@ class YearCell:
     url: str
     editor_label: str  # the inline editor's field label: ``Nights Out, November budget``
     amount_text: str  # the editor's start value (empty for an unset cell)
-    action: str  # where the editor posts (the override route, tier "one-off")
+    action: str  # where the editor posts (the override route; the scope chips pick the tier)
     year: int
+    scope: str  # the scope chip the editor preselects (``cell_scope``)
+    recurring_label: str  # the "every <month>" chip text (the chip row is one shared template)
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +197,8 @@ def _cell(
         amount_text="" if state == "unset" else amount,
         action=target.action,
         year=target.year,
+        scope=cell_scope(state),
+        recurring_label=tier_labels(target.month)[TIER_RECURRING],
     )
 
 
@@ -347,11 +365,7 @@ def override_dialog(
     prefill = stored if stored is not None else resolved
     if amount_text is None:
         amount_text = "" if prefill is None else format_major(prefill, currency)
-    labels = {
-        TIER_ONE_OFF: "this month only",
-        TIER_RECURRING: f"every {month_name(target.month).lower()}",
-        TIER_DEFAULT: "every month (default)",
-    }
+    labels = tier_labels(target.month)
     actions: list[Mapping[str, str]] = [{"tone": "cancel"}]
     dropped = removable_tier(state, tier)
     if dropped is not None:

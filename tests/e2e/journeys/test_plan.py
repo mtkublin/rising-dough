@@ -148,6 +148,7 @@ def test_year_cell_edits_in_place_and_saves_a_one_off_on_enter(world: World) -> 
     world.find(plan_year.cell("Groceries", "March")).click()
     editor = world.find(plan_year.cell_editor("Groceries", "March"))
     expect(editor).to_have_value("500.00")
+    world.find(plan_year.cell_scope("this month only")).check(force=True)  # visually hidden radio
     editor.fill("321.00")
     editor.press("Enter")
 
@@ -158,6 +159,33 @@ def test_year_cell_edits_in_place_and_saves_a_one_off_on_enter(world: World) -> 
     assert (row["year"], row["month"], row["amount"]) == (year, MARCH, 32100)
     expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("• 321.00")
     expect(world.find(plan_year.cell_editor("Groceries", "March"))).to_have_count(0)
+
+
+def test_year_cell_editor_preselects_the_cells_tier_and_labels_the_chips(world: World) -> None:
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+
+    expect(world.find(plan_year.cell_scope("every month (default)"))).to_be_checked()
+    expect(world.find(plan_year.cell_scope("every march"))).not_to_be_checked()
+    expect(world.find(plan_year.cell_scope("this month only"))).not_to_be_checked()
+
+
+def test_year_cell_every_month_default_changes_every_months_cell(world: World) -> None:
+    category = _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    editor.fill("612.34")
+    editor.press("Enter")
+
+    for month in ("January", "March", "December"):
+        expect(world.find(plan_year.cell("Groceries", month))).to_have_text("612.34")
+    assert (
+        world.scalar("SELECT amount FROM budget_defaults WHERE category_id = ?", (category,))
+        == 61234
+    )
+    assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0
 
 
 def test_year_cell_editor_escape_cancels_without_saving(world: World) -> None:
