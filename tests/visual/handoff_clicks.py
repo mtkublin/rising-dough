@@ -47,7 +47,10 @@ def _row_menu(page: Page) -> None:
     """The first row menu opened from the keyboard: the handoff opens it on load (``data-open``) and
     focuses the first item with no pointer involved, so it shows the item's focus ring; a mouse
     click would not (``:focus-visible``), a keyboard user sees it."""
-    page.locator(_ROW_MENU).first.focus()
+    # No scroll into view: the handoff opens the menu on load at scroll 0 and places it from the
+    # trigger's rect there (a trigger below the fold puts the sheet and the popover where the
+    # unscrolled viewport has them); a scrolling focus would move the fixed menu with it.
+    page.locator(_ROW_MENU).first.evaluate("el => el.focus({ preventScroll: true })")
     page.keyboard.press("Enter")
     page.wait_for_selector(".rd-menu:popover-open", timeout=_TIMEOUT_MS)
     page.mouse.move(0, 0)
@@ -59,6 +62,13 @@ def _year_cell_editor(page: Page) -> None:
     page.wait_for_selector("main form[data-js='year-cell-editor']", timeout=_TIMEOUT_MS)
     # The handoff shows the field filled, with no text selection and no focus ring.
     page.evaluate("() => { document.activeElement?.blur(); getSelection()?.removeAllRanges(); }")
+    # The click scrolled the wide grid sideways to reach the cell; the handoff shows it unscrolled
+    # (the editor cell past the right edge). The user scrolls the grid back to its left edge.
+    page.evaluate(
+        "() => { let el = document.querySelector(\"main form[data-js='year-cell-editor']\");"
+        " for (; el; el = el.parentElement) { if (el.scrollLeft) el.scrollLeft = 0; } }"
+    )
+    page.mouse.move(0, 0)  # the pointer rests off the grid: no cell shows its hover edge
 
 
 def _category_picker(page: Page, query: str = "") -> None:

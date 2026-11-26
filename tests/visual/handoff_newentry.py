@@ -54,6 +54,7 @@ def _error(page: Page) -> None:
     # The dialog focuses the amount and selects it; the user's next key (End) puts the caret back.
     page.wait_for_timeout(150)  # amount-input.js selects a frame after focus
     page.press("#modal-root [data-js='amount-input']", "End")
+    page.mouse.move(0, 0)  # the pointer rests off the save button, as in the handoff (no hover)
 
 
 def _over_limit(page: Page) -> None:

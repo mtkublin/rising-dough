@@ -119,6 +119,7 @@ def _transaction_error(page: Page) -> None:
         f"{_DIALOG} .rd-dialog__hero-error, {_DIALOG} .rd-field__error", timeout=_TIMEOUT_MS
     )
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
+    page.mouse.move(0, 0)  # the pointer rests off the save button, as in the handoff (no hover)
     settle(page)
 
 
