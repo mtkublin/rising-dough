@@ -428,7 +428,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0027.
 
 ### ◻ T-UR50 [S] Intended differences xfail and remaining unexplained reds
-- Scope: `tests/visual/test_reference.py` marks the intended differences listed in `derived.md` as `xfail(strict=True)` (ADR-0147 amendment, the orchestrator's); fix the harness channel mismatch (RGBA vs RGB) and investigate the remaining unexplained reds: errors/422 pages, `edit-recurring--picking`, `new-entry--error` (and `new-entry--repeats-fixed` / `--repeats-formula`). The comparison stays advisory.
+- Scope: `tests/visual/test_reference.py` marks the intended differences listed in `derived.md` as `xfail(strict=True)` (ADR-0147 amendment, the orchestrator's); fix the harness channel mismatch (RGBA vs RGB, OVL1) and investigate the remaining unexplained reds: errors/422 pages, `edit-recurring--picking`, `new-entry--error`. Source: visual.yml run 45817258129 on bd0f6e20 (newest completed reference run, 2026-11-26): these pages fail on all six shards and are not covered by D1-D11; `new-entry--repeats-fixed` / `--repeats-formula` pass there (no longer red). Operator decision 2026-11-26 "Reds outside D1-D11": investigate and fix. The comparison stays advisory.
 - Decision: "Intended differences and the gate" and "Reds outside D1-D11" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0147.
 
 ### ◻ T-UR51 [S] Dead-Python sweep
