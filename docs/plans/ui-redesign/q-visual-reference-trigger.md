@@ -1,6 +1,6 @@
 # Operator patch: visual.yml reference job off the per-PR path (T-UR66, T-UR65)
 
-Agents cannot push `.github/workflows/*` (no workflow scope), so you apply these edits. Context: [ADR-0156](../../adr/0156-accepted-ui-screenshots-replace-the-handoff-references.md).
+Agents cannot push `.github/workflows/*` (no workflow scope), so you apply these edits. Context: [ADR-0154](../../adr/0154-accepted-ui-screenshots-replace-the-handoff-references.md).
 
 ## Part 1 (T-UR66, apply now)
 
@@ -14,7 +14,7 @@ In `.github/workflows/visual.yml`, job `reference`, change the `if:` line only (
 +    if: needs.changes.outputs.relevant == 'true' && github.event_name != 'pull_request'
 ```
 
-Also update the comment above the job: append "Runs on schedule and workflow_dispatch only (ADR-0156 §5)."
+Also update the comment above the job: append "Runs on schedule and workflow_dispatch only (ADR-0154 §5)."
 
 `visual-gate` is untouched (it never depended on `reference`).
 
@@ -41,6 +41,6 @@ Remove the whole `reference` job from `.github/workflows/visual.yml` (from the A
 -          if-no-files-found: ignore
 ```
 
-Update the header comment to say baselines are the accepted-UI screenshots (ADR-0156). If you want the manual designer comparison to stay, keep the `reference` mode of `scripts/ci/visual_in_container.sh` (a repo script, not a workflow) and run it locally or through a dedicated `workflow_dispatch`-only workflow later.
+Update the header comment to say baselines are the accepted-UI screenshots (ADR-0154). If you want the manual designer comparison to stay, keep the `reference` mode of `scripts/ci/visual_in_container.sh` (a repo script, not a workflow) and run it locally or through a dedicated `workflow_dispatch`-only workflow later.
 
 Verify: a frontend PR shows `visual` + `visual-gate`; `visual` fails on an unintended pixel change against the committed baselines.

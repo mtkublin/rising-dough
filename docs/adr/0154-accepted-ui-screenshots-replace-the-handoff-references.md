@@ -1,4 +1,4 @@
-# ADR-0156: Accepted UI Screenshots Replace the Handoff References
+# ADR-0154: Accepted UI Screenshots Replace the Handoff References
 
 - **Status**: Proposed (becomes Accepted when the operator accepts the UI after the explore drill, T-UR65)
 - **Date**: 2026-11-26

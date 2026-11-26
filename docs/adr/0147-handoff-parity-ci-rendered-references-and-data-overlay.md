@@ -3,7 +3,7 @@
 - **Status**: Accepted (implementation pending, T-UR00b)
 - **Date**: 2026-11-22
 - **Amends**: [ADR-0106](0106-ui-behaviour-test-harness.md) amendment 2026-11-22 (§1 data parity, §2 same renderer, §3 strict tolerance); [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md) §1 (source of truth)
-- **Superseded in part by**: [ADR-0156](0156-accepted-ui-screenshots-replace-the-handoff-references.md) (proposed): on operator acceptance of the UI the handoff stops being the regression reference (§1 per-PR render, overlay, xfails); the render tool stays for manual designer comparisons.
+- **Superseded in part by**: [ADR-0154](0154-accepted-ui-screenshots-replace-the-handoff-references.md) (proposed): on operator acceptance of the UI the handoff stops being the regression reference (§1 per-PR render, overlay, xfails); the render tool stays for manual designer comparisons.
 - **Relates to**: [ADR-0027](0027-frontend-toolchain-hardening.md) (visual suite), [ADR-0134](0134-redesign-scope-decisions-from-the-designer-change-request.md), [ADR-0148](0148-redesign-backend-preconditions-released-first.md)
 
 ## Context
