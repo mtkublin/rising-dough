@@ -535,7 +535,7 @@ def test_override_invalid_amount(
     )
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-amount-error": "▲ amount must be a decimal number within range",
+        "field-amount-error": "▲ Enter an amount above 0.00",
     }
     assert _state(db) == before
 
@@ -665,7 +665,7 @@ def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, in
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
     assert _html.error_lines(r.text) == {
-        "field-amount-error": "▲ amount must be a decimal number within range",
+        "field-amount-error": "▲ Enter an amount above 0.00",
     }
     assert _html.resolve_one(r.text, entries.promote_amount).get("value") == "not-a-number"
 
@@ -1278,7 +1278,7 @@ def test_override_errors_rerender_the_dialog_with_the_message(
         (
             {"year": "2026", "month": "5", "amount": "abc"},
             "amount",
-            "amount must be a decimal number within range",
+            "Enter an amount above 0.00",
         ),
         ({"year": "2026", "month": "5", "amount": "-1"}, "amount", "Enter an amount above 0.00"),
     ):
