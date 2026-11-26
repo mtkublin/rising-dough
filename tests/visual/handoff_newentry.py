@@ -43,6 +43,15 @@ def _open(page: Page, when: str) -> None:
     page.wait_for_selector(_DIALOG, timeout=_TIMEOUT_MS)
 
 
+def _scroll_back_up(page: Page) -> None:
+    """The dialog scrolled while its fields were filled; the user scrolls back up to the amount."""
+    page.evaluate(
+        """sel => document.querySelectorAll(`${sel}, ${sel} *`).forEach(
+            (el) => { if (el.scrollTop > 0) el.scrollTop = 0; })""",
+        _DIALOG,
+    )
+
+
 def _error(page: Page) -> None:
     """Submit the happened dialog with amount 0.00 (the handoff value); wait for the 422 dialog."""
     _open(page, "happened")
@@ -66,9 +75,12 @@ def _over_limit(page: Page) -> None:
     page.locator("#modal-root .rd-chip-option", has_text="Takeaway").click()
     page.select_option("#modal-root select[name=account_id]", label="Credit Card")
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)  # the hero refresh settles first
+    page.fill("#modal-root input[name=description]", "Takeaway")  # the handoff's note
     page.click("#modal-root [data-js='amount-input']")  # back into the amount, caret at its end
     page.wait_for_timeout(150)  # amount-input.js selects a frame after focus
-    page.press("#modal-root [data-js='amount-input']", "End")
+    # The file shows the amount from its first digit (the phone's hero is narrower than 13,000.00
+    # and the file's value is not scrolled): Home puts the caret and the scroll back at the start.
+    page.press("#modal-root [data-js='amount-input']", "Home")
     # The form's change event (a field losing focus) refreshes the preview with all three values;
     # an earlier hero refresh can swallow it, so it is sent again until the line shows.
     line = page.locator("#modal-root .rd-credit-line--over")
@@ -95,8 +107,12 @@ def _repeats_formula(page: Page) -> None:
     page.wait_for_selector("#modal-root .rd-msel", state="hidden", timeout=_TIMEOUT_MS)
     page.fill("#modal-root input[name=day_of_month]", "31")
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)  # the formula preview settles
-    # The dialog scrolled while the fields were filled; the user scrolls back to the amount.
-    page.locator(f"{_DIALOG} .rd-dialog__hero").scroll_into_view_if_needed()
+    # The file shows the close button with its focus ring and no hover (README "Normalised state"):
+    # a keyboard user's Shift+Tab back to the dialog start lands there; the pointer rests off.
+    _scroll_back_up(page)
+    page.keyboard.press("Shift")  # keyboard modality, so :focus-visible shows the ring
+    page.focus(f"{_DIALOG} .rd-dialog__close")
+    page.mouse.move(0, 0)
 
 
 NEWENTRY_RECIPES: Final[dict[str, Recipe]] = {
@@ -126,6 +142,7 @@ def _typed(page: Page, *, due: str = "", day: str = "") -> None:
     page.wait_for_timeout(150)  # amount-input.js selects a frame after focus
     page.press(amount, "End")
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
+    _scroll_back_up(page)
 
 
 def typed_happened(page: Page) -> None:
