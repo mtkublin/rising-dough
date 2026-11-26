@@ -12,3 +12,14 @@
 .rd-dialog:has(.rd-catpick:not([hidden])) .rd-dialog__amount {
   border-bottom-width: var(--border-width-focus-strong);
 }
+
+/* T-UR49: the handoff's planned and recurring tables need 960px (tracks ~1010px), but the content
+   box is 928px wide at 1024px (app and panel padding), so the actions column was clipped by the
+   sideways scroll. Slimmer flexible and amount tracks fit 900px; the actions tracks keep 150px. */
+@media (width >= 48rem) {
+  .rd-ledger--sched {
+    --ledger-cols: var(--track-due) minmax(150px, 2fr) minmax(110px, 1.2fr) 150px var(--track-actions) var(--track-actions);
+
+    min-width: 900px;
+  }
+}
