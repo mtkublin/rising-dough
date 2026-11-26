@@ -83,12 +83,23 @@ def _clear_component(page: Page, index: int) -> None:
     )
 
 
+def _focus_close_ring(page: Page) -> None:
+    """Show the close button's keyboard-focus ring, as the handoff file does.
+
+    A keyboard user's Tab lands on the close button; a Shift press then a script focus stands in
+    for it so `:focus-visible` shows (README "Normalised state"; same as the one-time password).
+    """
+    page.keyboard.press("Shift")
+    page.focus(f"{_DIALOG} .rd-dialog__close")
+
+
 def _empty(page: Page) -> None:
     _drop_second_component(page)
     _clear_component(page, 0)
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
     # The user clicks the dialog title: the category list's trigger no longer shows its focus ring.
     page.locator(f"{_DIALOG} .rd-dialog__title").click()
+    _focus_close_ring(page)
     # The dialog scrolled to the picker while it was worked on; the user scrolls back to the top.
     page.evaluate(
         """sel => document.querySelectorAll(`${sel}, ${sel} *`).forEach(
@@ -106,6 +117,7 @@ def _incomplete(page: Page) -> None:
     # ring there, so the user's click on the dialog title takes the focus away (README
     # "Normalised state"); a script blur leaves Chromium's :has(:focus-visible) ring painted.
     page.click(f"{_DIALOG} .rd-dialog__title")
+    _focus_close_ring(page)
     page.mouse.move(0, 0)
 
 
