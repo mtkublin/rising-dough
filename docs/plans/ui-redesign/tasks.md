@@ -472,19 +472,19 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 
-### ◻ T-UR52 [P] New account button redirects to an empty page
+### ✅ T-UR52 [P] New account button redirects to an empty page
 - Scope: bug: New account button redirects to an empty page.
 - Source: operator-review-2026-11-26.md R1.
 
-### ◻ T-UR53 [P] New income category missing from the anchor dropdown until reload
+### ✅ T-UR53 [P] New income category missing from the anchor dropdown until reload
 - Scope: bug: New income category missing from the anchor dropdown until reload.
 - Source: operator-review-2026-11-26.md R2.
 
-### ◻ T-UR54 [P] Category picker ignores mouse clicks on desktop
+### ✅ T-UR54 [P] Category picker ignores mouse clicks on desktop
 - Scope: bug (likely regression of WEBKIT bea9ce19 combobox.js): Category picker ignores mouse clicks on desktop.
 - Source: operator-review-2026-11-26.md R3.
 
-### ◻ T-UR55 [S] Plan/budget: make setting the default budget discoverable
+### ✅ T-UR55 [S] Plan/budget: make setting the default budget discoverable
 - Scope: design decision (proposal pending): Plan/budget: make setting the default budget discoverable.
 - Proposal pending before any code (docs first).
 - Source: operator-review-2026-11-26.md R4.
@@ -494,32 +494,33 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Proposal pending before any code (docs first).
 - Source: operator-review-2026-11-26.md R5.
 
-### ◻ T-UR57 [S] Month picker arrows change the picker year only
+### ✅ T-UR57 [S] Month picker arrows change the picker year only
 - Scope: spec change + fix: Month picker arrows change the picker year only.
 - Source: operator-review-2026-11-26.md R6.
 
-### ◻ T-UR58 [P] Recurring formula always warns non-positive amount
+### ✅ T-UR58 [P] Recurring formula always warns non-positive amount
 - Scope: bug: Recurring formula always warns non-positive amount.
 - Source: operator-review-2026-11-26.md R7.
 
-### ◻ T-UR59 [S] Answer: promoted planned payments in Ledger
+### ✅ T-UR59 [S] Answer: promoted planned payments in Ledger
 - Scope: question (answer pending): Answer: promoted planned payments in Ledger.
 - Proposal pending before any code (docs first).
 - Source: operator-review-2026-11-26.md R8.
+- Done 2026-11-26: documented, no code change (F3.10, dc994669).
 
-### ◻ T-UR60 [S] Account kind read-only after creation (UI and server)
+### ✅ T-UR60 [S] Account kind read-only after creation (UI and server)
 - Scope: spec change + fix: Account kind read-only after creation (UI and server).
 - Source: operator-review-2026-11-26.md R9.
 
-### ◻ T-UR61 [S] No auto-zoom on input focus on touch widths
+### ✅ T-UR61 [S] No auto-zoom on input focus on touch widths
 - Scope: spec change + fix (inputs >= 16px on touch widths; do NOT disable pinch zoom: a11y): No auto-zoom on input focus on touch widths.
 - Source: operator-review-2026-11-26.md R10.
 
-### ◻ T-UR62 [S] Mobile overlays squeezed (formula row, override scope)
+### ✅ T-UR62 [S] Mobile overlays squeezed (formula row, override scope)
 - Scope: bug: Mobile overlays squeezed (formula row, override scope).
 - Source: operator-review-2026-11-26.md R11.
 
-### ◻ T-UR63 [P] Mobile ledger filter from/to overlap
+### ✅ T-UR63 [P] Mobile ledger filter from/to overlap
 - Scope: bug: Mobile ledger filter from/to overlap.
 - Source: operator-review-2026-11-26.md R12.
 
@@ -536,3 +537,35 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 ### ◻ T-UR66 [P] Advisory reference comparison off the per-PR path until T-UR65
 - Scope: operator patch doc [q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 1: `reference` job runs on `schedule` and `workflow_dispatch` only (`if: github.event_name != 'pull_request' && ...`), `needs: changes` kept. No app change. Done when the operator applies it.
 - Source: operator ask 2026-11-26 (b); ADR-0154 §5.
+
+### ✅ T-UR67 [S] Accounts: duplicate name on create or rename is a 422 on name (F2.1c)
+- Scope: duplicate account name on create or rename is a 422 with a name field error, not a 500 (fix 8f88c7b1, merge 4c97e651).
+- Source: ACCDUP, F2.1c.
+
+### ◻ T-UR68 [S] New category from the entry dialog without losing the open dialog
+- Scope: nested flow; the ACCFIX review kept the plain link.
+- Source: ACCFIX review (734270aa).
+
+### ◻ T-UR69 [S] EUR account save without a cached FX rate
+- Scope: EUR account save with no cached FX rate leaves "No accounts yet" and shows "Exchange rate unavailable".
+- Source: ACCFIX audit.
+
+### ◻ T-UR70 [S] Budget hero "N over" and Total exclude unbudgeted rows
+- Scope: "N over" counts unbudgeted rows over a zero budget; Total excludes unbudgeted spend. Operator decision needed. Pre-existing.
+- Source: BUDUX audit.
+
+### ◻ T-UR71 [S] Year grid table.rd-year overflows at 1024 and 375
+- Scope: table.rd-year overflows at 1024 and 375. Pre-existing; relates to T-UR64.
+- Source: PYEAR and BUDUX audits.
+
+### ◻ T-UR72 [S] agent_guard: single-file pytest denied unless the brief names the file
+- Scope: single-file pytest is denied unless the brief names the file; pytest with `2>&1` or pipe redirects is misread (orchestrator tooling).
+- Source: ADR-0150.
+
+### ◻ T-UR73 [S] Stale "Left open (F4b)" line in derived.md
+- Scope: derived.md:200 stale "Left open (F4b)" line.
+- Source: derived.md:200.
+
+### ◻ T-UR74 [S] /ledger search placeholder cut at 375
+- Scope: /ledger search placeholder "search description…" is cut at 375 with 16px inputs (cosmetic).
+- Source: MOBILE re-audit.

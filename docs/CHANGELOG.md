@@ -1,5 +1,29 @@
 # Changelog
 
+2026-11-26 MOBILE: touch-width inputs 16px, ledger from/to and dialog field pairs stack at <48rem, formula component and scope selector fit 375 (T-UR61..T-UR63) (b731025c).
+
+2026-11-26 FORM: repeats formula preview evaluates in the start month and retriggers on start date, one message at a time, add component keeps the sign (T-UR58) (5472d1a2).
+
+2026-11-26 BUDUX: budget tab: set budget on unbudgeted rows, edit budget opens on the row's tier, every month (default) label (T-UR55, F4.6c) (0bf5cd4a).
+
+2026-11-26 CIFIX2: contract and mockup-map tests follow the fixed account kind and the anchor locators (088adb7b).
+
+2026-11-26 ACCDUP: duplicate account name on create or rename is a 422 on name (T-UR67, F2.1c) (4c97e651).
+
+2026-11-26 PYEAR: month picker year arrows change only the shown year; a month click navigates (T-UR57, F4.6b) (cbd51cb9).
+
+2026-11-26 ACCFIX: empty-state new account opens the dialog in place; new income category appears in the anchor list without reload (T-UR52, T-UR53) (30fef1db).
+
+2026-11-26 ACCTYPE: an existing account's kind is fixed: read-only on edit, 422 on change (T-UR60, F2.1b) (67aa36c6).
+
+2026-11-26 PICK: category picker: a desktop mouse click on a listed category selects it (T-UR54) (e32a1e14).
+
+2026-11-26 DOCDEC: operator decisions R4 set budget, R5 year scope chips, R8 promoted rows stay (T-UR55, T-UR56, T-UR59) (dc994669).
+
+2026-11-26 VISDOC: ADR-0154 accepted UI becomes the visual reference, T-UR65/T-UR66, visual.yml operator patch (237284a8).
+
+2026-11-26 DOCREV: operator drill review 2026-11-26: tasks T-UR52..T-UR64, requirements F2.1b, F4.6b, touch-width inputs (ce941646).
+
 2026-11-26 WEBKIT: WebKit e2e green: download interruptions settled in the crawl, picker chip leads on WebKit (pointerdown), setup journey xfail on http (T-UR40 prep) (bea9ce19).
 
 2026-11-26 UR41: frontend audit re-run on the migrated templates: no blockers, 3 minor designer findings (T-UR41) (b63b2283).
