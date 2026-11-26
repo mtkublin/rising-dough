@@ -97,6 +97,19 @@ def test_formula_preview_invalid_source(client: TestClient) -> None:
     )
     assert r.status_code == 422
     assert _html.resolve_one(r.text, edit_dialogs.formula_result)["data-code"] == "invalid_source"
+    # a stale source is the user's to fix: its line stays visible (F9)
+    assert not _html.resolve_one(r.text, edit_dialogs.formula_result).has_attr("hidden")
+
+
+def test_formula_preview_incomplete_component_line_is_hidden(client: TestClient) -> None:
+    r = client.post(
+        "/recurring/formula/preview",
+        data={"terms[0][sign]": "+", "terms[0][coefficient_percent]": ""},
+    )
+    assert r.status_code == 422
+    line = _html.resolve_one(r.text, edit_dialogs.formula_result)
+    assert line["data-code"] == "invalid_source"
+    assert line.has_attr("hidden")
 
 
 def test_formula_preview_invalid_draft_rule_id(client: TestClient) -> None:

@@ -95,7 +95,10 @@
     const row = label && label.parentElement;
     if (!row || !row.classList.contains('rd-catfield__recent')) return;
     const first = row.querySelector('.rd-chip-option');
-    if (first && first !== label) first.before(label);
+    if (!first || first === label) return;
+    const focused = document.activeElement === radio;
+    first.before(label);
+    if (focused) radio.focus({ preventScroll: true });
   }
 
   document.addEventListener('change', (event) => {

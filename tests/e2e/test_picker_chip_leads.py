@@ -57,3 +57,40 @@ def test_picked_chip_moves_to_the_front_and_nothing_is_dropped(
     assert after[0] == last
     assert sorted(after) == sorted(before)
     expect(radios.first).to_be_checked()
+
+
+def test_keyboard_pick_keeps_focus_on_the_moved_radio(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    assert page.request.post(
+        f"{base_url}/accounts",
+        form={"name": "Checking", "currency": "PLN", "opening_balance": "100.00"},
+    ).ok
+    for name in ("Groceries", "Transport"):
+        assert page.request.post(
+            f"{base_url}/categories", form={"name": name, "direction": "expense"}
+        ).ok
+    page.goto(f"{base_url}/ledger?view=actual")
+    for category in ("Groceries", "Transport"):
+        add_happened(
+            page,
+            category=category,
+            account="Checking",
+            amount="1.00",
+            day="2026-01-15",
+            note=category,
+        )
+    page.goto(f"{base_url}/ledger?view=actual")
+    wait_for_htmx(page)
+    open_new_entry(page)
+    radios = to_playwright(page, f.category_recent_radios.inside(entries.category_group))
+    before = radios.evaluate_all(_CHIP_NAMES)
+    radios.first.focus()
+    page.keyboard.press("ArrowRight")  # selects and focuses the second radio
+
+    after = radios.evaluate_all(_CHIP_NAMES)
+    assert after[0] == before[1]
+    assert sorted(after) == sorted(before)
+    expect(radios.first).to_be_checked()
+    expect(radios.first).to_be_focused()

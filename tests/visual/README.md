@@ -47,6 +47,7 @@ Recalibration rule: rerun the calibration (`visual-actual/self-clusters.txt` fro
 ### Normalised state
 
 - The app selects the amount of an opened dialog (`amount-input.js`); a static handoff mock cannot show a selection, so `handoff_recurring.settle` collapses it for `SETTLED_DIALOGS` (deliberate difference, `derived.md`); focus is kept.
+- `edit-recurring--empty` (`handoff_recurring._empty`): the user clicks the dialog title, so the category-list trigger loses its focus ring (the static handoff shows none), and every scrolled element of the dialog is reset to `scrollTop = 0` (the user scrolls back up); `derived.md` has the row (F9).
 
 ### Known gaps
 
