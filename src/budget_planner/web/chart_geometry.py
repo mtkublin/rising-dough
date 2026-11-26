@@ -344,6 +344,7 @@ _FL_TIP_GAP = 14.0
 def _loaf_path(x: float, width: float, apex: float) -> str:
     """Loaf outline: 4 px base corners, flat sides, a half-circle top starting at ``apex``."""
     bottom, right, radius, corner = _FL_BOTTOM, x + width, width / 2, _FL_CORNER
+    apex = round(apex, 1)  # the handoff prints the cap height with one decimal (T-UR00b, ADR-0147)
     return (
         f"M{fmt(x)},{fmt(bottom - corner)} Q{fmt(x)},{fmt(bottom)} "
         f"{fmt(x + corner)},{fmt(bottom)} L{fmt(right - corner)},{fmt(bottom)} "
