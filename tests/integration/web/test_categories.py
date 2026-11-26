@@ -22,7 +22,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, errors, settings as ui
+from tests.ui_map import _html, errors, rd_shell, settings as ui
 from tests.ui_map.locator import Locator, by_id
 
 USER_ID = 1
@@ -424,7 +424,7 @@ def test_restore_without_archive_404(
     assert live.deleted_at is None
 
 
-def test_create_reloads_page_without_swap(client: TestClient) -> None:
+def test_create_flashes_and_refetches_without_reload(client: TestClient) -> None:
     # T-D150: the Settings category list has no region that refetches on a trigger.
     r = client.post(
         "/categories",
@@ -433,7 +433,9 @@ def test_create_reloads_page_without_swap(client: TestClient) -> None:
     )
     assert r.status_code == 200
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Category created" in _html.text_of(r.text, rd_shell.flash_saved)
+    assert "settings-categories-stale" in r.headers["HX-Trigger"]
     assert "budget-stale" in r.headers["HX-Trigger"]
 
 

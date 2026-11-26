@@ -1,5 +1,23 @@
 # Changelog
 
+2026-11-26 T22: drill setup token via a hashed dispatch input, token never in GitHub; bootstrap admin fallback until the workflow patch is applied (T-UR22, ADR-0134 amendment) (8b4e0d1f).
+
+2026-11-26 BUGA2: saves and promotes off the ledger keep the flash and refetch via events instead of HX-Refresh (T-UR48a) (c57383e1).
+
+2026-11-26 OVR1024: 1024 px actions-column rule scoped to the tablet range (T-UR49) (ba245dee).
+
+2026-11-26 BUGA: dialog 500s on bad day_of_month/year/opening balance/duplicate category fixed; blank override amount refused (T-UR47) (5561a853).
+
+2026-11-26 D8R: reconcile dialog per handoff: always books to Reconciliation, always saves a snapshot, live hero (T-UR45, ADR-0011 amendment) (d6d8221b).
+
+2026-11-26 INTENDED: "Intended differences" table in derived.md drives strict xfails in the reference comparison (T-UR00b, ADR-0147) (edb37f0f).
+
+2026-11-26 D8E: overlay `insert_row` op for the delete-account reference page (T-UR00b, ADR-0147 §4) (9215e6b9).
+
+2026-11-26 BUGCE: new-entry openers stay on the page (`hx-get` into the modal root, palette `n` / tab-bar `+`); clipped actions column at 1024 fixed (T-UR47) (40a17c3c).
+
+2026-11-26 BUGB: removed routes answer 404, `:int` ids, `not_found_response` with HTMX `HX-Reswap: none` on 422 (T-UR47) (c4162bf4).
+
 2026-11-26 OVL1: harness: D2-b/D3-a overlay rows, D10-A test token port + guard, RGB compare, picker-handoff-list seed modifier (b3940d92).
 
 2026-11-26 CI1: ci.yml: guard checkout fetch-depth 0 + blob:none (Q2); Tailwind step removed (T-UR15 leftover) (51718efc).

@@ -212,6 +212,26 @@ def test_add_from_ledger_submits_under_csp(live_server: tuple[str, Path], page: 
     assert db_probe.txn_amounts(db_path, "csp-added") == [_ADDED_MINOR]
 
 
+def test_planned_saved_from_today_keeps_the_flash(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """A planned entry saved from Today flashes and shows in Upcoming without a reload (BUGA2)."""
+    base_url, db_path = live_server
+    _seed(base_url, db_path, page)
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    to_playwright(page, entries.tab_planned).click()
+    choose_category(page, "Groceries")
+    choose_account(page, "Checking")
+    fill_stable(to_playwright(page, entries.hero_amount), "21.00")
+    fill_stable(to_playwright(page, entries.field_note), "today-planned")
+    save_entry(page, "planned")
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("saved")
+    assert page.evaluate("document.querySelector('#flash-region .rd-flash') !== null")
+    planned_id = db_probe.planned_id(db_path, "today-planned")
+    expect(to_playwright(page, today.upcoming_planned(planned_id))).to_have_count(1)
+
+
 def test_promote_on_today_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     account_id, category_id = _seed(base_url, db_path, page)
@@ -237,6 +257,8 @@ def test_promote_on_today_under_csp(live_server: tuple[str, Path], page: Page) -
     to_playwright(page, entries.promote_submit).click()
     # The promoted planned item leaves Upcoming and lands in the ledger.
     expect(to_playwright(page, planned_row)).to_have_count(0)
+    # No reload (BUGA2): the success flash survives the save.
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("promoted")
     assert db_probe.txn_amounts(db_path, "csp-promote") == [2500]
     page.goto(f"{base_url}/ledger?view=actual")
     expect(to_playwright(page, ledger.table_container)).to_contain_text("csp-promote")
@@ -359,6 +381,8 @@ def test_create_account_from_accounts_submits_under_csp(
     _fill(page, accounts.form_currency, "EUR", accounts.account_form)
     _submit(page, accounts.create_account, accounts.new_dialog)
     expect(to_playwright(page, accounts.new_dialog)).to_have_count(0)
+    # No page reload (ADR-0143): the out-of-band flash survives and the list refetches.
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("Travel wallet created")
     account_id = db_probe.account_id(db_path, "Travel wallet")
     assert (
         db_probe.scalar(db_path, "SELECT currency FROM accounts WHERE id = ?", account_id) == "EUR"
@@ -392,6 +416,7 @@ def test_create_category_submits_under_csp(
     _fill(page, settings.category_name, "Pets", settings.category_form)
     _submit(page, settings.create_category, settings.category_form)
     expect(to_playwright(page, settings.category_form)).to_have_count(0)
+    expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("Category created")
     expect(to_playwright(page, settings.panel)).to_contain_text("Pets")
     assert db_probe.category_id(db_path, "Pets")
 

@@ -19,6 +19,12 @@ Each `Entry(var, source, name, default, only_env)`:
              prod replica read key reaches a drill only from the restore drill's
              apply, which runs in the gated `prod-restore-read` environment
 
+The drill setup token hash (T-UR22) is not a secret: the workflow passes it in the
+process env as DRILL_SETUP_TOKEN_HASH and tf_env.py exports it as TF_VAR_setup_token_hash
+for a drill only. With a hash the drill boots without a bootstrap admin (admin_email is
+emptied; the operator creates the admin through /setup); without one (gate drills, or an
+explore dispatched before the workflow patch) the bootstrap admin stays.
+
 Usage: python3 tf_env.py --env drill|prod [--restore-source] [--plan-only]. Reads
 SECRETS_JSON, VARS_JSON, GITHUB_REPOSITORY_OWNER, GITHUB_RUN_ID and GITHUB_ENV from the environment.
 """
@@ -28,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import sys
 from collections.abc import Mapping, Sequence
@@ -35,6 +42,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ENVS = ("drill", "prod")
+DRILL_SETUP_HASH_ENV = "DRILL_SETUP_TOKEN_HASH"
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 PLAN_ONLY = "plan-only-no-credential"
 
 
@@ -58,6 +67,8 @@ ENTRIES: tuple[Entry, ...] = (
     Entry("env", "env"),
     Entry("scaleway_project_id", "secret", "SCW_DEFAULT_PROJECT_ID"),
     Entry("scaleway_organization_id", "secret", "SCW_DEFAULT_ORG_ID"),
+    # T-UR22 / ADR-0134 section 9: a drill that gets a setup token hash has no bootstrap
+    # admin (build_env empties admin_email); without a hash the bootstrap admin stays.
     Entry("admin_email", "secret", "ADMIN_EMAIL"),
     Entry("domain", "secret", "APP_DOMAIN"),
     Entry("github_owner", "owner"),
@@ -92,6 +103,7 @@ ENTRIES: tuple[Entry, ...] = (
     Entry("app_scw_access_key", "secret", "APP_SCW_ACCESS_KEY"),
     Entry("app_scw_secret_key", "secret", "APP_SCW_SECRET_KEY"),
     # T-UR21a / ADR-0134 section 9: prod environment secret; empty leaves /setup closed.
+    # A drill takes the per-deploy hash from `DRILL_SETUP_TOKEN_HASH` instead (T-UR22).
     Entry("setup_token_hash", "secret", "SETUP_TOKEN_HASH", default="", only_env="prod"),
     Entry("restore_reader_application_id", "secret", "RESTORE_READER_APPLICATION_ID", "", "prod"),
     # T-D67 / ADR-0094: Tailscale provider (auth key minting).
@@ -116,10 +128,17 @@ def build_env(
     run_id: str,
     restore_source: bool = False,
     plan_only: bool = False,
+    drill_setup_digest: str = "",
 ) -> dict[str, str]:
-    """`TF_VAR_*` name -> value for `target` (pure; no I/O)."""
+    """`TF_VAR_*` name -> value for `target` (pure; no I/O).
+
+    `drill_setup_digest` is the sha256 hex of the per-deploy setup token that the
+    drill workflow generated (T-UR22); it reaches only a drill, prod ignores it.
+    """
     if target not in ENVS:
         raise EnvError(f"env must be drill or prod; got '{target}'")
+    if drill_setup_digest and not _SHA256_HEX.match(drill_setup_digest):
+        raise EnvError(f"{DRILL_SETUP_HASH_ENV} must be a lowercase sha256 hex digest")
     sources: dict[str, Mapping[str, str]] = {"secret": secret_values, "var": variables}
     fixed = {"env": target, "owner": owner, "run_id": run_id}
     out: dict[str, str] = {}
@@ -135,6 +154,9 @@ def build_env(
         else:
             value = sources[entry.source].get(entry.name, "") or entry.default
         out[f"TF_VAR_{entry.var}"] = value
+    if target == "drill" and drill_setup_digest:
+        out["TF_VAR_setup_token_hash"] = drill_setup_digest
+        out["TF_VAR_admin_email"] = ""
     return out
 
 
@@ -186,6 +208,7 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
             run_id=environ.get("GITHUB_RUN_ID", ""),
             restore_source=args.restore_source,
             plan_only=args.plan_only,
+            drill_setup_digest=environ.get(DRILL_SETUP_HASH_ENV, ""),
         )
         target = environ.get("GITHUB_ENV", "")
         if not target:

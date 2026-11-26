@@ -67,12 +67,13 @@ variable "drill_expires_at" {
 }
 
 variable "admin_email" {
-  description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine."
+  description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine. Required on prod; a drill may leave it empty (T-UR22, ADR-0134 §9): the app then starts without a bootstrap admin and /setup opens once setup_token_hash is set."
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.admin_email))
-    error_message = "admin_email must be a valid email address."
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.admin_email)) || (var.env == "drill" && var.admin_email == "")
+    error_message = "admin_email must be a valid email address (empty only for env 'drill')."
   }
 }
 

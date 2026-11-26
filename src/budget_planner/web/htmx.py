@@ -14,7 +14,6 @@ from fastapi.responses import Response
 from budget_planner.web.http_headers import (
     HTML_MEDIA_TYPE,
     HX_CURRENT_URL,
-    HX_REFRESH,
     HX_RESWAP,
     JSON_MEDIA_TYPE,
 )
@@ -68,17 +67,27 @@ def trigger(response: Response, *events: Event, toast: Mapping[str, object] | No
     response.headers[HX_TRIGGER] = json.dumps(payload)
 
 
-def refresh_unless_on(request: Request, response: Response, path_prefix: str) -> None:
-    """Skip the swap and, off ``path_prefix``, reload the page after a successful post.
+_OFF_LEDGER_STALE: Final = (Event.TODAY_STALE, Event.BUDGET_STALE)
+"""Listened for by Today (today-stale) and the Plan budget and year tabs (budget-stale)."""
 
-    The page a form was submitted from is read from ``HX-Current-URL``. On that
-    prefix the caller's ``HX-Trigger`` events refresh the page's own regions; on
-    any other page nothing is listening, so the whole page reloads.
+
+def refresh_unless_on(request: Request, response: Response, path_prefix: str) -> None:
+    """On ``path_prefix`` skip the swap; elsewhere fire the page-stale events (refetch).
+
+    The page a form was submitted from is read from ``HX-Current-URL``. A full
+    ``HX-Refresh`` reload would drop the out-of-band success flash, so no page
+    reloads: the caller's events (plus ``today-stale`` and ``budget-stale`` off the prefix: the
+    Today and Plan budget/year regions listen) refresh the page's own regions (ADR-0143).
     """
-    response.headers[HX_RESWAP] = "none"
     current = urlparse(request.headers.get(HX_CURRENT_URL, "")).path
-    if not current.startswith(path_prefix):
-        response.headers[HX_REFRESH] = "true"
+    if current.startswith(path_prefix):
+        response.headers[HX_RESWAP] = "none"
+        return
+    raw = response.headers.get(HX_TRIGGER)
+    payload: dict[str, object] = json.loads(raw) if raw else {}
+    for stale in _OFF_LEDGER_STALE:
+        payload[str(stale)] = True
+    response.headers[HX_TRIGGER] = json.dumps(payload)
 
 
 def wants_json(request: Request) -> bool:

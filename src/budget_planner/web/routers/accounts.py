@@ -34,9 +34,9 @@ from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, g
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
-from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_RESWAP
 from budget_planner.web.paths import NEW_PATH
-from budget_planner.web.rendering import render, render_context
+from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -109,13 +109,16 @@ def create_account(
         )
         return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, parsed.errors)
     acc = accounts_service.create(conn, user_id, parsed.command)
-    html = render_context(request, _ROW, accounts_data.row_context(conn, user_id, acc.id, settings))
-    trigger(html, Event.BALANCE_STALE)
-    # T-D150: the accounts list has no region that refetches on a trigger for a new row,
-    # so skip the swap and reload to show the new item (the reload also closes the dialog).
-    html.headers[HX_RESWAP] = "none"
-    html.headers[HX_REFRESH] = "true"
-    return html
+    response = saved_response(
+        request,
+        _ROW,
+        accounts_data.row_context(conn, user_id, acc.id, settings),
+        message=f"{acc.name} created",
+        events=(Event.BALANCE_STALE,),
+    )
+    # The accounts panel and hero refetch on balance-stale; the flash is out of band.
+    response.headers[HX_RESWAP] = "none"
+    return response
 
 
 @router.get("/{account_id:int}/edit", response_class=HTMLResponse)
@@ -269,7 +272,9 @@ def reconcile_submit(
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return not_found_response(request, "account", account_id)
-    refused = accounts_data.book_reconcile(conn, user_id, acc, settings, actual_text=actual_balance)
+    refused, in_sync = accounts_data.book_reconcile(
+        conn, user_id, acc, settings, actual_text=actual_balance
+    )
     if refused is not None:
         return form_responses.reconcile_modal_error(
             request, conn, user_id, acc=acc, message=refused, actual_text=actual_balance
@@ -278,6 +283,6 @@ def reconcile_submit(
         request,
         _ROW,
         accounts_data.row_context(conn, user_id, account_id, settings),
-        message=f"{acc.name} reconciled",
+        message="Already in sync" if in_sync else f"{acc.name} reconciled",
         events=(Event.BALANCE_STALE, Event.FORECAST_STALE),
     )
