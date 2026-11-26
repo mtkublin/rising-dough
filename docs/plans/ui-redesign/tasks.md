@@ -409,7 +409,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Scope: switching the new-entry tab (happened, planned, repeats) keeps the typed amount, category, account and note; tab-only fields (due date, cadence) reset. The tab links add `hx-include` with the CSRF token excluded and `form_responses.open_new_entry` reads the values as `posted`. Then finish QFIX10's regression test on the new behaviour; QFIX11/12 diagnostics may be deleted once the lost-note scenario passes without `fill_stable` retries. Requirement F1.1a.
 - Decision: D5 in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0030, ADR-0040.
 
-### ◻ T-UR45 [P] Reconcile dialog: live hero, no extras (D8-R)
+### ✅ T-UR45 [P] Reconcile dialog: live hero, no extras (D8-R)
 - Scope: the reconcile dialog has one balance field; the hero shows the difference live while the balance is typed; `record as` is removed and the adjustment is always booked to the system Reconciliation category; a balance snapshot is always saved (no checkbox); the `preview` button is removed; seed snapshots per the handoff. Service behaviour changes: requirement F2.5 is amended first (done in `docs/requirements.md`); the reconcile ADR amendment is the orchestrator's. Template start: `D8-R-reconcile-extras-out.patch`.
 - Decision: D8-R in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0011, ADR-0008 (T-Q217 category choice superseded for the dialog), ADR-0125 §7.
 
@@ -417,7 +417,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Scope: `domain/money.parse_amount_str` strips thousands separators (comma, space, no-break space) before the `.` decimal; amount inputs keep rendering the bare value. Tests: exact minor units for each separator, and that a lone decimal comma (`12,5`) still parses as before. Requirement F1.1.
 - Decision: "Other decisions" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0006.
 
-### ◻ T-UR47 [P] Logged validation bugs: 500s and bad values saved
+### ✅ T-UR47 [P] Logged validation bugs: 500s and bad values saved
 - Scope: bad dialog input answers 422 with a visible field error, never 500 and never a stored bad value. Fix the 500s on bad `day_of_month`, year and opening balance (`abc`) and on a duplicate category name in dialogs; reject `day_of_month=45` on edit recurring and an empty or `abc` budget override amount. Tests assert the 422 body, the field error and that no row or audit entry is written. Requirement F1.1a. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md); list in "Follow-ups logged 2026-11-25". ADR-0030.
 

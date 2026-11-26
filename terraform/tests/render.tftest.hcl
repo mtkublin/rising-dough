@@ -73,6 +73,81 @@ run "user_data_without_restore_helper" {
   }
 }
 
+# T-UR22 / ADR-0134 section 9: a drill has no bootstrap admin by default and
+# gets the per-deploy setup token hash; prod keeps the bootstrap admin.
+run "compose_without_admin_email_has_no_bootstrap_admin" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    admin_email      = ""
+    setup_token_hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = !strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "BUDGET_PLANNER_ADMIN_EMAIL")
+    error_message = "Empty admin_email must render no bootstrap admin email (T-UR22)."
+  }
+
+  assert {
+    condition     = !strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD")
+    error_message = "Empty admin_email must render no initial admin password (T-UR22)."
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "BUDGET_PLANNER_SETUP_TOKEN_HASH: \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"")
+    error_message = "The drill setup token hash must reach the compose env (T-UR22)."
+  }
+}
+
+run "compose_with_admin_email_keeps_bootstrap_admin" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "BUDGET_PLANNER_ADMIN_EMAIL: \"admin@example.invalid\"")
+    error_message = "A set admin_email keeps the bootstrap admin (prod unchanged)."
+  }
+
+  assert {
+    condition     = !strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "BUDGET_PLANNER_SETUP_TOKEN_HASH")
+    error_message = "No hash, no setup token env."
+  }
+}
+
+# T-UR22: empty admin_email is allowed for a drill only.
+run "empty_admin_email_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    admin_email                   = ""
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  expect_failures = [var.admin_email]
+}
+
 run "user_data_has_no_break_glass_rule_by_default" {
   command = plan
 
