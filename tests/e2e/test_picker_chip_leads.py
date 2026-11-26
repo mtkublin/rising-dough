@@ -54,7 +54,9 @@ def test_picked_chip_moves_to_the_front_and_nothing_is_dropped(
     assert sorted(before) == ["Groceries", "Takeaway", "Transport"]
     last = before[-1]
 
-    radios.last.click()  # one click: `check` re-resolves `.last` after the row moved
+    radios.last.click(
+        force=True
+    )  # one click, no stability wait: the dialog is refreshed by the pick
 
     after = radios.evaluate_all(_CHIP_NAMES)
     assert after[0] == last
