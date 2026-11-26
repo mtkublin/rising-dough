@@ -186,6 +186,9 @@ PAGE_MODIFIERS: dict[str, tuple[str, ...]] = {
 OVERLAY_MODIFIERS: dict[str, tuple[str, ...]] = {
     "pages/overlays/delete-account.html": ("unreferenced-account",),
     "pages/overlays/delete-account--blocked-planned.html": ("account-with-rules",),
+    # D1-c(i): the board's picker lists 20 categories; the four it lacks are archived.
+    "pages/overlays/category-picker.html": ("picker-handoff-list",),
+    "pages/overlays/category-picker--no-match.html": ("picker-handoff-list",),
 }
 
 

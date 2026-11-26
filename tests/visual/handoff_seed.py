@@ -62,6 +62,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import (
     balance as balance_service,
+    categories as categories_service,
     invites as invites_service,
     preferences as preferences_service,
 )
@@ -178,6 +179,7 @@ class SeedData:
     invite_accepted: bool
     invite_link: str  # fixed path segment of the invite URL in the scratch DB
     owner_must_change: bool = False  # the signed-in owner's password was reset by an admin
+    archive_after: tuple[str, ...] = ()  # live categories archived once everything is written
 
 
 # value-inventory 2.2 (balances in PLN as the handoff prints them; the two EUR-named
@@ -645,6 +647,17 @@ def _settings_categories(d: SeedData) -> SeedData:
     return replace(d, categories=tuple(c for c in d.categories if c.name != PICKER_ONLY_CATEGORY))
 
 
+PICKER_LACKS: Final = ("Bank Fees #18", "Opłaty bankowe i prowizje", "Interest", "Profit Share")
+
+
+def _picker_handoff_list(d: SeedData) -> SeedData:
+    """Category picker pages: the board's list lacks four live categories (D1-c(i)): 20 of them.
+
+    They are archived after the seed (ADR-0136), so their planned items and rules stay valid.
+    """
+    return replace(d, archive_after=PICKER_LACKS)
+
+
 def _no_data_change(d: SeedData) -> SeedData:
     return d
 
@@ -697,6 +710,11 @@ _MODIFIERS: Final = (
         "settings-categories",
         _settings_categories,
         "Settings categories: the board lists 17 expense categories, without the picker-only one",
+    ),
+    (
+        "picker-handoff-list",
+        _picker_handoff_list,
+        "Category picker pages: the four categories the board's list lacks are archived (20)",
     ),
     ("form-error", _no_data_change, "request states (422, wrong password): no data change"),
     (
@@ -992,6 +1010,8 @@ def build_seed(db_path: Path, *, modifiers: Iterable[str] = ()) -> SeedResult:
             _write_entries(conn, data, acc, cat)
             _write_rules(conn, data, acc, cat)
             _fit_balances(conn, data, acc)
+            for name in data.archive_after:
+                categories_service.archive(conn, OWNER_ID, cat[name])
             preferences_service.set_income_anchor_category_id(
                 conn, OWNER_ID, cat[data.income_anchor]
             )

@@ -63,6 +63,7 @@ reason = "value-inventory 5 row 7: 12,521.63 of 14,977.37 is 84% available, not 
 
 [[row]]
 page = "pages/overlays/*.html"
+exclude = ["pages/overlays/category-picker.html", "pages/overlays/category-picker--no-match.html"]  # D1-c(i): 20, rows below
 select = "input.rd-catpick__input"
 field = "placeholder"
 old = "search all 21 categories"
@@ -72,6 +73,7 @@ reason = "seed value via categories.picker_summary: total_count, the live catego
 
 [[row]]
 page = "pages/overlays/*.html"
+exclude = ["pages/overlays/category-picker.html", "pages/overlays/category-picker--no-match.html"]  # D1-c(i): 20, rows below
 select = "button.rd-catfield__search"
 field = "text"
 old = "search all 21 categories"
@@ -1004,6 +1006,7 @@ reason = "handoff data inconsistency: this board names the category Fixed Costs,
 
 [[row]]
 page = "pages/*.html"
+exclude = ["pages/accounts--empty.html"]  # its own rows below follow the empty list
 select = ".rd-hero__note .u-hide-below-md:-soup-contains-own(\"planned \u2212312.54\")"
 field = "text"
 old = "assets 36,895.43 \u00b7 liabilities \u22122,455.74 \u00b7 planned \u2212312.54"
@@ -3436,3 +3439,151 @@ field = "text"
 old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
 value = "Credit Card · 12,521.63 of 14,977.37 left → 12,521.63 after this"
 reason = "handoff inconsistent, app right: the dialog is answering an amount of 0.00, which leaves the limit as it is (12,486.13 is the 35.50 of the other new-entry pages)"
+
+# --- row 8 (value-inventory section 5): plan/budget row bars. The board's labels do not add up
+# (spent + left = 99..103) and round half up; the app floors the spent share and prints left as
+# 100 - spent (view_models.bar_aria_label). The handoff side is corrected, never the app (ADR-0147
+# section 3). The labels are not painted: this changes the DOM the overlay serves, not a pixel.
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="39 percent spent, 60 percent left"]'
+field = "aria-label"
+old = "39 percent spent, 60 percent left"
+value = "38 percent spent, 62 percent left"
+reason = "handoff inconsistent, app right: 39 + 60 is not 100 (value-inventory section 5 row 8); the seed spends 38.x percent, floored, left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="45 percent spent, 60 percent left"]'
+field = "aria-label"
+old = "45 percent spent, 60 percent left"
+value = "44 percent spent, 56 percent left"
+reason = "handoff inconsistent, app right: 45 + 60 is not 100 (value-inventory section 5 row 8); floored spent, left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="71 percent spent, 30 percent left"]'
+field = "aria-label"
+old = "71 percent spent, 30 percent left"
+value = "71 percent spent, 29 percent left"
+reason = "handoff inconsistent, app right: 71 + 30 is not 100 (value-inventory section 5 row 8); left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="5 percent spent, 90 percent left"]'
+field = "aria-label"
+old = "5 percent spent, 90 percent left"
+value = "5 percent spent, 95 percent left"
+reason = "handoff inconsistent, app right: 5 + 90 is not 100 (value-inventory section 5 row 8); left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="90 percent spent, 10 percent left"]'
+field = "aria-label"
+old = "90 percent spent, 10 percent left"
+value = "89 percent spent, 11 percent left"
+reason = "handoff inconsistent, app right: the board rounds half up, the app floors the spent share (value-inventory section 5 row 8)"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="3 percent spent, 100 percent left"]'
+field = "aria-label"
+old = "3 percent spent, 100 percent left"
+value = "2 percent spent, 98 percent left"
+reason = "handoff inconsistent, app right: 3 + 100 is not 100 (value-inventory section 5 row 8); floored spent, left = 100 - spent"
+
+# --- Q5 / accounts--empty: the board keeps the ten-account hero over an empty list. With no
+# accounts the app's net worth is 0.00, so the hero text follows what the (empty) seed yields.
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__label .u-hide-below-md"
+field = "text"
+old = "net worth · 10 accounts"
+value = "net worth · 0 accounts"
+reason = "handoff inconsistent, app right: an empty list has no ten accounts (modifier empty-accounts)"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "34,439.69"
+value = "0.00"
+reason = "handoff inconsistent, app right: net worth of no accounts is zero"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "7"
+value = "3"
+reason = "digit count of the hero figure above (0.00)"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__figure"
+field = "data-marks"
+old = "2"
+value = "1"
+reason = "mark count of the hero figure above (0.00 has one point)"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__note .u-hide-below-md"
+field = "text"
+old = "assets 36,895.43 · liabilities −2,455.74 · planned −312.54"
+value = "assets 0.00 · liabilities 0.00 · planned 0.00"
+reason = "handoff inconsistent, app right: no accounts, no assets, liabilities or planned"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__note .u-hide-from-md"
+field = "text"
+old = "assets 36,895.43 · liabilities −2,455.74"
+value = "assets 0.00 · liabilities 0.00"
+reason = "handoff inconsistent, app right: no accounts, no assets or liabilities"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-accounts__head .rd-caption"
+field = "text"
+old = "10 ACCOUNTS"
+value = "0 ACCOUNTS"
+reason = "handoff inconsistent, app right: the phone caption counts the accounts the list holds (none)"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = "input.rd-catpick__input"
+field = "placeholder"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = "button.rd-catfield__search"
+field = "text"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = "input.rd-catpick__input"
+field = "placeholder"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = "button.rd-catfield__search"
+field = "text"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"

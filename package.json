@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Dev-only Node toolchain for Budget Planner frontend (stylelint for the rd CSS, visual-regression diff helper). Tailwind is gone (ADR-0107 section 4).",
-  "scripts": {
-    "css": "uv run python scripts/build_css_bundle.py"
-  },
+  "scripts": {},
   "devDependencies": {
     "pixelmatch": "5.3.0",
     "pngjs": "7.0.0",
