@@ -1,0 +1,89 @@
+diff --git a/src/budget_planner/services/account_planned.py b/src/budget_planner/services/account_planned.py
+index 3be648c..1491339 100644
+--- a/src/budget_planner/services/account_planned.py
++++ b/src/budget_planner/services/account_planned.py
+@@ -77,15 +77,20 @@ def _legs(
+ 
+ 
+ def _collect_legs(
+-    conn: sqlite3.Connection, user_id: int, window: PlannedWindow, fx: FormulaFx
++    conn: sqlite3.Connection,
++    user_id: int,
++    window: PlannedWindow,
++    fx: FormulaFx,
++    after: dt.date | None = None,
+ ) -> list[tuple[int, int]]:
+     # Archived categories keep their unpromoted items; count them by direction (ADR-0089).
+-    # Overdue stays clamped to the period start (ADR-0089), so ``include_overdue=False``.
++    # Only items dated after ``after`` (today) count: overdue and due-today items are left out.
++    first = window.start if after is None else max(window.start, after + dt.timedelta(days=1))
+     items = recurring_svc.pending_occurrences(
+         conn,
+         user_id,
+         fx=fx,
+-        start=window.start,
++        start=first,
+         end=window.last_day + dt.timedelta(days=1),
+         today=None,
+         include_overdue=False,
+@@ -97,11 +102,15 @@ def _collect_legs(
+ 
+ 
+ def planned_net_by_account(
+-    conn: sqlite3.Connection, user_id: int, window: PlannedWindow, fx: FormulaFx
++    conn: sqlite3.Connection,
++    user_id: int,
++    window: PlannedWindow,
++    fx: FormulaFx,
++    after: dt.date | None = None,
+ ) -> dict[int, int]:
+     """Return ``{account_id: signed_net_minor}`` for the window (zero nets omitted)."""
+     totals: dict[int, int] = {}
+-    for account_id, signed in _collect_legs(conn, user_id, window, fx):
++    for account_id, signed in _collect_legs(conn, user_id, window, fx, after):
+         totals[account_id] = totals.get(account_id, 0) + signed
+     return {k: v for k, v in totals.items() if v != 0}
+ 
+@@ -112,7 +121,7 @@ def compute_accounts_planned(
+     """Compose per-account planned net, projected balance and the base-ccy hero total."""
+     window = resolve_window(conn, user_id, today)
+     fx = formula_fx_for(conn, user_id, settings, today)
+-    nets = planned_net_by_account(conn, user_id, window, fx)
++    nets = planned_net_by_account(conn, user_id, window, fx, after=today)
+     by_account: dict[int, AccountPlanned] = {}
+     base_net = 0
+     accounts = accounts_repo.list_all(conn, user_id)
+diff --git a/tests/visual/handoff_overlay.toml b/tests/visual/handoff_overlay.toml
+--- a/tests/visual/handoff_overlay.toml
++++ b/tests/visual/handoff_overlay.toml
+@@ -986,30 +986,6 @@
+ old = "Fixed Costs "
+ value = "Fixed costs "
+ reason = "handoff data inconsistency: this board names the category Fixed Costs, every other board and the category list say Fixed costs"
+-
+-# --- Accounts "planned" figures (F4b): the handoff's accounts page counts only the rules due
+-# before the 7 Nov payday (Credit Card 1 Nov, Checking subscriptions 5 Nov: -312.54), yet its
+-# own planned page lists the overdue Annual insurance (-412.00, Checking) and the Tax refund due
+-# today (+1,120.45, Checking EUR) as unpaid inside that period. ADR-0089 counts every unpaid
+-# planned item of the fiscal period, so the app is right: the page shows what the seed yields.
+-
+-[[row]]
+-page = "pages/*.html"
+-select = ".rd-hero__note .u-hide-below-md:-soup-contains-own(\"planned \u2212312.54\")"
+-field = "text"
+-old = "assets 36,895.43 \u00b7 liabilities \u22122,455.74 \u00b7 planned \u2212312.54"
+-value = "assets 36,895.43 \u00b7 liabilities \u22122,455.74 \u00b7 planned +395.91"
+-optional = true
+-reason = "handoff data inconsistency: its planned page lists two unpaid items (Annual insurance, Tax refund) inside the period the accounts hero totals; ADR-0089 counts them (seed + account_planned: -312.54 - 412.00 + 1,120.45)"
+-
+-[[row]]
+-page = "pages/*.html"
+-select = ".rd-row--account:nth-of-type(4) .rd-amount__note"
+-field = "text"
+-old = "\u2192 3,662.52 after planned"
+-value = "\u2192 3,250.52 after planned"
+-optional = true
+-reason = "handoff data inconsistency: the overdue Annual insurance (412.00, Checking) is unpaid inside the period (ADR-0089), so 3,685.81 - 23.29 - 412.00 = 3,250.52"
+ 
+ [[row]]
+ page = "pages/overlays/edit-account*.html"
