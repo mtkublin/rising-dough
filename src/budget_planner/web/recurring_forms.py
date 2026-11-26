@@ -34,6 +34,7 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.budget_forms import OVERRIDE_YEARS
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 
 TermInput = dict[str, object]
@@ -507,7 +508,6 @@ def rule_patch_from(
         "default_amount": valid.amount_minor,
         "default_description": fields.default_description,
         "amount_formula": valid.formula,
-        "day_of_month": parse_day_of_month(fields.day_of_month)[0],
         # An empty end date clears it (forms always carry the field).
         "end_date": valid.end,
     }
@@ -515,15 +515,17 @@ def rule_patch_from(
     # in the same patch, so Upcoming and Forecast stop surfacing it before the next promotion.
     if valid.end is not None and rule.next_due > valid.end:
         patch["active"] = False
+    # A blank day keeps the stored one (None in a patch means "unchanged").
+    if (day := parse_day_of_month(fields.day_of_month)[0]) is not None:
+        patch["day_of_month"] = day
     return PatchRecurringRule(**patch)
 
 
-_OVERRIDE_YEARS = range(1900, 10000)
 _OVERRIDE_MONTHS = range(1, 13)
 
 
 def year_or(year: int, fallback: int) -> int:
-    return year if year in _OVERRIDE_YEARS else fallback
+    return year if year in OVERRIDE_YEARS else fallback
 
 
 def month_or(month: int, fallback: int) -> int:
@@ -545,7 +547,7 @@ class OverrideError:
 def check_override(
     rule: RecurringRule, account: Account | None, year: int, month: int, amount: str
 ) -> ValidOverride | OverrideError:
-    if not (year in _OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
+    if not (year in OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
         return OverrideError("month", "invalid year or month")
     occ = recurring_svc.occurrence_in_month(rule, year, month)
     if occ is None:

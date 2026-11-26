@@ -114,6 +114,22 @@ def test_edit_recurring_good_day_of_month_is_stored(
     assert _day(db, theirs) is None
 
 
+def test_edit_recurring_blank_day_of_month_keeps_the_stored_day(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    theirs = _other_users_rule(db)
+    db.execute("UPDATE recurring_rules SET day_of_month = 17 WHERE id = ?", (ids["rent_rule"],))
+    db.execute("UPDATE recurring_rules SET day_of_month = 9 WHERE id = ?", (theirs,))
+
+    r = client.post(
+        f"/recurring/{ids['rent_rule']}", data=_rule_form(ids, day_of_month=""), headers=HX
+    )
+
+    assert r.status_code == 200
+    assert _day(db, ids["rent_rule"]) == 17
+    assert _day(db, theirs) == 9
+
+
 @pytest.mark.parametrize("day", ["45", "abc"])
 def test_new_recurring_bad_day_of_month_is_a_422_and_creates_nothing(
     client: TestClient,

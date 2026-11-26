@@ -25,6 +25,7 @@ from budget_planner.services import (
 )
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import entry_forms
+from budget_planner.web.budget_forms import OVERRIDE_YEARS
 from budget_planner.web.deps import today_for
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.entry_forms import promote_context
@@ -604,7 +605,7 @@ def render_override_error(
     error: OverrideError,
 ) -> Response:
     """422: the override dialog again with the posted amount, the summary and the error."""
-    shown_year = year if year in range(1900, 10000) else rule.next_due.year
+    shown_year = year if year in OVERRIDE_YEARS else rule.next_due.year
     shown_month = month if month in range(1, 13) else rule.next_due.month
     context = occurrence_context(
         conn,
