@@ -1,8 +1,12 @@
 {# fragment: dialogs/formula-result (T-UR10, ADR-0056 section 4, ADR-0107)
    The live preview of a draft formula, swapped into the dialog's output.rd-formula__result by
    POST /recurring/formula/preview. Context: is_ok, next_amount (formatted, with currency), result
-   (services.recurring_formula.PreviewOk | PreviewError). 200 with the next amount, 422 with the reason. #}
+   (services.recurring_formula.PreviewOk | PreviewError). 200 with the next amount, 422 with the reason.
+   The "empty" and "invalid_source" reasons (a component still being filled in, or a stale source) stay
+   in the markup, hidden: the handoff's empty state shows no line while a component is empty; the save
+   answers with the visible field error (derived.md, F9). #}
 {% if is_ok %}<span data-testid="formula-preview">→ next amount {{ next_amount }}</span>{% else %}<span class="rd-field__error"
       data-testid="formula-preview"
       data-code="{{ result.code }}"
+      {% if result.code == "empty" or result.code == "invalid_source" %}hidden {% endif %}
       {% if result.offending_term_index is not none %}data-term-index="{{ result.offending_term_index }}"{% endif %}>▲ {{ result.message }}</span>{% endif %}

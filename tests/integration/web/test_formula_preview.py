@@ -82,6 +82,8 @@ def test_formula_preview_empty_returns_422(client: TestClient) -> None:
     assert r.status_code == 422
     assert _html.text_of(r.text, edit_dialogs.formula_result)
     assert _html.resolve_one(r.text, edit_dialogs.formula_result).has_attr("data-code")
+    # nothing entered yet: the handoff shows no line, the save shows the visible error (F9)
+    assert _html.resolve_one(r.text, edit_dialogs.formula_result).has_attr("hidden")
 
 
 def test_formula_preview_invalid_source(client: TestClient) -> None:
