@@ -31,7 +31,7 @@ Polish providers were looked at (EmailLabs and MessageFlow by Vercom, Poznań). 
 
 1. **Provider and plan.** Scaleway Transactional Email, **Essential plan**, region `fr-par`. Terraform never creates a plan subscription, so the project stays on Essential. A move to Scale (€80) needs a new ADR.
 2. **Transport: HTTPS API, not SMTP.** `POST https://api.scaleway.com/transactional-email/v1alpha1/regions/fr-par/emails` with `X-Auth-Token`. No security-group change, no SMTP unblock, no KYC request.
-3. **Sending domain.** The apex `rising-dough.eu` (registered at Scaleway, zone in the prod project, no existing SPF, DMARC or MX records on 2026-11-26). From: `Rising Dough <no-reply@rising-dough.eu>`. Reply-To: the inviting admin's email, so a reply reaches a person. Plain text only (as `MailMessage` is today).
+3. **Sending domain.** The apex `rising-dough.eu` (registered at Scaleway, zone in the prod project, no existing SPF, DMARC or MX records on 2026-11-26). From: `Rising Dough <invite@rising-dough.eu>` (any local part works: TEM verifies the domain, not the address; `invite@` reads better than `no-reply@` to readers and filters). `invite@` has no inbox (no MX for receiving); Reply-To is the inviting admin's email, so a reply reaches a person. The message is multipart: a plain-text part and a simple HTML part with the same content (`MailMessage` gains an optional `html`).
 4. **DNS, prod only.** A new Terraform module `modules/mail` (prod env only, `managed_zone = true`; the drill never touches the prod zone, ADR-0088, ADR-0101) creates:
    - `scaleway_tem_domain` (`accept_tos = true`, region `fr-par`, prod project) and `scaleway_tem_domain_validation`;
    - `scaleway_domain_record` TXT records from the domain's exported attributes: SPF on the apex (`v=spf1 include:_spf.tem.scaleway.com -all`), DKIM at `<project_id>._domainkey`, DMARC at `_dmarc` starting with `p=none`; plus the MX record TEM exports for bounce handling, if the provider exports one.
@@ -45,8 +45,19 @@ Polish providers were looked at (EmailLabs and MessageFlow by Vercom, Poznań). 
    - Settings: `mail_tem_secret_key` (secret type), `mail_tem_project_id`, `mail_tem_region` (default `fr-par`), `mail_from`. Startup fails if `invite_email_enabled` is on and the key, project id or sender is missing.
    - The adapter is chosen at the edge (app factory): TEM when the switch is on, `NoopMailSender` otherwise. The canonical "Outbound mail" row in CLAUDE.md and `canonical_modules.toml` names the new adapter.
 8. **Abuse and cost guard.** Invite emails are limited per admin: 10 per hour and 30 per day, through `services/rate_limit.py` (create and resend both count). Over the limit the invite is still created or renewed and the email is skipped; the admin is told to copy the link. The TEM monthly quota (10,000) is the backstop, capping the bill at about €2.43.
-9. **Scope.** Invite emails only. Password reset by email stays out of scope (requirements §6.8). No webhooks, no tracking pixels, no marketing mail.
-10. **Release.** Prod goes through the normal pipeline (ADR-0099). The operator applies the bootstrap stack, adds the secret, releases, then sends one invite to their own address as the smoke test (T-IE06). Drills keep the no-op adapter.
+9. **Deliverability.** No setting guarantees the inbox; these are the levers we own:
+   - **Authentication and alignment**: SPF, DKIM signed for `rising-dough.eu` and DMARC (section 4), so the From domain matches the signing domain. Gmail and Outlook junk or reject unauthenticated mail.
+   - **One domain family**: the From domain (`rising-dough.eu`) and the only link (`https://budget.rising-dough.eu/invite/<token>`) share the registrable domain. No link shorteners, no click-tracking redirects (TEM tracking stays off), no images, no attachments.
+   - **Personal, expected content**: subject `<Inviter name> invited you to Rising Dough`; the body names the inviter, says what the app is in one sentence, gives the link and its 7-day expiry, and says to ignore the email if it is unexpected. Short, no marketing words, no all-caps, no exclamation runs. Same text in the plain and HTML parts.
+   - **Low steady volume**: the per-admin limit (section 8) prevents bursts; recipients expect the email because an admin they know sent it.
+   - **Shared IP pool accepted**: Essential sends from Scaleway's shared pool, whose reputation we do not control. A dedicated IP (Scale plan, €80) would be worse at our volume (a cold IP with almost no traffic has no reputation).
+   - **Young domain accepted**: `rising-dough.eu` was bought 2026-11-04; reputation builds with clean sends.
+   - **Test before enabling**: a mail-tester.com score of at least 9/10 and an inbox (not spam) landing at Gmail, Outlook.com, WP.pl, Onet.pl and Interia.pl (the Polish providers tend to be strict and are likely for stage-1 users) before the release that turns the switch on is called done (T-IE06).
+   - **Monitoring**: the TEM dashboard (bounces, complaints, blocklisted recipients) after each send batch; DMARC aggregate reports (`rua=`) to a mailbox or a free DMARC report service once one is chosen (T-IE07). The policy only tightens to `p=quarantine` after 30 days with no SPF or DKIM failures in those reports.
+   - **First-contact habit**: the "invite sent" message tells the admin to ask the invitee to check spam and mark the first email "not spam" (T-IE05).
+   - **Not done**: BIMI (needs a paid VMC certificate), List-Unsubscribe (bulk-mail rule, not transactional invites), Google Postmaster Tools (shows nothing at our volume).
+10. **Scope.** Invite emails only. Password reset by email stays out of scope (requirements §6.8). No webhooks, no tracking pixels, no marketing mail.
+11. **Release.** Prod goes through the normal pipeline (ADR-0099). The operator applies the bootstrap stack, adds the secret, releases, then sends one invite to their own address as the smoke test (T-IE06). Drills keep the no-op adapter.
 
 ## Consequences
 
