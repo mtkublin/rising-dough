@@ -222,3 +222,47 @@ def test_only_the_prod_plan_passes_plan_only_and_skips_refresh() -> None:
     assert "plan-only" not in apply_env["with"]
     assert '-refresh="${refresh}"' in plan_run
     assert "refresh=false" in plan_run
+
+
+HASH = (
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"  # pragma: allowlist secret
+)
+
+
+def test_drill_has_no_bootstrap_admin_and_takes_the_workflow_setup_hash() -> None:
+    """T-UR22 / ADR-0134 section 9: drill admin_email empty, hash from the workflow."""
+    secrets = {**SECRETS, "ADMIN_EMAIL": "ops@example.com", "SETUP_TOKEN_HASH": "f" * 64}
+    out = tf_env.build_env("drill", secrets, VARS, owner="o", run_id="1", drill_setup_digest=HASH)
+
+    assert out["TF_VAR_admin_email"] == ""
+    assert out["TF_VAR_setup_token_hash"] == HASH
+
+
+def test_drill_without_hash_leaves_setup_closed_and_ignores_prod_secret() -> None:
+    secrets = {**SECRETS, "SETUP_TOKEN_HASH": "f" * 64}
+    out = tf_env.build_env("drill", secrets, VARS, owner="o", run_id="1")
+
+    assert out["TF_VAR_setup_token_hash"] == ""
+
+
+def test_prod_keeps_admin_email_and_its_own_setup_hash() -> None:
+    secrets = {**SECRETS, "ADMIN_EMAIL": "ops@example.com", "SETUP_TOKEN_HASH": "e" * 64}
+    out = tf_env.build_env("prod", secrets, VARS, owner="o", run_id="1", drill_setup_digest=HASH)
+
+    assert out["TF_VAR_admin_email"] == "ops@example.com"
+    assert out["TF_VAR_setup_token_hash"] == "e" * 64
+
+
+def test_malformed_drill_setup_hash_is_refused() -> None:
+    with pytest.raises(tf_env.EnvError, match="sha256"):
+        tf_env.build_env("drill", SECRETS, VARS, owner="o", run_id="1", drill_setup_digest="TOKEN")
+
+
+def test_main_reads_the_drill_hash_from_the_process_env(tmp_path: Path) -> None:
+    target = tmp_path / "github_env"
+    env = {"GITHUB_ENV": str(target), "DRILL_SETUP_TOKEN_HASH": HASH, "GITHUB_RUN_ID": "5"}
+
+    assert tf_env.main(["--env", "drill"], env) == 0
+    lines = target.read_text().splitlines()
+    assert f"TF_VAR_setup_token_hash={HASH}" in lines
+    assert "TF_VAR_admin_email=" in lines
