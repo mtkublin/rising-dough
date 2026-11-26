@@ -585,6 +585,8 @@ class TestFormulaRouter:
         assert json.loads(response.headers["HX-Trigger"]) == {
             "forecast-stale": True,
             "ledger-stale": True,
+            "today-stale": True,
+            "budget-stale": True,
         }
         assert _html.text_of(response.text, shell.modal_root) == ""
         assert _html.all_text(response.text, errors.status) == "● Recurring rule saved"
