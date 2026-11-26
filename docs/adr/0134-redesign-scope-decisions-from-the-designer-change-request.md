@@ -86,3 +86,4 @@
 ## Amendments
 
 - 2026-11-22: [ADR-0148](0148-redesign-backend-preconditions-released-first.md): the server-side parts of §1, §3, §9, §10 and §11 (invite data layer and email port, setup-token service, account delete rule, user edit guards) and the fields the handoff needs ship in a precondition release before the migration (T-UR29..T-UR35). Pages, dialogs and the routes rendering them stay in the redesign release.
+- 2026-11-26: [ADR-0151](0151-invite-email-via-scaleway-tem-essential.md): §1 invite email is GO on Scaleway TEM (Essential plan, HTTPS API, prod only, €0 expected per month). It supersedes the 2026-11-25 NO-GO (operator Q9, recorded on `ui/sourdough`). The switch turns on only when the prod mail key is set; copy link stays the fallback. Plan: [docs/plans/invite-email/](../plans/invite-email/implementation_plan.md).
