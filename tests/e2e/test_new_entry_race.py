@@ -77,9 +77,9 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     _seed(base_url, page)
     page.goto(f"{base_url}/today")
     open_new_entry(page)
+    page.evaluate(_TRACE_JS)
     to_playwright(page, entries.tab_planned).click()
     expect(to_playwright(page, entries.tab_planned)).to_have_attribute("aria-current", "page")
-    quiesce(page)  # the tab swap has settled (dialog opened, focus placed) before anything is typed
     choose_category(page, "Groceries")
     held = _hold_hero(page)
     to_playwright(page, entries.field_account).select_option(label="Yen")
@@ -87,7 +87,10 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     to_playwright(page, entries.hero_amount).fill("25")
     note = to_playwright(page, entries.field_note)
     note.fill("typed-in-flight")
-    expect(note).to_have_value("typed-in-flight")  # typed while the refresh is still held
+    try:  # typed while the refresh is still held: nothing may clear it
+        expect(note).to_have_value("typed-in-flight")
+    except AssertionError as err:
+        raise AssertionError(f"note lost before the refresh landed\n{_trace(page)}") from err
     held[0].continue_()
     expect(to_playwright(page, entries.dialog)).to_contain_text("JPY")
     expect(note).to_have_value("typed-in-flight")
@@ -95,6 +98,36 @@ def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
     assert "description=typed-in-flight" in posted, posted
     stored = db_probe.rows(db_path, "SELECT description FROM planned_transactions")
     assert [row[0] for row in stored] == ["typed-in-flight"]
+
+
+_TRACE_JS = """
+(() => {
+  const log = (window.__trace = []);
+  const t0 = performance.now();
+  const stamp = (m) => log.push(Math.round(performance.now() - t0) + 'ms ' + m);
+  const id = (n) => (n && n.nodeType === 1) ? (n.id || n.className || n.tagName) : '#text';
+  new MutationObserver((recs) => recs.forEach((r) => {
+    if (r.type === 'childList' && (r.addedNodes.length || r.removedNodes.length)) {
+      const add = [...r.addedNodes].map(id);
+      const del = [...r.removedNodes].map(id);
+      stamp('mutate ' + id(r.target) + ' +' + add + ' -' + del);
+    }
+  })).observe(document.querySelector('#modal-root'), { childList: true, subtree: true });
+  ['htmx:beforeRequest', 'htmx:afterSwap', 'htmx:afterSettle'].forEach((n) =>
+    document.addEventListener(n, (e) => {
+      const path = (e.detail.pathInfo || {}).requestPath || '';
+      stamp(n + ' ' + path + ' target=' + id(e.detail.target));
+    }));
+  document.addEventListener('reset', () => stamp('reset'), true);
+  document.addEventListener('input', (e) => {
+    stamp('input ' + id(e.target) + '=' + e.target.value);
+  }, true);
+})();
+"""
+
+
+def _trace(page: Page) -> str:
+    return "\n".join(page.evaluate("window.__trace || []"))
 
 
 def _selected_account(page: Page) -> str:
