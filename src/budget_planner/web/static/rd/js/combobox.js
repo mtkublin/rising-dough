@@ -101,8 +101,12 @@
     if (focused) radio.focus({ preventScroll: true });
   }
 
-  document.addEventListener('change', (event) => {
-    if (event.target.matches('.rd-catfield__recent input[type="radio"]') && event.target.checked) leadRow(event.target);
+  /* Only a pointer pick leads (a click has detail > 0). Arrow/Space on the group fire a click with
+     detail 0: the row stays put, focus stays on the active radio and the group stays walkable. */
+  document.addEventListener('click', (event) => {
+    if (event.detail > 0 && event.target.matches('.rd-catfield__recent input[type="radio"]') && event.target.checked) {
+      leadRow(event.target);
+    }
   });
 
   document.addEventListener('input', (event) => {
