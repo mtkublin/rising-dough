@@ -62,6 +62,12 @@ def _year_cell_editor(page: Page) -> None:
     page.wait_for_selector("main form[data-js='year-cell-editor']", timeout=_TIMEOUT_MS)
     # The handoff shows the field filled, with no text selection and no focus ring.
     page.evaluate("() => { document.activeElement?.blur(); getSelection()?.removeAllRanges(); }")
+    # The click scrolled the wide grid sideways to reach the cell; the handoff shows it unscrolled
+    # (the editor cell past the right edge). The user scrolls the grid back to its left edge.
+    page.evaluate(
+        "() => { let el = document.querySelector(\"main form[data-js='year-cell-editor']\");"
+        " for (; el; el = el.parentElement) { if (el.scrollLeft) el.scrollLeft = 0; } }"
+    )
 
 
 def _category_picker(page: Page, query: str = "") -> None:
