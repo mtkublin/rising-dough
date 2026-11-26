@@ -378,14 +378,6 @@ def format_major(amount_minor: int, currency: str, *, grouped: bool = False) -> 
     return f"{value:.{decimals}f}"
 
 
-def format_whole(amount_minor: int, currency: str, *, grouped: bool = True) -> str:
-    """Whole major units (ties to even), for dense tables; sign preserved, never ``-0``."""
-    value = Decimal(round_scaled(minor_to_major(amount_minor, currency)))
-    if value == 0:
-        value = Decimal(0)
-    return format(value, ",.0f" if grouped else ".0f")
-
-
 def format_bps_percent(bps: int) -> str:
     """Basis points as a two-decimal percent string (1 -> ``'0.01'``)."""
     return f"{bps_to_percent(bps):.2f}"

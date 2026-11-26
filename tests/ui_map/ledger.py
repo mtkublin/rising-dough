@@ -187,7 +187,6 @@ def control(source: _html.Source, field: Locator) -> Tag:
 
 
 any_row = by_id("txn-", prefix=True)
-any_recurring_row = by_id("recurring-", prefix=True)
 any_planned_row = by_id("planned-p-", prefix=True)
 any_header = role("columnheader")
 
