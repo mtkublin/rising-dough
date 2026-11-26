@@ -131,3 +131,23 @@ def test_period_arrows_cross_the_year_boundary(
     _find(journey, rd_fragments.period_next).click()
     expect(trigger).to_contain_text("January 2027")
     expect(journey.page).to_have_url(re.compile(r"year=2027&month=1"))
+
+
+def test_picker_year_arrow_swaps_the_grid_without_navigating(
+    journey: Journey, request: pytest.FixtureRequest
+) -> None:
+    if journey.target != "app":
+        pytest.skip("the handoff page has one fixed month; the arrows link to the same page")
+    _open(journey, request)
+    url_before = journey.page.url
+    _find(journey, plan_budget.period_trigger).click()
+    picker = _find(journey, rd_fragments.period_picker)
+    expect(picker).to_contain_text("2026")
+    _find(journey, rd_fragments.period_next_year).click()
+    expect(picker).to_contain_text("2027")
+    expect(picker).to_be_visible()
+    expect(journey.page).to_have_url(url_before)
+    expect(_find(journey, plan_budget.period_trigger)).to_contain_text("June 2026")
+    _find(journey, rd_fragments.period_cell("Mar")).click()
+    expect(journey.page).to_have_url(re.compile(r"year=2027&month=3"))
+    expect(_find(journey, plan_budget.period_trigger)).to_contain_text("March 2027")

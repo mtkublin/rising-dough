@@ -381,21 +381,39 @@ def period_note(month: int, start: date, end: date) -> str:
 
 
 def month_period(
-    picked: budget_service.PickerMonth, *, picker_id: str, note: str, base_url: str
+    picked: budget_service.PickerMonth,
+    *,
+    picker_id: str,
+    note: str,
+    base_url: str,
+    view_year: int | None = None,
 ) -> BudgetPeriod:
-    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
+    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string.
+
+    ``view_year`` is the year the picker grid shows (F4.6b); the year arrows only change it, the
+    page period stays ``picked``.
+    """
 
     def url(year: int, month: int) -> str:
         return f"{base_url}&year={year}&month={month}"
 
+    shown = picked.year if view_year is None else view_year
+
+    def year_url(year: int) -> str:
+        return f"{url(picked.year, picked.month)}&pick_year={year}"
+
     picker = PeriodPicker(
         id=picker_id,
         is_year=False,
-        year=picked.year,
-        prev_year_url=url(picked.year - 1, picked.month),
-        next_year_url=url(picked.year + 1, picked.month),
+        year=shown,
+        prev_year_url=year_url(shown - 1),
+        next_year_url=year_url(shown + 1),
         cells=tuple(
-            PickerCell(MONTH_SHORT[n - 1], url(picked.year, n), n == picked.month)
+            PickerCell(
+                MONTH_SHORT[n - 1],
+                url(shown, n),
+                (shown, n) == (picked.year, picked.month),
+            )
             for n in range(1, 13)
         ),
         note=note,
@@ -409,7 +427,10 @@ def month_period(
 
 
 def budget_period(
-    picked: budget_service.PickerMonth, summary: budget_service.MonthSummary, base_url: str
+    picked: budget_service.PickerMonth,
+    summary: budget_service.MonthSummary,
+    base_url: str,
+    view_year: int | None = None,
 ) -> BudgetPeriod:
     """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
     return month_period(
@@ -417,6 +438,7 @@ def budget_period(
         picker_id="period-budget",
         note=period_note(picked.month, summary.period_start, summary.next_income_date),
         base_url=base_url,
+        view_year=view_year,
     )
 
 

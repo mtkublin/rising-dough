@@ -27,10 +27,20 @@
     <div class="rd-period-pick__head">
       <a class="rd-btn rd-btn--icon"
          href="{{ picker.prev_year_url }}"
+         hx-get="{{ picker.prev_year_url }}"
+         hx-target="#{{ picker.id }}"
+         hx-select="#{{ picker.id }} > *"
+         hx-swap="innerHTML"
+         hx-push-url="false"
          aria-label="Previous year">←</a>
       <span class="rd-period-pick__year">{{ picker.year }}</span>
       <a class="rd-btn rd-btn--icon"
          href="{{ picker.next_year_url }}"
+         hx-get="{{ picker.next_year_url }}"
+         hx-target="#{{ picker.id }}"
+         hx-select="#{{ picker.id }} > *"
+         hx-swap="innerHTML"
+         hx-push-url="false"
          aria-label="Next year">→</a>
     </div>
     <div class="rd-period-pick__grid">
