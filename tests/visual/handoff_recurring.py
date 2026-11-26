@@ -175,6 +175,8 @@ SETTLED_DIALOGS: Final[frozenset[str]] = frozenset(
         "edit-recurring--fixed",
         "edit-recurring--formula",
         "override--occurrence",
+        "reconcile",
+        "reconcile--liability",
     }
 )
 
