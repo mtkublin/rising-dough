@@ -32,6 +32,7 @@ from budget_planner.web.accounts_view import (
 )
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
 from budget_planner.web.paths import NEW_PATH
@@ -55,7 +56,6 @@ _ACCOUNT_DIALOG = "pages/accounts/dialog-account.html"
 _DELETE_DIALOG = "pages/accounts/dialog-delete.html"
 _RECONCILE_DIALOG = "pages/accounts/dialog-reconcile.html"
 _ROW = "fragments/rows/account-row.html"
-_NOT_FOUND = "account not found"
 
 
 @router.get(NEW_PATH, response_class=HTMLResponse)
@@ -118,7 +118,7 @@ def create_account(
     return html
 
 
-@router.get("/{account_id}/edit", response_class=HTMLResponse)
+@router.get("/{account_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     account_id: int,
     request: Request,
@@ -132,7 +132,7 @@ def edit_form(
     """The edit dialog; ``?intent=delete`` opens the delete confirm (or its blocked variant)."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return Response(status_code=404, content=_NOT_FOUND)
+        return not_found_response(request, "account", account_id)
     refs = accounts_service.account_references(conn, user_id, account_id)
     if intent == "delete":
         balance = balance_service.derive_balance(conn, user_id, account_id)
@@ -144,7 +144,7 @@ def edit_form(
     return dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
 
 
-@router.post("/{account_id}")
+@router.post("/{account_id:int}")
 def update_account(
     account_id: int,
     request: Request,
@@ -160,7 +160,7 @@ def update_account(
 ) -> Response:
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return Response(status_code=404, content=_NOT_FOUND)
+        return not_found_response(request, "account", account_id)
     parsed = parse_account_patch(
         acc, name=name, account_type=type, is_liability=is_liability, credit_limit=credit_limit
     )
@@ -189,9 +189,10 @@ def update_account(
     )
 
 
-@router.post("/{account_id}/delete")
+@router.post("/{account_id:int}/delete")
 def delete_account(
     account_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
@@ -199,7 +200,7 @@ def delete_account(
     # panel refetches on balance-stale, which drops the row. Unknown, foreign and already
     # archived ids are one 404 with no toast (operator decision Q15, T-UR08c).
     if accounts_service.find_by_id(conn, user_id, account_id) is None:
-        return Response(status_code=404, content=_NOT_FOUND)
+        return not_found_response(request, "account", account_id)
     accounts_service.archive_account(conn, user_id, account_id)
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(
@@ -211,7 +212,7 @@ def delete_account(
     return resp
 
 
-@router.post("/{account_id}/snapshot")
+@router.post("/{account_id:int}/snapshot")
 def take_snapshot(
     account_id: int,
     request: Request,
@@ -220,7 +221,7 @@ def take_snapshot(
 ) -> Response:
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "account", account_id)
     bal = balance_service.derive_balance(conn, user_id, account_id)
     snap = accounts_service.create_snapshot(
         conn, user_id, NewAccountSnapshot(account_id=account_id, balance=bal, note="user snapshot")
@@ -235,7 +236,7 @@ def take_snapshot(
     return resp
 
 
-@router.get("/{account_id}/reconcile", response_class=HTMLResponse)
+@router.get("/{account_id:int}/reconcile", response_class=HTMLResponse)
 def reconcile_form(
     account_id: int,
     request: Request,
@@ -248,13 +249,13 @@ def reconcile_form(
     """The reconcile dialog; ``hero=1`` re-renders it for the live difference while typing."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return Response(status_code=404, content=_NOT_FOUND)
+        return not_found_response(request, "account", account_id)
     return form_responses.reconcile_dialog_response(
         request, conn, user_id, acc, actual_text=actual_balance, hero_only=bool(hero)
     )
 
 
-@router.post("/{account_id}/reconcile")
+@router.post("/{account_id:int}/reconcile")
 def reconcile_submit(
     account_id: int,
     request: Request,
@@ -267,7 +268,7 @@ def reconcile_submit(
     """Book the reconcile adjustment to Reconciliation and save a snapshot (ADR-0011 2026-11-26)."""
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "account", account_id)
     refused = accounts_data.book_reconcile(conn, user_id, acc, settings, actual_text=actual_balance)
     if refused is not None:
         return form_responses.reconcile_modal_error(

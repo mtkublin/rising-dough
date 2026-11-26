@@ -256,7 +256,7 @@ def test_edit_opens_the_dialog_with_the_stored_values(
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/planned/9999/edit", headers=_HTMX)
     assert r.status_code == 404
-    assert r.text == "planned: not found"
+    assert "Planned not found" in _html.text_of(r.text, by_id("flash-region"))
 
 
 def test_edit_of_another_users_item_is_404(
@@ -346,7 +346,7 @@ def test_update_404(client: TestClient, ctx: dict[str, int], db: sqlite3.Connect
         },
     )
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _planned_state(db) == before
 
 
@@ -437,7 +437,7 @@ def test_promote_form(client: TestClient, ctx: dict[str, int]) -> None:
 def test_promote_form_404(client: TestClient) -> None:
     r = client.get("/planned/9999/promote")
     assert r.status_code == 404
-    assert r.text == "planned: not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
@@ -478,7 +478,7 @@ def test_promote_submit_404(client: TestClient, db: sqlite3.Connection) -> None:
         data={"operation_date": "2026-10-20", "amount": "1"},
     )
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _txn_count(db) == txns
 
 

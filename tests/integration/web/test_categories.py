@@ -22,7 +22,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, settings as ui
+from tests.ui_map import _html, errors, settings as ui
 from tests.ui_map.locator import Locator, by_id
 
 USER_ID = 1
@@ -210,7 +210,7 @@ def test_edit_dialog_prints_the_usage_text(
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/categories/9999/edit")
     assert r.status_code == 404
-    assert r.text == "category: not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_update(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
@@ -228,7 +228,7 @@ def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories/9999", data={"name": "X"})
     assert r.status_code == 404
-    assert r.text == "category: not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _names(db) == before
 
 
@@ -253,7 +253,7 @@ def test_delete_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories/9999/delete")
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _names(db) == before
 
 
@@ -367,7 +367,7 @@ def test_archive_missing_404(client: TestClient, db: sqlite3.Connection) -> None
     before = _names(db)
     r = client.post("/categories/99999/archive")
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _names(db) == before
 
 
@@ -398,7 +398,7 @@ def test_archive_double_post_404(client: TestClient, cat_id: int, db: sqlite3.Co
     assert archived.deleted_at is not None
     r2 = client.post(f"/categories/{cat_id}/archive")
     assert r2.status_code == 404
-    assert r2.text == "not found"
+    assert _html.text_of(r2.text, errors.heading) == "Not found"
 
 
 def test_restore_after_archive(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
@@ -418,7 +418,7 @@ def test_restore_without_archive_404(
 ) -> None:
     r = client.post(f"/categories/{cat_id}/restore")
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     live = categories_repo.find_by_id(db, USER_ID, cat_id)
     assert live is not None
     assert live.deleted_at is None

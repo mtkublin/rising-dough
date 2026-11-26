@@ -21,6 +21,7 @@ from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import recurring_forms as forms, recurring_views as views
 from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, today_for
 from budget_planner.web.dialogs import saved_response
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, refresh_unless_on
 from budget_planner.web.params import parse_date, parse_int, query_date
 from budget_planner.web.paths import LEDGER_PATH
@@ -96,7 +97,7 @@ async def formula_preview(
     return views.render_formula_result(request, result, target_ccy)
 
 
-@router.get("/{rule_id}/edit", response_class=HTMLResponse)
+@router.get("/{rule_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     rule_id: int,
     request: Request,
@@ -110,7 +111,7 @@ def edit_form(
     return views.render_edit_dialog(request, conn, user_id, rule_id, fx, hero_only=bool(hero))
 
 
-@router.post("/{rule_id}")
+@router.post("/{rule_id:int}")
 async def update_rule_handler(
     rule_id: int,
     request: Request,
@@ -120,7 +121,7 @@ async def update_rule_handler(
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     fields = forms.read_rule_fields(await request.form())
     draft = forms.validate_rule_draft(
         conn,
@@ -148,7 +149,7 @@ async def update_rule_handler(
     )
 
 
-@router.post("/{rule_id}/deactivate")
+@router.post("/{rule_id:int}/deactivate")
 def deactivate_rule(
     rule_id: int,
     request: Request,
@@ -157,7 +158,7 @@ def deactivate_rule(
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     recurring_svc.deactivate_rule(conn, user_id, rule_id)
     # The menu item posts with swap "none": the ledger-stale event refetches the table, the flash
     # confirms. removed_response would delete the menu button, so it is not used here.
@@ -170,7 +171,7 @@ def deactivate_rule(
     )
 
 
-@router.get("/{rule_id}/overrides/new", response_class=HTMLResponse)
+@router.get("/{rule_id:int}/overrides/new", response_class=HTMLResponse)
 def new_override_form(
     rule_id: int,
     request: Request,
@@ -193,7 +194,7 @@ def new_override_form(
     )
 
 
-@router.post("/{rule_id}/overrides")
+@router.post("/{rule_id:int}/overrides")
 def add_override(
     rule_id: int,
     request: Request,
@@ -207,7 +208,7 @@ def add_override(
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     acc = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     shown_year, shown_month = parse_int(year) or 0, parse_int(month) or 0
     checked = forms.check_override(rule, acc, shown_year, shown_month, amount)
@@ -244,7 +245,7 @@ def add_override(
     )
 
 
-@router.post("/{rule_id}/overrides/{occurrence_date}/delete")
+@router.post("/{rule_id:int}/overrides/{occurrence_date}/delete")
 def delete_override(
     rule_id: int,
     occurrence_date: str,
@@ -255,7 +256,7 @@ def delete_override(
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     occ = parse_date(occurrence_date)
     if occ is None:
         return Response(status_code=422, content="invalid date")
@@ -274,7 +275,7 @@ def delete_override(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/{rule_id}/promote", response_class=HTMLResponse)
+@router.get("/{rule_id:int}/promote", response_class=HTMLResponse)
 def promote_form(
     rule_id: int,
     request: Request,
@@ -285,7 +286,7 @@ def promote_form(
     return views.render_promote_modal(request, conn, user_id, rule_id, fx)
 
 
-@router.post("/{rule_id}/promote")
+@router.post("/{rule_id:int}/promote")
 def promote_submit(
     rule_id: int,
     request: Request,
@@ -299,7 +300,7 @@ def promote_submit(
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     parsed = forms.parse_promote_input(operation_date, amount, account)
     posted = {"amount": amount, "operation_date": operation_date, "description": description}
@@ -315,7 +316,7 @@ def promote_submit(
     try:
         recurring_svc.promote_recurring(conn, user_id, rule_id, edits, fx=fx)
     except recurring_svc.RecurringNotFoundError:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     except (
         recurring_svc.InactiveRecurringError,
         recurring_svc.CannotPromoteSkippedError,
@@ -337,7 +338,7 @@ def promote_submit(
     return response
 
 
-@router.post("/{rule_id}/skip-next")
+@router.post("/{rule_id:int}/skip-next")
 def skip_next(
     rule_id: int,
     request: Request,
@@ -346,7 +347,7 @@ def skip_next(
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     try:
         recurring_svc.skip_and_advance(conn, user_id, rule_id)
     except recurring_svc.InactiveRecurringError:

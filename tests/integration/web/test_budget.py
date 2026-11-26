@@ -17,7 +17,7 @@ from budget_planner.repositories import (
     budgets as budgets_repo,
     categories as categories_repo,
 )
-from tests.ui_map import _html, plan, plan_budget, plan_year
+from tests.ui_map import _html, errors, plan, plan_budget, plan_year
 
 USER_ID = 1
 
@@ -74,7 +74,7 @@ def test_set_default_404(client: TestClient, db: sqlite3.Connection) -> None:
     audit_before = _audit_count(db)
     r = client.post("/budget/defaults/9999", data={"amount": "100"})
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -111,7 +111,7 @@ def test_set_one_off_404(client: TestClient, db: sqlite3.Connection) -> None:
     audit_before = _audit_count(db)
     r = client.post("/budget/one-off/9999/2026/10", data={"amount": "1"})
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 
@@ -179,7 +179,7 @@ def test_override_dialog_is_a_fragment_with_cancel(client: TestClient, cat_id: i
 def test_new_override_form_404_for_unknown_category(client: TestClient) -> None:
     r = client.get("/budget/rules/9999/overrides/new")
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_override_dialog_submits_tier_month_year_and_amount(
@@ -219,7 +219,7 @@ def test_create_override_404_for_unknown_category(
         data={"tier": "recurring", "month": "6", "amount": "1"},
     )
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _budget_rows(db) == (0, 0, 0)
     assert _audit_count(db) == audit_before
 

@@ -162,11 +162,6 @@ def new_entry_hero(
     return render_context(request, NEW_ENTRY_TEMPLATE, context)
 
 
-def txn_not_found() -> Response:
-    """An unknown or foreign transaction id: a plain 404 (the htmx error flash reads it)."""
-    return Response(status_code=_NOT_FOUND, content="not found")
-
-
 def open_edit_transaction(
     request: Request, conn: sqlite3.Connection, user_id: int, txn: Transaction
 ) -> Response:
