@@ -65,3 +65,46 @@ New e2e assertion (`tests/e2e/test_mobile_layout.py`): at 375 each visible selec
 3. Account new currency combobox: the placeholder sits in a `.rd-fields-row` pair that now stacks, so it gets the full row; not separately asserted (cosmetic).
 
 Verdict after fix: findings 1 and 2 fixed and asserted; 3 fixed by the same rule, not asserted.
+
+## Re-audit 2 (sha 038207e1)
+
+Scope: verify the three findings against fix 472814d7 and check that the broad rule `.rd-dialog .rd-fields-row > .rd-field { flex-basis: 100% }` (below 48rem) regresses no dialog. Run with the frontend-visual-audit skill (Playwright, scratch DB seeded through the app: three accounts incl. "Credit Card Platinum", categories, one transaction, one planned entry, one recurring rule). 18 dialogs/states plus /ledger (filters open, dates filled) and /today, at 1440, 1024, 375 light and 375 dark (the 1440/1024 pass was repeated with the merge-base `overrides.css` served through a route override for the byte compare). Screenshots: `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/MOBILE2/out/{cur,base}__<viewport>__<state>.png`, results `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/MOBILE2/out/results.json`.
+
+Dialogs covered: new entry happened, planned, repeats, repeats with formula and a second component; budget override (scope selector) and its remove confirm; account new, edit, reconcile, delete confirm; category new, edit, archive confirm; edit recurring rule, edit transaction, edit planned, promote planned, override recurring occurrence.
+
+### The three findings
+
+1. Ledger from/to at 375: stacked full width, 311px wide each; `scrollWidth 309 = clientWidth 309` for both with "26/11/2026" and "27/11/2026" filled, picker icon beside the text, font 16px. Resolved (screenshot `cur__375__ledger-filters.png`). At 1024/1440 the two stay side by side at 150px, 13px, unchanged.
+2. New entry account and start/date at 375: both full width (327px) in happened, planned and repeats; "Checking" and the long name "Credit Card Platinum" fit (e2e assertion in the item plus the clip probe: 0 clipped values in the three tabs, formula, edit transaction, edit planned, promote). Resolved.
+3. Account new currency placeholder at 375: the name/currency pair stacks, the combobox is 327px; "type to filter ISO code…" shows whole (clip probe 0, was "needs 202 has 114" on the pre-item CSS). Resolved. At 1440/1024 the same placeholder still needs 202 of 184 px; that is the unchanged desktop rendering (identical PNGs, below), not part of this item.
+
+### Regression check of the broad fields-row rule (375)
+
+Every dialog with a `.rd-fields-row` now has its pairs at 327/327 (stacked, one per row): new entry 3 tabs and formula, edit recurring, edit transaction, edit planned, promote, account new and edit. Dialog heights grow only by one stacked field row: happened/planned 658 -> 736px, repeats/formula/edit recurring 788 (unchanged, it already scrolled inside the sheet), account new 680 -> 758, account edit 446 -> 524, edit transaction/planned 594 -> 672, promote 356 -> 434. All fit the 812px viewport except repeats/edit recurring (788, same as before), and in every dialog the save button is reachable (`scrollIntoView` puts it fully inside the viewport: saveOk true in all 18 dialogs x 4 viewport/theme runs). Labels share one left edge with their controls in the stacked rows (the 21px label inset is the design's and is identical at 1440 and in the baseline), vertical gaps between stacked fields are the regular 16px, no orphaned empty column or stray gap; the formula component keeps its two-row layout, the budget override scope selector still wraps "this month only" / "every november" in equal columns, delete/archive/reconcile/remove dialogs are unchanged (identical PNGs). Dialogs without a fields-row (budget override, reconcile, category new/edit, delete, archive, override occurrence) are byte-identical to the pre-item layout apart from the 16px font (budget override is 392 -> 354px: fewer wrapped lines).
+
+### Diagnostics (per state; identical at 375 light and dark)
+
+| Scope | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|
+| 18 dialogs + ledger + today @ 1440 | 0 | 0 | 0 | 0 | 0 |
+| same @ 1024 | 0 | 0 | 0 | 0 | 0 |
+| same @ 375 (light and dark) | 0 | 1 on every page: `pre.rd-hero__loaf` (decorative, pre-existing, in the baseline too; ledger filters 0) | 0 | 0 | 0 |
+
+Note: the audit harness counters read 2 console errors and 1 request failure after navigating away from a page quickly in the same Playwright page (an aborted in-flight request), identical in the baseline-CSS run (not CSS-related). Separate runs on the same build and seed data show 0 console errors and 0 failed requests for /today, /ledger (filters open, from and to filled, 1.2s wait), /accounts, and a dialog open and close; the only console errors are the browser's "Failed to load resource" lines for the three forced 404/409/500 below, which are expected.
+
+### 1024 and 1440 unchanged
+
+All 18 dialogs and ledger filters at 1440 are byte-identical PNGs to the merge-base-CSS run; at 1024 all but 3 dialogs (budget override remove, account delete, category archive), ledger filters and today. A pixel diff of those shows only an 8x10px region in the page behind the dialog ("all 3 accounts" vs "all 4 accounts": the account created by the step 3b success save between the two passes) and, in ledger filters, a 4x44px region in the nav column (same data-driven cause); no rule of this change applies at 48rem and above. The geometry numbers (dialog heights, field widths) are equal between the runs at 1440 and 1024.
+
+### Step 3b (re-run at 375)
+
+- Fonts: 0 visible text-like inputs/selects below 16px in every dialog at 375 light and dark (the pre-item CSS had 1 to 8 per dialog).
+- Overlap/outside probe over inputs, selects, buttons, segmented groups, "of" labels: 0 in every dialog.
+- Real 422 (native validation bypassed) on account new: "Name is required" and "ISO 4217 code required" shown under the fields; category new 422: "Some fields need fixing: Name". Forced 404, 409, 500 on the account create POST: the dialog stays open and a visible alert shows "That item was not found. It may have been removed.", "That item changed in the meantime. Reload and try again.", "Something went wrong on our side. Try again."; no account row was created (0 "Forced" rows). Success save: "Audit Mobile Acct" created, dialog closed, toast "Audit Mobile Acct created", row visible, no duplicate ids, one `#modal-root`.
+- Template logic: this item changes CSS and an e2e test only (git diff 4c97e651..038207e1 touches overrides.css, the e2e test and this record), so no arithmetic, float or literal in a template; rendered amounts equal the seeded values (12.34 transaction, 50.00 planned, 500.00 rule, 100.00 opening balance) in the dialogs.
+
+### Observation (low, not blocking; not one of the three findings)
+
+On /ledger at 375 the search field's placeholder "search description..." is cut ("search descripti") at the 16px size (`cur__375__ledger-filters.png`; the filters toggle sits beside it). Entered text scrolls normally; cosmetic. Suggested: shorten the placeholder or let the search column take more of the row at <48rem.
+
+Verdict: the three findings are resolved, no regression from the stacked fields-row rule, five diagnostics clean, desktop unchanged. One cosmetic observation (ledger search placeholder).
