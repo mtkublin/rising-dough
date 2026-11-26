@@ -527,3 +527,12 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Scope: follow-up (designer change request: mobile-first redesign of wide views; not in this release): Mobile-first redesign of wide views (plan/year, plan/forecast).
 - Deferred follow-up (operator): not in this release; needs a designer change request.
 - Source: operator-review-2026-11-26.md R13.
+
+### ◻ T-UR65 [S] Accepted UI becomes the visual reference (ADR-0154)
+- Scope: after the operator accepts the UI (explore drill): operator dispatches `visual.yml` with `update_baselines=true`; an agent commits the artifact under `tests/visual/__snapshots__/`; operator patch removes the `reference` job from `visual.yml` ([q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 2); overlay rows and "Intended differences" xfails removed from `tests/visual/test_reference.py` and `derived.md`; render script kept as a manual tool.
+- Blocked on: operator acceptance of the UI; operator workflow patch.
+- Source: operator-decisions-2026-11-26.md "Intended differences and the gate"; ADR-0154.
+
+### ◻ T-UR66 [P] Advisory reference comparison off the per-PR path until T-UR65
+- Scope: operator patch doc [q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 1: `reference` job runs on `schedule` and `workflow_dispatch` only (`if: github.event_name != 'pull_request' && ...`), `needs: changes` kept. No app change. Done when the operator applies it.
+- Source: operator ask 2026-11-26 (b); ADR-0154 §5.
