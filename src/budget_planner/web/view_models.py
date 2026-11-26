@@ -202,13 +202,6 @@ def bar_spans(
     )
 
 
-def year_cell_state(origin: str | None, *, editing: bool = False) -> str:
-    """``data-state`` of a ``.rd-year-cell``: default|recurring|one-off|unset|editing."""
-    if editing:
-        return "editing"
-    return _YEAR_TIERS.get(origin or "", "default")
-
-
 @dataclass(frozen=True, slots=True)
 class HeroFit:
     """Counts for the hero figure's ``data-digits`` / ``data-marks`` / ``data-signs``."""
