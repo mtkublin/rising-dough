@@ -101,12 +101,20 @@
     if (focused) radio.focus({ preventScroll: true });
   }
 
-  /* Only a pointer pick leads (a click has detail > 0). Arrow/Space on the group fire a click with
-     detail 0: the row stays put, focus stays on the active radio and the group stays walkable. */
+  /* Only a pointer pick leads. Arrow/Space on the group fire a click with detail 0: the row stays
+     put, focus stays on the active radio and the group stays walkable. A click on the chip label
+     reaches the radio as a synthetic click whose detail is 0 in WebKit, so the pointer press on the
+     chip is remembered instead of trusting detail alone. */
+  let pressedChip = null;
+  document.addEventListener('pointerdown', (event) => {
+    pressedChip = event.target.closest('.rd-catfield__recent .rd-chip-option');
+  });
+  document.addEventListener('keydown', () => { pressedChip = null; });
   document.addEventListener('click', (event) => {
-    if (event.detail > 0 && event.target.matches('.rd-catfield__recent input[type="radio"]') && event.target.checked) {
-      leadRow(event.target);
-    }
+    if (!event.target.matches('.rd-catfield__recent input[type="radio"]') || !event.target.checked) return;
+    const byPointer = event.detail > 0 || pressedChip === event.target.closest('.rd-chip-option');
+    pressedChip = null;
+    if (byPointer) leadRow(event.target);
   });
 
   document.addEventListener('input', (event) => {

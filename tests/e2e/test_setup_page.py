@@ -72,7 +72,7 @@ def empty_server(tmp_path: Path) -> Iterator[str]:
         BUDGET_BIND_HOST="127.0.0.1",
         BUDGET_BIND_PORT=str(port),
         PYTHONUNBUFFERED="1",
-        BUDGET_ENV="test",
+        BUDGET_ENV="dev",  # WebKit stores no Secure __Host- cookie over http
         BUDGET_COOKIE_SECRET="e2e-setup-cookie-secret-not-a-real-secret-00",  # noqa: S106  # pragma: allowlist secret
         BUDGET_WEBAUTHN_RP_ID="127.0.0.1",
         BUDGET_WEBAUTHN_ORIGIN=f"http://127.0.0.1:{port}",

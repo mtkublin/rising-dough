@@ -71,6 +71,7 @@ class Recorder:
     def __init__(self, page: Page, base_url: str) -> None:
         self._base = base_url
         self.problems: list[str] = []
+        self._downloads: set[str] = set()  # URLs answered with Content-Disposition: attachment
         page.on("console", self._on_console)
         page.on("pageerror", lambda e: self.problems.append(f"pageerror: {e}"))
         page.on("response", self._on_response)
@@ -84,6 +85,8 @@ class Recorder:
             self.problems.append(f"console.error: {message}")
 
     def _on_response(self, resp: Any) -> None:
+        if "attachment" in resp.headers.get("content-disposition", "").lower():
+            self._downloads.add(resp.url)
         if resp.status in (409, 422) and resp.request.method == "POST":
             # 422: server-side form validation; 409: a domain refusal (delete of an account
             # with a balance or references, F2.2a / F2.8). htmx swaps the message in.
@@ -95,6 +98,8 @@ class Recorder:
         reason = req.failure or ""
         if "ERR_ABORTED" in str(reason):  # navigation cancelled an in-flight request
             return
+        if "Frame load interrupted" in str(reason) and req.url in self._downloads:
+            return  # WebKit reports a download navigation as an interrupted frame load
         self.problems.append(f"requestfailed: {req.method} {req.url} {reason}")
 
     def drain(self) -> list[str]:
