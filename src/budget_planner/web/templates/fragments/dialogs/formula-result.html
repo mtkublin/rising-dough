@@ -1,8 +1,14 @@
 {# fragment: dialogs/formula-result (T-UR10, ADR-0056 section 4, ADR-0107)
    The live preview of a draft formula, replaces the dialog's output.rd-formula__result (outerHTML: empty it is hidden, so no gap) from
    POST /recurring/formula/preview. Context: is_ok, next_amount (formatted, with currency), result
-   (services.recurring_formula.PreviewOk | PreviewError). 200 with the next amount, 422 with the reason. #}
-<output class="rd-formula__result">{% if is_ok %}<span data-testid="formula-preview">→ next amount {{ next_amount }}</span>{% else %}<span class="rd-field__error"
+   (services.recurring_formula.PreviewOk | PreviewError). 200 with the next amount, 422 with the reason.
+   The "empty" reason and an incomplete component (invalid_source without a stale source: no percent or
+   category yet) stay in the markup, hidden: the handoff's empty and incomplete states show no result
+   line; the save answers with the visible field error. A stale or archived source stays visible
+   (derived.md, F9). #}
+{% set quiet = not is_ok and (result.code == "empty" or (result.code == "invalid_source" and not result.message.startswith("unknown or archived"))) %}
+<output class="rd-formula__result"{% if quiet %} hidden{% endif %}>{% if is_ok %}<span data-testid="formula-preview">→ next amount {{ next_amount }}</span>{% else %}<span class="rd-field__error"
       data-testid="formula-preview"
       data-code="{{ result.code }}"
+      {% if quiet %}hidden {% endif %}
       {% if result.offending_term_index is not none %}data-term-index="{{ result.offending_term_index }}"{% endif %}>▲ {{ result.message }}</span>{% endif %}</output>
