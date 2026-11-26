@@ -1,5 +1,23 @@
 # Changelog
 
+2026-11-26 WEBKIT: WebKit e2e green: download interruptions settled in the crawl, picker chip leads on WebKit (pointerdown), setup journey xfail on http (T-UR40 prep) (bea9ce19).
+
+2026-11-26 UR41: frontend audit re-run on the migrated templates: no blockers, 3 minor designer findings (T-UR41) (b63b2283).
+
+2026-11-26 INV1: reference reds: reconcile/picker recipes, D6-B rows; reconcile lists newest snapshots first; Today names archived categories (T-UR00b, T-UR50) (5301de28).
+
+2026-11-26 RACE: typed note no longer lost: the amount's delayed focus-select runs only while it still has focus (T-UR44, T-UR48) (7bae62cf).
+
+2026-11-26 DEAD: dead-Python sweep: unused Jinja filters, year_cell_state, format_whole, any_recurring_row removed (T-UR51) (ec9131d5).
+
+2026-11-26 RECSYNC: zero-delta reconcile says Already in sync; snapshot wording matches the schema (T-UR45, S1.10) (279d0c4c).
+
+2026-11-26 CIFIX: formula create test expects the off-ledger stale events (T-UR48a) (84ebafda).
+
+2026-11-26 FLASHCA: new category and account saves keep the flash and refetch via events, no HX-Refresh (T-UR48a) (d9309309).
+
+2026-11-26 W2FIX: tests follow wave-2 behaviour: blank override refused, :int route keys normalised, reconcile ignores posted category (T-UR45, T-UR47) (ec1f2345).
+
 2026-11-26 T22: drill setup token via a hashed dispatch input, token never in GitHub; bootstrap admin fallback until the workflow patch is applied (T-UR22, ADR-0134 amendment) (8b4e0d1f).
 
 2026-11-26 BUGA2: saves and promotes off the ledger keep the flash and refetch via events instead of HX-Refresh (T-UR48a) (c57383e1).
