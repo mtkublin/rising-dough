@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.accounts import Account, NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.transactions import NewTransaction
@@ -339,12 +339,14 @@ def test_update_liability_limit_is_saved(client: TestClient, _migrated: Settings
     assert "5,000.00" in _html.all_text(r.text, accounts.any_row)
 
 
-def _stored(settings: Settings, account: int) -> object:
+def _stored(settings: Settings, account: int) -> Account:
     conn = get_connection(settings)
     try:
-        return accounts_repo.find_by_id(conn, USER_ID, account)
+        found = accounts_repo.find_by_id(conn, USER_ID, account)
     finally:
         conn.close()
+    assert found is not None
+    return found
 
 
 def test_update_cannot_turn_a_liability_into_an_asset(
@@ -363,7 +365,7 @@ def test_update_cannot_turn_a_liability_into_an_asset(
         "field-is_liability-error": "▲ can't be changed after the account is created",
     }
     after = _stored(_migrated, acc)
-    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa", True, 1_000_000)  # type: ignore[attr-defined]  # find_by_id is Account here
+    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa", True, 1_000_000)
     assert _count(db, "audit_log") == audit_before
 
 
@@ -380,7 +382,7 @@ def test_update_cannot_turn_an_asset_into_a_liability(
         "field-is_liability-error": "▲ can't be changed after the account is created",
     }
     after = _stored(_migrated, acc_id)
-    assert (after.is_liability, after.credit_limit_minor) == (False, None)  # type: ignore[attr-defined]  # find_by_id is Account here
+    assert (after.is_liability, after.credit_limit_minor) == (False, None)
     assert _count(db, "audit_log") == audit_before
 
 
@@ -394,7 +396,7 @@ def test_update_with_the_same_kind_saves(client: TestClient, _migrated: Settings
     )
     assert r.status_code == 200
     after = _stored(_migrated, acc)
-    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa 2", True, 200_000)  # type: ignore[attr-defined]  # find_by_id is Account here
+    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa 2", True, 200_000)
 
 
 # ---------------------------------------------------------------------------
