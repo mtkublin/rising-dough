@@ -185,7 +185,9 @@ def diff_ratio(expected: Path, actual: Path) -> float:
         return 0.0
     w1, h1, c1, a = _decode(expected)
     w2, h2, c2, b = _decode(actual)
-    if (w1, h1, c1) != (w2, h2, c2):
+    if (w1, h1) == (w2, h2) and c1 != c2:
+        a, b, c1 = _rgb_crop(a, (w1, h1, c1), w1, h1), _rgb_crop(b, (w2, h2, c2), w2, h2), 3
+    elif (w1, h1, c1) != (w2, h2, c2):
         return 1.0
     differing = sum(1 for i in range(0, len(a), c1) if a[i : i + c1] != b[i : i + c1])
     return differing / (w1 * h1)
@@ -332,6 +334,11 @@ def compare(
     """
     w1, h1, c1, a = _decode(expected)
     w2, h2, c2, b = _decode(actual)
+    if (w1, h1) == (w2, h2) and c1 != c2:
+        # RGBA against RGB at one size: the alpha channel is not content, compare in RGB.
+        a = _rgb_crop(a, (w1, h1, c1), w1, h1)
+        b = _rgb_crop(b, (w2, h2, c2), w2, h2)
+        c1 = c2 = 3
     if (w1, h1, c1) != (w2, h2, c2):
         return _compare_mismatched((w1, h1, c1, a), (w2, h2, c2, b))
     mask = diff_mask(a, b, c1)

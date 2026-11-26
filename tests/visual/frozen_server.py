@@ -39,9 +39,27 @@ def frozen_instant(day: dt.date) -> dt.datetime:
     return dt.datetime.combine(day, FROZEN_TIME, tzinfo=dt.UTC)
 
 
+HANDOFF_ONE_TIME_PASSWORD = "kT4p-9wrx-Lomb"  # noqa: S105 - the board's sample, not a credential  # pragma: allowlist secret
+
+
+class _HandoffTokens:
+    """Token port of the visual server: the generated one-time password is the board's sample.
+
+    Every other token (invites, sessions, CSRF) keeps the CSPRNG. Only the 16-byte request of
+    ``services.users.generate_password`` is replaced, so the dialog shows what the handoff shows.
+    """
+
+    def new_token(self, nbytes: int) -> str:
+        tokens = importlib.import_module("budget_planner.adapters.entropy").SecretsTokenSource()
+        return HANDOFF_ONE_TIME_PASSWORD if nbytes == 16 else str(tokens.new_token(nbytes))
+
+
 def main() -> None:
     raw = os.environ.get("BUDGET_VISUAL_FROZEN_DATE")
     uvicorn = importlib.import_module("uvicorn")  # not in the pre-commit mypy env
+    web_app = importlib.import_module("budget_planner.web.app").app
+    deps = importlib.import_module("budget_planner.web.deps")
+    web_app.dependency_overrides[deps.get_token_source] = _HandoffTokens
 
     port = int(sys.argv[1])
     with clock.frozen(frozen_instant(dt.date.fromisoformat(raw))) if raw else nullcontext():
