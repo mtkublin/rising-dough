@@ -39,10 +39,15 @@ def _rows(text: str) -> list[list[str]]:
 def _shards(text: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """Widths and themes named by a shards cell.
 
-    "all" and free text naming no width or theme (e.g. "focus ring after the 422") mean every
-    width and theme; a named width or theme narrows that axis only.
+    "all" or "every shard" mean every width and theme; a named width or theme narrows that axis
+    only. A cell naming none of them (free text) raises ``ValueError``: a typo must not silently
+    widen the xfail set.
     """
     low = text.lower()
+    if "all" in low.split() or "every shard" in low:
+        return WIDTHS, THEMES
+    if not any(w in low for w in WIDTHS) and not any(t in low for t in THEMES):
+        raise ValueError(f"shards cell names no width or theme and is not 'all': {text!r}")
     widths = tuple(w for w in WIDTHS if w in low) or WIDTHS
     themes = tuple(t for t in THEMES if t in low) or THEMES
     return widths, themes
@@ -59,7 +64,10 @@ def _page_id(name: str, known: frozenset[str] | None) -> str:
 
 
 def parse(text: str, known: frozenset[str] | None = None) -> dict[Key, str]:
-    """Parse the table text into ``{(page, width, theme): "decision: reason"}``."""
+    """Parse the table text into ``{(page, width, theme): "decision: reason"}``.
+
+    A key listed by two rows keeps the first row's decision and reason (first row wins).
+    """
     out: dict[Key, str] = {}
     for cells in _rows(text):
         pages, shards, decision, reason = cells[0], cells[1], cells[2], cells[3]

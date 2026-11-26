@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from tests.visual import handoff, intended
 from tests.visual.test_reference import INTENDED
 
@@ -16,7 +18,7 @@ text
 |---|---|---|---|---|
 | a, b/c | 1440 and 1024, light and dark | D1 | why one | op |
 | d | all | D2 | why two | op |
-| overlays/e | focus ring after the 422 | x | why three | op |
+| overlays/e | every shard | x | why three | op |
 | f | 1024 dark | D4 | why four | op |
 
 ## Next
@@ -58,3 +60,18 @@ def test_bare_overlay_name_resolves_under_overlays() -> None:
     got = intended.parse(TABLE.replace("overlays/e", "e"), known)
     assert ("pages/overlays/e.html", "1440", "dark") in got
     assert ("pages/a.html", "1440", "dark") in got
+
+
+def test_free_text_shards_cell_raises() -> None:
+    bad = TABLE.replace("every shard", "focus ring after the 422")
+    with pytest.raises(ValueError, match="focus ring"):
+        intended.parse(bad)
+
+
+def test_first_row_wins_on_duplicate_key() -> None:
+    table = TABLE.replace("## Next", "| a | 1440 light | D7 | other | op |\n\n## Next").replace(
+        "\n\n## Next\n\n| z", "\n\n## Next\n\n| z"
+    )
+    # the extra row sits inside the section only if inserted before the next heading
+    got = intended.parse(table)
+    assert got[("pages/a.html", "1440", "light")] == "D1: why one"
