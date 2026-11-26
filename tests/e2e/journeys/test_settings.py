@@ -82,3 +82,15 @@ def test_preferences_show_base_currency_and_save_the_income_anchor(world: World)
     world.wait_rows("SELECT 1 FROM user_preferences WHERE value = ?", (str(salary),))
     world.goto("/settings?tab=categories")
     expect(world.find(settings.income_anchor)).to_have_value(str(salary))
+
+
+def test_new_income_category_appears_in_the_income_anchor_without_reload(world: World) -> None:
+    world.goto("/settings?tab=categories")
+    world.find(settings.new_category).click()
+    world.find(settings.form_name).fill("Bonus")
+    world.find(settings.form_income).check(force=True)  # the radio is visually hidden
+    world.find(settings.form_create).click()
+
+    row = world.wait_rows("SELECT id FROM categories WHERE name = 'Bonus'")[0]
+    expect(world.find(settings.category_row(row["id"]))).to_contain_text("Bonus")
+    expect(world.find(settings.income_anchor).locator("option", has_text="Bonus")).to_have_count(1)
