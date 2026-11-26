@@ -143,9 +143,7 @@ def parse_year_month(
 def positive_amount(raw: str, currency: str) -> tuple[int | None, str | None]:
     """Strictly positive amount text to ``(minor_units, None)`` or ``(None, error message)``."""
     dec = parse_amount_str(raw, currency)
-    if dec is None:
-        return None, "amount must be a decimal number within range"
-    if dec <= 0:
+    if dec is None or dec <= 0:
         return None, f"Enter an amount above {format_figure(0, currency)}"
     return to_minor_units(dec, currency), None
 

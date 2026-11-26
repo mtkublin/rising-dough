@@ -24,6 +24,7 @@ from budget_planner.domain.recurring import (
     NewRecurringRule,
     PatchRecurringRule,
     RecurringRule,
+    day_of_month_error,
     end_date_error,
 )
 from budget_planner.services import (
@@ -33,6 +34,7 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.budget_forms import OVERRIDE_YEARS
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 
 TermInput = dict[str, object]
@@ -406,6 +408,18 @@ def _lookup_refs(
     return acc, cat, dest_id, {**errors, **dest_errors}
 
 
+def parse_day_of_month(raw: str) -> tuple[int | None, dict[str, str]]:
+    """Anchor day text to ``(day, {})``; blank is ``(None, {})``, bad is a field error."""
+    text = raw.strip()
+    if not text:
+        return None, {}
+    day = parse_int(text, minimum=0)
+    bad = day_of_month_error(day if day is not None else 0)
+    if day is None or bad is not None:
+        return None, {"day_of_month": bad or day_of_month_error(0) or ""}
+    return day, {}
+
+
 def _missing_id_errors(fields: RuleFields) -> dict[str, str]:
     """Per-field messages for a category or account that is blank or not a number."""
     errors: dict[str, str] = {}
@@ -430,6 +444,7 @@ def validate_rule_draft(
     cadence = validate_cadence(fields.cadence)
     start = parse_date(fields.start_date)
     end, errors = _date_errors(fields, cadence, start, cadence_error)
+    errors = {**errors, **parse_day_of_month(fields.day_of_month)[1]}
     if ids is None:
         return RuleDraft(None, {**errors, **_missing_id_errors(fields)})
     category_id, account_id = ids
@@ -473,7 +488,7 @@ def new_rule_from(fields: RuleFields, valid: ValidRule, today: date) -> NewRecur
             dest_account_id=valid.dest_id,
             default_amount=valid.amount_minor,
             default_description=fields.default_description,
-            day_of_month=parse_int(fields.day_of_month),
+            day_of_month=parse_day_of_month(fields.day_of_month)[0],
             amount_formula=valid.formula,
             active=initial_active,
         )
@@ -500,15 +515,17 @@ def rule_patch_from(
     # in the same patch, so Upcoming and Forecast stop surfacing it before the next promotion.
     if valid.end is not None and rule.next_due > valid.end:
         patch["active"] = False
+    # A blank day keeps the stored one (None in a patch means "unchanged").
+    if (day := parse_day_of_month(fields.day_of_month)[0]) is not None:
+        patch["day_of_month"] = day
     return PatchRecurringRule(**patch)
 
 
-_OVERRIDE_YEARS = range(1900, 10000)
 _OVERRIDE_MONTHS = range(1, 13)
 
 
 def year_or(year: int, fallback: int) -> int:
-    return year if year in _OVERRIDE_YEARS else fallback
+    return year if year in OVERRIDE_YEARS else fallback
 
 
 def month_or(month: int, fallback: int) -> int:
@@ -530,7 +547,7 @@ class OverrideError:
 def check_override(
     rule: RecurringRule, account: Account | None, year: int, month: int, amount: str
 ) -> ValidOverride | OverrideError:
-    if not (year in _OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
+    if not (year in OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
         return OverrideError("month", "invalid year or month")
     occ = recurring_svc.occurrence_in_month(rule, year, month)
     if occ is None:
