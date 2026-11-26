@@ -67,9 +67,6 @@ HERO_BAR_CELLS: Final = 20
 _SIGN_MARKS: Final = ("-", "\u2212")
 _GROUP_MARKS: Final = (",", ".")
 _NEXT_WEEK_DAYS: Final = 7
-_YEAR_TIERS: Final[Mapping[str, str]] = MappingProxyType(
-    {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"}
-)
 
 DeltaKind = Literal["up", "down", "flat"]
 
