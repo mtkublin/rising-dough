@@ -6,7 +6,9 @@ import struct
 import zlib
 from pathlib import Path
 
-from tests.visual.handoff import Comparison, compare, passes, write_diff_png
+from PIL import Image
+
+from tests.visual.handoff import Comparison, compare, diff_ratio, passes, write_diff_png
 
 
 def _write(
@@ -78,6 +80,30 @@ def test_width_mismatch_compares_the_shared_window(tmp_path: Path) -> None:
     # Shared window is 8 x 4 and has no differing pixel (the marks are outside it for actual,
     # inside it for expected at (7, 3) where actual is white): 1 + (40 - 32).
     assert result.ratio == 9 / 40
+
+
+def _write_rgba(path: Path, width: int, height: int, alpha: int, dot: bool) -> Path:
+    image = Image.new("RGBA", (width, height), (255, 255, 255, alpha))
+    if dot:
+        image.putpixel((1, 1), (0, 0, 0, alpha))
+    image.save(path)
+    return path
+
+
+def test_rgba_against_rgb_at_one_size_compares_in_rgb(tmp_path: Path) -> None:
+    rgb = _write(tmp_path / "e.png", 10, 10, {})
+    rgba = _write_rgba(tmp_path / "a.png", 10, 10, 128, dot=False)
+    result = compare(rgb, rgba)
+    assert (result.size_mismatch, result.ratio, result.cluster) == (False, 0.0, 0)
+    assert diff_ratio(rgb, rgba) == 0.0
+
+
+def test_rgba_against_rgb_still_sees_a_pixel_difference(tmp_path: Path) -> None:
+    rgb = _write(tmp_path / "e.png", 10, 10, {})
+    rgba = _write_rgba(tmp_path / "a.png", 10, 10, 255, dot=True)
+    result = compare(rgb, rgba)
+    assert (result.size_mismatch, result.ratio, result.cluster) == (False, 0.01, 1)
+    assert diff_ratio(rgb, rgba) == 0.01
 
 
 def test_size_mismatch_writes_a_diff_of_the_shared_window(tmp_path: Path) -> None:
