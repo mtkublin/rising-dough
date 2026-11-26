@@ -133,8 +133,10 @@ def test_mouse_click_on_a_listed_category_selects_it(
     page.wait_for_timeout(250)
     page.mouse.up()
 
-    picked = page.locator('[data-js="combobox"] input[type="hidden"][name="category"]')
-    expect(picked).to_have_count(1)
-    assert picked.input_value() != ""
     expect(to_playwright(page, entries.category_search)).to_contain_text("Transport")
-    expect(page.locator(".rd-catpick")).to_be_hidden()
+    expect(to_playwright(page, f.category_panel)).to_be_hidden()
+    posted = page.evaluate(
+        "() => new FormData(document.activeElement.closest('form')).getAll('category')"
+    )
+    assert len(posted) == 1
+    assert posted[0].isdigit()
