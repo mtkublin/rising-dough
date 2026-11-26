@@ -7,7 +7,6 @@ reconcile leaves no snapshot, and the snapshot records the balance after the adj
 
 from __future__ import annotations
 
-import contextlib
 import datetime as dt
 import sqlite3
 from dataclasses import dataclass
@@ -89,13 +88,15 @@ def reconcile_account(
     account_id: int,
     actual_balance_minor: int,
     today: dt.date,
-) -> None:
+) -> bool:
     """Book the adjustment to the Reconciliation category and snapshot the new balance.
 
-    A zero delta books nothing but still snapshots (ADR-0011 amendment 2026-11-26).
+    A zero delta books nothing but still snapshots (ADR-0011 amendment 2026-11-26) and returns
+    True ("Already in sync", S1.10).
     """
+    in_sync = False
     with db_transaction(conn):
-        with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
+        try:
             reconciliation_service.reconcile(
                 conn,
                 user_id,
@@ -103,6 +104,8 @@ def reconcile_account(
                 actual_balance_minor=actual_balance_minor,
                 today=today,
             )
+        except reconciliation_service.NoAdjustmentNeededError:
+            in_sync = True
         balance = balance_service.derive_balance(conn, user_id, account_id)
         accounts_service.create_snapshot(
             conn,
@@ -111,3 +114,4 @@ def reconcile_account(
                 account_id=account_id, balance=balance, note=RECONCILE_SNAPSHOT_NOTE
             ),
         )
+    return in_sync

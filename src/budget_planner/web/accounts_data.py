@@ -221,13 +221,13 @@ def book_reconcile(
     settings: Settings,
     *,
     actual_text: str,
-) -> str | None:
-    """Book the reconcile adjustment; the field error message when the amount is refused."""
+) -> tuple[str | None, bool]:
+    """Book the reconcile adjustment: (field error when refused, True when already in sync)."""
     entered = parse_amount_minor(actual_text, acc.currency)
     if entered is None:
-        return "invalid number"
+        return "invalid number", False
     try:
-        reconcile_service.reconcile_account(
+        in_sync = reconcile_service.reconcile_account(
             conn,
             user_id,
             account_id=acc.id,
@@ -238,5 +238,5 @@ def book_reconcile(
         reconciliation_service.InvalidAvailableError,
         reconciliation_service.ValidationError,
     ) as exc:
-        return str(exc)
-    return None
+        return str(exc), False
+    return None, in_sync
