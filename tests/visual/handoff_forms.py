@@ -140,5 +140,8 @@ def submit_dialog(page: Any, handoff_page: str) -> None:
         page.evaluate("() => document.activeElement?.blur()")
         page.evaluate("() => document.querySelector('#modal-root [aria-invalid=true]')?.focus()")
     if "one-time-password" in handoff_page:
-        page.focus("#modal-root .rd-dialog__close")  # the file shows the close button focused
+        # The file shows the close button focused with its ring: a keyboard user's Tab from the
+        # dialog start lands there (a script focus after a pointer press shows no ring).
+        page.keyboard.press("Shift")
+        page.focus("#modal-root .rd-dialog__close")
     page.mouse.move(0, 0)  # the pointer rests off the dialog, as in the handoff (no hover tint)
