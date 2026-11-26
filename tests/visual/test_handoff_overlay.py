@@ -458,3 +458,20 @@ if __name__ == "__main__":
     text = OVERLAY_FILE.read_text(encoding="utf-8")
     head = text.split(VALUES_MARKER)[0].rstrip("\n")
     OVERLAY_FILE.write_text(f"{head}\n\n{_values_toml(seed_value_rows())}", encoding="utf-8")
+
+
+def test_apply_rewrites_an_existing_placeholder() -> None:
+    html = '<input class="rd-catpick__input" placeholder="search all 21 categories">'
+    row = replace(
+        _BASE,
+        select="input.rd-catpick__input",
+        field="placeholder",
+        old="search all 21 categories",
+        value="search all 24 categories",
+    )
+    assert apply_rows("pages/p.html", html, [row]) == (
+        '<input class="rd-catpick__input" placeholder="search all 24 categories"/>'
+    )
+    stale = replace(row, old="search all 22 categories")
+    with pytest.raises(OverlayError, match="expected"):
+        apply_rows("pages/p.html", html, [stale])

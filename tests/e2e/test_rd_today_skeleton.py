@@ -36,7 +36,7 @@ def test_failed_range_request_restores_the_list(journey: Journey) -> None:
 
     journey.page.route("**/today/upcoming?window=all", fail)
     _loc(journey, _range_all).click()
-    journey.page.wait_for_selector("#flash-region-assertive .rd-flash--error")
+    journey.page.wait_for_selector("#flash-region .rd-flash--error")
     assert _loc(journey, _list).inner_text() == before  # the skeleton has no text
     assert _loc(journey, _section).get_attribute("aria-busy") is None
 

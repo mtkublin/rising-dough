@@ -16,7 +16,7 @@ pytestmark = pytest.mark.e2e
 _PROBE_TARGET = by_id("probe-target")  # injected by _PROBE below
 
 _FLASH_BODY = (
-    '<div  id="flash-region-assertive" role="alert" aria-live="assertive" hx-swap-oob="true">'
+    '<div  id="flash-region" role="status" aria-live="polite" hx-swap-oob="true">'
     '<div class="flash flash-error" data-flash-kind="error"><span>{msg}</span></div></div>'
 )
 _PROBE = (
@@ -45,7 +45,7 @@ def test_server_flash_partial_is_shown_and_target_kept(
         ),
     )
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(f"boom {status}")
+    expect(to_playwright(page, shell.flash_region)).to_contain_text(f"boom {status}")
     expect(to_playwright(page, _PROBE_TARGET)).to_have_text("KEEP")
 
 
@@ -60,7 +60,7 @@ def test_plain_error_body_shows_generic_flash(
         lambda route: route.fulfill(status=status, content_type="text/plain", body="nope"),
     )
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(re.compile(r"\S"))
+    expect(to_playwright(page, shell.flash_region)).to_contain_text(re.compile(r"\S"))
     expect(to_playwright(page, _PROBE_TARGET)).to_have_text("KEEP")
 
 
@@ -91,6 +91,6 @@ def test_network_failure_shows_offline_card_alone(
     )
     expect(to_playwright(page, rd_shell.offline_card_retry)).to_be_visible()
     page.wait_for_timeout(200)
-    expect(to_playwright(page, shell.flash_region_assertive)).not_to_contain_text(
+    expect(to_playwright(page, shell.flash_region)).not_to_contain_text(
         "Could not reach the server"
     )

@@ -33,18 +33,6 @@ from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.paths import DELETE_PATH, EDIT_PATH
 from budget_planner.web.view_models import direction_label
 
-_FORM_SWATCH_NAMES: Final[tuple[str, ...]] = (
-    "red",
-    "tangerine",
-    "yellow",
-    "leaf",
-    "green",
-    "jade",
-    "sky",
-    "indigo",
-    "purple",
-    "magenta",
-)
 _PRESET_HEX: Final[Mapping[str, str]] = MappingProxyType(
     {preset.name: preset.cat for preset in category_colors.PRESETS}
 )
@@ -169,9 +157,9 @@ def category_form_view(
     """Dialog values: the stored category first, submitted values (422 re-render) over them."""
     picked = _picked_direction(category, direction)
     picked_color = _picked_color(category, color)
-    lowered = picked_color.lower()
     valid = _HEX_COLOUR.fullmatch(picked_color) is not None
-    preview = category_colors.category_color(picked_color if valid else None)
+    lowered = category_colors.nearest_form_swatch(picked_color).cat if valid else ""
+    preview = category_colors.category_color(lowered if valid else None)
     stored_name = category.name if category else ""
     return CategoryFormView(
         title=f"edit category · {category.name}" if category else "new category",
@@ -182,7 +170,7 @@ def category_form_view(
         default_checked=not valid,
         swatches=tuple(
             SwatchView(name=swatch, hex=_PRESET_HEX[swatch], checked=_PRESET_HEX[swatch] == lowered)
-            for swatch in _FORM_SWATCH_NAMES
+            for swatch in category_colors.FORM_SWATCH_NAMES
         ),
         preview_color=preview.name or "",
         usage_text=usage_text,

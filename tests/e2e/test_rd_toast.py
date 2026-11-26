@@ -12,13 +12,12 @@ import pytest
 
 from tests.e2e.mockup_target import Journey
 from tests.ui_map import rd_shell as shell
-from tests.ui_map.locator import by_id, role, to_playwright
+from tests.ui_map.locator import role, to_playwright
 
 pytestmark = pytest.mark.e2e
 
 _dev_toast_button = role("button", "show dev toast")
 _toast_any = role("status").inside(shell.toast_root)
-_flash_assertive = by_id("flash-region-assertive")
 _fail_409 = role("button", "fail with 409")
 _fail_404 = role("button", "fail with plain 404")
 _fail_500 = role("button", "fail with 500")
@@ -67,7 +66,7 @@ def test_server_error_flashes_in_the_new_shell(journey: Journey) -> None:
         pytest.skip("the handoff mockup has no server to answer an error")
     journey.goto("/dev/shell")
     _loc(journey, _fail_500).click()
-    flash = _loc(journey, _flash_assertive).get_by_text(
+    flash = _loc(journey, shell.flash_region).get_by_text(
         "Couldn\u2019t save. Your changes are still in the form."
     )
     flash.wait_for(state="visible")
@@ -78,7 +77,7 @@ def test_repeated_errors_keep_the_region_and_show_the_latest(journey: Journey) -
         pytest.skip("the handoff mockup has no server to answer an error")
     journey.goto("/dev/shell")
     _loc(journey, _fail_500).click()
-    region = _loc(journey, _flash_assertive)
+    region = _loc(journey, shell.flash_region)
     region.get_by_text("Couldn\u2019t save. Your changes are still in the form.").wait_for(
         state="visible"
     )
@@ -86,8 +85,8 @@ def test_repeated_errors_keep_the_region_and_show_the_latest(journey: Journey) -
     region.get_by_text("Couldn\u2019t save. Your changes are still in the form.").wait_for(
         state="visible"
     )
-    assert region.get_attribute("role") == "alert"
-    assert region.get_attribute("aria-live") == "assertive"
+    assert region.get_attribute("role") == "status"  # D9-A: one region, the flash has the alert
+    assert region.get_attribute("aria-live") == "polite"
     assert "rd-flash-region" in (region.get_attribute("class") or "").split()
     _loc(journey, _fail_409).click()
     _loc(journey, shell.flash_region).get_by_text("Dev conflict: that row is protected").wait_for(
@@ -101,6 +100,6 @@ def test_plain_text_404_still_shows_a_visible_message(journey: Journey) -> None:
         pytest.skip("the handoff mockup has no server to answer an error")
     journey.goto("/dev/shell")
     _loc(journey, _fail_404).click()
-    _loc(journey, _flash_assertive).get_by_text(
+    _loc(journey, shell.flash_region).get_by_text(
         "That item was not found. It may have been removed."
     ).wait_for(state="visible")

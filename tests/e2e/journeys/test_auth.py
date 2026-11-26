@@ -169,6 +169,6 @@ def test_stale_session_revoke_shows_the_generic_not_found_flash(world: World) ->
     )
     button.click()
     # the live-region wrapper is itself role=alert (ADR-0107): scope to the flash inside it
-    flash = settings.flash_error.inside(shell.flash_region_assertive)
+    flash = settings.flash_error.inside(shell.flash_region)
     expect(world.find(flash)).to_contain_text("That item was not found")
     expect(button).to_have_count(1)  # the row stays: nothing was swapped

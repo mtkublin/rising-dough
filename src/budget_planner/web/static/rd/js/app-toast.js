@@ -66,7 +66,7 @@
     if (open) open.close('cancel');
   });
 
-  const FLASH_OOB = /id="flash-region(-assertive)?"[^>]*hx-swap-oob/;
+  const FLASH_OOB = /id="flash-region"[^>]*hx-swap-oob/;
   /* Same copy as the old shell (static/js/app-init.js) for error bodies that carry no flash. */
   const STATUS_TEXT = {
     400: 'The request was not accepted. Check the form and try again.',
@@ -135,7 +135,14 @@
     const dialog = open.length ? open[open.length - 1] : null;
     const page = document.getElementById(id);
     if (!dialog) {
-      if (page) page.replaceChildren(...nodes);
+      if (page) {
+        /* One region holds a saved flash and an error flash side by side (handoff today--flash): a new
+           flash replaces only the previous one of its own kind. */
+        const kind = (node) => (node.classList && node.classList.contains('rd-flash--error') ? 'error' : 'ok');
+        const incoming = new Set(nodes.map(kind));
+        Array.from(page.children).filter((el) => incoming.has(kind(el))).forEach((el) => el.remove());
+        page.append(...nodes);
+      }
       return;
     }
     let region = dialog.querySelector('[data-flash-in-dialog="' + id + '"]');
@@ -147,8 +154,8 @@
     region.className = 'rd-flash-region';
     region.dataset.flashInDialog = id;
     region.dataset.testid = 'flash-in-dialog';
-    region.setAttribute('role', id === 'flash-region-assertive' ? 'alert' : 'status');
-    region.setAttribute('aria-live', id === 'flash-region-assertive' ? 'assertive' : 'polite');
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
     dialog.prepend(region);
     setTimeout(() => region.replaceChildren(...nodes), 0);
   }
@@ -201,14 +208,14 @@
     const body = xhr.responseText || '';
     if (FLASH_OOB.test(body)) {
       const incoming = new DOMParser().parseFromString(body, 'text/html');
-      ['flash-region', 'flash-region-assertive'].forEach((id) => {
+      ['flash-region'].forEach((id) => {
         const from = incoming.getElementById(id);
         const region = document.getElementById(id);
         if (from && region) show(id, Array.from(from.childNodes));
       });
     } else if (!FORM_RERENDER.includes(xhr.status)) {
-      const region = document.getElementById('flash-region-assertive');
-      if (region) show('flash-region-assertive', [flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT)]);
+      const region = document.getElementById('flash-region');
+      if (region) show('flash-region', [flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT)]);
     } else {
       /* A throttled form (429, T-D18a) re-renders like a 422: the page's own error slot shows the message.
          htmx-csrf.js already lets the 422 through; htmx skips every other 4xx body. */
@@ -307,7 +314,7 @@
        shows alone, so the assertive flash is raised only if no banner appeared (Q29, T-UR02e). */
     window.setTimeout(() => {
       if (document.querySelector('#main [data-js="offline-state"]')) return;
-      show('flash-region-assertive', [flashBox('Could not reach the server. Check your connection and try again.')]);
+      show('flash-region', [flashBox('Could not reach the server. Check your connection and try again.')]);
     }, 0);
   });
 })();

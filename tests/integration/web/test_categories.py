@@ -528,7 +528,8 @@ def test_off_swatch_colour_survives_an_edit_round_trip(
     page = client.get(f"/categories/{cat_id}/edit")
     form = _html.form_of(page.text, ui.category_name)
     fields = _html.submitted_fields(form)
-    assert "color" not in [name for name, _ in fields]  # no swatch radio matches, none is checked
+    # D11-S: no swatch matches the hue, so the nearest one (green) is preselected and posted back
+    assert ("color", "#22c55e") in fields
 
     posted = {name: ("Food" if name == "name" else value) for name, value in fields}
     r = client.post(f"/categories/{cat_id}", data=posted)
@@ -536,3 +537,38 @@ def test_off_swatch_colour_survives_an_edit_round_trip(
     row = db.execute("SELECT name, color FROM categories WHERE id = ?", (cat_id,)).fetchone()
     assert (row["name"], row["color"]) == ("Food", "#112233")
     assert _audit(db, cat_id) == ["create", "update"]
+
+
+# -- D11-S: the dialog preselects the swatch nearest to a non-swatch hue; a plain save keeps it --
+def _takeaway(db: sqlite3.Connection) -> int:
+    return categories_repo.create(
+        db, USER_ID, NewCategory(name="Takeaway", direction=Direction.EXPENSE, color="#ff9f43")
+    ).id
+
+
+def test_saving_the_preselected_swatch_keeps_the_stored_hue(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    cid = _takeaway(db)
+    r = client.post(f"/categories/{cid}", data={"name": "Takeaway", "color": "#f97316"})
+    assert r.status_code == 200
+    assert _color(db, cid) == "#ff9f43"
+
+
+def test_picking_another_swatch_or_the_default_changes_the_colour(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    cid = _takeaway(db)
+    client.post(f"/categories/{cid}", data={"name": "Takeaway", "color": "#ef4444"})
+    assert _color(db, cid) == "#ef4444"
+    client.post(f"/categories/{cid}", data={"name": "Takeaway", "color": "default"})
+    assert _color(db, cid) is None
+
+
+def test_renaming_with_the_preselected_swatch_keeps_the_hue_and_audits_the_update(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    cid = _takeaway(db)
+    client.post(f"/categories/{cid}", data={"name": "Takeout", "color": "#f97316"})
+    assert _color(db, cid) == "#ff9f43"
+    assert _audit(db, cid) == ["create", "update"]

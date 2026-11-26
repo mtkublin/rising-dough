@@ -25,7 +25,7 @@ from tests.ui_map.locator import by_id
 
 USER_ID = 1
 HX = {"HX-Request": "true"}
-FLASH = errors.alert.inside(by_id("flash-region-assertive"))
+FLASH = errors.alert.inside(by_id("flash-region"))
 
 
 @pytest.fixture
