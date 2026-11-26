@@ -22,6 +22,7 @@ nav_phone = role("navigation", "Main, phone", exact=True)
 nav_links = role("link").inside(nav_desktop)  # the four primary destinations
 
 new_entry = role("link", "[ new entry ]").inside(header)
+tabbar_new_entry = role("link", "New entry", exact=True).inside(nav_phone)
 shortcuts_button = role("button", "Keyboard shortcuts")
 settings_link = role("link", "settings").inside(header)
 sign_out = role("button", "sign out")

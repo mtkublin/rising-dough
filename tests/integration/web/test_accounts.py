@@ -23,7 +23,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import balance as balance_service
-from tests.ui_map import _html, accounts, shell
+from tests.ui_map import _html, accounts, errors, shell
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -133,14 +133,14 @@ def test_edit_and_update(client: TestClient, acc_id: int) -> None:
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/edit")
     assert r.status_code == 404
-    assert r.text == "account not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _count(db, "accounts")
     r = client.post("/accounts/9999", data={"name": "X"})
     assert r.status_code == 404
-    assert r.text == "account not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _count(db, "accounts") == before
 
 
@@ -194,7 +194,7 @@ def test_snapshot_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _count(db, "audit_log")
     r = client.post("/accounts/9999/snapshot")
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _count(db, "audit_log") == before
 
 
@@ -207,7 +207,7 @@ def test_reconcile_form_renders(client: TestClient, acc_id: int) -> None:
 def test_reconcile_form_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/reconcile")
     assert r.status_code == 404
-    assert r.text == "account not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_reconcile_submit(client: TestClient, acc_id: int) -> None:
@@ -233,7 +233,7 @@ def test_reconcile_submit_404(client: TestClient, db: sqlite3.Connection) -> Non
     before = _count(db, "transactions")
     r = client.post("/accounts/9999/reconcile", data={"actual_balance": "1"})
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _count(db, "transactions") == before
 
 

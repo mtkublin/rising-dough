@@ -10,7 +10,8 @@ from fastapi.testclient import TestClient
 from budget_planner.config import Settings
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import audit_ops, hx_events, scalar, txn_form
-from tests.ui_map import _html, entries, ledger
+from tests.ui_map import _html, entries, errors, ledger
+from tests.ui_map.locator import by_id
 
 Ids = dict[str, int]
 HTMX = {"HX-Request": "true"}
@@ -127,6 +128,10 @@ def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     assert ok.headers["HX-Retarget"] == "#modal-root"
     missing = client.get("/transactions/99999/edit")
     assert missing.status_code == 404
+    assert _html.text_of(missing.text, errors.heading) == "Not found"
+    flash = client.get("/transactions/99999/edit", headers=HTMX)
+    assert flash.status_code == 404
+    assert "Transaction not found" in _html.text_of(flash.text, by_id("flash-region"))
 
 
 @covers("POST /transactions/{txn_id}")
@@ -154,6 +159,7 @@ def test_update_errors(client: TestClient, seeded: Ids, _migrated: Settings) -> 
     )
     missing = client.post("/transactions/99999", data=txn_form(seeded))
     assert missing.status_code == 404
+    assert _html.text_of(missing.text, errors.heading) == "Not found"
 
 
 @covers("POST /transactions/{txn_id}/delete", "POST /transactions/{txn_id}/restore")
@@ -194,6 +200,7 @@ def test_delete_then_restore_round_trip(
 def test_restore_unknown_id_is_404(client: TestClient, seeded: Ids) -> None:
     r = client.post("/transactions/99999/restore")
     assert r.status_code == 404
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 @covers("GET /transactions/export")

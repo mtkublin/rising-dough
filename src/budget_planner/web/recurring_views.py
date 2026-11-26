@@ -28,6 +28,7 @@ from budget_planner.web import entry_forms
 from budget_planner.web.deps import today_for
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
 from budget_planner.web.entry_forms import promote_context
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.form_responses import (
     PROMOTE_TEMPLATE,
     new_entry_errors,
@@ -154,7 +155,7 @@ def render_promote_modal(
     """The promote dialog for a rule's next occurrence: prefill (200) or posted values (422)."""
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="rule: not found")
+        return not_found_response(request, "rule", rule_id)
     override = override_on_next_due(conn, user_id, rule_id, rule.next_due)
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     prefill = _promote_prefill(conn, user_id, rule, override, fx)
@@ -360,7 +361,7 @@ def render_edit_dialog(
     """The edit-recurring dialog for the stored rule; ``hero_only`` renders it from the form."""
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="rule: not found")
+        return not_found_response(request, "rule", rule_id)
     if hero_only:
         form = request.query_params
         context = edit_context(
@@ -549,7 +550,7 @@ def render_override_dialog(
     """The override dialog of the occurrence's month (default: the next) or its remove confirm."""
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "rule", rule_id)
     target = occurrence or rule.next_due
     base = request.app.state.settings.base_currency
     if remove:
@@ -573,7 +574,7 @@ def _remove_confirm(
     occurrence = recurring_svc.occurrence_in_month(rule, target.year, target.month)
     stored = _override_for(conn, user_id, rule, occurrence)
     if occurrence is None or stored is None:
-        return Response(status_code=404, content="override: not found")
+        return not_found_response(request, "override", rule.id)
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
     currency = account.currency if account else request.app.state.settings.base_currency

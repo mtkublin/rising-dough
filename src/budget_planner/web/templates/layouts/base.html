@@ -60,6 +60,9 @@
           {% block header_actions %}
             <a class="rd-btn rd-btn--primary rd-topbar__new"
                href="/add?when=happened&dialog=1"
+               hx-get="/add?when=happened&dialog=1"
+               hx-target="#modal-root"
+               hx-swap="innerHTML"
                data-js="new-entry"
                aria-keyshortcuts="n">[ new entry ]</a>
           {% endblock %}
@@ -98,6 +101,9 @@
          {% if nav_current | default("") == "ledger" %}aria-current="page"{% endif %}>ledger</a>
       <a class="rd-tabbar__new"
          href="/add?when=happened&dialog=1"
+         hx-get="/add?when=happened&dialog=1"
+         hx-target="#modal-root"
+         hx-swap="innerHTML"
          aria-label="New entry">+</a>
       <a class="rd-tabbar__link"
          href="/plan"

@@ -20,6 +20,7 @@ from budget_planner.services import (
 from budget_planner.services.limit_preview import compute_limit_preview
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice, query_int
@@ -136,7 +137,7 @@ def create_txn(
     return form_responses.created_txn_response(request)
 
 
-@router.get("/{txn_id}/edit", response_class=HTMLResponse)
+@router.get("/{txn_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     txn_id: int,
     request: Request,
@@ -147,13 +148,13 @@ def edit_form(
     """The edit dialog (T-UR09b); ``hero=1`` re-renders it for the hero refresh."""
     txn = transactions_service.find_by_id(conn, user_id, txn_id)
     if txn is None:
-        return form_responses.txn_not_found()
+        return not_found_response(request, "transaction", txn_id)
     if hero:
         return form_responses.edit_transaction_hero(request, conn, user_id, txn)
     return form_responses.open_edit_transaction(request, conn, user_id, txn)
 
 
-@router.post("/{txn_id}")
+@router.post("/{txn_id:int}")
 def update_txn(
     txn_id: int,
     request: Request,
@@ -170,7 +171,7 @@ def update_txn(
 ) -> Response:
     existing = transactions_service.find_by_id(conn, user_id, txn_id)
     if existing is None:
-        return form_responses.txn_not_found()
+        return not_found_response(request, "transaction", txn_id)
     # The dialog posts the picker's "category" (vendored combobox.js); a missing field is a 422.
     chosen = entry_forms.category_choice(category_id, category)
     account = entry_forms.account_choice(account_id)
@@ -205,7 +206,7 @@ def update_txn(
     return form_responses.updated_txn_response(request)
 
 
-@router.post("/{txn_id}/delete")
+@router.post("/{txn_id:int}/delete")
 def delete_txn(
     txn_id: int,
     request: Request,
@@ -216,15 +217,18 @@ def delete_txn(
     return form_responses.deleted_txn_response(request, txn_id)
 
 
-@router.post("/{txn_id}/restore")
+@router.post("/{txn_id:int}/restore")
 def restore_txn(
-    txn_id: int, conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
+    txn_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     """T-R70 — undo a soft-delete (ADR-0019)."""
     try:
         transactions_service.undelete(conn, user_id, txn_id)
     except LookupError:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "transaction", txn_id)
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(
         resp,

@@ -28,7 +28,8 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from tests.auth_support import seed_login_user
-from tests.ui_map import _html, entries, ledger, rd_fragments, rd_shell
+from tests.ui_map import _html, entries, errors, ledger, rd_fragments, rd_shell
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 FROM_DIALOG = {"HX-Request": "true", "HX-Target": "modal-root"}
@@ -252,11 +253,22 @@ def test_unknown_and_other_users_ids_are_404(
         ),
     ).id
 
-    assert client.get("/transactions/99999/edit", headers=HX).status_code == 404
-    assert client.get(f"/transactions/{theirs}/edit", headers=HX).status_code == 404
-    assert client.get(f"/transactions/{theirs}/edit?hero=1", headers=HX).status_code == 404
+    for url in (
+        "/transactions/99999/edit",
+        f"/transactions/{theirs}/edit",
+        f"/transactions/{theirs}/edit?hero=1",
+    ):
+        flash = client.get(url, headers=HX)
+        assert flash.status_code == 404
+        assert "Transaction not found" in _html.text_of(flash.text, by_id("flash-region"))
+        assert "secret" not in _html.text_of(flash.text, by_id("flash-region"))
+    page = client.get(f"/transactions/{theirs}/edit")
+    assert page.status_code == 404
+    assert _html.text_of(page.text, errors.heading) == "Not found"
+    assert "secret" not in _html.text_of(page.text, errors.main)
     post = client.post(f"/transactions/{theirs}", data=_form(ids), headers=FROM_DIALOG)
     assert post.status_code == 404
+    assert "Transaction not found" in _html.text_of(post.text, by_id("flash-region"))
     assert _row(db, theirs) == (999, their_cat.id, their_acc.id, "secret", "2026-10-01", None)
     assert _ops(db, theirs) == ["create"]
 

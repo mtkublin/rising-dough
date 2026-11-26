@@ -123,6 +123,8 @@ def test_validation_htmx_renders_error_flash(error_client: TestClient) -> None:
     r = error_client.get("/_boom/validation", headers={"HX-Request": "true"})
     assert r.status_code == 422
     assert "amount must be positive" in _html.text_of(r.text, by_id("flash-region"))
+    # The dialog stays open with its typed values: the flash is the whole answer.
+    assert r.headers["HX-Reswap"] == "none"
 
 
 def test_service_error_browser_renders_500_with_request_id(
