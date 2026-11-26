@@ -1,0 +1,34 @@
+diff --git a/src/budget_planner/web/static/rd/css/app.bundle.css b/src/budget_planner/web/static/rd/css/app.bundle.css
+index 69a1346..8c37f93 100644
+--- a/src/budget_planner/web/static/rd/css/app.bundle.css
++++ b/src/budget_planner/web/static/rd/css/app.bundle.css
+@@ -2000,6 +2000,12 @@ form.htmx-request .rd-btn[type="submit"]::after {
+   border-bottom-width: var(--border-width-focus-strong);
+ }
+ 
++/* While the category picker is open focus sits in its search field; the amount keeps its focused
++   underline so the dialog does not jump by the difference in border width */
++.rd-dialog:has(.rd-catpick:not([hidden])) .rd-dialog__amount {
++  border-bottom-width: var(--border-width-focus-strong);
++}
++
+ /* Phone: dialogs are bottom sheets; cancel is the scrim/✕, the primary action fills the row */
+ @media (width < 48rem) {
+   .rd-dialog__body .rd-dialog__actions .rd-btn--quiet[data-js="dialog-close"] {
+diff --git a/src/budget_planner/web/static/rd/css/components/dialog.css b/src/budget_planner/web/static/rd/css/components/dialog.css
+index 2d92172..547cf19 100644
+--- a/src/budget_planner/web/static/rd/css/components/dialog.css
++++ b/src/budget_planner/web/static/rd/css/components/dialog.css
+@@ -328,6 +328,12 @@
+   border-bottom-width: var(--border-width-focus-strong);
+ }
+ 
++/* While the category picker is open focus sits in its search field; the amount keeps its focused
++   underline so the dialog does not jump by the difference in border width */
++.rd-dialog:has(.rd-catpick:not([hidden])) .rd-dialog__amount {
++  border-bottom-width: var(--border-width-focus-strong);
++}
++
+ /* Phone: dialogs are bottom sheets; cancel is the scrim/✕, the primary action fills the row */
+ @media (width < 48rem) {
+   .rd-dialog__body .rd-dialog__actions .rd-btn--quiet[data-js="dialog-close"] {

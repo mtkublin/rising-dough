@@ -1,0 +1,51 @@
+diff --git a/src/budget_planner/web/account_forms.py b/src/budget_planner/web/account_forms.py
+index 612dc04..b6606a7 100644
+--- a/src/budget_planner/web/account_forms.py
++++ b/src/budget_planner/web/account_forms.py
+@@ -57,7 +57,7 @@ def _limit_for(
+     *, liability: bool, currency: str, raw: str, errors: dict[str, str]
+ ) -> tuple[int | None, dict[str, str]]:
+     """Credit limit for a liability (needs a valid currency); errors are returned, not mutated."""
+-    if not liability or "currency" in errors:
++    if not liability or "currency" in errors or not raw.strip():
+         return None, {}
+     minor, limit_err = credit_limit_amount(raw, currency)
+     return minor, ({} if limit_err is None else {"credit_limit": limit_err})
+@@ -107,7 +107,7 @@ def parse_account_patch(
+         return ParsedAccountPatch(patch=None, errors={"name": bad_name})
+     liability = parse_liability(is_liability)
+     limit_minor: int | None = None
+-    if liability:
++    if liability and credit_limit.strip():
+         limit_minor, limit_err = credit_limit_amount(credit_limit, account.currency)
+         if limit_err is not None:
+             return ParsedAccountPatch(patch=None, errors={"credit_limit": limit_err})
+diff --git a/src/budget_planner/web/templates/pages/accounts/dialog-account.html b/src/budget_planner/web/templates/pages/accounts/dialog-account.html
+index a14ca59..d4ce016 100644
+--- a/src/budget_planner/web/templates/pages/accounts/dialog-account.html
++++ b/src/budget_planner/web/templates/pages/accounts/dialog-account.html
+@@ -93,10 +93,12 @@
+        {% if dlg.is_liability %} checked{% endif %}>liability</label>
+     </div>
+   </div>
+-  {# A liability needs a positive credit limit (parse_account_patch); the handoff dialogs omit the field. #}
++  {# The credit limit is optional and only asked of a credit card (the handoff liability dialogs have no such field). #}
++  {% set picked_type = dlg.type_options | selectattr("selected") | map(attribute="value") | first | default("") %}
++  {% set asks_limit = dlg.is_liability and picked_type in ["credit card", "credit_card"] %}
+   <label class="rd-field"
+-         data-show-when="is_liability=on"
+-         {% if not dlg.is_liability %}hidden{% endif %}>
++         data-show-when="is_liability=on type=credit%20card|credit_card"
++         {% if not asks_limit %}hidden{% endif %}>
+     <span class="rd-field__label">credit limit</span>
+     <span class="rd-input">
+       <input class="rd-input__control"
+@@ -107,7 +109,7 @@
+              data-js="amount-input"
+              autocomplete="off"
+              value="{{ dlg.credit_limit }}"
+-             {% if not dlg.is_liability %}disabled data-reveal-disabled {% endif %}
++             {% if not asks_limit %}disabled data-reveal-disabled {% endif %}
+              {% if errors.credit_limit|default(none) %}aria-invalid="true" aria-describedby="field-credit_limit-error"{% endif %}>
+     </span>
+   </label>
