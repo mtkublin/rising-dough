@@ -141,6 +141,34 @@ def test_create_valid_persists_and_triggers(
     assert row[1] == "Test"
 
 
+def test_create_accepts_space_grouped_thousands_and_audits_the_stored_minor(
+    client: TestClient, seeded: dict[str, int], _migrated: Settings
+) -> None:
+    r = client.post(
+        "/transactions",
+        data={
+            "operation_date": "2026-10-20",
+            "category_id": seeded["groc"],
+            "account_id": seeded["acc"],
+            "amount": "1 234.50",
+            "description": "Spaced",
+        },
+    )
+    assert r.status_code == 200
+    assert _html.all_text(r.text, errors.status) == "● Transaction saved"
+    conn = get_connection(_migrated)
+    try:
+        row = conn.execute("SELECT id, amount FROM transactions").fetchone()
+        ops = conn.execute(
+            "SELECT operation FROM audit_log WHERE entity_type = 'transaction' AND entity_id = ?",
+            (row[0],),
+        ).fetchall()
+    finally:
+        conn.close()
+    assert row[1] == 123450
+    assert [op[0] for op in ops] == ["create"]
+
+
 def _create_data(seeded: dict[str, int]) -> dict[str, str | int]:
     return {
         "operation_date": "2026-10-20",

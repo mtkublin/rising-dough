@@ -34,6 +34,7 @@ from budget_planner.services import (
     accounts as accounts_service,
     balance as balance_service,
     budget as budget_service,
+    categories as categories_service,
     fortune as fortune_service,
     fx as fx_service,
     invites as invites_service,
@@ -150,6 +151,27 @@ def test_categories_and_deleted(base: Built) -> None:
     stamps = {c.name: c.deleted_at for c in deleted}
     assert sorted(stamps) == ["Bank Fees", "Opłaty bankowe i prowizje", "VAT Refund #6"]
     assert stamps["VAT Refund #6"] == dt.datetime(2026, 10, 29, 19, 6, tzinfo=dt.UTC)
+
+
+def test_picker_handoff_list_modifier_archives_the_four_categories_the_board_lacks(
+    base: Built, tmp_path: Path
+) -> None:
+    conn, _ = base
+    assert categories_service.picker_summary(conn, USER, today=DAY).total_count == 24
+    conn2 = _built(tmp_path, "picker-handoff-list")
+    try:
+        picker = categories_service.picker_summary(conn2, USER, today=DAY)
+        assert picker.total_count == 20
+        names = {c.name for c in picker.searchable}
+        assert names.isdisjoint(seed.PICKER_LACKS)
+        # Archived, not dropped: their planned items and rules stay (ADR-0136).
+        archived = {
+            c.name for c in categories_repo.list_recently_deleted(conn2, USER, days=_ALL_TIME_DAYS)
+        }
+        assert set(seed.PICKER_LACKS) <= archived
+        assert len(recurring_repo.list_rules(conn2, USER)) == len(seed.RULES)
+    finally:
+        conn2.close()
 
 
 def test_picker_names_include_the_handoff_entry(base: Built) -> None:

@@ -193,7 +193,6 @@ def test_parse_amount_str_rejects_misplaced_grouping(raw: str) -> None:
         ("1,234.00", "PLN", 123_400),
         ("1,234", "JPY", None),  # no dot: the decimal reading, not allowed for a yen amount
         ("1,234", "PLN", None),  # decimal reading has three decimals: rejected, never 1234.00
-        ("1 234,56", "PLN", None),  # a space is not a separator
         ("1.234,56", "PLN", None),  # European grouping is not read
     ],
 )
@@ -201,6 +200,43 @@ def test_parse_amount_minor_keeps_the_meaning_of_ambiguous_commas(
     raw: str, currency: str, minor: int | None
 ) -> None:
     assert parse_amount_minor(raw, currency) == minor
+
+
+@pytest.mark.parametrize(
+    ("raw", "currency", "minor"),
+    [
+        ("2 239.80", "PLN", 223_980),  # space (U+0020) groups thousands before a dot
+        ("1 234 567,89", "PLN", 123_456_789),  # spaces group, decimal comma
+        ("1\N{NO-BREAK SPACE}234.50", "PLN", 123_450),  # no-break space (U+00A0)
+        ("1\N{NARROW NO-BREAK SPACE}234", "JPY", 1_234),  # narrow no-break space (U+202F)
+        ("1 234,5", "PLN", 123_450),
+        ("-1 000", "PLN", -100_000),
+        ("2,239.80", "PLN", 223_980),  # comma grouping unchanged
+        ("12,5", "PLN", 1_250),  # lone decimal comma unchanged
+    ],
+)
+def test_parse_amount_minor_accepts_space_grouped_thousands(
+    raw: str, currency: str, minor: int
+) -> None:
+    assert parse_amount_minor(raw, currency) == minor
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "12 34.5",  # group is not three digits
+        "1,23 4",  # mixed comma and space grouping
+        "1 234 5",  # trailing group is short
+        "1 234 56.7",  # short group after the first
+        "1 234.5 6",  # space after the decimal part
+    ],
+)
+def test_parse_amount_str_rejects_misplaced_space_grouping(raw: str) -> None:
+    assert parse_amount_str(raw, "PLN") is None
+
+
+def test_parse_amount_str_strips_outer_whitespace_around_space_grouping() -> None:
+    assert parse_amount_str("  1 234  ", "PLN") == Decimal("1234")
 
 
 def test_format_major_grouped_round_trips_and_leaves_zero_decimals_bare() -> None:

@@ -248,6 +248,11 @@ MAX_MINOR: Final = 10**15
 
 _AMOUNT_RE: Final = re.compile(r"[+-]?\d+(?:\.(\d+))?", re.ASCII)
 _GROUPED_RE: Final = re.compile(r"[+-]?\d{1,3}(?:,\d{3})+\.\d+", re.ASCII)
+# Thousands grouped by a space, no-break space or narrow no-break space ("1 234 567,89").
+_SPACE_GROUPED_RE: Final = re.compile(
+    r"[+-]?\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?", re.ASCII
+)
+_SPACE_SEPARATORS: Final = (" ", "\u00a0", "\u202f")
 
 
 def parse_amount_str(raw: str, currency: str) -> Decimal | None:
@@ -256,14 +261,18 @@ def parse_amount_str(raw: str, currency: str) -> Decimal | None:
     The one amount parser (Q-023). Returns ``None`` (the router surfaces a 422) for:
 
     - anything but ASCII digits with an optional sign and one ``.`` or ``,`` separator, or
-      thousands grouped by commas before a ``.`` (``2,239.80``); no exponents,
-      ``NaN``/``Infinity``, underscores, non-ASCII digits, hex;
+      thousands grouped by commas before a ``.`` (``2,239.80``), or by spaces, no-break
+      spaces or narrow no-break spaces in groups of three (``2 239.80``, ``1 234 567,89``);
+      no exponents, ``NaN``/``Infinity``, underscores, non-ASCII digits, hex;
     - more fractional digits than the currency supports (``12.345`` for PLN);
     - an absolute value above ``MAX_MINOR`` minor units.
     """
     text = raw.strip()
     if _GROUPED_RE.fullmatch(text):  # "2,239.80": commas group thousands when a "." follows
         text = text.replace(",", "")
+    elif _SPACE_GROUPED_RE.fullmatch(text):  # "2 239.80": spaces group thousands, any decimal
+        for separator in _SPACE_SEPARATORS:
+            text = text.replace(separator, "")
     normalised = text.replace(",", ".")
     match = _AMOUNT_RE.fullmatch(normalised)
     if match is None:
