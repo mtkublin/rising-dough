@@ -45,7 +45,8 @@ _LAYOUT_PROBLEMS_JS = """
 (rootSel) => {
   const root = document.querySelector(rootSel);
   const rr = root.getBoundingClientRect();
-  const boxes = [...root.querySelectorAll('input, select, button, .rd-segmented, .rd-comp__of')]
+  const sel = 'input:not([type=radio]), select, button, .rd-segmented, .rd-comp__of';
+  const boxes = [...root.querySelectorAll(sel)]
     .filter((el) => el.getClientRects().length > 0 && !el.closest('[hidden]'))
     .map((el) => ({ name: el.id || el.name || el.className || el.tagName,
                     r: el.getBoundingClientRect() }));
