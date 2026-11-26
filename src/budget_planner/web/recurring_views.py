@@ -412,14 +412,9 @@ def render_formula_result(
 ) -> Response:
     """The live preview text of the formula (``.rd-formula__result``): next amount or the reason."""
     ok = isinstance(result, formula_svc.PreviewOk)
-    # "empty" and an incomplete component (no percent or category yet) stay hidden: the handoff
-    # shows no result line there and the save answers with the visible field error (F9).
-    stale = not isinstance(result, formula_svc.PreviewOk) and result.message.startswith(
-        "unknown or archived"
-    )
-    quiet = isinstance(result, formula_svc.PreviewError) and (
-        result.code == "empty" or (result.code == "invalid_source" and not stale)
-    )
+    # "empty" and an incomplete component (no percent or category yet) stay hidden: the hero note
+    # says why and the save answers with the visible field error (F9).
+    quiet = formula_svc.preview_is_quiet(result)
     return render(
         request,
         FORMULA_RESULT_TEMPLATE,

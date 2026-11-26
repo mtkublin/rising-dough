@@ -638,8 +638,9 @@ def test_editing_a_stored_cycle_that_keeps_it_is_a_422_and_writes_nothing(
     r = client.post(f"/recurring/{taxes_rule}", data=form, headers=_FROM_DIALOG)
     assert r.status_code == 422
     assert _html.error_lines(r.text) == {
-        "field-formula": "▲ formula would create a cycle via rule 2",
+        "field-formula-error": "▲ formula would create a cycle via rule 2",
     }
+    assert _html.count(r.text, by_id("field-formula-error")) == 1  # the one slot the preview clears
     stored = recurring_repo.find_rule(db, USER_ID, taxes_rule)
     assert stored is not None
     assert stored.amount_formula == _reads(ids["rent"])

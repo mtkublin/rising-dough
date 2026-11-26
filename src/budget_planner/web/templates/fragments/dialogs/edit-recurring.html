@@ -9,11 +9,12 @@
    by GET hero_url, as in the new-entry dialog. #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
 {% from "fragments/fields/field.html" import text_field, select_field %}
+{% from "fragments/fields/field-error.html" import formula_error_slot %}
 {% call dialog("edit-recurring-dialog", title, action=action, hx_post=action, hero=hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save rule ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
   <input type="hidden" name="draft_rule_id" value="{{ rule_id }}">
   <div hidden
        hx-get="{{ hero_url }}"
-       hx-trigger="change from:#field-account_id, change from:#field-category_id, change from:#field-amount_source, change from:#formula-slot"
+       hx-trigger="change from:#field-account_id, change from:#field-category_id, change from:#field-amount_source, change from:#formula-slot, change from:#field-start_date"
        hx-include="closest form"
        hx-target="#modal-root .rd-dialog__hero"
        hx-select=".rd-dialog__hero"
@@ -51,15 +52,14 @@
        data-show-when="amount_source=formula"
        {% if amount_source != "formula" %}hidden{% endif %}
        hx-post="/recurring/formula/preview"
-       hx-trigger="change, keyup changed delay:400ms"
+       hx-trigger="change, keyup changed delay:400ms, change from:#field-start_date"
        hx-include="closest form"
        hx-target="find .rd-formula__result"
        hx-swap="outerHTML">
     {% with formula_id="formula-edit-recurring", options=source_categories, next_amount=next_amount|default(none) %}
       {% include "fragments/fields/formula.html" %}
     {% endwith %}
-    {% if errors.formula|default(none) %}<p class="rd-field__error"
-   id="field-formula">▲ {{ errors.formula }}</p>{% endif %}
+    {{ formula_error_slot(errors) }}
     {% if errors.amount_source|default(none) %}<p class="rd-field__error"
    id="field-amount_source-error">▲ {{ errors.amount_source }}</p>{% endif %}
   </div>
