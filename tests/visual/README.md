@@ -66,6 +66,14 @@ Recalibration rule: rerun the calibration (`visual-actual/self-clusters.txt` fro
 
 `workflow_dispatch` only works once `visual.yml` is on `main`. Until baselines are committed, a PR run fails on every missing baseline, but each failing test still writes its actual screenshot to `__snapshots__/<route>.<width>.png`, and the workflow uploads that directory as the `visual-baselines` artifact (also on failure). Download it from the PR run and commit it. Later regenerations use the `update_baselines` dispatch or `just visual-update`.
 
+## Working with this harness
+
+Limits and the run that found them: [run log, environment and process limitations](../../docs/runs/2026-11-26-handoff-reference-comparison.md#environment-and-process-limitations).
+
+- Use `visual.yml` on a pushed `wi/**` branch as the lab: `gh workflow run visual.yml --ref <branch>`.
+- Branch names must be `wi/<main>/<id>` (for example `wi/ui/sourdough/B2`); `merge-item` and `check-item` derive the item branch from the current branch.
+- Run pytest as one plain single-file command with an absolute path; the agent guard denies directory runs and chained commands.
+
 ## Handoff seed (`handoff_seed.py`, T-UR00b, ADR-0147 §3)
 
 One base seed holds the handoff's entities at the frozen date 2026-10-31: 10 accounts (balances fitted to the handoff's figures; credit card with its 14,977.37 limit), 22 live categories plus 2 system ones (3 soft-deleted), 32 ledger rows (the 11 listed on the Ledger page, per-category lump entries that give the budget page's spent figures, and six Jul to Sep 2026 income and expense entries that give the analytics flow chart the board's four months), 4 live planned items (the 4th, "Annual bonus" 25,000.00 on 20 Nov, lifts the projection to the board's five-gridline axis; +1 deleted), 15 recurring rules (4 with the 19 % formula, 7 overrides), 13 budget defaults, income anchor Salary, users Ola and Ewa, a pending invite for accountant@example.test and the owner's two sessions (this Firefox one and a Safari one on iPhone, 83.24.117.21). Nothing is typed as a total: net worth, left per day and so on come from the app's services (`test_handoff_seed.py` pins them).
