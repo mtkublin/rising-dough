@@ -23,6 +23,13 @@ pref_values = role("definition").inside(panel)
 section_headings = role("heading", level=2)
 new_category = _app.new_category
 income_anchor = _app.income_anchor
+
+
+def anchor_option(name: str) -> Locator:
+    """The handoff has no income-anchor control; mirror the app builder on the same label."""
+    return role("option", name, exact=True).inside(income_anchor)
+
+
 any_link = role("link")
 
 # --- category overlays (pages/overlays/new-category, edit-category, archive-category) ---
