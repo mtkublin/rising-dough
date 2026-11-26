@@ -13,7 +13,8 @@
   }
 
   function activate(el) {
-    if (el.tagName === 'A') window.location.assign(el.href);
+    if (el.hasAttribute('hx-get')) el.click();
+    else if (el.tagName === 'A') window.location.assign(el.href);
     else el.click();
   }
 

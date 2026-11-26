@@ -51,6 +51,11 @@
       if (help) help.showModal();
       return;
     }
+    if (option.dataset.hxGet && window.htmx) {
+      option.closest('dialog').close();
+      window.htmx.ajax('GET', option.dataset.hxGet, { target: '#modal-root', swap: 'innerHTML' });
+      return;
+    }
     window.location.assign(href);
   }
 

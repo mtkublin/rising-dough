@@ -18,6 +18,11 @@
     },
     {
       "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
+      "kind": "hx-get",
       "name": "net worth \u00b7 2 accountsnet worth",
       "skipped": "triggered by input or form event, not a click",
       "target": "/accounts"
@@ -31,11 +36,6 @@
       "kind": "link",
       "name": "Rising Dough",
       "target": "/today"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -175,6 +175,12 @@
       "target": ""
     },
     {
+      "kind": "hx-get",
+      "name": "[ new entry ]",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
       "name": "current password new password 12+ characters confirm new pas...",
@@ -216,12 +222,6 @@
       "name": "Users",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/settings/users"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -432,14 +432,14 @@
       "target": "/ledger/recently-deleted/panel"
     },
     {
-      "kind": "link",
-      "name": "Rising Dough",
-      "target": "/today"
+      "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
+      "name": "Rising Dough",
+      "target": "/today"
     },
     {
       "kind": "link",
@@ -487,6 +487,11 @@
       "target": ""
     },
     {
+      "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
       "kind": "link",
       "name": "Next period",
       "target": "/plan?tab=budget&year={n}&month={n}"
@@ -500,11 +505,6 @@
       "kind": "link",
       "name": "Rising Dough",
       "target": "/today"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -677,6 +677,11 @@
       "target": ""
     },
     {
+      "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
       "kind": "link",
       "name": "Next year",
       "target": "/plan?tab=year&year={n}"
@@ -690,11 +695,6 @@
       "kind": "link",
       "name": "Rising Dough",
       "target": "/today"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -803,6 +803,11 @@
     },
     {
       "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
+      "kind": "hx-get",
       "name": "archive",
       "target": "/categories/{id}/archive"
     },
@@ -847,11 +852,6 @@
       "kind": "link",
       "name": "Users",
       "target": "/settings/users"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -991,6 +991,12 @@
       "target": ""
     },
     {
+      "kind": "hx-get",
+      "name": "[ new entry ]",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
       "name": "current password new password 12+ characters confirm new pas...",
@@ -1032,12 +1038,6 @@
       "name": "Users",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "/settings/users"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1110,6 +1110,11 @@
       "target": ""
     },
     {
+      "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
       "name": "current password new password 12+ characters confirm new pas...",
@@ -1145,11 +1150,6 @@
       "kind": "link",
       "name": "Users",
       "target": "/settings/users"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1227,6 +1227,11 @@
       "target": "/settings/users/invites/new"
     },
     {
+      "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
       "kind": "link",
       "name": "Categories",
       "target": "/settings?tab=categories"
@@ -1255,11 +1260,6 @@
       "kind": "link",
       "name": "Users",
       "target": "/settings/users"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -1401,6 +1401,11 @@
     },
     {
       "kind": "hx-get",
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
+    },
+    {
+      "kind": "hx-get",
       "name": "all",
       "target": "/today/upcoming?window=all"
     },
@@ -1430,11 +1435,6 @@
       "kind": "link",
       "name": "Rising Dough",
       "target": "/today"
-    },
-    {
-      "kind": "link",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",

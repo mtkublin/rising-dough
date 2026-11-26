@@ -15,8 +15,6 @@ from types import MappingProxyType
 from typing import Final, Protocol
 from zoneinfo import ZoneInfo
 
-from fastapi import Response
-
 from budget_planner.domain import category_colors
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
@@ -29,7 +27,6 @@ from budget_planner.services.users import (
     SELF_DELETE_MESSAGE,
     AuthUser,
 )
-from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.paths import DELETE_PATH, EDIT_PATH
 from budget_planner.web.view_models import direction_label
 
@@ -42,11 +39,6 @@ _GROUPS: Final[tuple[tuple[str, str, str], ...]] = (
     ("income", "Income", "income_categories"),
     ("system", "System", "system_categories"),
 )
-
-
-def category_not_found() -> Response:
-    """The 404 the category dialog routes answer for a missing or foreign category."""
-    return Response(status_code=404, content="category: not found", media_type=HTML_MEDIA_TYPE)
 
 
 @dataclass(frozen=True, slots=True)

@@ -69,6 +69,18 @@ def test_unknown_route_is_404_html_for_browsers_json_for_api_clients(client: Tes
 
 
 @covers("GET /auth/login")
+def test_removed_literal_paths_are_404_not_405(client: TestClient) -> None:
+    """``/transactions/new`` once matched ``POST /{txn_id}`` and answered 405; ids are typed."""
+    for path in ("/transactions/new", "/planned/new", "/recurring/new"):
+        browser = client.get(path, headers=BROWSER)
+        assert browser.status_code == 404
+        assert _html.text_of(browser.text, errors.heading) == "Not found"
+        api = client.get(path, headers=JSON)
+        assert (api.status_code, api.json()) == (404, {"detail": "Not Found"})
+        assert client.post(path, headers=JSON).status_code == 404
+
+
+@covers("GET /auth/login")
 def test_unknown_route_hits_the_auth_gate_first_for_anonymous_callers(
     anon_client: TestClient,
 ) -> None:
