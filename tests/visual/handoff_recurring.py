@@ -142,21 +142,8 @@ def _transaction_error(page: Page) -> None:
     settle(page)
 
 
-def _liability(page: Page) -> None:
-    """Accounts edit dialog with "counts as" switched to liability (the file shows it checked)."""
-    page.evaluate(
-        """() => {
-            const radio = document.querySelector(
-                '#modal-root input[name=is_liability][value=on]');
-            radio.checked = true;
-            radio.dispatchEvent(new Event('change', {bubbles: true}));
-        }"""
-    )
-
-
 # Overlay stem -> recipe run once the sourced dialog is open.
 STATE_RECIPES: Final[dict[str, Recipe]] = {
-    "edit-account--liability": _liability,
     "edit-recurring--empty": _empty,
     "edit-recurring--incomplete": _incomplete,
     "edit-recurring--picking": _picking,
