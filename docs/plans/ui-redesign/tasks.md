@@ -363,6 +363,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Crawler, all journeys, `just test-e2e-browsers` (Firefox, WebKit), axe on every page at 375 and 1440 in both themes, visual diff on every handoff page, `frontend-visual-audit` sweep at 320 / 375 / 768 / 1024 / 1440 / 1920 on every route, budgets from README (gzip sizes, LCP / CLS / INP on `/today`, `/ledger`, `/plan`), keyboard map (`g t/l/p/a/s`, ADR-0147 §5, `n`, `/`, `[` `]`, `?`, `⌘K`), reduced motion.
 - Findings fixed or triaged with the operator; results attached to the release PR.
 - **Hardening (from v3 T-D140d, ADR-0113)**: drop inline `style=` attributes and remove `'unsafe-inline'` from `style-src` in the prod CSP (from v3 T-D140d, ADR-0113). The Caddyfile CSP lives in `terraform/cloud-init/compose/Caddyfile.tpl`; the e2e CSP guard (T-D140c) parses it. Acceptance: no `style="` attribute in any rendered page (crawler and axe runs), and the CSP guard passes with `style-src 'self'` only.
+- Progress (2026-11-26): CSP style-src hardening attempted on branch wi/ui/sourdough/CSP (not merged): nonce'd `<style>` in swapped fragments mismatched the page nonce (fixed there via `data-color-rules` + `color-rules.js`), but WebKit still reports style-src-attr violations from an unidentified source; parked until after the drill.
 
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
@@ -379,7 +380,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - **Operator**: add both contexts to the `protect-main` ruleset with `integration_id` 15368; refresh the ruleset evidence file.
 - **Acceptance**: `scripts/check_github_settings.py` passes against the live ruleset; architecture guards green.
 
-### ◻ T-UR41 [S] Re-run the T-Q316/T-Q317 frontend audit on the migrated templates → T-UR17
+### ✅ T-UR41 [S] Re-run the T-Q316/T-Q317 frontend audit on the migrated templates → T-UR17
 - Re-run `frontend-visual-audit` for the flows audited in `docs/audits/2026-11-23-t-q316-t-q317.md`: Undo reload waiting on in-flight htmx requests (T-Q316) and the passkey journey (T-Q317), on the migrated templates at 1440 / 1024 / 375. Step 3b (behaviour contract) included.
 - Commit the result as `docs/audits/<date>-t-ur41.md`. Quality-audit follow-up (h); deferred because the redesign replaces the templates the original audit covered.
 
@@ -388,9 +389,10 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - **Change**: `pillow` in the `dev` group (`pyproject.toml`, `uv.lock`); `tests/visual/handoff.py` `_decode` uses it; diff mask, ratio and cluster semantics unchanged.
 - **Acceptance**: `tests/visual/test_compare.py` and `tests/visual/test_reference_mapping.py` green with unchanged expectations; before/after timings in the commit.
 
-### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
+### ✅ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
 - Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 - Operator 2026-11-26: before the release (T-UR17).
+- Progress (2026-11-26): Done by T-UR13 (6edbed8c, a57630ce); verified 2026-11-26. The table lives at `/settings?tab=fx` (see [derived.md](derived.md), Currency & FX row).
 
 ### ✅ T-UR43a [S] Stored formula cycle: 0.00 with a warning, saves must remove it (Q25)
 - Operator decision Q25 ([operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md)); rule and exact wording in the [ADR-0047](../../adr/0047-recurring-formula-linear-combination-and-chaining.md) amendment 2026-11-25.
@@ -404,7 +406,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
   - Q16: ADR-0152 confirmed by the operator (Status line).
   - Q9: ADR-0134 amendment: invite email NO-GO for v1 (T-UR18 and requirements wording aligned).
 
-### ◻ T-UR44 [S] New-entry tabs carry typed values (D5-b)
+### ✅ T-UR44 [S] New-entry tabs carry typed values (D5-b)
 - Progress (2026-11-26, wave SCR1): D5 merged (tab carry, QFIX10 regression test, tab-carry e2e test); the QFIX11/12 diagnostics are still in place, so the task stays open.
 - Scope: switching the new-entry tab (happened, planned, repeats) keeps the typed amount, category, account and note; tab-only fields (due date, cadence) reset. The tab links add `hx-include` with the CSRF token excluded and `form_responses.open_new_entry` reads the values as `posted`. Then finish QFIX10's regression test on the new behaviour; QFIX11/12 diagnostics may be deleted once the lost-note scenario passes without `fill_stable` retries. Requirement F1.1a.
 - Decision: D5 in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0030, ADR-0040.
@@ -421,11 +423,11 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Scope: bad dialog input answers 422 with a visible field error, never 500 and never a stored bad value. Fix the 500s on bad `day_of_month`, year and opening balance (`abc`) and on a duplicate category name in dialogs; reject `day_of_month=45` on edit recurring and an empty or `abc` budget override amount. Tests assert the 422 body, the field error and that no row or audit entry is written. Requirement F1.1a. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md); list in "Follow-ups logged 2026-11-25". ADR-0030.
 
-### ◻ T-UR48 [P] Logged HTMX and route bugs
+### ✅ T-UR48 [P] Logged HTMX and route bugs
 - Scope: `/today` promote success toast is not lost to `HX-Refresh`; a service-raised `ValidationError` flash (`handle_validation`) sends `HX-Reswap: none`; removed routes such as `/transactions/new` answer 404, not 405; `/accounts/9999/edit` answers the shared 404 page, not a bare `account not found` body; palette and tab-bar `+` / `n` open a new entry in place on `/ledger` instead of navigating to `/today`. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0143, ADR-0040, T-UR41a (Q12 404 pages).
 
-### ◻ T-UR49 [S] 1024 px clipped actions column of planned and recurring tables
+### ✅ T-UR49 [S] 1024 px clipped actions column of planned and recurring tables
 - Scope: at 1024 px the actions column of the planned and recurring tables is fully visible (no clipping, no horizontal scroll); `frontend-visual-audit` at 1440 / 1024 / 375. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0027.
 
@@ -433,10 +435,12 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Scope: `tests/visual/test_reference.py` marks the intended differences listed in `derived.md` as `xfail(strict=True)` (ADR-0147 amendment, the orchestrator's); fix the harness channel mismatch (RGBA vs RGB, OVL1) and investigate the remaining unexplained reds: errors/422 pages, `edit-recurring--picking`, `new-entry--error`. Source: visual.yml run 45817258129 on bd0f6e20 (newest completed reference run, 2026-11-26): these pages fail on all six shards and are not covered by D1-D11; `new-entry--repeats-fixed` / `--repeats-formula` pass there (no longer red). Operator decision 2026-11-26 "Reds outside D1-D11": investigate and fix. The comparison stays advisory.
 - Decision: "Intended differences and the gate" and "Reds outside D1-D11" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0147.
 - Progress (2026-11-26, wave SCR1): OVL1 merged (RGBA/RGB channel compare in the harness); the xfail marking and the unexplained reds stay open.
+- Progress (2026-11-26, wave SCR3, INV1 5301de28): still open: two pages red pending designer (`new-entry--error`, `edit-recurring--picking`); plus small corner clusters on category-picker 1024 and reconcile 375 light.
 
-### ◻ T-UR51 [S] Dead-Python sweep
+### ✅ T-UR51 [S] Dead-Python sweep
 - Scope: delete the unused template filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans`, `year_cell_state` (and their tests); key the `_orphans` macro by field name instead of message text and drop its unused `field_count` argument; delete the unused ui_map locators `any_recurring_row` and `plan_year.disclosure`. No allowlist entry added; entries of deleted code are removed.
 - Decision: "Follow-ups logged 2026-11-25" (confirmed in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md)). ADR-0130, ADR-0123.
+- Progress (2026-11-26, wave SCR3, DEAD ec9131d5): merged. Remaining: `_orphans` is keyed by message text; `plan_year.disclosure` kept as used.
 
 ## Follow-ups logged 2026-11-25
 
