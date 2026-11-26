@@ -319,6 +319,14 @@ value = "Shown once. Hand it to Ola; they set their own at their next sign-in. T
 reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they; the app adds the signed-out note after a reset (F3 answer a)"
 
 [[row]]
+page = "pages/overlays/one-time-password.html"
+select = "tr.rd-row--user:has(td:-soup-contains-own(\"partner@example.test\")) td:nth-of-type(4)"
+field = "text"
+old = "● active"
+value = "◐ new password required at next sign-in"
+reason = "handoff internally inconsistent, app right: the dialog is the state after the reset, which marks the user as owing a new password (the board's own Ewa row reads this), while the board still prints Ola active"
+
+[[row]]
 page = "pages/overlays/delete-user.html"
 select = "p:-soup-contains-own(\"loses access\")"
 field = "text"

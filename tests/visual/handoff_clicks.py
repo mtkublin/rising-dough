@@ -68,6 +68,7 @@ def _year_cell_editor(page: Page) -> None:
         "() => { let el = document.querySelector(\"main form[data-js='year-cell-editor']\");"
         " for (; el; el = el.parentElement) { if (el.scrollLeft) el.scrollLeft = 0; } }"
     )
+    page.mouse.move(0, 0)  # the pointer rests off the grid: no cell shows its hover edge
 
 
 def _category_picker(page: Page, query: str = "") -> None:
