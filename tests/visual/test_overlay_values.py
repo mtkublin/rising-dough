@@ -106,6 +106,7 @@ class Vals:
     fc_peak_label: str
     formula_next_all: frozenset[int]
     takeaway_entries: int
+    picker_total: int
 
 
 def _collect(
@@ -200,6 +201,7 @@ def _collect(
         fc_peak_label=fc.peak_point.label,
         formula_next_all=nexts,
         takeaway_entries=categories_service.entry_count(conn, USER, takeaway.id),
+        picker_total=categories_service.picker_summary(conn, USER, today=DAY).total_count,
     )
 
 
@@ -366,7 +368,27 @@ _CATEGORY_USAGE = (
     "Takeaway has 6 live entries in the seed, the board says 41"
 )
 
+_PICKER_COUNT = (
+    f"{_SEED} categories.picker_summary: total_count, the live categories without the "
+    "system-only Reconciliation (ADR-0151)"
+)
+
 _LISTED_CASES: tuple[Case, ...] = (
+    Case(
+        "pages/overlays/*.html",
+        "button.rd-catfield__search",
+        "search all 21 categories",
+        lambda v: f"search all {v.picker_total} categories",
+        _PICKER_COUNT,
+    ),
+    Case(
+        "pages/overlays/*.html",
+        "input.rd-catpick__input",
+        "search all 21 categories",
+        lambda v: f"search all {v.picker_total} categories",
+        _PICKER_COUNT,
+        field="placeholder",
+    ),
     Case(
         "pages/overlays/archive-category.html",
         'p:-soup-contains-own("Its 41 entries")',

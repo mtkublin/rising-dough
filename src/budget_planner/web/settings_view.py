@@ -33,18 +33,6 @@ from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.paths import DELETE_PATH, EDIT_PATH
 from budget_planner.web.view_models import direction_label
 
-_FORM_SWATCH_NAMES: Final[tuple[str, ...]] = (
-    "red",
-    "tangerine",
-    "yellow",
-    "leaf",
-    "green",
-    "jade",
-    "sky",
-    "indigo",
-    "purple",
-    "magenta",
-)
 _PRESET_HEX: Final[Mapping[str, str]] = MappingProxyType(
     {preset.name: preset.cat for preset in category_colors.PRESETS}
 )
@@ -146,25 +134,6 @@ class CategoryFormView:
     usage_text: str | None
 
 
-def _rgb(hex_value: str) -> tuple[int, int, int]:
-    return int(hex_value[1:3], 16), int(hex_value[3:5], 16), int(hex_value[5:7], 16)
-
-
-def _nearest_swatch(hex_value: str) -> str:
-    """The dialog swatch closest to a stored hue (RGB distance).
-
-    The dialog palette (ten swatches) is not the board palette: Takeaway is stored as the
-    board's ``orange`` (#ff9f43), which no swatch holds; the handoff dialog shows its
-    neighbour, ``tangerine``.
-    """
-    want = _rgb(hex_value)
-
-    def distance(name: str) -> int:
-        return sum((a - b) ** 2 for a, b in zip(_rgb(_PRESET_HEX[name]), want, strict=True))
-
-    return min(_FORM_SWATCH_NAMES, key=distance)
-
-
 def _picked_direction(category: Category | None, direction: str | None) -> Direction:
     if category is not None:
         return category.direction
@@ -189,7 +158,7 @@ def category_form_view(
     picked = _picked_direction(category, direction)
     picked_color = _picked_color(category, color)
     valid = _HEX_COLOUR.fullmatch(picked_color) is not None
-    lowered = _PRESET_HEX[_nearest_swatch(picked_color)] if valid else ""
+    lowered = category_colors.nearest_form_swatch(picked_color).cat if valid else ""
     preview = category_colors.category_color(lowered if valid else None)
     stored_name = category.name if category else ""
     return CategoryFormView(
@@ -201,7 +170,7 @@ def category_form_view(
         default_checked=not valid,
         swatches=tuple(
             SwatchView(name=swatch, hex=_PRESET_HEX[swatch], checked=_PRESET_HEX[swatch] == lowered)
-            for swatch in _FORM_SWATCH_NAMES
+            for swatch in category_colors.FORM_SWATCH_NAMES
         ),
         preview_color=preview.name or "",
         usage_text=usage_text,

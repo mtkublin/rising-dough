@@ -65,6 +65,37 @@ PRESETS: Final[tuple[CategoryPreset, ...]] = (
 )
 
 
+FORM_SWATCH_NAMES: Final[tuple[str, ...]] = (
+    "red",
+    "tangerine",
+    "yellow",
+    "leaf",
+    "green",
+    "jade",
+    "sky",
+    "indigo",
+    "purple",
+    "magenta",
+)
+"""The ten swatches of the category dialog (a subset of ``PRESETS``)."""
+
+
+def nearest_form_swatch(color: str) -> CategoryPreset:
+    """The dialog swatch closest to a ``#rrggbb`` hue (RGB distance; ties keep dialog order).
+
+    The dialog palette is not the board palette: a stored hue such as ``#ff9f43`` (orange) is none
+    of the ten swatches, and the dialog shows its neighbour (D11-S, ADR-0107 amendment 2026-11-26).
+    """
+    want = _channels(color.lower())
+    by_name = {preset.name: preset for preset in PRESETS}
+    swatches = tuple(by_name[name] for name in FORM_SWATCH_NAMES)
+
+    def distance(preset: CategoryPreset) -> int:
+        return sum((a - b) ** 2 for a, b in zip(_channels(preset.cat), want, strict=True))
+
+    return min(swatches, key=distance)
+
+
 @dataclass(frozen=True, slots=True)
 class CategoryColor:
     """Result for a stored colour: a preset name, or a custom name plus its rule."""

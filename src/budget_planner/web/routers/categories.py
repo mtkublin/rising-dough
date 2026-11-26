@@ -148,7 +148,9 @@ def update_category(
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return category_not_found()
-    parsed = parse_category_patch(name=name, color=color, clear_color=clear_color)
+    parsed = parse_category_patch(
+        name=name, color=color, clear_color=clear_color, stored_color=cat.color
+    )
     errors = parsed.errors
     if parsed.patch is not None:
         try:

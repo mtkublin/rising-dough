@@ -68,7 +68,7 @@ field = "placeholder"
 old = "search all 21 categories"
 value = "search all 24 categories"
 optional = true  # only the overlays with a category picker
-reason = "value-inventory 5 row 12, ADR-0151: the same count as the button above (24 searchable categories)"
+reason = "seed value via categories.picker_summary: total_count, the live categories without the system-only Reconciliation (ADR-0151)"
 
 [[row]]
 page = "pages/overlays/*.html"
@@ -77,7 +77,7 @@ field = "text"
 old = "search all 21 categories"
 value = "search all 24 categories"
 optional = true  # only the overlays with a category picker
-reason = "value-inventory 5 row 12, ADR-0151: the seed's 25 categories minus system-only Reconciliation (PAR-D added Wyjscia na miasto)"
+reason = "seed value via categories.picker_summary: total_count, the live categories without the system-only Reconciliation (ADR-0151)"
 
 # --- row 19 / ADR-0151 section 1: edited entry is left out of "before".
 
