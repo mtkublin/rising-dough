@@ -23,6 +23,8 @@ from budget_planner.services import (
 )
 from budget_planner.web import accounts_data, form_responses
 from budget_planner.web.account_forms import (
+    ACCOUNT_DIALOG,
+    invalid_account_response,
     parse_account_patch,
     parse_new_account,
 )
@@ -32,7 +34,7 @@ from budget_planner.web.accounts_view import (
     snapshot_line,
 )
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
-from budget_planner.web.dialogs import dialog_response, invalid_dialog_response, saved_response
+from budget_planner.web.dialogs import dialog_response, saved_response
 from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_RESWAP
@@ -53,7 +55,6 @@ def index(
     return render(request, "pages/accounts/index.html", nav_current="accounts", **data)
 
 
-_ACCOUNT_DIALOG = "pages/accounts/dialog-account.html"
 _DELETE_DIALOG = "pages/accounts/dialog-delete.html"
 _RECONCILE_DIALOG = "pages/accounts/dialog-reconcile.html"
 _ROW = "fragments/rows/account-row.html"
@@ -66,7 +67,7 @@ def new_form(
     today: date = Depends(get_today),
 ) -> HTMLResponse:
     dlg = account_dialog(None, base_currency=settings.base_currency, today=today)
-    return dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
+    return dialog_response(request, ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
 
 
 @router.post("")
@@ -100,22 +101,14 @@ def create_account(
         except ValidationError as exc:
             errors = exc.fields
     if acc is None:
-        values = {
-            "name": name,
-            "currency": currency,
-            "opening_balance": opening_balance,
-            "type": type,
-            "is_liability": is_liability,
-            "credit_limit": credit_limit,
-        }
-        dlg = account_dialog(
+        return invalid_account_response(
+            request,
             None,
-            values=values,
+            values=parsed.values,
+            errors=errors,
             base_currency=settings.base_currency,
             today=today,
-            errors=errors,
         )
-        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, errors)
     response = saved_response(
         request,
         _ROW,
@@ -151,7 +144,7 @@ def edit_form(
     dlg = account_dialog(
         acc, base_currency=settings.base_currency, today=today, txn_count=refs.transactions
     )
-    return dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
+    return dialog_response(request, ACCOUNT_DIALOG, {"dlg": dlg, "errors": {}})
 
 
 @router.post("/{account_id:int}")
@@ -183,20 +176,14 @@ def update_account(
         except ValidationError as exc:
             errors = exc.fields
     if not saved:
-        values = {
-            "name": name,
-            "type": type,
-            "is_liability": is_liability,
-            "credit_limit": credit_limit,
-        }
-        dlg = account_dialog(
+        return invalid_account_response(
+            request,
             acc,
-            values=values,
+            values=parsed.values,
+            errors=errors,
             base_currency=settings.base_currency,
             today=today,
-            errors=errors,
         )
-        return invalid_dialog_response(request, _ACCOUNT_DIALOG, {"dlg": dlg}, errors)
     return saved_response(
         request,
         _ROW,
