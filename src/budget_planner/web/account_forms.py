@@ -5,13 +5,26 @@ Pure request parsing for the accounts router; amounts via ``domain.money``/``web
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import date
 
-from budget_planner.domain.accounts import Account, NewAccount, PatchAccount, currency_error
+from fastapi import Request
+from fastapi.responses import Response
+
+from budget_planner.domain.accounts import (
+    KIND_FIXED_MESSAGE,
+    Account,
+    NewAccount,
+    PatchAccount,
+    currency_error,
+)
 from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import parse_amount_minor
+from budget_planner.web.accounts_view import account_dialog
+from budget_planner.web.dialogs import invalid_dialog_response
 from budget_planner.web.params import credit_limit_amount
 
+ACCOUNT_DIALOG = "pages/accounts/dialog-account.html"
 _TRUE_FLAGS = frozenset({"on", "true", "1"})
 
 
@@ -21,6 +34,7 @@ class ParsedNewAccount:
 
     command: NewAccount | None
     errors: dict[str, str] = field(default_factory=dict)
+    values: dict[str, str] = field(default_factory=dict)  # the submitted strings, to re-render
 
 
 @dataclass(frozen=True)
@@ -29,6 +43,7 @@ class ParsedAccountPatch:
 
     patch: PatchAccount | None
     errors: dict[str, str] = field(default_factory=dict)
+    values: dict[str, str] = field(default_factory=dict)  # the submitted strings, to re-render
 
 
 def parse_liability(raw: str) -> bool:
@@ -52,6 +67,35 @@ def _limit_for(
 
 
 def parse_new_account(
+    *,
+    name: str,
+    currency: str,
+    opening_balance: str,
+    account_type: str,
+    is_liability: str,
+    credit_limit: str,
+) -> ParsedNewAccount:
+    """Validate the create form; the result keeps the submitted strings."""
+    parsed = _parse_new_account(
+        name=name,
+        currency=currency,
+        opening_balance=opening_balance,
+        account_type=account_type,
+        is_liability=is_liability,
+        credit_limit=credit_limit,
+    )
+    values = {
+        "name": name,
+        "currency": currency,
+        "opening_balance": opening_balance,
+        "type": account_type,
+        "is_liability": is_liability,
+        "credit_limit": credit_limit,
+    }
+    return replace(parsed, values=values)
+
+
+def _parse_new_account(
     *,
     name: str,
     currency: str,
@@ -90,10 +134,38 @@ def parse_new_account(
 def parse_account_patch(
     account: Account, *, name: str, account_type: str, is_liability: str, credit_limit: str
 ) -> ParsedAccountPatch:
+    """Validate the edit form against the stored account; the result keeps the submitted strings."""
+    parsed = _parse_account_patch(
+        account,
+        name=name,
+        account_type=account_type,
+        is_liability=is_liability,
+        credit_limit=credit_limit,
+    )
+    values = {
+        "name": name,
+        "type": account_type,
+        "is_liability": is_liability,
+        "credit_limit": credit_limit,
+    }
+    return replace(parsed, values=values)
+
+
+def _parse_account_patch(
+    account: Account, *, name: str, account_type: str, is_liability: str, credit_limit: str
+) -> ParsedAccountPatch:
     """Validate the edit form against the stored account (its currency fixes the limit unit)."""
-    if (bad_name := name_error(name)) is not None:
-        return ParsedAccountPatch(patch=None, errors={"name": bad_name})
-    liability = parse_liability(is_liability)
+    errors = {
+        **({} if (bad_name := name_error(name)) is None else {"name": bad_name}),
+        **(
+            {}
+            if parse_liability(is_liability) == account.is_liability
+            else {"is_liability": KIND_FIXED_MESSAGE}
+        ),
+    }
+    if errors:
+        return ParsedAccountPatch(patch=None, errors=errors)
+    liability = account.is_liability
     limit_minor: int | None = None
     if liability:
         limit_minor, limit_err = credit_limit_amount(credit_limit, account.currency)
@@ -108,3 +180,19 @@ def parse_account_patch(
             clear_credit_limit=not liability,
         )
     )
+
+
+def invalid_account_response(
+    request: Request,
+    acc: Account | None,
+    *,
+    values: dict[str, str],
+    errors: dict[str, str],
+    base_currency: str,
+    today: date,
+) -> Response:
+    """The account dialog again with the typed values and its field errors (422)."""
+    dlg = account_dialog(
+        acc, values=values, base_currency=base_currency, today=today, errors=errors
+    )
+    return invalid_dialog_response(request, ACCOUNT_DIALOG, {"dlg": dlg}, errors)

@@ -131,3 +131,41 @@ def test_period_arrows_cross_the_year_boundary(
     _find(journey, rd_fragments.period_next).click()
     expect(trigger).to_contain_text("January 2027")
     expect(journey.page).to_have_url(re.compile(r"year=2027&month=1"))
+
+
+def test_picker_year_arrow_swaps_the_grid_without_navigating(
+    journey: Journey, request: pytest.FixtureRequest
+) -> None:
+    if journey.target != "app":
+        pytest.skip("the handoff page has one fixed month; the arrows link to the same page")
+    _open(journey, request)
+    url_before = journey.page.url
+    _find(journey, plan_budget.period_trigger).click()
+    picker = _find(journey, rd_fragments.period_picker)
+    expect(picker).to_contain_text("2026")
+    _find(journey, rd_fragments.period_next_year).click()
+    expect(picker).to_contain_text("2027")
+    expect(picker).not_to_contain_text("jun = ")
+    expect(picker).to_be_visible()
+    # Keyboard: focus stays on the swapped next-year arrow, so Enter again goes to 2028.
+    expect(_find(journey, rd_fragments.period_next_year)).to_be_focused()
+    # htmx restores focus before it processes the swapped nodes (settle delay); an Enter in that
+    # window would follow the plain href, so wait for the settle like a person would.
+    journey.page.wait_for_function(
+        "document.querySelector('[role=dialog] .htmx-added, [role=dialog] .htmx-settling') === null"
+    )
+    journey.page.keyboard.press("Enter")
+    expect(picker).to_contain_text("2028")
+    expect(_find(journey, rd_fragments.period_next_year)).to_be_focused()
+    _find(journey, rd_fragments.period_prev_year).click()
+    _find(journey, rd_fragments.period_prev_year).click()
+    expect(picker).to_contain_text("2026")
+    expect(picker).to_contain_text("jun = ")
+    expect(picker).to_be_visible()
+    _find(journey, rd_fragments.period_next_year).click()
+    expect(picker).to_contain_text("2027")
+    expect(journey.page).to_have_url(url_before)
+    expect(_find(journey, plan_budget.period_trigger)).to_contain_text("June 2026")
+    _find(journey, rd_fragments.period_cell("Mar")).click()
+    expect(journey.page).to_have_url(re.compile(r"year=2027&month=3"))
+    expect(_find(journey, plan_budget.period_trigger)).to_contain_text("March 2027")

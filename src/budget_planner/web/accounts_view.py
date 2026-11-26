@@ -281,6 +281,7 @@ class AccountDialog:
     currency: str
     type_options: tuple[TypeOption, ...]
     is_liability: bool
+    counts_as: str  # "asset" or "liability": the read-only kind of an existing account
     credit_limit: str
     liability_hint: str
     as_of: str  # ISO date the opening balance is as of (the day of creation); "" when editing
@@ -325,6 +326,7 @@ def _new_dialog(
         currency=currency,
         type_options=_type_options(entered.get("type", "bank")),
         is_liability=entered.get("is_liability", "") == "on",
+        counts_as="",
         credit_limit=entered.get("credit_limit", ""),
         liability_hint="",
         as_of=today.isoformat(),
@@ -349,7 +351,8 @@ def _edit_dialog(
         name=entered.get("name", acc.name),
         currency=acc.currency,
         type_options=_type_options(entered.get("type", acc.type or "")),
-        is_liability=entered.get("is_liability", "on" if acc.is_liability else "") == "on",
+        is_liability=acc.is_liability,  # fixed at creation: never the entered value
+        counts_as="liability" if acc.is_liability else "asset",
         credit_limit=entered.get("credit_limit", limit),
         liability_hint="" if rejected else hint,  # a 422 shows its errors, not the note
         as_of="",

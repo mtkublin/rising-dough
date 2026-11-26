@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.accounts import Account, NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.transactions import NewTransaction
@@ -322,7 +322,10 @@ def test_create_liability_with_zero_limit_rejected(
     assert _count(db, "accounts") == before
 
 
-def test_update_asset_to_credit_card_sets_limit(client: TestClient, acc_id: int) -> None:
+def test_update_liability_limit_is_saved(client: TestClient, _migrated: Settings) -> None:
+    acc_id = _create(
+        _migrated, name="Main", currency="PLN", is_liability=True, credit_limit_minor=100_000
+    )
     r = client.post(
         f"/accounts/{acc_id}",
         data={
@@ -336,34 +339,64 @@ def test_update_asset_to_credit_card_sets_limit(client: TestClient, acc_id: int)
     assert "5,000.00" in _html.all_text(r.text, accounts.any_row)
 
 
-def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated: Settings) -> None:
-    conn = get_connection(_migrated)
+def _stored(settings: Settings, account: int) -> Account:
+    conn = get_connection(settings)
     try:
-        acc = accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(
-                name="Visa",
-                currency="PLN",
-                is_liability=True,
-                credit_limit_minor=1_000_000,
-            ),
-        )
+        found = accounts_repo.find_by_id(conn, USER_ID, account)
     finally:
         conn.close()
+    assert found is not None
+    return found
+
+
+def test_update_cannot_turn_a_liability_into_an_asset(
+    client: TestClient, db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    acc = _create(
+        _migrated, name="Visa", currency="PLN", is_liability=True, credit_limit_minor=1_000_000
+    )
+    audit_before = _count(db, "audit_log")
     r = client.post(
-        f"/accounts/{acc.id}",
-        data={"name": "Visa", "type": "", "is_liability": "", "credit_limit": ""},
+        f"/accounts/{acc}",
+        data={"name": "Renamed", "type": "", "is_liability": "", "credit_limit": ""},
+    )
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
+    after = _stored(_migrated, acc)
+    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa", True, 1_000_000)
+    assert _count(db, "audit_log") == audit_before
+
+
+def test_update_cannot_turn_an_asset_into_a_liability(
+    client: TestClient, db: sqlite3.Connection, acc_id: int, _migrated: Settings
+) -> None:
+    audit_before = _count(db, "audit_log")
+    r = client.post(
+        f"/accounts/{acc_id}",
+        data={"name": "Main", "type": "", "is_liability": "on", "credit_limit": "5000.00"},
+    )
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
+    after = _stored(_migrated, acc_id)
+    assert (after.is_liability, after.credit_limit_minor) == (False, None)
+    assert _count(db, "audit_log") == audit_before
+
+
+def test_update_with_the_same_kind_saves(client: TestClient, _migrated: Settings) -> None:
+    acc = _create(
+        _migrated, name="Visa", currency="PLN", is_liability=True, credit_limit_minor=1_000_000
+    )
+    r = client.post(
+        f"/accounts/{acc}",
+        data={"name": "Visa 2", "type": "", "is_liability": "on", "credit_limit": "2000.00"},
     )
     assert r.status_code == 200
-    conn = get_connection(_migrated)
-    try:
-        after = accounts_repo.find_by_id(conn, USER_ID, acc.id)
-    finally:
-        conn.close()
-    assert after is not None
-    assert after.is_liability is False
-    assert after.credit_limit_minor is None
+    after = _stored(_migrated, acc)
+    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa 2", True, 200_000)
 
 
 # ---------------------------------------------------------------------------
@@ -576,7 +609,9 @@ def test_create_returns_the_new_row(client: TestClient, _migrated: Settings) -> 
 def test_update_credit_card_limit_is_shown_in_the_row(
     client: TestClient, _migrated: Settings
 ) -> None:
-    acc = _create(_migrated, name="Main", currency="PLN")
+    acc = _create(
+        _migrated, name="Main", currency="PLN", is_liability=True, credit_limit_minor=100_000
+    )
     r = client.post(
         f"/accounts/{acc}",
         data={
