@@ -9,7 +9,14 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.e2e.ui_actions import choose_category, fill_stable, open_new_entry, save_entry
+from tests.e2e.ui_actions import (
+    choose_account,
+    choose_category,
+    fill_stable,
+    open_new_entry,
+    quiesce,
+    save_entry,
+)
 from tests.ui_map import entries
 from tests.ui_map.locator import to_playwright
 
@@ -60,6 +67,78 @@ def test_amount_typed_during_the_hero_refresh_is_kept_and_stored(
     save_entry(page)
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()
     assert db_probe.txn_amounts(db_path, "race-added") == [1234]
+
+
+def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """QFIX10: a refresh answered after the note was typed never replaces the note."""
+    base_url, db_path = live_server
+    _seed(base_url, page)
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    to_playwright(page, entries.tab_planned).click()
+    expect(to_playwright(page, entries.tab_planned)).to_have_attribute("aria-current", "page")
+    choose_category(page, "Groceries")
+    held = _hold_hero(page)
+    to_playwright(page, entries.field_account).select_option(label="Yen")
+    _wait_for(page, held, 1)
+    to_playwright(page, entries.hero_amount).fill("25")
+    note = to_playwright(page, entries.field_note)
+    note.fill("typed-in-flight")
+    held[0].continue_()
+    expect(to_playwright(page, entries.dialog)).to_contain_text("JPY")
+    expect(note).to_have_value("typed-in-flight")
+    posted = save_entry(page, "planned")
+    assert "description=typed-in-flight" in posted, posted
+    stored = db_probe.rows(db_path, "SELECT description FROM planned_transactions")
+    assert [row[0] for row in stored] == ["typed-in-flight"]
+
+
+def _selected_account(page: Page) -> str:
+    field = to_playwright(page, entries.field_account.inside(entries.dialog))
+    return str(field.evaluate("el => el.selectedOptions[0].label"))
+
+
+def _assert_carried(page: Page, amount_name: str) -> None:
+    amount = to_playwright(page, entries.hero_amount)
+    expect(amount).to_have_value("35.50")
+    expect(amount).to_have_attribute("name", amount_name)
+    expect(to_playwright(page, entries.category_group)).to_contain_text("Takeaway")
+    assert _selected_account(page) == "Credit Card"
+    expect(to_playwright(page, entries.field_note)).to_have_value("lunch")
+
+
+def test_tab_switch_carries_amount_category_account_and_note(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """T-UR44 (D5-b): happened -> planned -> repeats -> happened keeps what was typed."""
+    base_url, _ = live_server
+    _seed(base_url, page)
+    extra: dict[str, str | float | bool] = {
+        "name": "Credit Card",
+        "currency": "PLN",
+        "opening_balance": "0.00",
+    }
+    assert page.request.post(f"{base_url}/accounts", form=extra).ok
+    takeaway: dict[str, str | float | bool] = {"name": "Takeaway", "direction": "expense"}
+    assert page.request.post(f"{base_url}/categories", form=takeaway).ok
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    choose_category(page, "Takeaway")
+    choose_account(page, "Credit Card")
+    fill_stable(to_playwright(page, entries.hero_amount), "35.50")
+    fill_stable(to_playwright(page, entries.field_note), "lunch")
+    for link, amount_name in (
+        (entries.tab_planned, "amount"),
+        (entries.tab_repeats, "default_amount"),
+        (entries.tab_happened, "amount"),
+    ):
+        quiesce(page)
+        to_playwright(page, link).click()
+        expect(to_playwright(page, link)).to_have_attribute("aria-current", "page")
+        quiesce(page)
+        _assert_carried(page, amount_name)
 
 
 def test_failed_hero_refresh_marks_the_unit_stale(

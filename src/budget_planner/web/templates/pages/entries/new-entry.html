@@ -14,6 +14,8 @@
       <a class="rd-tabs__tab"
          href="/add?when={{ key }}&dialog=1"
          hx-get="/add?when={{ key }}&dialog=1"
+         hx-include="closest form"
+         hx-params="not _csrf_token"
          hx-target="#modal-root"
          hx-swap="innerHTML"
          {% if key == tab %}aria-current="page"{% endif %}>{{ key }}</a>
