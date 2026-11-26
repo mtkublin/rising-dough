@@ -119,6 +119,14 @@ def parse_terms_from_form(form: FormData | QueryParams) -> list[TermInput]:
     ]
 
 
+def evaluation_day(form: FormData | QueryParams, today: date) -> date:
+    """The day whose month the formula reads: the posted start when it is later, else ``today``.
+
+    One owner for the hero and the live preview (``formula_svc.evaluation_month``, ADR-0047).
+    """
+    return formula_svc.evaluation_month(parse_date(str(form.get("start_date", ""))), today)
+
+
 def parse_draft_terms(form: FormData | QueryParams) -> list[formula_svc.DraftTerm] | None:
     """Posted terms as preview drafts; ``None`` when a source category id is not an integer."""
     drafts: list[formula_svc.DraftTerm] = []

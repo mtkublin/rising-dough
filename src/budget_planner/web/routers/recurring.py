@@ -87,7 +87,7 @@ async def formula_preview(
     result = formula_svc.preview(
         conn,
         user_id,
-        today_for(request),
+        forms.evaluation_day(form, today_for(request)),
         draft_rule_id,
         drafts,
         fx=fx,

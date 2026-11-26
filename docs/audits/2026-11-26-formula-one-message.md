@@ -43,3 +43,9 @@ touches no CSS or layout template, so these are pre-existing (formula row at 375
   while the service value for March 2027 is 40568 and the save stores 40568 (rule 40). routers/recurring.py formula_preview passes
   today_for(request) instead of formula_svc.evaluation_month(parse_date(start_date), today) (entry_forms.py:548 and recurring_forms.py:250 do).
   The start field also does not retrigger the preview (it sits outside #formula-slot).
+
+## Re-check after fix (FORM)
+
+- F1: the formula error line is now always in the DOM (`#field-formula-error`, hidden when empty) and the preview empties it with `hx-swap-oob="outerHTML"`. Verified by the integration tests (the slot exists once, hidden, in the dialog; the preview answer carries the outerHTML swap) and by the e2e harness, which now fails any test on `htmx:oobErrorNoTarget` (tests/e2e/conftest.py), all four formula e2e journeys green.
+- F2: edit-recurring uses the same slot macro (`formula_error_slot`), so the id is `field-formula-error` there too; the integration test of the failing edit save asserts one such element and the error text.
+- F3: `formula_preview` passes `forms.evaluation_day(form, today)`; the start field now also triggers the preview (and the hero) in both dialogs. Verified by the integration test (start next month: 200, "1,000.00 PLN"; start today: 422) and the e2e journey: changing only the start date to the source's month turns "no recurring amounts" into "500.00".

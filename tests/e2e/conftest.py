@@ -234,6 +234,13 @@ document.addEventListener('htmx:targetError', (e) => {
     ` at ${location.pathname}`
   );
 });
+document.addEventListener('htmx:oobErrorNoTarget', (e) => {
+  const d = e.detail || {};
+  const content = d.content && d.content.id ? `#${d.content.id}` : 'unknown';
+  window.__reportHtmxTargetError(
+    `htmx:oobErrorNoTarget: out-of-band element ${content} matches nothing at ${location.pathname}`
+  );
+});
 """
 
 

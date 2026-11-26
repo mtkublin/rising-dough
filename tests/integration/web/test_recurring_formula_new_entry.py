@@ -249,4 +249,60 @@ def test_a_preview_answer_clears_the_failed_save_line_of_the_slot(
 ) -> None:
     html = _preview(client, ids, percent="10", source=ids["salary"])
     cleared = _html.resolve_one(html, by_id("field-formula-error"))
-    assert cleared.get("hx-swap-oob") == "delete"
+    assert cleared.get("hx-swap-oob") == "outerHTML"  # replaced, never deleted: no missing target
+    assert cleared.has_attr("hidden")
+    assert cleared.get_text(strip=True) == ""
+    assert _html.count(html, by_id("field-formula-error")) == 1
+
+
+def test_the_error_slot_the_preview_clears_is_always_in_the_dialog(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    """The preview's out-of-band swap targets #field-formula-error: it must exist, once, hidden."""
+    page = client.get("/add?when=repeats&dialog=1", headers=FROM_DIALOG)
+    assert page.status_code == 200
+    assert _html.count(page.text, by_id("field-formula-error")) == 1
+    assert _html.resolve_one(page.text, by_id("field-formula-error")).has_attr("hidden")
+
+
+def test_a_failed_save_line_and_the_preview_share_one_slot_in_the_new_entry_dialog(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    r = client.post(
+        "/recurring",
+        data=_post(ids, sign="+", percent="10", source=str(ids["groc"]), start="2026-03-10"),
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    assert _html.count(r.text, by_id("field-formula-error")) == 1
+    assert not _html.resolve_one(r.text, by_id("field-formula-error")).has_attr("hidden")
+
+
+def test_the_preview_reads_the_month_of_a_later_start_date(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int], _migrated: Settings
+) -> None:
+    today = today_local(_migrated)
+    nxt = date(today.year + (today.month == 12), today.month % 12 + 1, 1)
+    recurring_repo.create_rule(
+        db,
+        USER_ID,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=nxt,
+            category_id=ids["groc"],
+            account_id=ids["acc"],
+            default_amount=2_000_00,
+        ),
+    )
+    db.commit()
+    now = client.post(
+        "/recurring/formula/preview",
+        data=_post(ids, sign="+", percent="50", source=str(ids["groc"]), start=today.isoformat()),
+    )
+    later = client.post(
+        "/recurring/formula/preview",
+        data=_post(ids, sign="+", percent="50", source=str(ids["groc"]), start=nxt.isoformat()),
+    )
+    assert now.status_code == 422  # the source has no amount this month
+    assert later.status_code == 200
+    assert _html.text_of(later.text, edit_dialogs.formula_result) == "→ next amount 1,000.00 PLN"

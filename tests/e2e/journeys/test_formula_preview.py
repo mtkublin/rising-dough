@@ -113,6 +113,29 @@ def test_add_component_keeps_the_first_component_sign(world: World) -> None:
     ]
 
 
+def test_changing_the_start_date_to_the_source_month_updates_the_preview(world: World) -> None:
+    """R7: a source starting next month has no amount today; the start date picks the month."""
+    account = world.account("Checking")
+    salary = world.category("Salary", "income")
+    world.category("Savings", "expense")
+    source_start = days_from_today(40)  # always a later month than today
+    world.rule(account, salary, "1000.00", "later-salary", start=source_start)
+    world.goto(LEDGER_ALL_TIME)
+    open_new_entry(world.page)
+    world.find(entries.tab_repeats).click()
+    expect(world.find(entries.tab_repeats)).to_have_attribute("aria-current", "page")
+    choose_category(world.page, "Savings")
+    choose_account(world.page, "Checking")
+    world.find(entries.amount_formula).check(force=True)
+    world.find(entries.formula_pick).click()
+    world.find(label("Salary", exact=True).inside(entries.formula_group)).check(force=True)
+    world.find(entries.formula_percent).press_sequentially("50")
+    expect(world.find(entries.formula_result)).to_contain_text("no recurring amounts")
+
+    world.find(entries.field_start.inside(entries.dialog)).fill(source_start)  # no other input
+    expect(world.find(entries.formula_result)).to_contain_text("500.00")
+
+
 def test_formula_cycle_shows_the_error_and_keeps_the_edit_dialog_open(world: World) -> None:
     account = world.account("Checking")
     salary = world.category("Salary", "income")
