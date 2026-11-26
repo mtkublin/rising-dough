@@ -67,9 +67,6 @@ HERO_BAR_CELLS: Final = 20
 _SIGN_MARKS: Final = ("-", "\u2212")
 _GROUP_MARKS: Final = (",", ".")
 _NEXT_WEEK_DAYS: Final = 7
-_YEAR_TIERS: Final[Mapping[str, str]] = MappingProxyType(
-    {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"}
-)
 
 DeltaKind = Literal["up", "down", "flat"]
 
@@ -200,13 +197,6 @@ def bar_spans(
         left_pct=parts.left_pct,
         label=bar_aria_label(used, parts.left_pct),
     )
-
-
-def year_cell_state(origin: str | None, *, editing: bool = False) -> str:
-    """``data-state`` of a ``.rd-year-cell``: default|recurring|one-off|unset|editing."""
-    if editing:
-        return "editing"
-    return _YEAR_TIERS.get(origin or "", "default")
 
 
 @dataclass(frozen=True, slots=True)

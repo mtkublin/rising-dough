@@ -200,3 +200,17 @@ def test_submit_swaps_the_row_closes_the_dialog_and_flashes(
         (acc,),
     ).fetchall()
     assert [row[0] for row in names] == ["Reconciliation"]
+
+
+def test_zero_delta_submit_says_already_in_sync_and_only_snapshots(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    txns = _txn_count(db)
+    r = client.post(f"/accounts/{acc}/reconcile", data={"actual_balance": "100.00"})
+    assert r.status_code == 200
+    assert "Already in sync" in _html.text_of(r.text, shell.flash_region)
+    assert _txn_count(db) == txns
+    snaps = db.execute("SELECT balance, note FROM account_snapshots WHERE account_id = ?", (acc,))
+    assert [tuple(row) for row in snaps] == [(10_000, "reconcile snapshot")]
+    assert _count(db, "account_snapshots") == 1  # exactly one row in the DB: no other account's

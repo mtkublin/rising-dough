@@ -272,7 +272,9 @@ def reconcile_submit(
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return not_found_response(request, "account", account_id)
-    refused = accounts_data.book_reconcile(conn, user_id, acc, settings, actual_text=actual_balance)
+    refused, in_sync = accounts_data.book_reconcile(
+        conn, user_id, acc, settings, actual_text=actual_balance
+    )
     if refused is not None:
         return form_responses.reconcile_modal_error(
             request, conn, user_id, acc=acc, message=refused, actual_text=actual_balance
@@ -281,6 +283,6 @@ def reconcile_submit(
         request,
         _ROW,
         accounts_data.row_context(conn, user_id, account_id, settings),
-        message=f"{acc.name} reconciled",
+        message="Already in sync" if in_sync else f"{acc.name} reconciled",
         events=(Event.BALANCE_STALE, Event.FORECAST_STALE),
     )
