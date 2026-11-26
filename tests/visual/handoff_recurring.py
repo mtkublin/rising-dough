@@ -87,6 +87,14 @@ def _empty(page: Page) -> None:
     _drop_second_component(page)
     _clear_component(page, 0)
     page.wait_for_load_state("networkidle", timeout=_TIMEOUT_MS)
+    # The user clicks the dialog title: the category list's trigger no longer shows its focus ring.
+    page.locator(f"{_DIALOG} .rd-dialog__title").click()
+    # The dialog scrolled to the picker while it was worked on; the user scrolls back to the top.
+    page.evaluate(
+        """sel => document.querySelectorAll(`${sel}, ${sel} *`).forEach(
+            (el) => { if (el.scrollTop > 0) el.scrollTop = 0; })""",
+        _DIALOG,
+    )
 
 
 def _incomplete(page: Page) -> None:

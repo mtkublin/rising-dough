@@ -68,8 +68,9 @@
       }
       hidden.value = value;
       p.opener.lastChild.textContent = option.textContent.replace(/[↓↑⇄±].*$/, '').trim();
-    } else if (hidden) {
-      hidden.remove();
+    } else {
+      if (hidden) hidden.remove();
+      leadRow(p.field.querySelector('input[type="radio"][name="category"]:checked'));
     }
     // Let dependent fields (reveal.js) react, e.g. Transit shows the destination account.
     p.field.dispatchEvent(new Event('change', { bubbles: true }));
@@ -85,6 +86,27 @@
     }
     const option = event.target.closest('[data-js="combobox"] [role="option"]');
     if (option) pick(parts(option.closest('[data-js="combobox"]')), option);
+  });
+
+  /* The picked recent chip leads the row (the server renders it first on a re-render,
+     categories.lead_with_selected; ADR-0151 amendment 2026-11-25). Nothing is dropped. */
+  function leadRow(radio) {
+    const label = radio && radio.closest('.rd-chip-option');
+    const row = label && label.parentElement;
+    if (!row || !row.classList.contains('rd-catfield__recent')) return;
+    const first = row.querySelector('.rd-chip-option');
+    if (!first || first === label) return;
+    const focused = document.activeElement === radio;
+    first.before(label);
+    if (focused) radio.focus({ preventScroll: true });
+  }
+
+  /* Only a pointer pick leads (a click has detail > 0). Arrow/Space on the group fire a click with
+     detail 0: the row stays put, focus stays on the active radio and the group stays walkable. */
+  document.addEventListener('click', (event) => {
+    if (event.detail > 0 && event.target.matches('.rd-catfield__recent input[type="radio"]') && event.target.checked) {
+      leadRow(event.target);
+    }
   });
 
   document.addEventListener('input', (event) => {
