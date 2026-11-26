@@ -22,6 +22,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
+from tests.auth_support import seed_login_user
 from tests.ui_map import _html, today
 
 USER_ID = 1
@@ -160,3 +161,42 @@ def test_afford_delta_is_signed_per_day(client: TestClient) -> None:
     result = _html.text_of(html, today.afford_delta)
     assert result.startswith("▲ per day becomes")
     assert result.endswith("· 100.00 over")
+
+
+def test_today_upcoming_chip_names_an_archived_category(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """A planned item whose category was archived keeps the category name, not a dash;
+    a second user's category never appears (INV1)."""
+    conn = get_connection(_migrated)
+    try:
+        seed_login_user(conn, user_id=2, email="mallory@example.test")
+        categories_repo.create(
+            conn, 2, NewCategory(name="Mallory Secret", direction=Direction.EXPENSE)
+        )
+        acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Main", currency="PLN"))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Bank Fees", direction=Direction.EXPENSE)
+        )
+        planned_id = planned_repo.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=clock.today_local(_migrated) + timedelta(days=1),
+                category_id=cat.id,
+                account_id=acc.id,
+                amount=1556,
+                description="Fee",
+            ),
+        ).id
+        categories_repo.soft_delete(conn, USER_ID, cat.id)
+        conn.commit()
+    finally:
+        conn.close()
+
+    for url in ("/today", "/today/upcoming"):
+        html = client.get(url).text
+        row = _html.text_of(html, today.upcoming_planned(planned_id))
+        assert "Bank Fees" in row
+        assert "\u2014" not in row
+        assert "Mallory Secret" not in html

@@ -71,7 +71,9 @@ def today(
 
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
-    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    categories_by_id = {
+        c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)
+    }
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
 
     return render(
@@ -108,7 +110,9 @@ def today_upcoming_fragment(
     today_d = clock.today_local(settings)
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
-    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    categories_by_id = {
+        c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)
+    }
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
     return render(
         request,
