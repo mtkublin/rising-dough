@@ -48,8 +48,8 @@
         <span class="rd-menu__grabber" aria-hidden="true"></span>
         <a class="rd-menu__item"
            role="menuitem"
-           href="/budget/rules/{{ line.line.category_id }}/overrides/new?year={{ year }}&amp;month={{ month }}"
-           hx-get="/budget/rules/{{ line.line.category_id }}/overrides/new?year={{ year }}&amp;month={{ month }}"
+           href="{{ line.edit_url }}"
+           hx-get="{{ line.edit_url }}"
            hx-target="#modal-root">edit budget</a>
         <button type="button"
                 class="rd-menu__item rd-menu__cancel"

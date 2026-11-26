@@ -249,6 +249,8 @@ class BudgetLineView:
     has_budget: bool
     over_minor: int
     bar: BarSpans
+    edit_url: str = ""
+    """Link of the row's "edit budget" dialog, opened on the row's current tier."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -287,7 +289,7 @@ def _row_bar(used_pct: int, *, is_over: bool, has_budget: bool) -> BarSpans:
     return replace(spans, label="over budget") if is_over and has_budget else spans
 
 
-def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
+def _line_view(line: budget_service.CategoryBudgetLine, edit_url: str = "") -> BudgetLineView:
     budgeted = line.budgeted_minor or 0
     used_pct = clamped_percent(line.spent_minor, budgeted)
     is_over = line.spent_minor > budgeted
@@ -304,19 +306,24 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
         has_budget=line.budgeted_minor is not None,
         over_minor=max(0, line.spent_minor - budgeted),
         bar=_row_bar(used_pct, is_over=is_over, has_budget=line.budgeted_minor is not None),
+        edit_url=edit_url,
     )
 
 
 def budget_view(
-    summary: budget_service.MonthSummary, today: date, base_currency: str | None = None
+    summary: budget_service.MonthSummary,
+    today: date,
+    base_currency: str | None = None,
+    edit_urls: Mapping[int, str] | None = None,
 ) -> BudgetView:
     """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker).
 
     With ``base_currency`` the hero text ``left_text`` is the signed remaining figure
-    (U+2212 when over).
+    (U+2212 when over). ``edit_urls`` maps a category id to its row's edit-budget dialog link.
     """
     totals = summary.totals
-    lines = tuple(_line_view(line) for line in summary.lines)
+    urls = edit_urls or {}
+    lines = tuple(_line_view(line, urls.get(line.category_id, "")) for line in summary.lines)
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
     is_over = totals.budgeted_minor > 0 and totals.spent_minor > totals.budgeted_minor
     cells = bar_cells_exact(

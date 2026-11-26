@@ -132,3 +132,82 @@ def test_set_budget_with_an_empty_amount_shows_the_field_error_and_writes_nothin
     assert _html.count(r.text, rd_dialogs.field_error(SET_DIALOG, "amount")) == 1
     assert budgets_repo.get_default(db, USER_ID, unbudgeted) is None
     assert audit_total(db) == before
+
+
+# --- edit budget opens on the row's current tier (BUDUX, R4/R5) ----------------------
+
+
+def _edit_link(page: str, name: str) -> str:
+    link = _html.resolve_one(page, plan_budget.edit_budget_item(name))
+    href = link.get("href")
+    assert href == link.get("hx-get")
+    assert isinstance(href, str)
+    return href
+
+
+@pytest.fixture
+def tiered(client: TestClient, db: sqlite3.Connection, cat_id: int) -> dict[str, int]:
+    """Groceries: default 500; Car: recurring March 300 over a default; Fun: one-off March 80."""
+    ids = {"Groceries": cat_id}
+    for name in ("Car", "Fun"):
+        ids[name] = categories_repo.create(
+            db, USER_ID, NewCategory(name=name, direction=Direction.EXPENSE)
+        ).id
+    for cid in ids.values():
+        assert client.post(f"/budget/defaults/{cid}", data={"amount": "500"}).status_code == 200
+    for name, tier, amount in (("Car", "recurring", "300"), ("Fun", "one-off", "80")):
+        r = client.post(
+            f"/budget/rules/{ids[name]}/overrides",
+            data={"year": "2026", "month": "3", "tier": tier, "amount": amount},
+        )
+        assert r.status_code == 200
+    return ids
+
+
+@pytest.mark.parametrize(
+    ("name", "tier", "checked"),
+    [
+        ("Groceries", "default", "every month (default)"),
+        ("Car", "recurring", "every march"),
+        ("Fun", "one-off", "this month only"),
+    ],
+)
+def test_edit_budget_opens_on_the_rows_current_tier(
+    client: TestClient, tiered: dict[str, int], name: str, tier: str, checked: str
+) -> None:
+    href = _edit_link(client.get(URL).text, name)
+    assert href == f"/budget/rules/{tiered[name]}/overrides/new?year=2026&month=3&tier={tier}"
+
+    dialog = client.get(href, headers=HX).text
+
+    dlg = plan_year.dialog(name, "Mar 2026")
+    got = [
+        t for t in SCOPES if _html.resolve_one(dialog, plan_year.tier(dlg, t)).has_attr("checked")
+    ]
+    assert got == [checked]
+
+
+def test_saving_the_default_row_dialog_unchanged_updates_the_default_only(
+    client: TestClient, db: sqlite3.Connection, tiered: dict[str, int]
+) -> None:
+    gid = tiered["Groceries"]
+    dialog = client.get(_edit_link(client.get(URL).text, "Groceries"), headers=HX).text
+    dlg = plan_year.dialog("Groceries", "Mar 2026")
+    amount = _html.resolve_one(dialog, plan_year.amount(dlg)).get("value")
+    assert amount == "500.00"
+    before = audit_total(db)
+
+    r = client.post(
+        f"/budget/rules/{gid}/overrides",
+        data={"year": "2026", "month": "3", "tier": "default", "amount": amount},
+    )
+
+    assert r.status_code == 200
+    row = budgets_repo.get_default(db, USER_ID, gid)
+    assert row is not None
+    assert row.amount == 50_000
+    assert budgets_repo.get_one_off(db, USER_ID, gid, 2026, 3) is None
+    assert budgets_repo.get_recurring(db, USER_ID, gid, 3) is None
+    entries = audit_repo.list_entries(db, USER_ID, "budget_default", row.id)
+    assert [str(e.operation) for e in entries] == [AuditOperation.CREATE, AuditOperation.UPDATE]
+    assert audit_total(db) == before + 1

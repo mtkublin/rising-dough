@@ -84,6 +84,15 @@ def dialog_tier(state: str) -> str:
     return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_ONE_OFF
 
 
+def row_tier(state: OverrideState) -> str:
+    """Scope a budget row's edit dialog opens on: the tier its figure comes from (R4, R5)."""
+    if state.one_off is not None:
+        return TIER_ONE_OFF
+    if state.recurring is not None:
+        return TIER_RECURRING
+    return TIER_DEFAULT
+
+
 # --- Year grid ---------------------------------------------------------------
 
 

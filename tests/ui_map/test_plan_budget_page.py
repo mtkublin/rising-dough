@@ -84,7 +84,7 @@ def test_period_nav_steps_the_month_and_names_the_range(page: str) -> None:
     assert "October 2026" in _html.text_of(page, plan_budget.period_trigger)
     assert _html.count(page, rd_fragments.period_cell("Dec")) == 1
     assert _html.resolve_one(page, rd_fragments.period_prev_year)["href"] == (
-        "/plan?tab=budget&year=2025&month=10"
+        "/plan?tab=budget&year=2026&month=10&pick_year=2025"
     )
 
 
@@ -96,7 +96,7 @@ def test_tabs_link_the_other_plan_views(page: str) -> None:
 
 def test_override_item_links_to_the_override_form(page: str, cat_id: int) -> None:
     link = _html.resolve_one(page, plan_budget.edit_budget_item("Groceries"))
-    assert link["href"] == f"/budget/rules/{cat_id}/overrides/new?year=2026&month=10"
+    assert link["href"] == f"/budget/rules/{cat_id}/overrides/new?year=2026&month=10&tier=default"
 
 
 def test_period_note_names_the_income_to_income_range() -> None:
