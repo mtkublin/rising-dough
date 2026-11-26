@@ -638,7 +638,7 @@ Two features in two releases: savings goals first (useful on their own), then a 
 
 ## 13. Design Workflow From the Repo (added 2026-11-25)
 
-Design work (proposals, canvases, handoffs) runs from Claude Code in this repo. Plan: `docs/plans/design-workflow/` (T-DW01..T-DW08). Decision: [ADR-0151](adr/0151-designer-skill-handoff-builder-and-package-template.md).
+Design work (proposals, canvases, handoffs) runs from Claude Code in this repo. Plan: `docs/plans/design-workflow/` (T-DW01..T-DW12). Decisions: [ADR-0151](adr/0151-designer-skill-handoff-builder-and-package-template.md), [ADR-0152](adr/0152-ui-reviewer-layered-design-references.md).
 
 ### 13.1 Outputs
 
@@ -646,6 +646,7 @@ Design work (proposals, canvases, handoffs) runs from Claude Code in this repo. 
 - `/designer` skill (main session): current UI from the running demo app, a Canvas with a light and a dark artboard for every designed screen, component and state, the comment loop with the operator, a handoff spec (`docs/design/specs/`) and designer change requests (`docs/design/requests/`) for scope changes.
 - `handoff-builder` agent: canvas + spec to a static package in `docs/design/<name>/` following `docs/design/handoff-template.md`.
 - `just check-handoff <dir>` (`scripts/ci/check_handoff.py`): the package's executable Definition of Done.
+- `/ui-review` skill and `ui-reviewer` agent, with `just check-ui` (`scripts/ci/check_ui.py`) and guard G33: the UI review of every UI-facing change (ADR-0152).
 
 ### 13.2 Constraints
 
@@ -655,4 +656,5 @@ Design work (proposals, canvases, handoffs) runs from Claude Code in this repo. 
 - Existing claude.ai artifacts (design systems, canvases) are never changed or deleted without the operator asking in the session.
 - `docs/design/rising-dough-frontend/` and `rising-dough-goals-starter/` stay as delivered; the base package is re-delivered through the builder only after the `ui/sourdough` migration is merged.
 - A design proposal that changes scope is a change request; `docs/requirements.md` or an ADR changes before code.
-- **Design gate:** every UI-facing change (templates, CSS, static JS, user-visible copy, layout, HTMX swaps, new screens, states, dialogs or flows) goes through the designer and has an agreed design reference (a handoff package page or a spec); it complies with the design system and the existing app design. A change that only restores an agreed reference cites it (ADR-0151 §6).
+- **Design gate:** new design (a new screen, flow, dialog, component, pattern or token, or a redesign) goes through the designer first and has an agreed design reference (a handoff package page or a spec). Every UI-facing change (templates, CSS, static JS, user-visible copy, layout, HTMX swaps) complies with the design system, the established app design once the base UI is on `main`, and its design reference when it has one (ADR-0151 §6 as amended by ADR-0152).
+- **UI review:** every UI-facing change passes `just check-ui` (no colour literal, no literal spacing, radius or type length, every token defined, no design-system token outside the system) and a `ui-reviewer` verdict of `PASS` recorded in its frontend audit record, which adds an aesthetics and UX rubric; guard G33 (ADR-0152).

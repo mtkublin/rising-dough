@@ -182,6 +182,10 @@ check-item ID *OWNED:
 check-handoff DIR *FLAGS:
     uv run python scripts/ci/check_handoff.py "{{DIR}}" {{FLAGS}}
 
+# Mechanical half of the UI review on the branch diff (ADR-0152 §3, T-DW11): colours, lengths, tokens, hints, layers.
+check-ui BASE="":
+    uv run python scripts/ci/check_ui.py {{ if BASE == "" { "" } else { "--base " + BASE } }}
+
 # Regenerate docs/design/system/project/tokens.json from the base tokens.css (ADR-0151 §1, T-DW02); --check fails when stale.
 design-system *FLAGS:
     uv run python scripts/design_system.py {{FLAGS}}

@@ -164,7 +164,11 @@ an agent commits it). Mutation: weekly `mutation.yml`.
    Template/CSS/HTMX item: dispatch a `visual-auditor` into the item worktree **in the same
    message**; audit and review run in parallel. `FINDINGS` or `RETURN` -> all findings go to the
    implementer in one `SendMessage` (or a handover implementer), then audit and review again.
-3. Only `MERGE` (and `CLEAN` for a frontend item) merges. Before merging, run
+   Once the audit record is committed, dispatch the `ui-reviewer` (`.claude/agents/ui-reviewer.md`)
+   into the same worktree with the routes and states, the design reference if any and the record
+   path (ADR-0152 §5). `RETURN` findings go to the implementer with the others; `ESCALATE` goes into
+   the operator question batch, and the operator's answer goes into the PR before a re-review.
+3. Only `MERGE` (and `CLEAN` plus a UI review `PASS` for a frontend item) merges. Before merging, run
    `just check-item <ID> <owned globs>` yourself on the final sha: it confirms the audit record
    that the reviewer may have seen as pending.
 4. In the main checkout (start each command with a `cd` there; cwd drifts):

@@ -1,5 +1,7 @@
 # Changelog
 
+2026-11-26 T-DW10/T-DW11/T-DW12 (ADR-0152): UI reviewer. `just check-ui` (`scripts/ci/check_ui.py`) checks a branch's added UI lines for colour literals, literal lengths and undefined or out-of-system tokens and reports the design reference layers; guard G33 runs it and requires `VERDICT: PASS` from the new `ui-reviewer` agent (`/ui-review` skill) in the audit record. The design gate is amended (ADR-0151 §6): only new design needs `/designer` first; every UI change gets the UI review. T-DW10 folded into G33.
+
 2026-11-25 T-DW02 follow-up: the design system carries the app's components: `components/bundle.css` (base component CSS + base tokens the system lacks) and 11 previews + READMEs generated from the base `components.html` sections; shadow tokens themed; cover ink fixed for dark; republished (v3); `/designer` links `bundle.css` into canvases.
 
 2026-11-25 T-DW09: design gate (ADR-0151 §6, requirements §13.2): every UI-facing change goes through the designer and has an agreed design reference (handoff package page or spec), complying with the design system and the existing app design; CLAUDE.md "Design gate" section, skills/agents table rows, handoff checklist item; `implementer` blocks and `reviewer` returns a UI change without a reference. Guard T-DW10 open.

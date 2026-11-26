@@ -37,10 +37,17 @@
 - Operator decision 2026-11-25. ADR-0151 §6; requirements §13.2; CLAUDE.md "Design gate"; `implementer` and `reviewer` rules.
 - Acceptance: CLAUDE.md states the gate and the design reference; the implementer stops and the reviewer returns a UI-facing change without one.
 
-### T-DW10 [S] Guard: UI-facing change needs a design reference → T-DW09
-- ADR-0151 §6.
-- Goal: a check (in `check_item.py` for orchestrated items and a PR CI step) that fails a change under `src/budget_planner/web/templates/`, `src/budget_planner/web/static/` when the task, brief or PR names no `docs/design/<name>/` page or `docs/design/specs/` file.
-- Acceptance: unit tests with exact outputs; the redesign migration items pass by citing `docs/design/rising-dough-frontend/`.
+### ✅ T-DW10 [S] Guard: UI-facing change needs a design reference → T-DW09 (folded into T-DW11)
+- Re-scoped 2026-11-26 by ADR-0152 §2: a design reference is no longer required for every UI change, so there is no reference guard. Its enforcement role moved to G33 (T-DW11) and the `ui-reviewer` (T-DW12), which `ESCALATE` new design that skipped `/designer`.
+
+### ✅ T-DW11 [S] `scripts/ci/check_ui.py` and guard G33 → T-DW02
+- ADR-0152 §3.
+- Done 2026-11-26: `just check-ui [base]` checks added lines of templates and static CSS/JS/SVG (colours, lengths, tokens; hints: new template, new component, new property; layers line). Calibrated on the `ui/sourdough` diff: one real finding (`--color-muted` undefined, from the base package), no false positive after exempting `0` lengths, the category palette and `img/`. G33 `tests/architecture/test_ui_review.py` runs it on the branch diff and requires `## UI review` with `VERDICT: PASS` in the audit record. Tests: `tests/unit/deploy/test_check_ui.py`.
+
+### ✅ T-DW12 [S] `ui-reviewer` agent and `/ui-review` skill → T-DW11
+- ADR-0152 §1, §3-§5.
+- Done 2026-11-26: `.claude/agents/ui-reviewer.md` (opus; layers, rubric, verdicts, record section), `.claude/skills/ui-review/SKILL.md`; `orchestrator-mode` Step 3 dispatches it after the `visual-auditor`; CLAUDE.md "Design gate", `implementer`, `reviewer` and `/designer` rules follow ADR-0152 §2.
+- Open: first real run on a UI change after `ui/sourdough` lands (proves state reachability on the demo DB).
 
 ### T-DW07 [S] Prove artboard reference rendering on the first real canvas → T-DW05, T-DW06
 - ADR-0151 §4 "Artboard references".

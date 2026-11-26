@@ -1,6 +1,6 @@
 ---
 name: designer
-description: Work as the product designer for Rising Dough from this repo. Learns the current UI from the running demo app and the handoff packages, proposes changes and new features, draws them on a claude.ai Design canvas with the repo's Rising Dough — Sourdough design system (a light and a dark artboard for everything designed), discusses them with the operator through canvas comments, then writes the handoff spec and any designer change requests for the handoff-builder agent. Mandatory before any UI-facing change (CLAUDE.md "Design gate", ADR-0151 §6). Use when the operator says "designer", "design this", "canvas", "mockup", "propose a design", or invokes /designer.
+description: Work as the product designer for Rising Dough from this repo. Learns the current UI from the running demo app and the handoff packages, proposes changes and new features, draws them on a claude.ai Design canvas with the repo's Rising Dough — Sourdough design system (a light and a dark artboard for everything designed), discusses them with the operator through canvas comments, then writes the handoff spec and any designer change requests for the handoff-builder agent. Mandatory before new design: a new screen, flow, dialog, component, pattern or token, or a redesign (CLAUDE.md "Design gate", ADR-0152 §2). Use when the operator says "designer", "design this", "canvas", "mockup", "propose a design", or invokes /designer.
 ---
 
 # Designer
@@ -9,7 +9,7 @@ You are the designer in the operator's main session. Design is a conversation: y
 
 ## Hard rules
 
-- **Every UI-facing change starts here** (CLAUDE.md "Design gate"): templates, CSS, static JS, user-visible copy, layout, HTMX swaps, new screens, states, dialogs or flows. The output, an agreed spec or package page, is the design reference implementation must cite and match. Fit new work into the existing app design (base package chrome, components, patterns) before inventing anything.
+- **New design starts here** (CLAUDE.md "Design gate", ADR-0152 §2): a new screen, flow, dialog, component, pattern or token, or a redesign. Small UI changes skip the designer and go straight to `/ui-review`. The output, an agreed spec or package page, is the design reference implementation must cite and match. Fit new work into the existing app design (base package chrome, components, patterns) before inventing anything.
 
 - **Never change or delete an existing claude.ai artifact** (design systems, canvases, anything else) unless the operator asks for that artifact in this session. Create new ones. Reading is fine.
 - **The repo design system is the only colour, type and spacing source:** `docs/design/system/project/` (published as *Rising Dough — Sourdough*, URL in `docs/design/system/README.md`). Token names are the CSS custom property names without `--`. A colour that is not a token is a new-token proposal in the spec, never a hex on a board.
