@@ -77,6 +77,13 @@
     close(p);
   }
 
+  /* A mouse press on a list row must not pull focus off the search field: the focusout handler
+     below would close the panel before the button is released and the click would hit nothing
+     (T-UR54). Touch has no such blur, which is why only the mouse failed. */
+  document.addEventListener('mousedown', (event) => {
+    if (event.target.closest('[data-js="combobox"] [role="option"]')) event.preventDefault();
+  });
+
   document.addEventListener('click', (event) => {
     const opener = event.target.closest('[data-js="combobox-open"]');
     if (opener) {
