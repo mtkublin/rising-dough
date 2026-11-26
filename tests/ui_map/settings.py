@@ -164,3 +164,7 @@ def invite_row(invite_id: int) -> Locator:
 
 def invite_menu_item(label_text: str, invite_id: int) -> Locator:
     return role("menuitem", label_text).inside(invite_row(invite_id))
+
+
+def anchor_option(name: str) -> Locator:
+    return role("option", name, exact=True).inside(income_anchor)

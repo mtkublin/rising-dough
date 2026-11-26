@@ -629,9 +629,9 @@
       "via": "November 2026 \u25be"
     },
     {
-      "kind": "link",
+      "kind": "hx-get",
       "name": "Next year",
-      "target": "/plan?tab=budget&year={n}&month={n}",
+      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
       "via": "November 2026 \u25be"
     },
     {
@@ -647,9 +647,9 @@
       "via": "November 2026 \u25be"
     },
     {
-      "kind": "link",
+      "kind": "hx-get",
       "name": "Previous year",
-      "target": "/plan?tab=budget&year={n}&month={n}",
+      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
       "via": "November 2026 \u25be"
     },
     {
@@ -818,7 +818,7 @@
     },
     {
       "kind": "hx-get",
-      "name": "Expense \u00b7 1 Expense categories Name Colour Actions Groceries...",
+      "name": "INCOME ANCHOR none Paycheck each period starts on its next d...",
       "skipped": "triggered by input or form event, not a click",
       "target": "/settings?tab=categories"
     },

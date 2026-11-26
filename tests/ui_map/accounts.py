@@ -43,7 +43,8 @@ form_currency = label("currency", exact=True)
 form_type = label("type", exact=True)
 form_credit_limit = label("credit limit", exact=True)
 form_opening_balance = label("Opening balance")
-form_counts_as = role("radiogroup", "counts as")
+form_counts_as = label("counts as", exact=True)  # edit dialog: read-only text of the fixed kind
+form_counts_as_toggle = role("radiogroup", "counts as")  # new dialog: asset / liability radios
 form_liability = role("radio", "liability")
 form_name_error = by_id("field-name-error")  # the ▲ line under name of a failed save (Q18)
 currency_options = by_id("iso-codes")
