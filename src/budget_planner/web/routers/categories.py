@@ -17,12 +17,12 @@ from budget_planner.web.dialogs import (
     dialog_response,
     saved_response,
 )
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
 from budget_planner.web.paths import NEW_PATH
 from budget_planner.web.settings_view import (
     category_form_view,
-    category_not_found,
     category_row_view,
 )
 from budget_planner.web.view_models import category_usage_text
@@ -97,7 +97,7 @@ def edit_form(
 ) -> Response:
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return category_not_found()
+        return not_found_response(request, "category", category_id)
     usage = categories_service.usage_for(conn, user_id, category_id)
     return dialog_response(
         request,
@@ -121,7 +121,7 @@ def archive_form(
 ) -> Response:
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return category_not_found()
+        return not_found_response(request, "category", category_id)
     usage = categories_service.usage_for(conn, user_id, category_id)
     return dialog_response(
         request,
@@ -147,7 +147,7 @@ def update_category(
 ) -> Response:
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return category_not_found()
+        return not_found_response(request, "category", category_id)
     parsed = parse_category_patch(
         name=name, color=color, clear_color=clear_color, stored_color=cat.color
     )
@@ -176,12 +176,13 @@ def update_category(
 @router.post("/{category_id:int}/delete")
 def delete_category(
     category_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "category", category_id)
     if cat.is_system:
         return Response(status_code=409, content="system categories cannot be deleted")
     categories_service.soft_delete(conn, user_id, category_id)
@@ -196,13 +197,14 @@ def delete_category(
 @router.post("/{category_id:int}/archive")
 def archive_category(
     category_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
     try:
         categories_service.archive(conn, user_id, category_id)
     except categories_service.CategoryNotFoundError:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "category", category_id)
     except categories_service.SystemCategoryError:
         return Response(status_code=403, content="system categories cannot be archived")
     except categories_service.CategoryHasLiveRulesError as exc:
@@ -226,13 +228,14 @@ def archive_category(
 @router.post("/{category_id:int}/restore")
 def restore_category(
     category_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
     try:
         categories_service.restore(conn, user_id, category_id)
     except categories_service.CategoryNotFoundError:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "category", category_id)
     resp = Response(status_code=204)
     trigger(
         resp,

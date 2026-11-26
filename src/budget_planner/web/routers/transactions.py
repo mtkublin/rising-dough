@@ -148,7 +148,7 @@ def edit_form(
     """The edit dialog (T-UR09b); ``hero=1`` re-renders it for the hero refresh."""
     txn = transactions_service.find_by_id(conn, user_id, txn_id)
     if txn is None:
-        return form_responses.txn_not_found()
+        return not_found_response(request, "transaction", txn_id)
     if hero:
         return form_responses.edit_transaction_hero(request, conn, user_id, txn)
     return form_responses.open_edit_transaction(request, conn, user_id, txn)
@@ -171,7 +171,7 @@ def update_txn(
 ) -> Response:
     existing = transactions_service.find_by_id(conn, user_id, txn_id)
     if existing is None:
-        return form_responses.txn_not_found()
+        return not_found_response(request, "transaction", txn_id)
     # The dialog posts the picker's "category" (vendored combobox.js); a missing field is a 422.
     chosen = entry_forms.category_choice(category_id, category)
     account = entry_forms.account_choice(account_id)

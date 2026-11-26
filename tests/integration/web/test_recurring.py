@@ -414,7 +414,7 @@ def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/edit")
     assert r.status_code == 404
-    assert r.text == "rule: not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_update(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
@@ -626,7 +626,7 @@ def test_promote_form_renders(client: TestClient, ctx: dict[str, int]) -> None:
 def test_promote_form_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/promote")
     assert r.status_code == 404
-    assert r.text == "rule: not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_promote_submit_no_edits(
@@ -919,7 +919,7 @@ def test_recurring_overrides_new_form_renders(
 def test_recurring_overrides_new_form_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/overrides/new")
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_recurring_overrides_new_form_defaults_to_next_due(
