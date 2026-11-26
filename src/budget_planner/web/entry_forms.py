@@ -545,7 +545,8 @@ def formula_hero(
     drafts = parse_draft_terms(form)
     if drafts is None:
         return "\N{EM DASH}", "invalid source category"
-    return draft_hero(conn, user_id, drafts, currency=currency, today=today, fx=fx, rule_id=rule_id)
+    when = formula_svc.evaluation_month(parse_date(str(form.get("start_date", ""))), today)
+    return draft_hero(conn, user_id, drafts, currency=currency, today=when, fx=fx, rule_id=rule_id)
 
 
 def draft_hero(

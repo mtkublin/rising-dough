@@ -1,0 +1,202 @@
+"""New entry -> repeats -> formula posts, as the browser sends them (T-UR58).
+
+The dialog posts ``components[i][sign|percent|categories]`` with U+2212 for a subtracted
+component; a formula reads the recurring rules of its source categories in the rule's first month.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from collections.abc import Iterator
+from datetime import date
+
+import pytest
+from fastapi.testclient import TestClient
+
+from budget_planner.clock import today_local
+from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.categories import NewCategory
+from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.recurring import NewRecurringRule
+from budget_planner.repositories import (
+    accounts as accounts_repo,
+    categories as categories_repo,
+    recurring as recurring_repo,
+)
+from tests.ui_map import _html
+
+USER_ID = 1
+FROM_DIALOG = {"HX-Request": "true", "HX-Target": "modal-root"}
+_MINUS = "\N{MINUS SIGN}"
+
+
+@pytest.fixture
+def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
+    conn = get_connection(_migrated)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+@pytest.fixture
+def ids(db: sqlite3.Connection) -> dict[str, int]:
+    acc = accounts_repo.create(db, USER_ID, NewAccount(name="Main", currency="PLN"))
+    cats = {
+        name: categories_repo.create(db, USER_ID, NewCategory(name=name, direction=direction)).id
+        for name, direction in (
+            ("groc", Direction.EXPENSE),
+            ("salary", Direction.INCOME),
+            ("tax", Direction.EXPENSE),
+        )
+    }
+    recurring_repo.create_rule(
+        db,
+        USER_ID,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 3, 1),
+            category_id=cats["salary"],
+            account_id=acc.id,
+            default_amount=10_000_00,
+        ),
+    )
+    return {"acc": acc.id, **cats}
+
+
+def _post(
+    ids: dict[str, int], *, sign: str, percent: str, source: str, start: str
+) -> dict[str, str]:
+    return {
+        "category": str(ids["tax"]),
+        "account_id": str(ids["acc"]),
+        "start_date": start,
+        "cadence": "monthly",
+        "amount_source": "formula",
+        "default_amount": "",
+        "default_description": "tax",
+        "components[0][sign]": sign,
+        "components[0][percent]": percent,
+        "components[0][categories]": source,
+    }
+
+
+def _rules(db: sqlite3.Connection, category_id: int) -> list[tuple[int, int, str]]:
+    return [
+        (r[0], r[1], r[2])
+        for r in db.execute(
+            "SELECT id, default_amount, amount_formula FROM recurring_rules "
+            "WHERE category_id = ? ORDER BY id",
+            (category_id,),
+        )
+    ]
+
+
+def test_positive_base_plus_ten_percent_saves_the_rule_audited(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    r = client.post(
+        "/recurring",
+        data=_post(ids, sign="+", percent="10", source=str(ids["salary"]), start="2026-03-10"),
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 200
+    [(rule_id, amount, formula)] = _rules(db, ids["tax"])
+    assert amount == 1_000_00
+    assert json.loads(formula)["terms"] == [
+        {"sign": "+", "coefficient_bps": 1000, "source_category_ids": [ids["salary"]]}
+    ]
+    ops = db.execute(
+        "SELECT operation FROM audit_log WHERE entity_type = 'recurring_rule' AND entity_id = ?",
+        (rule_id,),
+    ).fetchall()
+    assert [o[0] for o in ops] == ["create"]
+
+
+def test_another_users_rules_are_not_a_source(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    db.execute(
+        "INSERT INTO users (id, name, email, password_hash) VALUES (2, 'B', 'b@example.com', 'x')"
+    )
+    other = accounts_repo.create(db, 2, NewAccount(name="Theirs", currency="PLN"))
+    theirs = categories_repo.create(db, 2, NewCategory(name="Theirs", direction=Direction.INCOME))
+    recurring_repo.create_rule(
+        db,
+        2,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 3, 1),
+            category_id=theirs.id,
+            account_id=other.id,
+            default_amount=5_000_00,
+        ),
+    )
+    r = client.post(
+        "/recurring",
+        data=_post(ids, sign="+", percent="10", source=str(theirs.id), start="2026-03-10"),
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    assert _rules(db, ids["tax"]) == []
+    assert db.execute("SELECT COUNT(*) FROM recurring_rules WHERE user_id = 1").fetchone()[0] == 1
+
+
+def test_sources_without_recurring_amounts_say_so_once(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    r = client.post(
+        "/recurring",
+        data=_post(ids, sign="+", percent="10", source=str(ids["groc"]), start="2026-03-10"),
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    lines = _html.error_lines(r.text)
+    assert len(lines) == 1
+    [message] = lines.values()
+    assert message.startswith("▲ the picked categories have no recurring amounts in ")
+    assert _rules(db, ids["tax"]) == []
+
+
+def test_a_subtracted_component_is_non_positive(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    r = client.post(
+        "/recurring",
+        data=_post(ids, sign=_MINUS, percent="10", source=str(ids["salary"]), start="2026-03-10"),
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 422
+    assert list(_html.error_lines(r.text).values()) == [
+        "▲ formula resolved to a non-positive amount"
+    ]
+    assert _rules(db, ids["tax"]) == []
+
+
+def test_a_rule_starting_next_month_reads_its_sources_in_that_month(
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int], _migrated: Settings
+) -> None:
+    today = today_local(_migrated)
+    nxt = date(today.year + (today.month == 12), today.month % 12 + 1, 1)
+    later = recurring_repo.create_rule(
+        db,
+        USER_ID,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=nxt,
+            category_id=ids["groc"],
+            account_id=ids["acc"],
+            default_amount=2_000_00,
+        ),
+    )
+    assert later.id
+    r = client.post(
+        "/recurring",
+        data=_post(ids, sign="+", percent="50", source=str(ids["groc"]), start=nxt.isoformat()),
+        headers=FROM_DIALOG,
+    )
+    assert r.status_code == 200
+    assert [a for _, a, _ in _rules(db, ids["tax"])] == [1_000_00]

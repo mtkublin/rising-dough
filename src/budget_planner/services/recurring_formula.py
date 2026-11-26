@@ -592,6 +592,53 @@ def invalid_source_ids(
     return None
 
 
+def evaluation_month(start: dt.date | None, today: dt.date) -> dt.date:
+    """The day whose month a new rule's snapshot and preview are computed for.
+
+    A rule that starts in a later month first posts then, so its sources are read in that month;
+    a started (or undated) rule reads the current month.
+    """
+    return start if start is not None and start > today else today
+
+
+NO_SOURCE_AMOUNTS = (
+    "the picked categories have no recurring amounts in {month}: a formula reads recurring rules"
+)
+
+
+def _no_sources_message(
+    conn: sqlite3.Connection,
+    user_id: int,
+    formula: AmountFormula,
+    when: dt.date,
+    *,
+    fx: FormulaFx,
+    target_ccy: str,
+    exclude_rule_id: int | None,
+) -> str:
+    """Why ``formula`` is not positive in ``when``'s month: empty sources, or terms that cancel."""
+    in_progress: frozenset[int] = (
+        frozenset({exclude_rule_id}) if exclude_rule_id is not None else frozenset()
+    )
+    cache: _Memo = {}
+    for term in formula.terms:
+        total, cache = _sum_category_in_month(
+            conn,
+            user_id,
+            term.source_category_ids,
+            when.year,
+            when.month,
+            exclude_rule_id=exclude_rule_id,
+            in_progress=in_progress,
+            cache=cache,
+            fx=fx,
+            target_ccy=target_ccy,
+        )
+        if total != 0:
+            return "formula resolved to a non-positive amount"
+    return NO_SOURCE_AMOUNTS.format(month=when.strftime("%B %Y"))
+
+
 def compute_savable_amount(
     conn: sqlite3.Connection,
     user_id: int,
@@ -630,7 +677,17 @@ def compute_savable_amount(
         exclude_rule_id=exclude_rule_id,
     )
     if amount <= 0:
-        raise FormulaError("formula resolved to a non-positive amount")
+        raise FormulaError(
+            _no_sources_message(
+                conn,
+                user_id,
+                formula,
+                dt.date(year, month, 1),
+                fx=fx,
+                target_ccy=target_ccy,
+                exclude_rule_id=exclude_rule_id,
+            )
+        )
     return amount
 
 
@@ -748,7 +805,18 @@ def _evaluate_draft(
     except FormulaCycleError as exc:
         return _preview_error("cycle", str(exc))
     if amount_minor <= 0:
-        return _preview_error("non_positive", "formula resolved to a non-positive amount")
+        return _preview_error(
+            "non_positive",
+            _no_sources_message(
+                conn,
+                user_id,
+                formula,
+                when,
+                fx=fx,
+                target_ccy=target_ccy,
+                exclude_rule_id=draft_rule_id,
+            ),
+        )
     return PreviewOk(amount_minor=amount_minor)
 
 
@@ -788,6 +856,7 @@ __all__ = [
     "compute_formula_amount",
     "compute_savable_amount",
     "cycle_label",
+    "evaluation_month",
     "formula_fx",
     "formula_fx_for",
     "invalid_source_ids",
