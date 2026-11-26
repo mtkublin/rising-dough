@@ -229,8 +229,8 @@ HASH = (
 )
 
 
-def test_drill_has_no_bootstrap_admin_and_takes_the_workflow_setup_hash() -> None:
-    """T-UR22 / ADR-0134 section 9: drill admin_email empty, hash from the workflow."""
+def test_drill_with_hash_has_no_bootstrap_admin_and_takes_the_hash() -> None:
+    """T-UR22 / ADR-0134 section 9: hash present -> admin_email empty, hash passed."""
     secrets = {**SECRETS, "ADMIN_EMAIL": "ops@example.com", "SETUP_TOKEN_HASH": "f" * 64}
     out = tf_env.build_env("drill", secrets, VARS, owner="o", run_id="1", drill_setup_digest=HASH)
 
@@ -238,10 +238,12 @@ def test_drill_has_no_bootstrap_admin_and_takes_the_workflow_setup_hash() -> Non
     assert out["TF_VAR_setup_token_hash"] == HASH
 
 
-def test_drill_without_hash_leaves_setup_closed_and_ignores_prod_secret() -> None:
-    secrets = {**SECRETS, "SETUP_TOKEN_HASH": "f" * 64}
+def test_drill_without_hash_keeps_bootstrap_admin_and_setup_closed() -> None:
+    """Fallback until the workflow patch lands, and for gate drills (smoke logs in)."""
+    secrets = {**SECRETS, "ADMIN_EMAIL": "ops@example.com", "SETUP_TOKEN_HASH": "f" * 64}
     out = tf_env.build_env("drill", secrets, VARS, owner="o", run_id="1")
 
+    assert out["TF_VAR_admin_email"] == "ops@example.com"
     assert out["TF_VAR_setup_token_hash"] == ""
 
 

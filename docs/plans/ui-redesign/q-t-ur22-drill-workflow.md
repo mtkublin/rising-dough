@@ -10,10 +10,11 @@ The agent token has no `workflow` scope, so the `.github/workflows` edits for T-
 
 ## What the patch does
 
+- Ordering: the merged `tf_env.py` is backward compatible. A drill with no `DRILL_SETUP_TOKEN_HASH` keeps the bootstrap admin (`ADMIN_EMAIL`) and setup stays closed, so an explore dispatched before this patch is applied, and every gate or upgrade drill (smoke keeps working), behave as today. Only with a hash is the bootstrap admin dropped. After this patch explore requires the hash, so the fallback is never used for explore.
 - The repository is PUBLIC, so job summaries and logs are world-readable: the token never enters GitHub. Only its sha256 (safe to publish for a 256-bit random token) is a dispatch input.
 - `drill.yml`: new input `setup_token_hash`; job `ttl` validates it (64 lowercase hex chars, REQUIRED for `mode=explore`, rejected for gate), exposes it as output `setup-token-hash`, and writes only "Setup open: use /setup?token=<your token>" to the summary. The explore `apply` job passes it as `setup_token_hash`. Gate and upgrade drills pass nothing: setup stays closed.
 - Why required for explore (not "keep the bootstrap admin when empty"): a drill has no bootstrap admin, so without a hash nobody could sign in; keeping the bootstrap admin on an empty input would reintroduce the generated admin password in Terraform output and the very default T-UR22 removes. Failing fast is the safer option and still lets the operator log in.
-- `terraform.yml`: new input `setup_token_hash` (drill only), exported as `DRILL_SETUP_TOKEN_HASH` for the apply job; `scripts/ci/tf_env.py` (merged, validates sha256 hex) turns it into `TF_VAR_setup_token_hash` for a drill and leaves `TF_VAR_admin_email` empty (mapped for prod only).
+- `terraform.yml`: new input `setup_token_hash` (drill only), exported as `DRILL_SETUP_TOKEN_HASH` for the apply job; `scripts/ci/tf_env.py` (merged, validates sha256 hex) turns it into `TF_VAR_setup_token_hash` for a drill and empties `TF_VAR_admin_email` then.
 - No new secret, variable or environment. The `ADMIN_EMAIL` entry in the `drill.yml` `detect` job `secrets-json` is now unused by drills (harmless).
 
 ## Apply

@@ -21,7 +21,9 @@ Each `Entry(var, source, name, default, only_env)`:
 
 The drill setup token hash (T-UR22) is not a secret: the workflow passes it in the
 process env as DRILL_SETUP_TOKEN_HASH and tf_env.py exports it as TF_VAR_setup_token_hash
-for a drill only; admin_email is prod-only, so a drill boots without a bootstrap admin.
+for a drill only. With a hash the drill boots without a bootstrap admin (admin_email is
+emptied; the operator creates the admin through /setup); without one (gate drills, or an
+explore dispatched before the workflow patch) the bootstrap admin stays.
 
 Usage: python3 tf_env.py --env drill|prod [--restore-source] [--plan-only]. Reads
 SECRETS_JSON, VARS_JSON, GITHUB_REPOSITORY_OWNER, GITHUB_RUN_ID and GITHUB_ENV from the environment.
@@ -65,9 +67,9 @@ ENTRIES: tuple[Entry, ...] = (
     Entry("env", "env"),
     Entry("scaleway_project_id", "secret", "SCW_DEFAULT_PROJECT_ID"),
     Entry("scaleway_organization_id", "secret", "SCW_DEFAULT_ORG_ID"),
-    # T-UR22 / ADR-0134 section 9: a drill has no bootstrap admin (empty admin_email);
-    # the operator creates the admin through /setup with the per-deploy token.
-    Entry("admin_email", "secret", "ADMIN_EMAIL", only_env="prod"),
+    # T-UR22 / ADR-0134 section 9: a drill that gets a setup token hash has no bootstrap
+    # admin (build_env empties admin_email); without a hash the bootstrap admin stays.
+    Entry("admin_email", "secret", "ADMIN_EMAIL"),
     Entry("domain", "secret", "APP_DOMAIN"),
     Entry("github_owner", "owner"),
     Entry("operator_ssh_pubkey", "secret", "OPERATOR_SSH_PUBKEY"),
@@ -152,8 +154,9 @@ def build_env(
         else:
             value = sources[entry.source].get(entry.name, "") or entry.default
         out[f"TF_VAR_{entry.var}"] = value
-    if target == "drill":
+    if target == "drill" and drill_setup_digest:
         out["TF_VAR_setup_token_hash"] = drill_setup_digest
+        out["TF_VAR_admin_email"] = ""
     return out
 
 
