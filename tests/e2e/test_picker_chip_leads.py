@@ -103,3 +103,38 @@ def test_arrow_keys_walk_the_group_without_reordering(
     expect(radios.nth(1)).to_be_checked()
 
     assert radios.evaluate_all(_CHIP_NAMES) == before  # the keyboard never reorders the row
+
+
+def test_mouse_click_on_a_listed_category_selects_it(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """A human press (down, a pause, up) on a row of the full list picks it (T-UR54).
+
+    The press moves focus off the search field; the panel must not close before the click lands.
+    """
+    base_url, _ = live_server
+    assert page.request.post(
+        f"{base_url}/accounts",
+        form={"name": "Checking", "currency": "PLN", "opening_balance": "100.00"},
+    ).ok
+    for name in ("Groceries", "Transport"):
+        assert page.request.post(
+            f"{base_url}/categories", form={"name": name, "direction": "expense"}
+        ).ok
+    page.goto(f"{base_url}/ledger?view=actual")
+    wait_for_htmx(page)
+    open_new_entry(page)
+    to_playwright(page, entries.category_search).click()
+    option = to_playwright(page, f.category_option("Transport").inside(entries.dialog))
+    box = option.bounding_box()
+    assert box is not None
+    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    page.mouse.down()
+    page.wait_for_timeout(250)
+    page.mouse.up()
+
+    picked = page.locator('[data-js="combobox"] input[type="hidden"][name="category"]')
+    expect(picked).to_have_count(1)
+    assert picked.input_value() != ""
+    expect(to_playwright(page, entries.category_search)).to_contain_text("Transport")
+    expect(page.locator(".rd-catpick")).to_be_hidden()
