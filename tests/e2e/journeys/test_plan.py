@@ -420,6 +420,60 @@ def test_year_cell_editor_escape_cancels_without_saving(world: World) -> None:
     assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0
 
 
+@pytest.mark.parametrize("width", [1440, 375])
+def test_year_cell_outside_click_closes_the_editor_without_saving(world: World, width: int) -> None:
+    world.page.set_viewport_size({"width": width, "height": 900})
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    tops: list[float] = world.page.evaluate(_ROW_TOPS)
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    editor.fill("321.00")
+    expect(world.find(plan_year.cell_scope_chips)).to_have_count(2)
+
+    requests: list[str] = []
+    world.page.on("request", lambda r: requests.append(f"{r.method} {r.url}"))
+    world.find(plan_year.heading).click()
+
+    expect(world.find(plan_year.cell_editor("Groceries", "March"))).to_have_count(0)
+    expect(world.find(plan_year.cell_scope_chips)).to_have_count(0)
+    expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("500.00")
+    assert world.page.evaluate(_ROW_TOPS) == tops
+    assert requests == []
+    assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0
+
+
+@pytest.mark.parametrize("width", [1440, 375])
+def test_year_cell_click_on_another_cell_moves_the_editor(world: World, width: int) -> None:
+    world.page.set_viewport_size({"width": width, "height": 900})
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    expect(world.find(plan_year.cell_editor("Groceries", "March"))).to_be_visible()
+    world.find(plan_year.cell("Groceries", "April")).click()
+
+    expect(world.find(plan_year.cell_editor("Groceries", "April"))).to_be_visible()
+    expect(world.find(plan_year.cell_editor("Groceries", "March"))).to_have_count(0)
+    expect(world.find(plan_year.cell_scope_chips)).to_have_count(2)
+    expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("500.00")
+
+
+@pytest.mark.parametrize("width", [1440, 375])
+def test_year_cell_click_on_a_chip_or_the_input_keeps_the_editor(world: World, width: int) -> None:
+    world.page.set_viewport_size({"width": width, "height": 900})
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    editor.click()
+    expect(editor).to_be_visible()
+    world.find(plan_year.cell_scope("every march")).check(force=True)  # hidden radio
+
+    expect(editor).to_be_visible()
+    expect(world.find(plan_year.cell_scope_chips)).to_have_count(2)
+    expect(world.find(plan_year.cell_scope("every march"))).to_be_checked()
+
+
 def test_year_cell_editor_shows_the_error_of_a_failed_save(world: World) -> None:
     _budgeted(world)
     year = today().year

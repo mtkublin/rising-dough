@@ -9,7 +9,8 @@
  * page scrolls. Enter saves the amount with the chosen scope (the form posts to the override route
  * the dialog uses, through HTMX) and focus returns to the cell once the grid reloads; a failed
  * save answers 422 with the override dialog in #modal-root, so the error is visible there. Escape
- * cancels and gives the cell back its focus. A modified click (Ctrl, Meta, Shift, Alt) or any other
+ * cancels and gives the cell back its focus; a press outside the editor, its chips and the cells
+ * cancels it the same way (no save, no request, focus stays where the press put it; R27). A modified click (Ctrl, Meta, Shift, Alt) or any other
  * button keeps the link: it opens the override dialog. Tab order is the form's own: the amount,
  * then the checked chip (the radio group is one tab stop), then the save button. No amount
  * arithmetic here: the server formats and parses the amounts.
@@ -73,7 +74,18 @@
       vv.addEventListener('scroll', placed);
     }
     const settle = SETTLE_MS.map((ms) => window.setTimeout(placed, ms));
+    // A press outside the editor (and its chips) and outside any cell cancels it like Escape; a
+    // press on another cell is left to the click handler, which moves the editor there (R27).
+    const outside = (event) => {
+      const t = event.target;
+      if (!t || !t.closest) return;
+      if (t.closest('[data-js="year-cell-editor"], [data-js="year-cell"]')) return;
+      pending = null;
+      close(form, false);
+    };
+    document.addEventListener('pointerdown', outside, true);
     stop = () => {
+      document.removeEventListener('pointerdown', outside, true);
       window.removeEventListener('resize', placed);
       window.removeEventListener('scroll', placed, true);
       if (vv) {
@@ -92,13 +104,13 @@
     placed = null;
   }
 
-  function close(form) {
+  function close(form, refocus = true) {
     untrack();
     const cell = form.previousElementSibling;
     form.remove();
     if (cell && cell.matches('[data-js="year-cell"]')) {
       cell.hidden = false;
-      cell.focus();
+      if (refocus) cell.focus();
     }
   }
 
