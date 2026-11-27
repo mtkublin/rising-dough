@@ -41,3 +41,11 @@ spent_bar = role("img", "percent spent")  # the hero bar: "N percent spent, M pe
 stats = by_id(
     "today-stats"
 )  # period stats: each label carries its bar glyph (spent █, committed ▒, left ░)
+
+
+# Legend glyph of one period stat (spent, committed, left) and the bar's remainder run (T-UR94).
+def legend_glyph(kind: str) -> Locator:
+    return by_id(f"today-legend-{kind}")
+
+
+bar_remainder = by_id("today-bar-remainder")
