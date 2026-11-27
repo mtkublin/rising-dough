@@ -84,8 +84,8 @@ def test_budget_list_rows_show_values_and_set_budget_in_the_status_cell(
     shop = _html.texts(page, plan_budget.unbudgeted_cells("Shop"))
     unused = _html.texts(page, plan_budget.unbudgeted_cells("Unused"))
     # name, bar, "<spent> / <budget>", status with the set-budget button, menu cell.
-    assert shop == ["Shop", "░" * 10, "40.00 / —", "no budget set budget", ""]
-    assert unused == ["Unused", "░" * 10, "0.00 / —", "no budget set budget", ""]
+    assert shop == ["Shop", "░" * 10, "40.00 / —", "set budget", ""]
+    assert unused == ["Unused", "░" * 10, "0.00 / —", "set budget", ""]
     assert _html.texts(page, plan_budget.set_budget_button("Unused")) == ["set budget"]
     assert _html.count(page, plan_budget.unbudgeted_status_cell("Shop")) == 1
     assert _html.count(page, plan_budget.edit_budget_item("Unused")) == 0
