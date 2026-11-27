@@ -95,3 +95,28 @@ def test_the_picker_offers_a_post_button_instead_of_a_link(client: TestClient) -
     button = _html.resolve_one(r.text, by_id("catpick-new-entry-create"))
     assert button.name == "button"
     assert button.get("hx-post") == "/categories/picker"
+
+
+def _reconciliation_rows(db: sqlite3.Connection) -> int:
+    db.commit()
+    return int(
+        db.execute(
+            "SELECT count(*) FROM categories WHERE user_id = ? AND lower(name) = 'reconciliation'",
+            (USER_ID,),
+        ).fetchone()[0]
+    )
+
+
+def test_the_system_reconciliation_name_is_a_duplicate_on_both_create_paths(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    assert _reconciliation_rows(db) == 1
+    audits = _audits(db)
+    picker = client.post("/categories/picker", data={"name": "reconciliation"})
+    assert picker.status_code == 422
+    assert _html.error_lines(picker.text) == {"picker-create-error": _DUPLICATE}
+    settings = client.post("/categories", data={"name": "RECONCILIATION", "direction": "expense"})
+    assert settings.status_code == 422
+    assert _html.error_lines(settings.text)["field-name-error"] == _DUPLICATE
+    assert _reconciliation_rows(db) == 1
+    assert _audits(db) == audits

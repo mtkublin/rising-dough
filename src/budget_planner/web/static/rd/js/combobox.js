@@ -41,8 +41,17 @@
     if (focusOpener) p.opener.focus();
   }
 
+  /* The slot keeps one invisible line so an error line appearing does not move the dialog. */
+  function resetSlot(slot) {
+    const line = document.createElement('p');
+    line.className = 'rd-field__error';
+    line.setAttribute('aria-hidden', 'true');
+    line.textContent = '\u00a0';
+    slot.replaceChildren(line);
+  }
+
   function filter(p) {
-    if (p.slot) p.slot.textContent = '';
+    if (p.slot) resetSlot(p.slot);
     const q = p.input.value.trim().toLowerCase();
     p.list.querySelectorAll('[role="option"]').forEach((o) => {
       o.hidden = q !== '' && !o.textContent.toLowerCase().includes(q);
@@ -108,9 +117,11 @@
 
   document.addEventListener('htmx:beforeSwap', (event) => {
     const detail = event.detail;
-    if (!detail.elt || !detail.elt.matches('[data-js="combobox-create"]') || detail.xhr.status !== 200) return;
+    /* htmx fires beforeSwap on the swap target (the slot); the button is the request's element. */
+    const button = detail.requestConfig && detail.requestConfig.elt;
+    if (!button || !button.matches('[data-js="combobox-create"]') || detail.xhr.status !== 200) return;
     detail.shouldSwap = false;
-    const p = parts(detail.elt.closest('[data-js="combobox"]'));
+    const p = parts(button.closest('[data-js="combobox"]'));
     const holder = document.createElement('template');
     holder.innerHTML = detail.xhr.responseText.trim();
     const option = holder.content.firstElementChild;

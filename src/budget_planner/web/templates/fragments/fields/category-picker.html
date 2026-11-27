@@ -80,7 +80,9 @@
         hx-params="none"
         hx-target="next [data-js='combobox-create-slot']"
         hx-swap="innerHTML">+ new category “<span data-js="combobox-query">{{ query|default("") }}</span>”</button>
-    <div data-js="combobox-create-slot"></div>
+    <div data-js="combobox-create-slot">
+      <p class="rd-field__error" aria-hidden="true">&nbsp;</p>
+    </div>
   {% endif %}
 </div>
 </div>

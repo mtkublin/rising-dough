@@ -63,6 +63,7 @@ def test_a_duplicate_name_shows_the_error_in_the_picker_and_keeps_the_dialog(
 ) -> None:
     """The system Reconciliation category is not offered, so typing its name reaches no-match."""
     world.account("Checking")
+    rows = world.scalar("SELECT count(*) FROM categories WHERE lower(name) = 'reconciliation'")
     world.goto("/today")
     open_new_entry(world.page)
     fill_stable(world.find(entries.field_note.inside(entries.dialog)), "keep-me")
@@ -74,4 +75,6 @@ def test_a_duplicate_name_shows_the_error_in_the_picker_and_keeps_the_dialog(
     )
     expect(world.find(entries.dialog)).to_be_visible()
     expect(world.find(entries.field_note.inside(entries.dialog))).to_have_value("keep-me")
-    assert world.scalar("SELECT count(*) FROM categories WHERE lower(name) = 'reconciliation'") == 1
+    assert (
+        world.scalar("SELECT count(*) FROM categories WHERE lower(name) = 'reconciliation'") == rows
+    )
