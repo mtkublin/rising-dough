@@ -543,7 +543,7 @@ The whole presentation layer is replaced by the designer's handoff "Rising Dough
 - Feature parity with v3. Screens the handoff draws but the app lacks are wired only after their own requirement is added here.
 - Light and dark themes, 320–1920 px, keyboard map and command palette as in the handoff. The theme switch (system, light, dark; default system, per browser) ships in the redesign release (ADR-0134 §8).
 - Forced password change (reset and direct add), user reset and delete with one-time credential dialogs, invite pages (expired, used, invalid) as drawn; Edit user (name and member or admin; email read-only) is the first item of a member's row menu, before reset and delete; an admin's own row has no menu. Server side: no actor may demote or delete themselves, the last admin can be neither demoted nor deleted, and the email cannot be changed through edit (ADR-0134 §11, ST17; server side in the precondition release, ADR-0148).
-- Offline: the offline page and states are in scope. A failed save keeps an open dialog's typed input and shows the offline state; a service worker for failed full page loads is deferred (ADR-0134 §4, ADR-0123).
+- Offline: the offline page and states are in scope. A failed save keeps an open dialog's typed input and shows the offline state; a service worker for failed full page loads is deferred (ADR-0134 §4, ADR-0123). After the redesign release a service worker adds the offline fallback for full page loads (§16, ADR-0151).
 
 ### 10.2 Non-functional
 
@@ -633,3 +633,29 @@ Two features in two releases: savings goals first (useful on their own), then a 
 - Shared or household goals; recurring or automatic allocations; goals linked to whole accounts; tagging transactions to goals.
 - Starter levels or growing jars, leaderboards, social sharing, push or e-mail notifications, sound.
 - Resetting the starter or its milestones.
+
+---
+
+## 16. Installable Web App (PWA) (added 2026-11-27)
+
+> Decision: [ADR-0151](adr/0151-installable-pwa-as-the-mobile-app.md) (Proposed; native, WebView-shell and store options compared and rejected or deferred there). Plan: [`docs/plans/pwa/`](plans/pwa/README.md). Numbered 16 because open PRs #59, #60 and #61 each add a §13.
+
+### 16.1 Scope
+
+- **PWA1.1** The app is installable on iOS (Safari, Add to Home Screen) and Android (Chrome, Install app) and opens standalone on `/today` with the Rising Dough name, icon and theme colours.
+- **PWA1.2** `GET /manifest.webmanifest` serves the web app manifest; it is public and holds no user data.
+- **PWA1.3** A service worker at `/sw.js` (scope `/`) answers a failed full page navigation with the offline page. Navigations, HTMX requests and every non-GET request go to the network; the worker never caches an authenticated or HTML response other than the offline page.
+- **PWA1.4** `GET /offline` is public, data-free and follows the system theme.
+- **PWA1.5** Sign-out sends `Clear-Site-Data: "cache"`.
+- **PWA1.6** Settings shows a short install hint on touch widths, hidden when the app already runs standalone.
+
+### 16.2 Non-functional
+
+- CSP unchanged (ADR-0113): no inline script; the worker and its registration script are same-origin files.
+- Released through the normal path (ADR-0099); no migration, no infrastructure change.
+- Verified on a real iPhone and Android phone before release (T-PWA04), including passkey sign-in in the standalone window.
+
+### 16.3 Non-goals
+
+- Native apps, App Store or Play Store listings, WebView shells (ADR-0151 options B to E).
+- Offline data, offline editing, background sync, push notifications.
