@@ -112,8 +112,8 @@ def test_year_has_budgeted_rows_and_lists_the_rest_in_the_disclosure(
     assert _html.count(page, plan_year.row("Budgeted")) == 1
     assert _html.count(page, plan_year.row("Shop")) == 0
     assert _html.count(page, plan_year.row("Unused")) == 0
-    # Old is archived this month (it keeps a yearly row) but the "set budget" link opens on this
-    # month, which it no longer reserves: it is not listed (ADR-0136; its link would 404).
+    # Old is archived (it keeps a yearly row this year) but the set-budget dialog rejects an
+    # archived category: it is never listed, in any year (its link would 404).
     assert _html.text_of(page, plan_year.disclosure) == "2 categories without a budget"
     assert _html.texts(page, plan_year.unbudgeted("Shop")) == ["Shop"]
     assert _html.texts(page, plan_year.unbudgeted("Unused")) == ["Unused"]
@@ -129,3 +129,18 @@ def test_year_omits_archived_before_the_year_and_other_users(
     assert _html.text_of(page, plan_year.disclosure) == "2 categories without a budget"
     assert _html.count(page, plan_year.unbudgeted("Old")) == 0
     assert _html.count(page, plan_year.unbudgeted("Other")) == 0
+
+
+@pytest.mark.parametrize("year", [2025, 2026, 2099])
+def test_year_disclosure_links_all_open_a_dialog_in_every_year(
+    client: TestClient, world: None, year: int
+) -> None:
+    page = client.get(f"/plan?tab=year&year={year}").text
+
+    assert _html.text_of(page, plan_year.disclosure) == "2 categories without a budget"
+    assert _html.count(page, plan_year.unbudgeted("Old")) == 0
+    for name in ("Shop", "Unused"):
+        link = _html.resolve_one(page, plan_year.unbudgeted(name))
+        response = client.get(str(link["hx-get"]))
+        assert response.status_code == 200
+        assert _html.count(response.text, plan_year.set_dialog(name)) == 1

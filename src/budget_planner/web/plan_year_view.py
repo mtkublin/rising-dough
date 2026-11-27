@@ -239,8 +239,8 @@ def year_page(
     A category without a budget (with or without ledger entries) is a link in the collapsed
     "N categories without a budget" list, never a grid row (R14, T-UR75). ``current`` is today's
     ``(year, month)``: it marks the column heading and picks the month a "set budget" link opens on.
-    ``linkable`` holds the category ids that reserve budget in that month (ADR-0136): an archived
-    category without a budget there has no month to set one on, so it is not listed.
+    ``linkable`` holds the live category ids, the ones the set-budget dialog accepts: an archived
+    category is never listed, in any year.
     """
     current_year, current_month = current
     budgeted = tuple(_row(r, selected, currency) for r in rows if r.total_minor)
