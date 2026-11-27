@@ -205,18 +205,17 @@ inside a 2px frame), so the row does not grow and nothing below shifts. */
   padding-inline: 0;
 }
 
-/* The table fills the panel like the main one (same column tracks), so the disclosure's own inline
-   padding moves from the frame onto its summary. */
-.rd-disclosure--table {
+/* R24 (T-UR90): the collapsed "without a budget" list has no outer box: no border, radius or inline
+   padding; summary and list/table flow as part of the page. */
+.rd-disclosure {
   padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 
-.rd-disclosure--table > .rd-disclosure__summary {
-  padding-inline: var(--space-4);
-}
-
-/* Phones: the status cell of an unbudgeted row holds "no budget" and the set-budget button, too wide
-   for the card's top row (it squashed the chip). It takes its own row under the bar. */
+/* Phones: the status cell of an unbudgeted row holds the set-budget button, too wide for the card's
+   top row (it squashed the chip). It takes its own row under the bar. */
 .rd-row--unbudgeted {
   grid-template-columns: minmax(0, 1fr) var(--track-icon);
   grid-template-areas:
@@ -232,7 +231,7 @@ inside a 2px frame), so the row does not grow and nothing below shifts. */
 .rd-row--unbudgeted .rd-budget__status {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-2);
   justify-self: stretch;
 }

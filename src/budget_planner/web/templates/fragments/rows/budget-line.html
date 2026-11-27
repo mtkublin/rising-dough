@@ -17,7 +17,6 @@
   </td>
   {% if not line.has_budget %}
     <td class="rd-budget__status rd-budget__status--none rd-num">
-      no budget
       <button type="button"
               class="rd-btn"
               hx-get="/budget/rules/{{ line.line.category_id }}/overrides/new?year={{ year }}&amp;month={{ month }}&amp;tier=default"
