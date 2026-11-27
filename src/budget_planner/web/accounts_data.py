@@ -138,7 +138,10 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
         for a in ordered
     ]
     fortune = fortune_service.compute_fortune(
-        conn, user_id, fx_service.converter_for(conn, settings, today)
+        conn,
+        user_id,
+        fx_service.converter_for(conn, settings, today),
+        skip_unconvertible=True,
     )
     return {
         "rows": [account_row(c) for c in cards],
@@ -151,7 +154,15 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
             currency=settings.base_currency,
         ),
         "base_ccy": settings.base_currency,
+        "unconverted_note": _rate_note(fortune.unconverted_ccys),
     }
+
+
+def _rate_note(ccys: tuple[str, ...]) -> str | None:
+    """Hero note naming the currencies left out of the base totals (T-UR69)."""
+    if not ccys:
+        return None
+    return "rate unavailable for " + ", ".join(ccys) + ": left out of totals"
 
 
 def recent_snapshots(
