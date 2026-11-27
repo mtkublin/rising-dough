@@ -151,27 +151,41 @@ def segments(command: str) -> list[str]:
     return [s.strip() for s in _SPLIT.split(command) if s.strip()]
 
 
-def _tokens(segment: str) -> list[str]:
+def _raw_words(segment: str) -> list[str]:
+    """Words with their quotes kept, so a quoted `">x"` stays distinguishable from a redirect."""
+    lexer = shlex.shlex(segment, posix=False)
+    lexer.whitespace_split = True
+    lexer.commenters = ""
     try:
-        tokens = shlex.split(segment)
+        return list(lexer)
     except ValueError:
-        tokens = segment.split()
-    while tokens and _ENV.match(tokens[0]):
-        tokens = tokens[1:]
-    return _drop_redirects(tokens)
+        return segment.split()
 
 
-def _drop_redirects(tokens: Sequence[str]) -> list[str]:
-    """Remove `>`, `>>`, `<`, `2>&1`, `&>` and their target words: they are not arguments."""
+def _unquote(word: str) -> str:
+    try:
+        parts = shlex.split(word)
+    except ValueError:
+        return word
+    return "".join(parts)
+
+
+def _tokens(segment: str) -> list[str]:
+    words = _raw_words(segment)
+    while words and _ENV.match(words[0]):
+        words = words[1:]
+    return [_unquote(w) for w in _drop_redirects(words)]
+
+
+def _drop_redirects(words: Sequence[str]) -> list[str]:
+    """Remove unquoted `>`, `>>`, `<`, `2>&1`, `&>` and their target words (not arguments)."""
     kept: list[str] = []
     skip = False
-    prev = ""
-    for word in tokens:
-        was, prev = prev, word
+    for word in words:
         if skip:
             skip = False
             continue
-        found = None if was in _VALUE_OPTS else _REDIR.match(word)  # `-k ">x"` is data
+        found = _REDIR.match(word)
         if found is None:
             kept.append(word)
         elif not found.group("target"):

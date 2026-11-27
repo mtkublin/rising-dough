@@ -277,6 +277,8 @@ def test_main_fails_open(
         ("uv run pytest 2>&1 | tail -20", "full"),
         ("uv run pytest tests/unit/a.py -k '>x' tests/integration", "dir"),
         ("uv run pytest tests/unit/a.py -k '<x' tests/integration", "dir"),
+        ('uv run pytest tests/unit/a.py ">x" tests/integration', "dir"),
+        ("uv run pytest tests/unit/a.py '<x' tests/integration", "dir"),
         ("uv run pytest tests/unit/a.py; uv run pytest", "full"),
         ("uv run pytest tests/unit/a.py & uv run pytest tests/integration", "dir"),
         ("cd x && uv run pytest tests/unit/a.py 2>&1 | tail -3", "file"),
