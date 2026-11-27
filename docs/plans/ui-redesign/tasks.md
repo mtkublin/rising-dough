@@ -569,3 +569,31 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 ### ◻ T-UR74 [S] /ledger search placeholder cut at 375
 - Scope: /ledger search placeholder "search description…" is cut at 375 with 16px inputs (cosmetic).
 - Source: MOBILE re-audit.
+
+## Operator drill review 2 2026-11-27
+
+Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no new task: see T-UR64 (T-UR71 relates).
+
+### ◻ T-UR75 [S] Plan budget and year list all live expense categories (R14)
+- Scope: rows are all live expense categories whether or not they have ledger records (archived per ADR-0136 unchanged). Req: F4.6c, F4.8.
+
+### ◻ T-UR76 [S] Edit budget overlay: scope selector on one row (R15)
+- Scope: the scope selector, split over 2 rows, renders on one row. Req: F4.6c.
+
+### ◻ T-UR77 [S] Year chips: two options, hover popover under the cell (R16, R17)
+- Scope: "this month only" / "every <Month-Name>", this month always preselected, the year cell never changes the default tier; no outer box; overlay right beneath the clicked cell, rows below do not move, inside the viewport; light-mode colours. Supersedes the T-UR56 scope set. Req: F4.8a; ADR-0107 amendment 2026-11-27.
+
+### ◻ T-UR78 [S] Recurring empty-state new entry submit lands on an empty page (R18)
+- Scope: bug; "new entry" under an empty recurring list saves and returns the recurring list. Req: F3.2.
+
+### ◻ T-UR79 [S] Recurring day of month defaults from the start date (R19)
+- Scope: day of month follows the start date until the user edits it; a manual value is kept. Req: F3.2.
+
+### ◻ T-UR80 [S] Set budget in the status column (R20)
+- Scope: "set budget" for unbudgeted rows moves from the budget cell to the status column. Req: F4.6c.
+
+### ◻ T-UR81 [S] No auto-zoom on any touch-width input (R21)
+- Scope: every focusable text input, select, textarea and contenteditable (incl. Today hero amounts) at least 16px on touch widths; pinch zoom stays. Req: §5 touch-width line; extends T-UR61.
+
+### ◻ T-UR82 [S] Today bar legend swatches for spent and left (R23)
+- Scope: spent and left get a legend swatch like committed. Req: §5 Today bar line.
