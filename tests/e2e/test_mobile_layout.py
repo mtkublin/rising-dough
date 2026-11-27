@@ -233,7 +233,7 @@ _ZOOM_PROBLEMS_JS = """
 _OPEN_DIALOG_JS = "(url) => htmx.ajax('GET', url, { target: '#modal-root', swap: 'innerHTML' })"
 
 # Every clipped value: a control whose text is wider than its box.
-_CLIPPED_VALUE_JS = "(el) => el.scrollWidth <= el.clientWidth"
+_CLIPPED_VALUE_JS = "(el) => [el.scrollWidth, el.clientWidth]"
 
 SWEEP_ROUTES = [
     "/today",
@@ -309,12 +309,14 @@ def _sweep_popovers(phone: Page, measure: Callable[..., None], load: Callable[[s
     expect(editor).to_be_visible()
     measure("year cell", "form")
     editor.fill("12345.00")
-    assert editor.evaluate(_CLIPPED_VALUE_JS), "year cell editor clips 12345.00"
+    scroll, client = editor.evaluate(_CLIPPED_VALUE_JS)
+    assert scroll <= client, f"year cell editor clips 12345.00: {scroll} > {client}"
     load("/today")
     afford = to_playwright(phone, today.afford_amount)
     afford.fill("12345678")
     measure("afford", "form")
-    assert afford.evaluate(_CLIPPED_VALUE_JS), "afford input clips 8 digits"
+    scroll, client = afford.evaluate(_CLIPPED_VALUE_JS)
+    assert scroll <= client, f"afford input clips 8 digits: {scroll} > {client}"
 
 
 def test_every_touch_input_is_16px_in_every_route_and_dialog(
