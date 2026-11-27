@@ -89,3 +89,11 @@ formula_subtract = role("radio", "subtract", exact=True).inside(formula_group)
 formula_add_component = role("button", "+ add component", exact=True).inside(formula_group)
 formula_pick = role("button", "pick categories", exact=True).inside(formula_group)
 formula_result = role("status").inside(formula_group)
+
+
+def category_create(name: str) -> Locator:
+    """The picker's no-match button `+ new category “<name>”` (T-UR68)."""
+    return role("button", f"+ new category “{name}”", exact=True).inside(category_group)
+
+
+category_create_error = role("alert").inside(category_group)

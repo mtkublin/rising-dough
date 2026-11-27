@@ -12,6 +12,7 @@
       input: field.querySelector('[data-js="combobox-input"]'),
       list: field.querySelector('[role="listbox"]'),
       empty: field.querySelector('[data-js="combobox-empty"]'),
+      slot: field.querySelector('[data-js="combobox-create-slot"]'),
     };
   }
 
@@ -41,6 +42,7 @@
   }
 
   function filter(p) {
+    if (p.slot) p.slot.textContent = '';
     const q = p.input.value.trim().toLowerCase();
     p.list.querySelectorAll('[role="option"]').forEach((o) => {
       o.hidden = q !== '' && !o.textContent.toLowerCase().includes(q);
@@ -81,7 +83,7 @@
      below would close the panel before the button is released and the click would hit nothing
      (T-UR54). Touch has no such blur, which is why only the mouse failed. */
   document.addEventListener('mousedown', (event) => {
-    if (event.target.closest('[data-js="combobox"] [role="option"]')) event.preventDefault();
+    if (event.target.closest('[data-js="combobox"] [role="option"], [data-js="combobox-create"]')) event.preventDefault();
   });
 
   document.addEventListener('click', (event) => {
@@ -93,6 +95,31 @@
     }
     const option = event.target.closest('[data-js="combobox"] [role="option"]');
     if (option) pick(parts(option.closest('[data-js="combobox"]')), option);
+  });
+
+  /* "+ new category" (T-UR68): the button POSTs the typed name (hx-params none, so the dialog's own
+     fields are not sent); a 200 answers one list option that is inserted and picked here, a 422
+     swaps the error line into the slot next to the button. The dialog is never replaced. */
+  document.addEventListener('htmx:configRequest', (event) => {
+    const button = event.detail.elt;
+    if (!button.matches || !button.matches('[data-js="combobox-create"]')) return;
+    event.detail.parameters.name = parts(button.closest('[data-js="combobox"]')).input.value.trim();
+  });
+
+  document.addEventListener('htmx:beforeSwap', (event) => {
+    const detail = event.detail;
+    if (!detail.elt || !detail.elt.matches('[data-js="combobox-create"]') || detail.xhr.status !== 200) return;
+    detail.shouldSwap = false;
+    const p = parts(detail.elt.closest('[data-js="combobox"]'));
+    const holder = document.createElement('template');
+    holder.innerHTML = detail.xhr.responseText.trim();
+    const option = holder.content.firstElementChild;
+    if (!option) return;
+    option.id = `${p.list.id}-o${p.list.children.length}`;
+    p.list.append(option);
+    p.input.value = '';
+    pick(p, option);
+    filter(p);
   });
 
   /* The picked recent chip leads the row (the server renders it first on a re-render,
