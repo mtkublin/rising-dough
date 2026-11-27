@@ -213,7 +213,7 @@ page = "pages/*.html"
 select = ".rd-hero__note > .u-hide-below-md:-soup-contains-own(\"6,449.08 budgeted\")"
 field = "text"
 old = "6,449.08 budgeted · 5,014.55 spent · 34.60 committed · 6 categories over · 277.94 planned in unbudgeted categories"
-value = "6,449.08 budgeted · 5,014.55 spent · 446.60 committed · 8 categories over · 277.94 planned in unbudgeted categories"
+value = "6,449.08 budgeted · 5,014.55 spent · 446.60 committed · 6 categories over · 277.94 planned in unbudgeted categories"
 optional = true
 reason = "seed value via budget.month_summary and view_models.budget_view (committed, categories over)"
 
@@ -222,7 +222,7 @@ page = "pages/*.html"
 select = ".rd-hero__note > .u-hide-from-md:-soup-contains-own(\"34.60 committed\")"
 field = "text"
 old = "34.60 committed · 6 over"
-value = "446.60 committed · 8 over"
+value = "446.60 committed · 6 over"
 optional = true
 reason = "seed value via budget.month_summary and view_models.budget_view"
 

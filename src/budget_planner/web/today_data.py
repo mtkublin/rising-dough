@@ -232,6 +232,9 @@ def afford_state(
 # --- Today page view values (T-UR07, ADR-0107 section 5) --------------------------
 
 _HEX_COLOR: Final = re.compile(r"#[0-9a-f]{6}")
+_LEFT_CLASS: Final = "rd-bar__left"  # the bar remainder run and its legend glyph share it
+_INK_GLYPH: Final = "rd-stats__glyph"  # legend glyph in the bar ink (spent, committed)
+
 _PACE_STATUS: Final[Mapping[str, str]] = MappingProxyType(
     {
         "on_track": "● on track",
@@ -298,7 +301,7 @@ def _today_bar(budget: vm.BudgetView) -> TodayBar:
         modifier="",
         solid=vm.BAR_FILLED * budget.cells.filled + vm.BAR_REST * committed_cells,
         remainder=vm.BAR_LEFT * (budget.cells.empty - committed_cells),
-        remainder_class="rd-bar__left",
+        remainder_class=_LEFT_CLASS,
         label=vm.bar_aria_label(budget.spent_pct, left_pct),
     )
 
@@ -309,6 +312,8 @@ class TodayStat:
 
     label: str
     value: str
+    glyph: str = ""
+    glyph_class: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -364,9 +369,9 @@ def today_view(
         ),
         bar=_today_bar(budget),
         stats=(
-            TodayStat(f"spent {vm.BAR_FILLED}", fmt(totals.spent_minor)),
-            TodayStat(f"committed {vm.BAR_REST}", fmt(totals.committed_minor)),
-            TodayStat(f"left {vm.BAR_LEFT}", fmt(totals.remaining_minor)),
+            TodayStat("spent", fmt(totals.spent_minor), vm.BAR_FILLED, _INK_GLYPH),
+            TodayStat("committed", fmt(totals.committed_minor), vm.BAR_REST, _INK_GLYPH),
+            TodayStat("left", fmt(totals.remaining_minor), vm.BAR_LEFT, _LEFT_CLASS),
             TodayStat("of", fmt(totals.budgeted_minor)),
         ),
         net_total=fmt(fortune.net_base),

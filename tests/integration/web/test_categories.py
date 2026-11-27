@@ -116,6 +116,30 @@ def test_rename_onto_another_categorys_name_is_422_and_changes_nothing(
     assert _audit_count(db) == audits
 
 
+def test_create_case_variant_name_is_422_under_the_name_field_and_writes_nothing(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    names, audits = _names(db), _audit_count(db)
+    r = client.post("/categories", data={"name": "gROCERIES", "direction": "income"})
+    assert r.status_code == 422
+    assert _html.error_lines(r.text)["field-name-error"] == _DUPLICATE
+    assert _names(db) == names
+    assert _audit_count(db) == audits
+
+
+def test_rename_to_a_case_variant_of_another_name_is_422(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    rent = categories_repo.create(
+        db, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
+    names = _names(db)
+    r = client.post(f"/categories/{rent}", data={"name": "GROCERIES"})
+    assert r.status_code == 422
+    assert _html.error_lines(r.text)["field-name-error"] == _DUPLICATE
+    assert _names(db) == names
+
+
 def test_resaving_the_own_name_with_a_new_colour_is_not_a_duplicate(
     client: TestClient, db: sqlite3.Connection, cat_id: int
 ) -> None:
