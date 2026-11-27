@@ -45,6 +45,10 @@ def _deny(role: str, command: str, background: bool = False, state: object = FRE
         ("uv run pytest tests/integration -k fx", "dir"),
         ("uv run pytest tests/unit/test_a.py tests/contract", "dir"),
         ("uv run pytest -q", "full"),
+        ("uv run pytest tests/unit/a.py > /tmp/o.txt", "file"),
+        ("uv run pytest tests/unit/a.py >/tmp/o.txt 2>&1", "file"),
+        ("cd x && uv run pytest tests/unit/a.py", "file"),
+        ("uv run pytest tests/integration 2>&1", "dir"),
         ("PYTEST_WORKERS=2 just test-changed abc123", "full"),
         ("just ci", "full"),
         ("git status --short", None),
@@ -264,3 +268,22 @@ def test_main_fails_open(
     monkeypatch.setattr(sys, "stdin", io.StringIO("{not json"))
     assert guard.main(["agent_guard.py", "pre-tool"]) == 0
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("command", "kind"),
+    [
+        ("uv run pytest tests/unit/a.py -p no:xdist 2>&1 | tail -5", "file"),
+        ("uv run pytest 2>&1 | tail -20", "full"),
+        ("uv run pytest tests/unit/a.py -k '>x' tests/integration", "dir"),
+        ("uv run pytest tests/unit/a.py -k '<x' tests/integration", "dir"),
+        ('uv run pytest tests/unit/a.py ">x" tests/integration', "dir"),
+        ("uv run pytest tests/unit/a.py '<x' tests/integration", "dir"),
+        ("uv run pytest tests/unit/a.py; uv run pytest", "full"),
+        ("uv run pytest tests/unit/a.py & uv run pytest tests/integration", "dir"),
+        ("cd x && uv run pytest tests/unit/a.py 2>&1 | tail -3", "file"),
+    ],
+)
+def test_chain_kind(command: str, kind: str) -> None:
+    parts = guard.segments(command)
+    assert guard.worst(k for k in (guard.run_kind(p) for p in parts) if k) == kind

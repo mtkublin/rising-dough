@@ -326,8 +326,11 @@ def _reject_duplicate_name(
     """:class:`ValidationError` when another live category of the user already has ``name``."""
     if name is None:
         return
-    other = categories_repo.find_by_name(conn, user_id, name)
-    if other is not None and other.id != own_id:
+    wanted = name.casefold()
+    if any(
+        c.id != own_id and c.name.casefold() == wanted
+        for c in categories_repo.list_all(conn, user_id)
+    ):
         raise ValidationError(fields={"name": DUPLICATE_NAME_MESSAGE})
 
 
