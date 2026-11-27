@@ -364,6 +364,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Findings fixed or triaged with the operator; results attached to the release PR.
 - **Hardening (from v3 T-D140d, ADR-0113)**: drop inline `style=` attributes and remove `'unsafe-inline'` from `style-src` in the prod CSP (from v3 T-D140d, ADR-0113). The Caddyfile CSP lives in `terraform/cloud-init/compose/Caddyfile.tpl`; the e2e CSP guard (T-D140c) parses it. Acceptance: no `style="` attribute in any rendered page (crawler and axe runs), and the CSP guard passes with `style-src 'self'` only.
 - Progress (2026-11-26): CSP style-src hardening attempted on branch wi/ui/sourdough/CSP (not merged): nonce'd `<style>` in swapped fragments mismatched the page nonce (fixed there via `data-color-rules` + `color-rules.js`), but WebKit still reports style-src-attr violations from an unidentified source; parked until after the drill.
+- Decided (2026-11-27): CSP style-src: one timeboxed attempt (< 1 h); if unsolved, release keeps 'unsafe-inline' and the hardening becomes a post-release follow-up.
 
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
@@ -547,6 +548,7 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 ### ◻ T-UR68 [S] New category from the entry dialog without losing the open dialog
 - Scope: nested flow; the ACCFIX review kept the plain link.
 - Source: ACCFIX review (734270aa).
+- Decided (2026-11-27): inline create "<typed>" in the picker's no-match state; dialog stays open with typed values.
 
 ### ◻ T-UR69 [S] EUR account save without a cached FX rate
 - Scope: EUR account save with no cached FX rate leaves "No accounts yet" and shows "Exchange rate unavailable".
@@ -555,6 +557,7 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 ### ◻ T-UR70 [S] Budget hero "N over" and Total exclude unbudgeted rows
 - Scope: "N over" counts unbudgeted rows over a zero budget; Total excludes unbudgeted spend. Operator decision needed. Pre-existing.
 - Source: BUDUX audit.
+- Decided (2026-11-27): budgeted rows only (operator-decisions-2026-11-27.md).
 
 ### ◻ T-UR71 [S] Year grid table.rd-year overflows at 1024 and 375
 - Scope: table.rd-year overflows at 1024 and 375. Pre-existing; relates to T-UR64.
@@ -647,3 +650,27 @@ Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no ne
 - Scope: on Plan/year a click or tap outside the edited cell and its chips closes the editor like Escape (value not saved, no request); a click on another cell opens that cell's editor; clicks on a chip or in the input do not close. Owned by item OUTCLICK (`static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`).
 - Files: `static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`, `docs/requirements.md` F4.8a.
 - Source: operator drill review 3, R27.
+
+## Pre-release run 2026-11-27
+
+Source: [operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md) "Pre-release scope"; operator: do everything possible before T-UR17.
+
+### ◻ T-UR94 [S] Today bar legend swatches use the bar segment colours
+- Scope: the spent, committed and left legend tiles on /today use exactly the same colours (tokens) as the matching bar segments, light and dark.
+- Source: operator 2026-11-27 (after drill review 3; T-UR82 follow-up).
+
+### ◻ T-UR95 [S] Category names unique ignoring case
+- Scope: create and rename reject a name equal ignoring case to another live category of the user (422 on name); no migration; rename to own case variant allowed.
+- Source: operator 2026-11-27.
+
+### ◻ T-UR96 [S] Planned save shows its flash
+- Scope: a successful planned save from the new-entry dialog shows the success flash (docs/audits/2026-11-26-d5-new-entry-tab-carry.md:25 saw none after the HX-Refresh path; docs/audits/2026-11-26-bugce-new-entry-in-place-ledger-1024.md:52 saw it). Investigate per page, fix where missing.
+- Source: operator open question, docs/runs/2026-11-26-ui-sourdough-release-prep.md:102.
+
+### ◻ T-UR97 [S] Keyboard map and reduced-motion journeys
+- Scope: e2e journeys for the missing keys of the T-UR16 keyboard map (`g a`, `g p`, `g s`, `n`, `[`, `]`, ⌘K as Meta+k) and a reduced-motion check; part of T-UR16.
+- Source: T-UR16.
+
+### ◻ T-UR98 [S] Accepted-UI snapshot routes
+- Scope: `tests/visual/test_snapshots.py` ROUTES (empty today) lists every page route and the main dialogs on a deterministic seed, so the `update_baselines` dispatch of T-UR65 produces the accepted-UI baselines; precondition of T-UR65.
+- Source: ADR-0154 §2; explorer 2026-11-27.
