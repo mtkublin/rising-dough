@@ -40,7 +40,7 @@ def test_create_eur_account_without_rate_saves_and_lists(
     page = client.get("/accounts")
     assert page.status_code == 200
     assert _html.exists(page.text, accounts.row(row["id"]))
-    assert "No accounts yet" not in page.text
+    assert not _html.exists(page.text, accounts.new_account_cta)
     assert "rate unavailable for EUR: left out of totals" in _html.text_of(
         page.text, accounts.rate_note
     )

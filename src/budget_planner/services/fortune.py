@@ -27,6 +27,18 @@ class FortuneTotals:
     unconverted_ccys: tuple[str, ...] = ()
 
 
+def _to_base_pair(
+    converter: fx_service.FxConverter, bal: int, ccy: str, *, skip: bool
+) -> tuple[int, int] | None:
+    """``(balance, abs balance)`` in base; ``None`` when the rate is missing and ``skip``."""
+    try:
+        return converter.to_base(bal, ccy), converter.to_base(abs(bal), ccy)
+    except fx_service.FxUnavailableError:
+        if skip:
+            return None
+        raise
+
+
 def compute_fortune(
     conn: sqlite3.Connection,
     user_id: int,
@@ -36,10 +48,9 @@ def compute_fortune(
 ) -> FortuneTotals:
     """Return the Assets / Liabilities / Net split over live accounts (ADR-0139, Q-009).
 
-    Per-currency buckets stay native; ``*_base`` fields sum each account converted
-    at the converter's latest cached rate (a missing rate raises ``FxUnavailableError``).
-    With ``skip_unconvertible`` an account whose rate is missing is left out of the ``*_base``
-    sums and its currency is listed in ``unconverted_ccys`` (T-UR69, the Accounts page).
+    Per-currency buckets stay native; ``*_base`` fields sum each account at the latest cached
+    rate; a missing rate raises ``FxUnavailableError`` unless ``skip_unconvertible`` (T-UR69)
+    leaves the account out and lists its currency in ``unconverted_ccys``.
     """
     assets_by_ccy: dict[str, int] = {}
     liabilities_by_ccy: dict[str, int] = {}
@@ -58,14 +69,11 @@ def compute_fortune(
         else:
             assets_by_ccy[ccy] = assets_by_ccy.get(ccy, 0) + bal
         net_by_ccy[ccy] = net_by_ccy.get(ccy, 0) + bal
-        try:
-            in_base = converter.to_base(bal, ccy)
-            owed_base = converter.to_base(abs(bal), ccy)
-        except fx_service.FxUnavailableError:
-            if not skip_unconvertible:
-                raise
+        converted = _to_base_pair(converter, bal, ccy, skip=skip_unconvertible)
+        if converted is None:
             unconverted.add(ccy)
             continue
+        in_base, owed_base = converted
         if account.is_liability:
             liabilities_base += owed_base
         else:
