@@ -154,11 +154,11 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
             currency=settings.base_currency,
         ),
         "base_ccy": settings.base_currency,
-        "unconverted_note": _unconverted_note(fortune.unconverted_ccys),
+        "unconverted_note": _rate_note(fortune.unconverted_ccys),
     }
 
 
-def _unconverted_note(ccys: tuple[str, ...]) -> str | None:
+def _rate_note(ccys: tuple[str, ...]) -> str | None:
     """Hero note naming the currencies left out of the base totals (T-UR69)."""
     if not ccys:
         return None

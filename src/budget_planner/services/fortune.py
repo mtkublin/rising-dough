@@ -27,7 +27,7 @@ class FortuneTotals:
     unconverted_ccys: tuple[str, ...] = ()
 
 
-def _to_base_pair(
+def _base_amounts(
     converter: fx_service.FxConverter, bal: int, ccy: str, *, skip: bool
 ) -> tuple[int, int] | None:
     """``(balance, abs balance)`` in base; ``None`` when the rate is missing and ``skip``."""
@@ -69,11 +69,11 @@ def compute_fortune(
         else:
             assets_by_ccy[ccy] = assets_by_ccy.get(ccy, 0) + bal
         net_by_ccy[ccy] = net_by_ccy.get(ccy, 0) + bal
-        converted = _to_base_pair(converter, bal, ccy, skip=skip_unconvertible)
-        if converted is None:
+        amounts = _base_amounts(converter, bal, ccy, skip=skip_unconvertible)
+        if amounts is None:
             unconverted.add(ccy)
             continue
-        in_base, owed_base = converted
+        in_base, owed_base = amounts
         if account.is_liability:
             liabilities_base += owed_base
         else:
