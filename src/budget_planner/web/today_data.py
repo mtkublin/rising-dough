@@ -309,6 +309,8 @@ class TodayStat:
 
     label: str
     value: str
+    glyph: str = ""
+    glyph_class: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -364,9 +366,9 @@ def today_view(
         ),
         bar=_today_bar(budget),
         stats=(
-            TodayStat(f"spent {vm.BAR_FILLED}", fmt(totals.spent_minor)),
-            TodayStat(f"committed {vm.BAR_REST}", fmt(totals.committed_minor)),
-            TodayStat(f"left {vm.BAR_LEFT}", fmt(totals.remaining_minor)),
+            TodayStat("spent", fmt(totals.spent_minor), vm.BAR_FILLED, "rd-stats__glyph"),
+            TodayStat("committed", fmt(totals.committed_minor), vm.BAR_REST, "rd-stats__glyph"),
+            TodayStat("left", fmt(totals.remaining_minor), vm.BAR_LEFT, "rd-bar__left"),
             TodayStat("of", fmt(totals.budgeted_minor)),
         ),
         net_total=fmt(fortune.net_base),

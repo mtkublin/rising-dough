@@ -19,12 +19,12 @@
       <p id="today-bar">
         <span class="rd-bar rd-bar--lg{% if view.bar.modifier %} {{ view.bar.modifier }}{% endif %}"
               role="img"
-              aria-label="{{ view.bar.label }}">{{ view.bar.solid }}<span class="{{ view.bar.remainder_class }}">{{ view.bar.remainder }}</span></span>
+              aria-label="{{ view.bar.label }}">{{ view.bar.solid }}<span class="{{ view.bar.remainder_class }}" id="today-bar-remainder">{{ view.bar.remainder }}</span></span>
       </p>
       <dl class="rd-stats" id="today-stats">
         {% for stat in view.stats %}
           <div>
-            <dt class="rd-stats__label">{{ stat.label }}</dt>
+            <dt class="rd-stats__label">{{ stat.label }}{% if stat.glyph %} <span class="{{ stat.glyph_class }}" id="today-legend-{{ stat.label }}">{{ stat.glyph }}</span>{% endif %}</dt>
             <dd class="rd-stats__value">
               {{ stat.value }}
             </dd>
