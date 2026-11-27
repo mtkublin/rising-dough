@@ -115,8 +115,9 @@ inside a 2px frame), so the row does not grow and nothing below shifts. */
     letter-spacing: -0.07em;
   }
 
+  /* T-UR87: 14ch holds "12,345,678.00" (13 characters) at 16px. */
   .rd-input--afford .rd-input__control {
-    width: 10ch;
+    width: 14ch;
   }
 }
 

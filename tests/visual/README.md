@@ -2,9 +2,23 @@
 
 Opt-in suites (not part of `just ci`). ADR-0027 section 4, amended by ADR-0106.
 
-## Route snapshots (`test_snapshots.py`, T-Q251)
+## Route snapshots (`test_snapshots.py`, `snapshot_routes.py`, T-Q251, T-UR98)
 
-Two remaining old-UI routes (budget, forecast; migrated pages are compared against the handoff references) x 375/1024/1440, light theme, baselines in `__snapshots__/` (Linux only). Run with `just visual` (docker, pinned Playwright container) or via `.github/workflows/visual.yml`; regenerate with `just visual-update` or the `update_baselines` dispatch (artifact, then commit). Never generate baselines on macOS. Tolerance `MAX_DIFF_PIXEL_RATIO = 0.001`. Missing baseline: fails in CI, skips locally.
+The accepted-UI baselines (ADR-0154 section 1-4). Decisions:
+
+- Data: the **handoff base seed** (`handoff_seed.build_seed`) served by the frozen-clock server at 2026-10-31, the data the operator accepted; deterministic, the same as `test_reference.py`. Not `data/demo.sqlite`.
+- Matrix: 30 cases (`snapshot_routes.CASES`: 20 pages, 10 dialogs) x 1440/1024/375 x light/dark = 180 images, `__snapshots__/<case>.<width>.<theme>.png`.
+- Pages: Today, Ledger (actual, planned, recurring, recently deleted), Plan (budget, year, forecast, analytics), Accounts, Settings (preferences, categories, FX, security, users), auth pages signed out (login, invite, invalid invite), errors (404, 422).
+- Dialogs, over their base page: new entry (happened, planned, repeats), edit transaction, new account, reconcile, set budget, override, new category, command palette. They reuse `handoff_openers.OPENERS`, `test_reference.OVERLAY_DIALOGS` and `handoff_clicks`; no route table is copied (`snapshot_routes` imports them, so `test_reference.py` stays the single source until it is removed in T-UR65).
+- Linux only (pinned Playwright container). Tolerance `MAX_DIFF_PIXEL_RATIO = 0.001`. Missing baseline: fails when `CI` is set (writing the actual shot into `__snapshots__/` for the artifact), skips locally. Run with `-m visual` (the default addopts deselect it).
+
+### How T-UR65 produces the baselines
+
+1. The operator dispatches `visual.yml` with `update_baselines=true` (`scripts/ci/visual_in_container.sh update` sets `VISUAL_UPDATE=1`, every case writes its PNG and passes).
+2. The run uploads `tests/visual/__snapshots__/` as the `visual-baselines` artifact.
+3. An agent downloads the artifact and commits the PNGs under `tests/visual/__snapshots__/`. From then on the per-PR `visual` job compares each case against them.
+
+Never generate or commit baselines on macOS or from a laptop. `just visual` runs the comparison in docker, `just visual-update` regenerates.
 
 ## Handoff references (`handoff.py`, `test_reference.py`, T-UT10)
 
