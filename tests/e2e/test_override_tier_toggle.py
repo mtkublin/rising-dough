@@ -59,8 +59,8 @@ def test_tier_toggle_on_plan_year_dialog(live_server: tuple[str, Path], page: Pa
     to_playwright(page, plan_year.cell("Groceries", "March")).click(modifiers=["Shift"])
     dialog = plan_year.dialog("Groceries", "Mar 2026")
     expect(to_playwright(page, plan_year.amount(dialog))).to_be_visible()
-    # a default-tier cell opens the dialog on the tier its inline editor preselects
-    _assert_toggle(page, dialog, opens_on=_LABELS[2])
+    # a year cell opens the dialog on the scope its inline editor preselects (this month only)
+    _assert_toggle(page, dialog, opens_on=_LABELS[0])
 
 
 def test_recurring_override_saved_from_plan_year(live_server: tuple[str, Path], page: Page) -> None:
@@ -101,3 +101,32 @@ def test_tier_toggle_on_budget_tab_dialog(live_server: tuple[str, Path], page: P
     expect(to_playwright(page, plan_year.amount(dialog))).to_be_visible()
     # The row's budget is the default tier, so the dialog opens on it (BUDUX).
     _assert_toggle(page, dialog, opens_on=_LABELS[2])
+
+
+_ROW_JS = """(input) => {
+  const box = input.closest('.rd-segmented');
+  const options = [...box.querySelectorAll('.rd-segmented__option')];
+  return {
+    tops: options.map((o) => Math.round(o.getBoundingClientRect().top)),
+    fits: options.every((o) => o.scrollWidth <= o.clientWidth),
+    boxFits: box.scrollWidth <= box.clientWidth,
+  };
+}"""
+
+
+@pytest.mark.parametrize("width", [1440, 1024])
+def test_scope_options_share_one_row_on_desktop(
+    live_server: tuple[str, Path], page: Page, width: int
+) -> None:
+    """R15 (T-UR76): the three scope options sit on one row and none is clipped."""
+    base_url, db_path = live_server
+    _seed_budgeted(base_url, db_path, page)
+    page.set_viewport_size({"width": width, "height": 900})
+    page.goto(f"{base_url}/plan?tab=budget&year=2026&month={_MARCH}")
+    to_playwright(page, plan_budget.row_menu_button("Groceries")).click()
+    to_playwright(page, plan_budget.edit_budget_item("Groceries")).click()
+    dialog = plan_year.dialog("Groceries", "Mar 2026")
+    expect(to_playwright(page, plan_year.amount(dialog))).to_be_visible()
+    measured = to_playwright(page, plan_year.tier(dialog, _LABELS[0])).evaluate(_ROW_JS)
+    assert len(set(measured["tops"])) == 1, measured
+    assert measured["fits"] and measured["boxFits"], measured

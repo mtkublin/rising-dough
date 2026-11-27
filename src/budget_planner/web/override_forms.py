@@ -17,6 +17,7 @@ from budget_planner.web import plan_year_view
 from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int
 
 MONTHS_IN_YEAR: Final = 12
+YEAR_ORIGIN: Final = "year"  # the year grid's inline editor posts this: no default tier from there
 
 _REJECTIONS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
     {

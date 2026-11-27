@@ -58,6 +58,7 @@ def cell_editor(category_name: str, month_name: str) -> Locator:
 
 # Inline cell editor scope chips (F4.8a): one editor is open at a time
 cell_scope_group = role("radiogroup", "budget scope")
+cell_scope_chips = role("radio").inside(cell_scope_group)
 
 
 def cell_scope(label_text: str) -> Locator:

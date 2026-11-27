@@ -48,33 +48,49 @@ def _post(client: TestClient, category: int, **fields: str) -> int:
     return client.post(f"/budget/rules/{category}/overrides", data=form).status_code
 
 
-def test_editor_form_has_the_three_scope_chips(client: TestClient, groceries: int) -> None:
+def test_editor_form_has_exactly_the_two_scope_chips(client: TestClient, groceries: int) -> None:
     page = client.get(URL).text
 
     group = _html.resolve_one(page, plan_year.cell_scope_group)
-    chips = [(r.get("name"), r.get("value")) for r in group.find_all("input", type="radio")]
-    assert chips == [("tier", "one-off"), ("tier", "recurring"), ("tier", "default")]
+    chips = [
+        (r.get("name"), r.get("value"), r.has_attr("checked")) for r in group.find_all("input")
+    ]
+    assert chips == [("tier", "one-off", True), ("tier", "recurring", False)]
     assert _html.count(page, plan_year.cell_scope("this month only")) == 1
-    assert _html.count(page, plan_year.cell_scope("every month (default)")) == 1
+    assert _html.count(page, plan_year.cell_scope("every month (default)")) == 0
     assert _html.count(page, plan_year.cell_scope("every month")) == 0
 
 
 @pytest.mark.parametrize(
-    ("month", "scope", "label"),
-    [
-        ("March", "one-off", "every march"),
-        ("June", "recurring", "every june"),
-        ("January", "default", "every january"),
-    ],
+    ("month", "label"),
+    [("March", "every march"), ("June", "every june"), ("January", "every january")],
 )
-def test_cell_preselects_its_own_tier(
-    client: TestClient, groceries: int, month: str, scope: str, label: str
+def test_every_cell_opens_on_this_month_only_and_labels_its_month(
+    client: TestClient, groceries: int, month: str, label: str
 ) -> None:
     page = client.get(URL).text
 
     cell = _html.resolve_one(page, plan_year.cell("Groceries", month))
-    assert cell["data-scope"] == scope
+    assert "tier=one-off" in cell["href"]
+    assert "data-scope" not in cell.attrs
     assert cell["data-recurring-label"] == label
+
+
+def test_default_scope_from_the_year_cell_is_a_visible_422_and_writes_nothing(
+    client: TestClient, db: sqlite3.Connection, groceries: int
+) -> None:
+    before = audit_total(db)
+    r = client.post(
+        f"/budget/rules/{groceries}/overrides",
+        data={"year": "2026", "month": "4", "amount": "1.00", "tier": "default", "origin": "year"},
+    )
+
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) != {}
+    assert audit_total(db) == before
+    default = budgets_repo.get_default(db, USER_ID, groceries)
+    assert default is not None
+    assert default.amount == 50_000
 
 
 def test_inline_save_every_month_default_writes_the_default(
