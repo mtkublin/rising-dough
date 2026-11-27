@@ -64,3 +64,39 @@
 - **Context**: PR #23 had no Terraform changes, so the path-filtered `terraform.yml` never posted its three required checks and the PR stayed blocked. The operator removed them from the `protect-main` ruleset by hand on 2026-11-18 (no bypass, no drill gate rerun).
 - **Deliverables**: ADR-0121; `github-settings.md` §3 lists the actual required checks; CHANGELOG line.
 - **Acceptance**: a PR without Terraform changes is mergeable once `drill-gate`, `just ci`, the lock check and the security scans pass.
+
+## CI check audit follow-ups (proposed 2026-11-27)
+
+Source: [check-audit-2026-11-27.md](check-audit-2026-11-27.md). Not scheduled; each needs an operator go. Workflow edits need the operator (agents lack the workflow scope). Tasks that change required checks or the drill gate need an ADR first.
+
+### ◻ T-CS10 [S] Shifted-clock matrix runs only clock-dependent tests → ADR-0140 amendment (audit D2)
+- **Deliverables**: ADR-0140 amendment choosing selection (exclude `tests/architecture`, `tests/unit/deploy`, `tests/visual`, `tests/ui_map`) and/or trigger (`main` push + daily schedule); `ci.yml` change.
+- **Acceptance**: each shifted-clock job runs under half its 2026-11-27 time; a seeded date-dependent failure still fails it.
+
+### ◻ T-CS11 [S] Drill gate reuses the PR's CI result → ADR-0099 amendment (audit D3)
+- **Deliverables**: ADR-0099 amendment; `drill.yml` replaces the `ci` call with a head-SHA check-run lookup of the required checks; explore skips it.
+- **Acceptance**: a gate drill on a green SHA reaches `build` within 1 min; a SHA with a failed `just ci` fails the gate before `build`.
+
+### ◻ T-CS12 [S] Advisory browser jobs run only on frontend changes (audit D6)
+- **Deliverables**: `e2e.yml` `e2e-browsers` and `a11y-perf.yml` gated by the `visual.yml` classifier, plus weekly schedule; a11y folded into the Chromium e2e job.
+- **Acceptance**: a docs-only PR shows no Firefox, WebKit, a11y or perf check; required set unchanged.
+
+### ◻ T-CS13 [S] Handoff overlay test parses each page once (audit D10)
+- **Deliverables**: `tests/visual/test_handoff_overlay.py` builds the pristine soup once per page; same for `test_no_stale_today_key_after_overlay` if it has the same pattern. Void if ADR-0154 is accepted first.
+- **Acceptance**: the test runs under 10 s locally with identical assertions.
+
+### ◻ T-CS14 [XS] CI job runs hooks then only the tests (audit D1)
+- **Deliverables**: `ci.yml` "Run full CI pipeline" step runs `just test` instead of `just ci`; `just ci` stays the local all-in-one.
+- **Acceptance**: each of ruff, mypy, sqlfluff, djlint, xenon, lint-imports and stylelint runs once in the job log.
+
+### ◻ T-CS15 [S] One Trivy scan per target; image scan only when image inputs change (audit D4) → ADR-0121 pattern
+- **Deliverables**: `security.yml` single scan per target (SARIF + exit code); `changes` + gate job so `trivy image` still posts its required result when skipped.
+- **Acceptance**: docs-only PR builds no image; a seeded HIGH finding still fails the check.
+
+### ◻ T-CS16 [XS] Terraform `fmt-validate` runs once per run (audit D8, D9)
+- **Deliverables**: `terraform.yml` `fmt-validate` only on `pull_request` or first call per drill run; static name for the call-only `apply` job.
+- **Acceptance**: a gate drill shows one `fmt + validate + lint` job; PRs no longer show `apply (${{ inputs.env }})`.
+
+### ◻ T-CS17 [XS] Lock check inside the CI job (audit D7, optional)
+- **Deliverables**: `ci.yml` uses `uv sync --locked`; `lock-check.yml` and its required context removed (ruleset change by the operator, `github-settings.md`).
+- **Acceptance**: a stale `uv.lock` fails `just ci`.
