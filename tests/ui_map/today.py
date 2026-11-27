@@ -8,7 +8,7 @@ ids below exist only in the app: the handoff has fixed rows.
 
 from __future__ import annotations
 
-from tests.ui_map.locator import Locator, by_id, role
+from tests.ui_map.locator import Locator, by_id, label, role
 
 # The hero heading is the "left to spend per day" label; there is no "Today" h1.
 heading = role("heading", "left to spend per day", level=1)
@@ -35,6 +35,7 @@ afford_delta = by_id("afford-result")
 upcoming_rows = role("listitem").inside(upcoming)
 promote_all_due = role("button", "promote all due")
 
+afford_amount = label("can i afford it?", exact=True)  # the afford input (T-UR81)
 hero_per_day = by_id("hero-per-day")  # the hero "left per day" figure
 spent_bar = role("img", "percent spent")  # the hero bar: "N percent spent, M percent left"
 stats = by_id(
