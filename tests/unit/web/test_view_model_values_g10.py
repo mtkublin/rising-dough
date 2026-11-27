@@ -158,8 +158,8 @@ def test_upcoming_group_counts() -> None:
     assert (view.next_7_count, view.later_count) == (3, 2)
 
 
-def test_budget_view_over_count_includes_unbudgeted_spend() -> None:
-    """R14 only moved unbudgeted rows into a list: hero "N over" still counts them (T-UR75)."""
+def test_budget_view_over_count_excludes_unbudgeted_spend() -> None:
+    """Hero "N over" counts budgeted rows only; unbudgeted spend is not counted (T-UR70)."""
     unbudgeted = CategoryBudgetLine(
         category_id=9,
         category_name="c9",
@@ -188,4 +188,4 @@ def test_budget_view_over_count_includes_unbudgeted_spend() -> None:
     view = view_models.budget_view(summary, TODAY)
     assert [v.line.category_id for v in view.lines] == [1]
     assert [v.line.category_id for v in view.unbudgeted_lines] == [9]
-    assert view.over_count == 2
+    assert view.over_count == 1
