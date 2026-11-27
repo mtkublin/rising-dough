@@ -21,7 +21,7 @@
               role="img"
               aria-label="{{ view.bar.label }}">{{ view.bar.solid }}<span class="{{ view.bar.remainder_class }}" id="today-bar-remainder">{{ view.bar.remainder }}</span></span>
       </p>
-      <dl class="rd-stats" id="today-stats">
+      <dl class="rd-stats" id="today-stats" data-bar="{{ view.bar.modifier }}">
         {% for stat in view.stats %}
           <div>
             <dt class="rd-stats__label">{{ stat.label }}{% if stat.glyph %} <span class="{{ stat.glyph_class }}" id="today-legend-{{ stat.label }}">{{ stat.glyph }}</span>{% endif %}</dt>

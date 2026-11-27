@@ -6207,6 +6207,11 @@ form.htmx-request .rd-btn[type="submit"]::after {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   }
 }
+
+/* Over budget the whole bar is --color-over (bar.css): the ink legend glyphs follow it. */
+.rd-stats[data-bar="rd-bar--over"] .rd-stats__glyph {
+  color: var(--color-over);
+}
 }
 
 /* utilities.css */

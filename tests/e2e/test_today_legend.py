@@ -6,6 +6,7 @@ light and dark, at desktop and phone width. T-UR87: the afford field holds "12,3
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -22,7 +23,7 @@ _CLIPPED_JS = "(el) => [el.scrollWidth, el.clientWidth]"
 _SIZES = ((1440, 900), (375, 812))
 
 
-def _seed(base_url: str, db_path: Path, page: Page) -> None:
+def _seed(base_url: str, db_path: Path, page: Page) -> int:
     post = page.request.post
     assert post(
         f"{base_url}/accounts",
@@ -31,6 +32,7 @@ def _seed(base_url: str, db_path: Path, page: Page) -> None:
     assert post(f"{base_url}/categories", form={"name": "Rent", "direction": "expense"}).ok
     category_id = db_probe.category_id(db_path, "Rent")
     assert post(f"{base_url}/budget/defaults/{category_id}", form={"amount": "500.00"}).ok
+    return category_id
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
@@ -64,3 +66,26 @@ def test_afford_input_holds_13_characters_at_375(live_server: tuple[str, Path], 
     scroll, client = afford.evaluate(_CLIPPED_JS)
     assert scroll <= client, f"afford input clips 13 characters: {scroll} > {client}"
     assert page.evaluate("document.documentElement.scrollWidth") <= 375
+
+
+def test_legend_glyphs_follow_the_over_budget_bar(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, db_path = live_server
+    category_id = _seed(base_url, db_path, page)
+    account_id = db_probe.account_id(db_path, "Checking")
+    spend = page.request.post(
+        f"{base_url}/transactions",
+        form={
+            "operation_date": date.today().isoformat(),  # noqa: DTZ011 - tests may read the clock
+            "category_id": str(category_id),
+            "account_id": str(account_id),
+            "amount": "900.00",
+            "description": "over budget",
+        },
+    )
+    assert spend.ok, spend.text()
+    page.goto(f"{base_url}/today")
+    bar = to_playwright(page, today.spent_bar).evaluate(_COLOR_JS)
+    assert to_playwright(page, today.legend_glyph("spent")).evaluate(_COLOR_JS) == bar
+    assert to_playwright(page, today.legend_glyph("committed")).evaluate(_COLOR_JS) == bar
