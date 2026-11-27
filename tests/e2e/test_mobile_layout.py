@@ -14,7 +14,7 @@ import pytest
 from playwright.sync_api import Page, ViewportSize, expect
 
 from tests.e2e import db_probe
-from tests.ui_map import entries, plan_year, rd_fragments, rd_shell, today
+from tests.ui_map import entries, plan_budget, plan_year, rd_fragments, rd_shell, today
 from tests.ui_map.locator import by_id, role, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -296,7 +296,7 @@ def _sweep_popovers(phone: Page, measure: Callable[..., None], load: Callable[[s
     to_playwright(phone, entries.formula_pick).first.click()
     measure("multi-select filter", "dialog[open]")
     load("/plan?tab=budget&year=2026&month=6")
-    to_playwright(phone, rd_fragments.period_trigger).click()
+    to_playwright(phone, plan_budget.period_trigger).click()
     expect(to_playwright(phone, rd_fragments.period_picker)).to_be_visible()
     measure("period picker", "dialog[open]")
     load("/today")
