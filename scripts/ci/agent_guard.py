@@ -165,11 +165,13 @@ def _drop_redirects(tokens: Sequence[str]) -> list[str]:
     """Remove `>`, `>>`, `<`, `2>&1`, `&>` and their target words: they are not arguments."""
     kept: list[str] = []
     skip = False
+    prev = ""
     for word in tokens:
+        was, prev = prev, word
         if skip:
             skip = False
             continue
-        found = _REDIR.match(word)
+        found = None if was in _VALUE_OPTS else _REDIR.match(word)  # `-k ">x"` is data
         if found is None:
             kept.append(word)
         elif not found.group("target"):
