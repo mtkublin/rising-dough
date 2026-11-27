@@ -235,11 +235,11 @@ def year_period(selected: int) -> BudgetPeriod:
 def _split_rows(
     rows: tuple[budget_service.YearlyRow, ...], usage: Mapping[int, CategoryUsage]
 ) -> tuple[tuple[budget_service.YearlyRow, ...], tuple[budget_service.YearlyRow, ...]]:
-    """``(grid rows, disclosure rows)``: budgeted, then unset ones only a rule or plan uses."""
+    """``(grid rows, disclosure rows)``: budgeted, then unset ones with no ledger entry."""
     entries = {cid: u.entry_count for cid, u in usage.items()}
     with_budget = tuple(r for r in rows if r.total_minor)
     unset = tuple(r for r in rows if not r.total_minor)
-    grid_unset = tuple(r for r in unset if entries.get(r.category_id) == 0)
+    grid_unset = tuple(r for r in unset if not entries.get(r.category_id))
     listed = tuple(r for r in unset if entries.get(r.category_id))
     return (*with_budget, *grid_unset), listed
 
@@ -254,10 +254,10 @@ def year_page(
 ) -> YearPage:
     """Grid rows for categories with a budget, the rest as links in the disclosure.
 
-    A category without a budget is a grid row of unset cells when only a planned item or rule
-    uses it, a disclosure link when it has entries, and hidden when nothing uses it (handoff
-    ``pages/plan/year``; ``derived.md``). ``current`` is today's ``(year, month)``: it marks the
-    column heading and picks the month a "set budget" link opens on.
+    A category without a budget is a grid row of unset cells when it has no ledger entry, and a
+    disclosure link when it has entries; every live category is listed (R14, T-UR75).
+    ``current`` is today's ``(year, month)``: it marks the column heading and picks the month a
+    "set budget" link opens on.
     """
     current_year, current_month = current
     on_grid, listed = _split_rows(rows, usage)

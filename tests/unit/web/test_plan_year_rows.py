@@ -32,13 +32,13 @@ def test_unbudgeted_categories_are_listed_by_use() -> None:
         _row(2, "Big purchases", 60_435),
         _row(3, "Fixed costs", None),  # entries: the disclosure
         _row(4, "Taxes", None),  # entries and a rule: the disclosure
-        _row(5, "Unused", None),  # nothing uses it: hidden
+        _row(5, "Unused", None),  # nothing uses it: still a grid row (R14)
     )
     usage = {1: _usage(0, rules=1), 3: _usage(7), 4: _usage(2, rules=1)}
 
     page = year_page(rows, 2026, current=(2026, 10), currency="PLN", usage=usage)
 
-    assert [r.category_name for r in page.rows] == ["Big purchases", "Bank fees"]
+    assert [r.category_name for r in page.rows] == ["Big purchases", "Bank fees", "Unused"]
     assert [c.text for c in page.rows[1].cells] == ["\N{EN DASH}"] * 12
     assert [u.category_name for u in page.unbudgeted] == ["Fixed costs", "Taxes"]
     assert page.unbudgeted_heading == "2 categories without a budget"

@@ -105,13 +105,7 @@ def budget_view_for(
         base_currency=settings.base_currency,
         display_timezone=settings.display_timezone,
     )
-    # A category without a budget is listed only while something uses it (handoff plan/budget).
-    used = categories_service.usage_by_category(conn, user_id)
-    lines = tuple(
-        line
-        for line in summary.lines
-        if line.budgeted_minor is not None or line.category_id in used
-    )
+    lines = summary.lines  # every live expense category, with or without records (R14)
     edit_urls = {
         line.category_id: plan_year_view.OverrideTarget(
             line.category_id, line.category_name, picked.year, picked.month
