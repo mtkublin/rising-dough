@@ -64,7 +64,8 @@ _VALUE_OPTS = frozenset(
 )  # fmt: skip
 _ENV = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-_SPLIT = re.compile(r"\|\||&&|;|\||\n")
+_SPLIT = re.compile(r"\|\||&&|(?<![<>&])&(?![>&])|;|\||\n")
+_REDIR = re.compile(r"^(?:\d*|&)(?:>>?|<)(?P<target>.*)$")
 _LOOP_WAIT = re.compile(r"\b(until|while)\b.*?\bdo\b.*?\bsleep\b", re.S)
 _SLEEP = re.compile(r"\bsleep\s+(\d+)")
 _GH_WATCH = re.compile(r"\bgh\s+run\s+watch\b")
@@ -157,7 +158,23 @@ def _tokens(segment: str) -> list[str]:
         tokens = segment.split()
     while tokens and _ENV.match(tokens[0]):
         tokens = tokens[1:]
-    return tokens
+    return _drop_redirects(tokens)
+
+
+def _drop_redirects(tokens: Sequence[str]) -> list[str]:
+    """Remove `>`, `>>`, `<`, `2>&1`, `&>` and their target words: they are not arguments."""
+    kept: list[str] = []
+    skip = False
+    for word in tokens:
+        if skip:
+            skip = False
+            continue
+        found = _REDIR.match(word)
+        if found is None:
+            kept.append(word)
+        elif not found.group("target"):
+            skip = True  # target is the next word
+    return kept
 
 
 def _pytest_args(tokens: Sequence[str]) -> list[str] | None:
