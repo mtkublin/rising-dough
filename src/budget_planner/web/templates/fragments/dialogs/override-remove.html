@@ -4,6 +4,7 @@
    POST /budget/rules/{id}/overrides; the stored override is soft-deleted and audited. #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
 {% call dialog("override-remove-confirm", confirm.title, variant="confirm", size="plain", action=confirm.target.action, hx_post=confirm.target.action, actions=[{"tone": "cancel", "label": "keep"}, {"tone": "danger", "label": "remove", "name": "remove", "value": "1"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="tier" value="{{ confirm.tier }}">
   <input type="hidden" name="year" value="{{ confirm.target.year }}">
   <input type="hidden" name="month" value="{{ confirm.target.month }}">

@@ -14,7 +14,7 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import budgets as budgets_repo, categories as categories_repo
 from tests.auth_support import seed_login_user
-from tests.contract.test_plan_support import USER_ID
+from tests.contract.test_plan_support import USER_ID, audit_count, audit_total
 from tests.ui_map import _html, plan, rd_dialogs, rd_shell
 from tests.ui_map.locator import by_id
 
@@ -80,3 +80,57 @@ def test_page_has_no_inline_style_and_loads_the_open_script(
     assert not _html.exists(r.text, by_id("override-page-style"))
     script = _html.resolve_one(r.text, by_id("override-page-script"))
     assert str(script.get("src")).endswith("/rd/js/app-override-page.js")
+
+
+def _page_form(client: TestClient, cat_id: int) -> dict[str, str]:
+    """Fields a browser without scripts submits from the rendered full page (no token header)."""
+    page = client.get(_url(cat_id))
+    assert page.status_code == 200
+    form = _html.form_of(page.text, plan.override_save)
+    return dict(_html.submitted_fields(form))
+
+
+def test_form_carries_the_csrf_token_for_a_script_free_post(
+    raw_client: TestClient, cat_id: int
+) -> None:
+    fields = _page_form(raw_client, cat_id)
+
+    assert fields["_csrf_token"] == raw_client.cookies.get("__Host-csrf")
+    assert fields["tier"] == "default"
+
+
+def test_script_free_form_post_saves_the_default_and_audits_it(
+    raw_client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    fields = _page_form(raw_client, cat_id)
+    fields["amount"] = "123.45"
+    other = seed_login_user(db, user_id=2, email="other@example.com")
+    before = audit_total(db)
+
+    r = raw_client.post(f"/budget/rules/{cat_id}/overrides", data=fields)
+
+    assert r.status_code == 200
+    stored = budgets_repo.get_default(db, USER_ID, cat_id)
+    assert stored is not None
+    assert stored.amount == 12345
+    assert audit_total(db) == before + 1
+    assert audit_count(db, "budget_default") == 1
+    assert budgets_repo.list_defaults(db, other) == []
+
+
+def test_script_free_form_post_with_a_bad_amount_rerenders_the_page(
+    raw_client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    fields = _page_form(raw_client, cat_id)
+    fields["amount"] = "abc"
+    before = audit_total(db)
+
+    r = raw_client.post(f"/budget/rules/{cat_id}/overrides", data=fields)
+
+    assert r.status_code == 422
+    assert _html.exists(r.text, rd_shell.nav_desktop)
+    assert _html.text_of(
+        r.text, rd_dialogs.field_error(by_id("override-budget"), "amount")
+    ).endswith("enter an amount of 0 or more")
+    assert budgets_repo.get_default(db, USER_ID, cat_id) is None
+    assert audit_total(db) == before
