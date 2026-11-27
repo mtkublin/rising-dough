@@ -103,12 +103,12 @@ def _free_port() -> int:
 
 
 def _uses_handoff_seed(request: pytest.FixtureRequest) -> bool:
-    """The handoff-reference comparison (test_reference.py) renders the handoff seed.
+    """The reference comparison and the accepted-UI snapshots render the handoff seed.
 
-    Every other module (test_snapshots.py: old-UI route baselines, which go away per
-    migrated surface) keeps the anonymized demo copy (ADR-0147 §3, T-UR00b).
+    Both need the deterministic data the operator accepted (ADR-0154 §1, T-UR98); every
+    other module keeps the anonymized demo copy.
     """
-    return str(request.module.__name__).rsplit(".", 1)[-1] == "test_reference"
+    return str(request.module.__name__).rsplit(".", 1)[-1] in {"test_reference", "test_snapshots"}
 
 
 @pytest.fixture(scope="module")
@@ -117,7 +117,7 @@ def scratch_db(
 ) -> tuple[Path, str]:
     """A scratch DB plus a live session for user 1; never ``data/budget.sqlite`` (prod).
 
-    ``test_reference.py``: the handoff base seed (`handoff_seed.build_seed`).
+    ``test_reference.py`` and ``test_snapshots.py``: the handoff base seed (`build_seed`).
     Other modules: a copy of ``data/demo.sqlite`` (or empty), migrated, login user
     seeded (T-D02b). Returns ``(path, session id)``.
     """
