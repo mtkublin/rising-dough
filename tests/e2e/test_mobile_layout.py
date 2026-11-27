@@ -7,6 +7,7 @@ its category control inside the dialog.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -14,8 +15,19 @@ import pytest
 from playwright.sync_api import Browser, Locator, Page, ViewportSize, expect
 
 from tests.e2e import db_probe
-from tests.ui_map import entries, plan_budget, plan_year, rd_fragments, rd_shell, today
-from tests.ui_map.locator import by_id, role, to_playwright
+from tests.ui_map import (
+    accounts,
+    edit_dialogs,
+    entries,
+    ledger,
+    plan_budget,
+    plan_year,
+    rd_fragments,
+    rd_shell,
+    settings,
+    today,
+)
+from tests.ui_map.locator import Locator as UiLocator, by_id, role, to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -229,9 +241,6 @@ _ZOOM_PROBLEMS_JS = """
 }
 """
 
-# Opens a dialog the way its link does (hx-get into #modal-root); the URL list is explicit.
-_OPEN_DIALOG_JS = "(url) => htmx.ajax('GET', url, { target: '#modal-root', swap: 'innerHTML' })"
-
 # Every clipped value: a control whose text is wider than its box.
 _CLIPPED_VALUE_JS = "(el) => [el.scrollWidth, el.clientWidth]"
 
@@ -331,6 +340,62 @@ def _guest_login_zoom(browser: Browser, base_url: str) -> tuple[list[str], int]:
     return result["out"], result["checked"]
 
 
+def _dialog_openers(
+    acc: int, cat: int, planned: int, rule: int
+) -> dict[str, tuple[str, tuple[UiLocator, ...], UiLocator]]:
+    """Per dialog: the page it opens on, the clicks that open it (row menu first), its locator."""
+    rng = "date_from=2026-01-01&date_to=2027-12-31"
+    planned_row = ledger.planned_row(planned)
+    rule_row = ledger.recurring_row(rule)
+    new_entry = (rd_shell.tabbar_new_entry,)
+    return {
+        "account new": ("/accounts", (accounts.new_account_button,), accounts.new_dialog),
+        "account edit": (
+            "/accounts",
+            (accounts.row_menu(acc), accounts.menu_item("edit").inside(accounts.row(acc))),
+            accounts.edit_dialog("Checking"),
+        ),
+        "account reconcile": (
+            "/accounts",
+            (accounts.reconcile_button(acc),),
+            accounts.reconcile_dialog,
+        ),
+        "category new": (
+            "/settings?tab=categories",
+            (settings.new_category,),
+            settings.category_form,
+        ),
+        "category edit": (
+            "/settings?tab=categories",
+            (settings.edit_category(cat),),
+            settings.category_form,
+        ),
+        "entry happened": ("/today", new_entry, entries.dialog),
+        "entry planned": ("/today", (*new_entry, entries.tab_planned), entries.dialog),
+        "entry repeats": ("/today", (*new_entry, entries.tab_repeats), entries.dialog),
+        "planned edit": (
+            f"/ledger?view=planned&{rng}",
+            (ledger.row_kebab(planned_row), ledger.row_menu_item(planned_row, "edit")),
+            edit_dialogs.planned_dialog("Savings"),
+        ),
+        "recurring edit": (
+            f"/ledger?view=recurring&{rng}",
+            (ledger.row_kebab(rule_row), ledger.row_menu_item(rule_row, "edit")),
+            edit_dialogs.recurring_dialog("Savings"),
+        ),
+        "recurring override": (
+            f"/ledger?view=recurring&{rng}",
+            (ledger.row_kebab(rule_row), ledger.row_menu_item(rule_row, "override")),
+            edit_dialogs.occurrence_dialog("Savings"),
+        ),
+        "budget override": (
+            "/plan?tab=budget&year=2026&month=6",
+            (plan_budget.row_menu_button("Savings"), plan_budget.edit_budget_item("Savings")),
+            role("dialog", re.compile(r"^edit budget · Savings")),
+        ),
+    }
+
+
 def test_every_touch_input_is_16px_in_every_route_and_dialog(
     live_server: tuple[str, Path], page: Page
 ) -> None:
@@ -377,25 +442,13 @@ def test_every_touch_input_is_16px_in_every_route_and_dialog(
         load(route)
         measure(route)
 
-    # 2. every dialog the app opens from a link, from an explicit list
-    dialogs = {
-        "account new": "/accounts/new",
-        "account edit": f"/accounts/{acc}/edit",
-        "account reconcile": f"/accounts/{acc}/reconcile",
-        "category new": "/categories/new",
-        "category edit": f"/categories/{cat}/edit",
-        "entry happened": "/add?when=happened&dialog=1",
-        "entry planned": "/add?when=planned&dialog=1",
-        "entry repeats": "/add?when=repeats&dialog=1",
-        "planned edit": f"/planned/{planned}/edit",
-        "recurring edit": f"/recurring/{rule}/edit",
-        "recurring override": f"/recurring/{rule}/overrides/new?occurrence_date=2026-12-01",
-        "budget override": f"/budget/rules/{cat}/overrides/new?year=2026&month=6&tier=default",
-    }
-    load("/today")
-    for label_, url in dialogs.items():
-        phone.evaluate(_OPEN_DIALOG_JS, url)
-        phone.wait_for_selector("dialog[open]")
+    # 2. every dialog, opened by clicking the real control of its page (T-UR86)
+    dialogs = _dialog_openers(acc, cat, planned, rule)
+    for label_, (route, steps, dialog_loc) in dialogs.items():
+        load(route)
+        for step in steps:
+            to_playwright(phone, step).click()
+        expect(to_playwright(phone, dialog_loc).first).to_be_visible()
         measure(label_, "dialog[open]")
         phone.keyboard.press("Escape")
         phone.wait_for_selector("dialog[open]", state="detached")
