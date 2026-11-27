@@ -290,6 +290,27 @@ def test_year_cell_chips_stay_inside_the_viewport_at_both_edges(
     _assert_chips_under_cell_inside_viewport(world.page.evaluate(_CHIP_GEOMETRY))
 
 
+def test_year_cell_chips_flip_above_the_cell_when_there_is_no_room_below(world: World) -> None:
+    world.page.set_viewport_size({"width": 1440, "height": 900})
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    expect(world.find(plan_year.cell_scope("this month only"))).to_be_checked()
+    cell_bottom = world.page.evaluate(_CHIP_GEOMETRY)["wrap"]["b"]
+    # The viewport shrinks until the cell sits at its bottom edge; the resize handler re-places.
+    world.page.set_viewport_size({"width": 1440, "height": int(cell_bottom) + 2})
+    world.page.wait_for_timeout(200)
+
+    geometry = world.page.evaluate(_CHIP_GEOMETRY)
+    height = world.page.evaluate("window.innerHeight")
+    assert geometry["wrap"]["b"] > height - 20  # the cell sits at the viewport bottom
+    assert geometry["group"]["b"] <= height
+    editor = world.find(plan_year.cell_editor("Groceries", "March")).bounding_box()
+    assert editor is not None
+    assert geometry["group"]["b"] <= editor["y"]  # above the edited cell, not over it
+    assert geometry["group"]["b"] >= geometry["wrap"]["t"] - 8  # and right against it
+
+
 def test_year_cell_chips_follow_a_horizontally_scrolled_grid_on_a_phone(world: World) -> None:
     world.page.set_viewport_size({"width": 375, "height": 900})
     _budgeted(world)

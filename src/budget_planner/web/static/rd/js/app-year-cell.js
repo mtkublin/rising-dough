@@ -16,6 +16,7 @@
  */
 (() => {
   const MARGIN = 8;
+  const GAP = 0;
   let pending = null;
   let placed = null;
 
@@ -23,7 +24,8 @@
     return `${cell.dataset.action}|${cell.dataset.month}`;
   }
 
-  // Under the edited cell, starting at its left edge, clamped into the viewport.
+  // Under the edited cell (above it when there is no room below), starting at its left edge,
+  // clamped into the viewport.
   function place(form) {
     const group = form.querySelector('.rd-year-editor__scope');
     if (!group) return;
@@ -32,7 +34,11 @@
     group.style.setProperty('max-width', `${room}px`);
     const width = Math.min(group.offsetWidth, room);
     const left = Math.max(MARGIN, Math.min(box.left, MARGIN + room - width));
-    group.style.setProperty('top', `${box.bottom}px`);
+    const height = group.offsetHeight;
+    const fitsBelow = box.bottom + GAP + height <= document.documentElement.clientHeight;
+    const above = box.top - GAP - height;
+    const top = !fitsBelow && above >= 0 ? above : box.bottom;
+    group.style.setProperty('top', `${top}px`);
     group.style.setProperty('left', `${left}px`);
   }
 
