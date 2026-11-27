@@ -1,12 +1,13 @@
 """E2E: the "without a budget" list on Plan/budget lays out like the main table (T-UR75, T-UR80).
 
-At 375 each row is a card: the category chip keeps its shape, the "no budget" text and the "set
-budget" button do not overlap and nothing leaves the card. At 1440 the STATUS column of the list
-starts where the main table's does.
+At 375 each row is a card: the category chip keeps its shape, the "set budget"
+button stays inside the card and nothing leaves it. At 1440 the STATUS column of the list starts
+where the main table's does.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -24,14 +25,14 @@ _URL = "/plan?tab=budget&year=2026&month=6"
 _PHONE = {"width": 375, "height": 800}
 _DESKTOP = {"width": 1440, "height": 900}
 
-# Boxes of the "no budget" text node and of the button of a status cell.
-_PARTS_JS = """(cell) => {
-  const box = (r) => ({x: r.x, y: r.y, w: r.width, h: r.height});
-  const range = document.createRange();
-  const text = [...cell.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
-  range.selectNodeContents(text);
-  const button = cell.querySelector('button');
-  return {text: box(range.getBoundingClientRect()), button: box(button.getBoundingClientRect())};
+# The status cell's own text, and the disclosure's computed box (R24, R25).
+_CELL_TEXT_JS = "(cell) => cell.textContent.trim()"
+_BOX_JS = """(summary) => {
+  const s = getComputedStyle(summary.closest('details'));
+  return {
+    borders: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth],
+    background: s.backgroundColor,
+  };
 }"""
 _CHIP_JS = """(cell) => {
   const r = cell.firstElementChild.getBoundingClientRect();
@@ -61,16 +62,7 @@ def _open_list(base_url: str, page: Page) -> None:
     expect(to_playwright(page, plan_budget.unbudgeted_row(_LISTED))).to_be_visible()
 
 
-def _disjoint(a: dict[str, float], b: dict[str, float]) -> bool:
-    return (
-        a["x"] + a["w"] <= b["x"] + 0.5
-        or b["x"] + b["w"] <= a["x"] + 0.5
-        or a["y"] + a["h"] <= b["y"] + 0.5
-        or b["y"] + b["h"] <= a["y"] + 0.5
-    )
-
-
-def test_phone_card_keeps_the_chip_and_separates_status_text_from_button(
+def test_phone_card_keeps_the_chip_and_status_holds_only_the_button(
     live_server: tuple[str, Path], page: Page
 ) -> None:
     base_url, db_path = live_server
@@ -88,10 +80,8 @@ def test_phone_card_keeps_the_chip_and_separates_status_text_from_button(
     assert bar is not None
     assert bar["width"] > 100
     assert chip["h"] == pytest.approx(main_chip["h"], abs=1)
-    parts: Any = to_playwright(page, plan_budget.unbudgeted_status_cell(_LISTED)).evaluate(
-        _PARTS_JS
-    )
-    assert _disjoint(parts["text"], parts["button"])
+    status = to_playwright(page, plan_budget.unbudgeted_status_cell(_LISTED))
+    assert status.evaluate(_CELL_TEXT_JS) == "set budget"
     region = to_playwright(page, plan_budget.unbudgeted_table_region)
     assert region.evaluate(_OVERFLOW_JS) == []
 
@@ -110,3 +100,19 @@ def test_desktop_status_column_lines_up_with_the_main_table(
     assert listed is not None
     # Both cells are end-aligned in their track: the right edge is the column's edge.
     assert listed["x"] + listed["width"] == pytest.approx(main["x"] + main["width"], abs=2)
+
+
+@pytest.mark.parametrize("viewport", [_DESKTOP, _PHONE], ids=["1440", "375"])
+@pytest.mark.parametrize("tab", ["budget", "year"])
+def test_disclosure_has_no_outer_box(
+    live_server: tuple[str, Path], page: Page, tab: str, viewport: dict[str, int]
+) -> None:
+    base_url, db_path = live_server
+    _seed(base_url, db_path, page)
+    page.set_viewport_size(viewport)  # type: ignore[arg-type]  # dict is a ViewportSize
+    page.goto(f"{base_url}/plan?tab={tab}&year=2026&month=6")
+    summary = page.get_by_text(re.compile(r"without a budget$"))
+    expect(summary).to_be_visible()
+    box: dict[str, Any] = summary.evaluate(_BOX_JS)
+    assert box["borders"] == ["0px", "0px", "0px", "0px"]
+    assert box["background"] == "rgba(0, 0, 0, 0)"
