@@ -224,10 +224,11 @@
 /* Filter bar */
 .rd-filters {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "search toggle"
-    "extra extra";
+    "search"
+    "toggle"
+    "extra";
   align-items: end;
   gap: var(--space-2);
   margin-top: var(--space-2);
@@ -239,6 +240,7 @@
 
 .rd-filters__toggle {
   grid-area: toggle;
+  justify-self: start;
 }
 
 .rd-filters__toggle[aria-expanded="true"] {
