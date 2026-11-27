@@ -11,7 +11,7 @@
       <h1 class="rd-hero__title" id="page-title">Users</h1>
     </div>
   </section>
-  <section class="rd-panel" aria-label="Users">
+  <section class="rd-panel" aria-label="User settings">
     <div class="rd-settings">
       <div class="rd-settings__head">
         {% include "fragments/nav/settings-tabs.html" %}
@@ -47,7 +47,7 @@
           <div class="rd-card__body">{% include "fragments/forms/invite-link.html" %}</div>
         </section>
       {% endif %}
-      <section class="rd-card rd-card--outline" aria-labelledby="users-title">
+      <section class="rd-card rd-card--outline" aria-label="User list">
         <h2 class="rd-card__title" id="users-title">Users</h2>
         <div class="rd-card__body">{% include "fragments/tables/users-table.html" %}</div>
       </section>
