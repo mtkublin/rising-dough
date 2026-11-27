@@ -11,7 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Page, ViewportSize, expect
+from playwright.sync_api import Browser, Locator, Page, ViewportSize, expect
 
 from tests.e2e import db_probe
 from tests.ui_map import entries, plan_budget, plan_year, rd_fragments, rd_shell, today
@@ -298,7 +298,7 @@ def _sweep_popovers(phone: Page, measure: Callable[..., None], load: Callable[[s
     load("/plan?tab=budget&year=2026&month=6")
     to_playwright(phone, plan_budget.period_trigger).click()
     expect(to_playwright(phone, rd_fragments.period_picker)).to_be_visible()
-    measure("period picker", "dialog[open]")
+    measure("period picker", "dialog[open]")  # a list of links, no field
     load("/today")
     phone.keyboard.press("Control+k")
     expect(to_playwright(phone, rd_shell.palette_dialog)).to_be_visible()
@@ -307,16 +307,28 @@ def _sweep_popovers(phone: Page, measure: Callable[..., None], load: Callable[[s
     to_playwright(phone, plan_year.cell("Savings", "June")).click()
     editor = to_playwright(phone, plan_year.cell_editor("Savings", "June"))
     expect(editor).to_be_visible()
-    measure("year cell", "form")
+    measure("year cell", element=editor)
     editor.fill("12345.00")
     scroll, client = editor.evaluate(_CLIPPED_VALUE_JS)
     assert scroll <= client, f"year cell editor clips 12345.00: {scroll} > {client}"
     load("/today")
     afford = to_playwright(phone, today.afford_amount)
     afford.fill("12345678")
-    measure("afford", "form")
+    measure("afford", element=afford)
     scroll, client = afford.evaluate(_CLIPPED_VALUE_JS)
     assert scroll <= client, f"afford input clips 8 digits: {scroll} > {client}"
+
+
+def _guest_login_zoom(browser: Browser, base_url: str) -> tuple[list[str], int]:
+    """Zoom problems and field count of /auth/login for a signed-out phone."""
+    anonymous = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+    try:
+        guest = anonymous.new_page()
+        guest.goto(f"{base_url}/auth/login")
+        result = guest.evaluate(_ZOOM_PROBLEMS_JS, [MIN_FONT_PX, None])
+    finally:
+        anonymous.close()
+    return result["out"], result["checked"]
 
 
 def test_every_touch_input_is_16px_in_every_route_and_dialog(
@@ -341,9 +353,15 @@ def test_every_touch_input_is_16px_in_every_route_and_dialog(
     measured: dict[str, int] = {}
     amount_fields = 0
 
-    def measure(label: str, root: str | None = None) -> None:
+    def measure(label: str, root: str | None = None, element: Locator | None = None) -> None:
         nonlocal amount_fields
         phone.wait_for_timeout(350)
+        if element is not None:  # one named field: its computed size is the measurement
+            px = element.evaluate("(el) => parseFloat(getComputedStyle(el).fontSize)")
+            measured[label] = measured.get(label, 0) + 1
+            if px < MIN_FONT_PX:
+                failures.add(f"{label} {px}")
+            return
         result = phone.evaluate(_ZOOM_PROBLEMS_JS, [MIN_FONT_PX, root])
         failures.update(result["out"])
         measured[label] = measured.get(label, 0) + result["checked"]
@@ -384,21 +402,16 @@ def test_every_touch_input_is_16px_in_every_route_and_dialog(
 
     _sweep_popovers(phone, measure, load)
 
-    # 4. signed-out and step-up pages (their own layout)
-    anonymous = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
-    guest = anonymous.new_page()
-    guest.goto(f"{base_url}/auth/login")
-    result = guest.evaluate(_ZOOM_PROBLEMS_JS, [MIN_FONT_PX, None])
-    failures.update(result["out"])
-    measured["/auth/login"] = result["checked"]
-    anonymous.close()
+    # 4. signed-out page (its own layout)
+    problems, checked = _guest_login_zoom(browser, base_url)
+    failures.update(problems)
+    measured["/auth/login"] = checked
     context.close()
 
     expected = {
         *dialogs,
         "category picker",
         "multi-select filter",
-        "period picker",
         "palette",
         "year cell",
         "afford",
