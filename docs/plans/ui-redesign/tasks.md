@@ -489,7 +489,7 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Proposal pending before any code (docs first).
 - Source: operator-review-2026-11-26.md R4.
 
-### ◻ T-UR56 [S] Plan/year: cell edit scopes (one-off, every year, default)
+### ✅ T-UR56 [S] Plan/year: cell edit scopes (one-off, every year, default) (superseded by T-UR77)
 - Scope: design decision (proposal pending): Plan/year: cell edit scopes (one-off, every year, default).
 - Proposal pending before any code (docs first).
 - Source: operator-review-2026-11-26.md R5.
@@ -574,29 +574,53 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 
 Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no new task: see T-UR64 (T-UR71 relates).
 
-### ◻ T-UR75 [S] Plan budget and year list all live expense categories (R14)
+### ✅ T-UR75 [S] Plan budget and year list all live expense categories (R14)
 - Scope: rows are all live expense categories whether or not they have ledger records (archived per ADR-0136 unchanged). Req: F4.6c, F4.8.
 
-### ◻ T-UR76 [S] Edit budget overlay: scope selector on one row (R15)
+### ✅ T-UR76 [S] Edit budget overlay: scope selector on one row (R15)
 - Scope: the scope selector, split over 2 rows, renders on one row. Req: F4.6c.
 
-### ◻ T-UR77 [S] Year chips: two options, hover popover under the cell (R16, R17)
+### ✅ T-UR77 [S] Year chips: two options, hover popover under the cell (R16, R17)
 - Scope: "this month only" / "every <Month-Name>", this month always preselected, the year cell never changes the default tier; no outer box; overlay right beneath the clicked cell, rows below do not move, inside the viewport; light-mode colours. Supersedes the T-UR56 scope set. Req: F4.8a; ADR-0107 amendment 2026-11-27.
 
-### ◻ T-UR78 [S] Recurring empty-state new entry submit lands on an empty page (R18)
+### ✅ T-UR78 [S] Recurring empty-state new entry submit lands on an empty page (R18)
 - Scope: bug; "new entry" under an empty recurring list saves and returns the recurring list. Req: F3.2.
 
-### ◻ T-UR83 [S] Empty-state new-entry links on planned and ledger first-run open the dialog in place
+### ✅ T-UR83 [S] Empty-state new-entry links on planned and ledger first-run open the dialog in place
 - Scope: same bug as R18 (T-UR78); reviewer finding 2026-11-27. Both links get `hx-get` / `#modal-root` like the recurring empty state. Req: F3.2.
 
-### ◻ T-UR79 [S] Recurring day of month defaults from the start date (R19)
+### ✅ T-UR79 [S] Recurring day of month defaults from the start date (R19)
 - Scope: day of month follows the start date until the user edits it; a manual value is kept. Req: F3.2.
 
-### ◻ T-UR80 [S] Set budget in the status column (R20)
+### ✅ T-UR80 [S] Set budget in the status column (R20)
 - Scope: "set budget" for unbudgeted rows moves from the budget cell to the status column. Req: F4.6c.
 
-### ◻ T-UR81 [S] No auto-zoom on any touch-width input (R21)
+### ✅ T-UR81 [S] No auto-zoom on any touch-width input (R21)
 - Scope: every focusable text input, select, textarea and contenteditable (incl. Today hero amounts) at least 16px on touch widths; pinch zoom stays. Req: §5 touch-width line; extends T-UR61.
 
-### ◻ T-UR82 [S] Today bar legend swatches for spent and left (R23)
+### ✅ T-UR82 [S] Today bar legend swatches for spent and left (R23)
 - Scope: spent and left get a legend swatch like committed. Req: §5 Today bar line.
+
+### ◻ T-UR84 [S] Year-cell override dialog opened without JS renders a bare fragment
+- Scope: the year-cell override dialog opened without JS (direct `/budget/rules/<id>/overrides/new` link) renders a bare unstyled fragment.
+- Source: BUDSCOPE audit 2026-11-27.
+
+### ◻ T-UR85 [S] Plan/budget unbudgeted list: spent and status columns aligned with the main table
+- Scope: spent and status columns of the unbudgeted list are not aligned with the main table at 1440 and 1024 (1440: spent 965 vs 995, status 1170 vs 1085).
+- Source: PLANCAT audit 2026-11-27.
+
+### ◻ T-UR86 [S] ui_map locators for the 12 dialog-opening links
+- Scope: add ui_map locators for the 12 dialog-opening links so `tests/e2e/test_mobile_layout.py` clicks them instead of `htmx.ajax`.
+- Source: ZOOM review 2026-11-27.
+
+### ◻ T-UR87 [S] /today afford input clips long amounts at 375 (low)
+- Scope: the /today afford input at 375 clips amounts of 10+ characters, e.g. formatted "12,345,678.00".
+- Source: ZOOM audit 2026-11-27 (low).
+
+### ◻ T-UR88 [S] Crawl no longer reaches the set-budget dialog behind the collapsed list (low)
+- Scope: the crawl no longer reaches the set-budget dialog behind the collapsed unbudgeted list.
+- Source: PLANCAT review 2026-11-27 (low).
+
+### ◻ T-UR89 [S] /recurring/formula/preview answers 422 while the formula is empty (low)
+- Scope: `/recurring/formula/preview` answers 422 while the formula is empty, which is console noise. Pre-existing.
+- Source: RECUR audit 2026-11-27 (low).
