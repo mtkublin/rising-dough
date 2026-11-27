@@ -2,7 +2,7 @@
    Inputs: field_id (unique id of the panel), picker (services.categories.CategoryPicker: recent,
    searchable, total_count), selected_id (category id or none), name (default 'category'),
    query (text echoed in the search box, optional), no_match (bool: show the empty block),
-   new_category_url (optional link in the empty block), open (bool: panel shown), error (text: field error),
+   new_category_url (optional: URL the empty block's `+ new category` button POSTs the typed name to, T-UR68), open (bool: panel shown), error (text: field error),
    anchor_id (id on the fieldset, the 422 summary link target), picked_name (name of a selected category that is
    not among the recent radios: shown on the search button and posted by a hidden input, as combobox.js does).
    The posted value is the category id; combobox.js filters and picks. #}
@@ -72,10 +72,21 @@
          data-js="combobox-empty"
          {% if not no_match|default(none) %} hidden{% endif %}>
       <p>No category matches “<span data-js="combobox-query">{{ query|default("") }}</span>”.</p>
-      {% if new_category_url|default(none) %}<a class="rd-btn" href="{{ new_category_url }}">+ new category “<span data-js="combobox-query">{{ query|default("") }}</span>”</a>{% endif %}
+    {% if new_category_url|default(none) %}<button type="button"
+        class="rd-btn"
+        id="{{ field_id }}-create"
+        data-js="combobox-create"
+        hx-post="{{ new_category_url }}"
+        hx-params="none"
+        hx-target="next [data-js='combobox-create-slot']"
+        hx-swap="innerHTML">+ new category “<span data-js="combobox-query">{{ query|default("") }}</span>”</button>
+    <div data-js="combobox-create-slot">
+      <p class="rd-field__error" aria-hidden="true">&nbsp;</p>
     </div>
-  </div>
-  {% if error|default(none) %}<p class="rd-field__error"
+  {% endif %}
+</div>
+</div>
+{% if error|default(none) %}<p class="rd-field__error"
    id="{{ field_id }}-error"
    role="alert">▲ {{ error }}</p>{% endif %}
 </fieldset>
