@@ -19,6 +19,8 @@ from tests.ui_map.locator import role, to_playwright
 pytestmark = pytest.mark.e2e
 
 PHONE: ViewportSize = {"width": 375, "height": 812}
+TABLET: ViewportSize = {"width": 1024, "height": 768}
+MID: ViewportSize = {"width": 1152, "height": 800}
 DESKTOP: ViewportSize = {"width": 1440, "height": 900}
 FILTERS_TOGGLE = role("button", "filters", exact=True)
 PLACEHOLDER = "search description"
@@ -39,6 +41,29 @@ _PLACEHOLDER_JS = """
     need: ctx.measureText(el.placeholder).width + padding,
     has: el.clientWidth,
   };
+}
+"""
+
+
+# Every visible filter select and the search field: the shown text (selected option or the search
+# placeholder) is no wider than the content box (clientWidth less the horizontal padding).
+_FILTERS_FIT_JS = """
+(sel) => {
+  const ctx = document.createElement('canvas').getContext('2d');
+  const out = [];
+  for (const el of document.querySelectorAll(sel)) {
+    if (el.getClientRects().length === 0) continue;
+    const cs = getComputedStyle(el);
+    ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = cs.letterSpacing;
+    const text = el.tagName === 'SELECT' ? el.selectedOptions[0].text : el.placeholder;
+    const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const need = ctx.measureText(text).width;
+    if (need > avail + 0.5) {
+      out.push((el.id || el.name) + ' needs ' + Math.round(need) + ' has ' + Math.round(avail));
+    }
+  }
+  return out;
 }
 """
 
@@ -85,3 +110,15 @@ def test_desktop_filter_row_is_unchanged_at_1440(live_server: tuple[str, Path], 
     # the search shares the row of the category filter (vertical overlap)
     assert category["y"] < search["y"] + search["height"]
     assert search["y"] < category["y"] + category["height"]
+
+
+@pytest.mark.parametrize("viewport", [TABLET, MID, DESKTOP], ids=["1024", "1152", "1440"])
+def test_filter_fields_show_their_full_text(
+    live_server: tuple[str, Path], page: Page, viewport: ViewportSize
+) -> None:
+    """The search placeholder and every filter select show their full text (no clipping)."""
+    base_url, db_path = live_server
+    _seed(base_url, db_path, page)
+    _open_ledger(base_url, page, viewport)
+    clipped: list[str] = page.evaluate(_FILTERS_FIT_JS, "#ledger-filters select, #f-q")
+    assert clipped == []
