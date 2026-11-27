@@ -7,6 +7,8 @@ every month (default)). A saved or removed override closes the dialog and reload
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from playwright.sync_api import expect
 
@@ -148,6 +150,7 @@ def test_year_cell_edits_in_place_and_saves_a_one_off_on_enter(world: World) -> 
     world.find(plan_year.cell("Groceries", "March")).click()
     editor = world.find(plan_year.cell_editor("Groceries", "March"))
     expect(editor).to_have_value("500.00")
+    world.find(plan_year.cell_scope("this month only")).check(force=True)  # visually hidden radio
     editor.fill("321.00")
     editor.press("Enter")
 
@@ -158,6 +161,101 @@ def test_year_cell_edits_in_place_and_saves_a_one_off_on_enter(world: World) -> 
     assert (row["year"], row["month"], row["amount"]) == (year, MARCH, 32100)
     expect(world.find(plan_year.cell("Groceries", "March"))).to_have_text("• 321.00")
     expect(world.find(plan_year.cell_editor("Groceries", "March"))).to_have_count(0)
+
+
+def test_year_cell_editor_preselects_the_cells_tier_and_labels_the_chips(world: World) -> None:
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+
+    expect(world.find(plan_year.cell_scope("every month (default)"))).to_be_checked()
+    expect(world.find(plan_year.cell_scope("every march"))).not_to_be_checked()
+    expect(world.find(plan_year.cell_scope("this month only"))).not_to_be_checked()
+
+
+def test_year_cell_tab_goes_from_the_amount_to_the_scope_chips_and_back(world: World) -> None:
+    category = _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    default_chip = world.find(plan_year.cell_scope("every month (default)"))
+    expect(editor).to_be_focused()
+
+    world.page.keyboard.press("Tab")
+    expect(default_chip).to_be_focused()
+    world.page.keyboard.press("Shift+Tab")
+    expect(editor).to_be_focused()
+
+    world.page.keyboard.press("Tab")
+    world.page.keyboard.press("ArrowLeft")
+    expect(world.find(plan_year.cell_scope("every march"))).to_be_focused()
+    expect(world.find(plan_year.cell_scope("every march"))).to_be_checked()
+    world.page.keyboard.press("Enter")
+
+    row = world.wait_rows(
+        "SELECT * FROM budget_recurring_overrides WHERE category_id = ? AND deleted_at IS NULL",
+        (category,),
+    )[0]
+    assert (row["month"], row["amount"]) == (MARCH, 50000)
+
+
+_CHIP_GEOMETRY = """() => {
+  const box = (el) => { const r = el.getBoundingClientRect();
+    return {l: r.left, t: r.top, r: r.right, b: r.bottom}; };
+  const group = document.querySelector('[role="radiogroup"][aria-label="budget scope"]');
+  const chip = box(group);
+  const hit = [...document.querySelectorAll('.rd-year-cell')]
+    .filter((c) => c.getClientRects().length)
+    .map((c) => ({name: c.getAttribute('aria-label'), ...box(c)}))
+    .filter((c) => c.l < chip.r && c.r > chip.l && c.t < chip.b && c.b > chip.t)
+    .map((c) => c.name);
+  const chips = [...group.querySelectorAll('label')].map(box);
+  return {hit, chips, width: window.innerWidth};
+}"""
+
+
+def _chip_geometry(world: World, width: int, month: str) -> dict[str, Any]:
+    world.page.set_viewport_size({"width": width, "height": 900})
+    _budgeted(world)
+    world.post(f"/budget/defaults/{world.category('Rent')}", {"amount": "1200.00"})
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", month)).click()
+    expect(world.find(plan_year.cell_scope("every month (default)"))).to_be_checked()
+    geometry: dict[str, Any] = world.page.evaluate(_CHIP_GEOMETRY)
+    return geometry
+
+
+def test_year_cell_chip_row_covers_no_cell_value_at_desktop(world: World) -> None:
+    geometry = _chip_geometry(world, 1440, "March")
+
+    assert geometry["hit"] == []
+
+
+def test_year_cell_chips_stay_inside_the_phone_viewport(world: World) -> None:
+    geometry = _chip_geometry(world, 375, "December")
+
+    assert geometry["hit"] == []
+    assert len(geometry["chips"]) == 3
+    for chip in geometry["chips"]:
+        assert chip["l"] >= 0
+        assert chip["r"] <= geometry["width"]
+
+
+def test_year_cell_every_month_default_changes_every_months_cell(world: World) -> None:
+    category = _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    editor.fill("612.34")
+    editor.press("Enter")
+
+    for month in ("January", "March", "December"):
+        expect(world.find(plan_year.cell("Groceries", month))).to_have_text("612.34")
+    assert (
+        world.scalar("SELECT amount FROM budget_defaults WHERE category_id = ?", (category,))
+        == 61234
+    )
+    assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0
 
 
 def test_year_cell_editor_escape_cancels_without_saving(world: World) -> None:

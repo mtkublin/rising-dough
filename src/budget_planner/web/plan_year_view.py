@@ -79,9 +79,18 @@ class OverrideTarget:
         return f"{base}&remove=1" if remove else base
 
 
-def dialog_tier(state: str) -> str:
-    """Scope a cell opens its dialog on: its own override tier, else this month only."""
-    return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_ONE_OFF
+def tier_labels(month: int) -> Mapping[str, str]:
+    """Scope names shared by the dialog's radios and the year cell's chips (``every June``)."""
+    return {
+        TIER_ONE_OFF: "this month only",
+        TIER_RECURRING: f"every {month_name(month).lower()}",
+        TIER_DEFAULT: "every month (default)",
+    }
+
+
+def cell_scope(state: str) -> str:
+    """Scope chip a year cell's inline editor preselects: its own tier, default when unset."""
+    return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_DEFAULT
 
 
 _ORIGIN_TIER: Final = MappingProxyType(
@@ -114,8 +123,10 @@ class YearCell:
     url: str
     editor_label: str  # the inline editor's field label: ``Nights Out, November budget``
     amount_text: str  # the editor's start value (empty for an unset cell)
-    action: str  # where the editor posts (the override route, tier "one-off")
+    action: str  # where the editor posts (the override route; the scope chips pick the tier)
     year: int
+    scope: str  # the scope chip the editor preselects (``cell_scope``)
+    recurring_label: str  # the "every <month>" chip text (the chip row is one shared template)
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +168,7 @@ class YearPage:
     unbudgeted_heading: str
     period: BudgetPeriod
     reload_url: str
+    scope_labels: Mapping[str, str]  # the editor's chip texts (``tier_labels``, one source)
 
 
 def _cell(
@@ -176,11 +188,13 @@ def _cell(
         text=text,
         state=state,
         label=f"{row.category_name}, {month_name(target.month)}: {spoken}, {_STATE_LABEL[state]}",
-        url=target.url(dialog_tier(state)),
+        url=target.url(cell_scope(state)),
         editor_label=f"{row.category_name}, {month_name(target.month)} budget",
         amount_text="" if state == "unset" else amount,
         action=target.action,
         year=target.year,
+        scope=cell_scope(state),
+        recurring_label=tier_labels(target.month)[TIER_RECURRING],
     )
 
 
@@ -271,6 +285,7 @@ def year_page(
         unbudgeted_heading=f"{len(unset)} {noun} without a budget",
         period=year_period(selected),
         reload_url=f"{YEAR_TAB_URL}{selected}",
+        scope_labels=tier_labels(current_month),
     )
 
 
@@ -347,11 +362,7 @@ def override_dialog(
     prefill = stored if stored is not None else resolved
     if amount_text is None:
         amount_text = "" if prefill is None else format_major(prefill, currency)
-    labels = {
-        TIER_ONE_OFF: "this month only",
-        TIER_RECURRING: f"every {month_name(target.month).lower()}",
-        TIER_DEFAULT: "every month (default)",
-    }
+    labels = tier_labels(target.month)
     actions: list[Mapping[str, str]] = [{"tone": "cancel"}]
     dropped = removable_tier(state, tier)
     if dropped is not None:

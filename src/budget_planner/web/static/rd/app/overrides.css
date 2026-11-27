@@ -26,6 +26,32 @@
   }
 }
 
+/* F4.8a: the year grid inline editor offers its scope chips in a row of their own under the edited
+row (app-year-cell.js), so no neighbouring value is covered. The chips stick to the scroller's start
+edge and wrap inside the viewport width, so they stay whole on a phone whatever month is edited. */
+.rd-year__scope-row,
+.rd-year__scope-row > td {
+  display: block;
+}
+
+.rd-year__scope-row > td {
+  padding: var(--space-1) 0;
+}
+
+.rd-year-editor__scope {
+  position: sticky;
+  inset-inline-start: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  width: max-content;
+  max-width: calc(100vw - 4.5rem);
+  padding: var(--space-1);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-menu);
+  background: var(--color-panel);
+}
+
 /* T-UR61 (R10): mobile browsers zoom the page when a focused field renders under 16px. On touch
    widths every text field, select and textarea is at least 1rem (a coarse pointer on a wide
    tablet counts too). Pinch zoom stays enabled; the viewport meta is untouched. Unlayered, so
