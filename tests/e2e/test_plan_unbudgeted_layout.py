@@ -102,6 +102,30 @@ def test_desktop_status_column_lines_up_with_the_main_table(
     assert listed["x"] + listed["width"] == pytest.approx(main["x"] + main["width"], abs=2)
 
 
+@pytest.mark.parametrize("width", [1440, 1024], ids=["1440", "1024"])
+def test_every_column_starts_where_the_main_table_column_does(
+    live_server: tuple[str, Path], page: Page, width: int
+) -> None:
+    base_url, db_path = live_server
+    _seed(base_url, db_path, page)
+    page.set_viewport_size({"width": width, "height": 900})
+    _open_list(base_url, page)
+
+    main = to_playwright(page, plan_budget.row_cells("Groceries"))
+    listed = to_playwright(page, plan_budget.unbudgeted_cells(_LISTED))
+    for column in range(5):
+        main_box = main.nth(column).bounding_box()
+        listed_box = listed.nth(column).bounding_box()
+        assert main_box is not None
+        assert listed_box is not None
+        # Start-aligned cells (category, bar) compare their left edge; end-aligned ones (spent,
+        # status, actions) their right edge, which is the column's edge whatever the text width.
+        edge = "x" if column < 2 else "right"
+        listed_edge = listed_box["x"] + (listed_box["width"] if edge == "right" else 0)
+        main_edge = main_box["x"] + (main_box["width"] if edge == "right" else 0)
+        assert listed_edge == pytest.approx(main_edge, abs=1), f"column {column}"
+
+
 @pytest.mark.parametrize("viewport", [_DESKTOP, _PHONE], ids=["1440", "375"])
 @pytest.mark.parametrize("tab", ["budget", "year"])
 def test_disclosure_has_no_outer_box(
