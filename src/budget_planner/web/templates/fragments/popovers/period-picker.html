@@ -24,7 +24,7 @@
        role="dialog"
        aria-label="Pick period"
        {% if picker.open|default(none) %} data-open{% endif %}>
-    <div class="rd-period-pick__head">
+    <div class="rd-period-pick__head" data-testid="period-pick-head">
       <a class="rd-btn rd-btn--icon"
          id="{{ picker.id }}-prev-year"
          href="{{ picker.prev_year_url }}"
