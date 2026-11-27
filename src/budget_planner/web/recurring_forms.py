@@ -119,6 +119,14 @@ def parse_terms_from_form(form: FormData | QueryParams) -> list[TermInput]:
     ]
 
 
+def evaluation_day(form: FormData | QueryParams, today: date) -> date:
+    """The day whose month the formula reads: the posted start when it is later, else ``today``.
+
+    One owner for the hero and the live preview (``formula_svc.evaluation_month``, ADR-0047).
+    """
+    return formula_svc.evaluation_month(parse_date(str(form.get("start_date", ""))), today)
+
+
 def parse_draft_terms(form: FormData | QueryParams) -> list[formula_svc.DraftTerm] | None:
     """Posted terms as preview drafts; ``None`` when a source category id is not an integer."""
     drafts: list[formula_svc.DraftTerm] = []
@@ -229,6 +237,7 @@ def _resolve_formula(
     fx: FormulaFx,
     target_ccy: str,
     posting_category_id: int | None,
+    start: date | None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     if component_failures := component_errors(term_inputs):
         return None, None, component_failures
@@ -246,8 +255,8 @@ def _resolve_formula(
             conn,
             user_id,
             formula,
-            today.year,
-            today.month,
+            (month := formula_svc.evaluation_month(start, today)).year,
+            month.month,
             fx=fx,
             target_ccy=target_ccy,
             exclude_rule_id=exclude_rule_id,
@@ -270,6 +279,7 @@ def resolve_amount_inputs(
     today: date,
     fx: FormulaFx,
     posting_category_id: int | None = None,
+    start: date | None = None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
     is_formula = amount_source == "formula"
@@ -286,6 +296,7 @@ def resolve_amount_inputs(
             fx=fx,
             target_ccy=account_currency,
             posting_category_id=posting_category_id,
+            start=start,
         )
     minor, amount_err = positive_amount(default_amount, account_currency)
     return minor, None, ({} if amount_err is None else {"default_amount": amount_err})
@@ -461,6 +472,7 @@ def validate_rule_draft(
         exclude_rule_id=exclude_rule_id,
         today=today,
         posting_category_id=category_id,
+        start=start,
     )
     errors = {**errors, **amount_errors}
     if errors:

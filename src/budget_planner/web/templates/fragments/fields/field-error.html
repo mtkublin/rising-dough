@@ -6,3 +6,11 @@
   {% if errors[name]|default(none) %}<p class="rd-field__error"
    id="field-{{ name }}-error">▲ {{ errors[name] }}</p>{% endif %}
 {% endmacro %}
+{# formula_error_slot(errors): the formula's error line, always in the DOM (hidden when empty) so the
+   live preview can clear it out of band (hx-swap-oob="outerHTML" on #field-formula-error) with no
+   missing target. Same id as field_error("formula", errors): one element in both dialogs. #}
+{% macro formula_error_slot(errors) %}
+  <p class="rd-field__error"
+     id="field-formula-error"
+     {% if not errors["formula"]|default(none) %}hidden{% endif %}>{% if errors["formula"]|default(none) %}▲ {{ errors["formula"] }}{% endif %}</p>
+{% endmacro %}
