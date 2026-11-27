@@ -76,6 +76,16 @@ edge and wrap inside the viewport width, so they stay whole on a phone whatever 
 
   /* T-UR81 (R21): the dialog hero amount is 56px, far over the minimum, and keeps its size; the
      year cell editor and picker search fields were 11px to 14px and zoomed the page on focus. */
+
+  /* At 16px the year cell editor holds "12345.00" only with the side padding trimmed, and the
+     Today afford field (64px) clips 8 digits. */
+  .rd-year-editor__input {
+    padding-inline: 2px;
+  }
+
+  .rd-input--afford .rd-input__control {
+    width: 10ch;
+  }
 }
 
 /* T-UR63 (R12): the native date input has an intrinsic minimum width wider than its half column

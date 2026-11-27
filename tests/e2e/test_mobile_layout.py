@@ -7,13 +7,14 @@ its category control inside the dialog.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Page, ViewportSize, expect
 
 from tests.e2e import db_probe
-from tests.ui_map import entries, rd_shell
+from tests.ui_map import entries, plan_year, rd_fragments, rd_shell, today
 from tests.ui_map.locator import by_id, role, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -197,18 +198,22 @@ def test_repeats_formula_component_fits_the_phone(
 
 # T-UR81 (R21): every focusable text control on a touch viewport, in every route, dialog and
 # popover, computes >= 16px and sits in no scaled ancestor (iOS zooms on focus otherwise).
+# ``root`` limits the measurement (a dialog opener measures the open dialog only).
 _ZOOM_PROBLEMS_JS = """
-(min) => {
+([min, rootSel]) => {
   const skip = new Set(['hidden', 'checkbox', 'radio', 'submit', 'button', 'file', 'range',
                         'image', 'reset', 'color']);
   const out = [];
   const sel = 'input, select, textarea, [contenteditable]:not([contenteditable=false])';
+  const root = rootSel ? document.querySelector(rootSel) : document;
   let checked = 0;
-  for (const el of document.querySelectorAll(sel)) {
+  let amounts = 0;
+  for (const el of root ? root.querySelectorAll(sel) : []) {
     if (skip.has(el.type) || el.getClientRects().length === 0 || el.closest('[hidden]')) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden') continue;
     checked += 1;
+    if (el.classList.contains('rd-dialog__amount')) amounts += 1;
     const name = (el.id || el.name || '') + '.' + String(el.className).split(' ')[0];
     let scale = 1;
     for (let a = el; a && a.nodeType === 1; a = a.parentElement) {
@@ -220,23 +225,15 @@ _ZOOM_PROBLEMS_JS = """
     const px = parseFloat(cs.fontSize) * scale;
     if (px < min - 0.01) out.push(location.pathname + ' ' + name + ' ' + px.toFixed(2));
   }
-  return { out, checked };
+  return { out, checked, amounts };
 }
 """
 
-_OPENERS_JS = """
-() => [...document.querySelectorAll('[hx-get]')]
-  .map((el) => el.getAttribute('hx-get'))
-  .filter((h) => /\\/(new|edit|add|reconcile|overrides|pick)|period|picker/.test(h))
-"""
+# Opens a dialog the way its link does (hx-get into #modal-root); the URL list is explicit.
+_OPEN_DIALOG_JS = "(url) => htmx.ajax('GET', url, { target: '#modal-root', swap: 'innerHTML' })"
 
-_CLICK_JS = """
-(sel) => {
-  const el = document.querySelector(sel);
-  if (el) el.click();
-  return Boolean(el);
-}
-"""
+# Every clipped value: a control whose text is wider than its box.
+_CLIPPED_VALUE_JS = "(el) => el.scrollWidth <= el.clientWidth"
 
 SWEEP_ROUTES = [
     "/today",
@@ -253,6 +250,8 @@ SWEEP_ROUTES = [
     "/settings/password",
     "/settings/users",
     "/ledger/recently-deleted",
+    "/auth/reauth",
+    "/auth/register",
 ]
 
 
@@ -285,11 +284,48 @@ def _seed_sweep(base_url: str, db_path: Path, page: Page) -> None:
     ).ok
 
 
+def _sweep_popovers(phone: Page, measure: Callable[..., None], load: Callable[[str], None]) -> None:
+    """Pickers, popovers and in-place editors reached by interaction (T-UR81)."""
+    load("/today")
+    open_new_entry(phone)
+    to_playwright(phone, entries.category_search).click()
+    expect(to_playwright(phone, entries.category_query)).to_be_visible()
+    measure("category picker", "dialog[open]")
+    to_playwright(phone, entries.tab_repeats).click()
+    to_playwright(phone, entries.amount_formula).evaluate("el => el.click()")
+    to_playwright(phone, entries.formula_pick).first.click()
+    measure("multi-select filter", "dialog[open]")
+    load("/plan?tab=budget&year=2026&month=6")
+    to_playwright(phone, rd_fragments.period_trigger).click()
+    expect(to_playwright(phone, rd_fragments.period_picker)).to_be_visible()
+    measure("period picker", "dialog[open]")
+    load("/today")
+    phone.keyboard.press("Control+k")
+    expect(to_playwright(phone, rd_shell.palette_dialog)).to_be_visible()
+    measure("palette", "dialog[open]")
+    load("/plan?tab=year&year=2026")
+    to_playwright(phone, plan_year.cell("Savings", "June")).click()
+    editor = to_playwright(phone, plan_year.cell_editor("Savings", "June"))
+    expect(editor).to_be_visible()
+    measure("year cell", "form")
+    editor.fill("12345.00")
+    assert editor.evaluate(_CLIPPED_VALUE_JS), "year cell editor clips 12345.00"
+    load("/today")
+    afford = to_playwright(phone, today.afford_amount)
+    afford.fill("12345678")
+    measure("afford", "form")
+    assert afford.evaluate(_CLIPPED_VALUE_JS), "afford input clips 8 digits"
+
+
 def test_every_touch_input_is_16px_in_every_route_and_dialog(
     live_server: tuple[str, Path], page: Page
 ) -> None:
     base_url, db_path = live_server
     _seed_sweep(base_url, db_path, page)
+    acc = db_probe.account_id(db_path, "Checking")
+    cat = db_probe.category_id(db_path, "Savings")
+    planned = db_probe.planned_id(db_path, "sweep planned")
+    rule = db_probe.rule_id(db_path, "sweep rule")
     browser = page.context.browser
     assert browser is not None
     context = browser.new_context(
@@ -300,30 +336,74 @@ def test_every_touch_input_is_16px_in_every_route_and_dialog(
     )
     phone = context.new_page()
     failures: set[str] = set()
-    checked: list[str] = []
+    measured: dict[str, int] = {}
+    amount_fields = 0
 
-    def measure(label: str) -> None:
+    def measure(label: str, root: str | None = None) -> None:
+        nonlocal amount_fields
         phone.wait_for_timeout(350)
-        result = phone.evaluate(_ZOOM_PROBLEMS_JS, MIN_FONT_PX)
+        result = phone.evaluate(_ZOOM_PROBLEMS_JS, [MIN_FONT_PX, root])
         failures.update(result["out"])
-        checked.append(f"{label}={result['checked']}")
+        measured[label] = measured.get(label, 0) + result["checked"]
+        amount_fields += result["amounts"]
 
     def load(route: str) -> None:
         phone.goto(f"{base_url}{route}")
-        phone.wait_for_function("typeof window.htmx === 'object'")
+        if not route.startswith("/auth/"):  # the auth shell carries no htmx
+            phone.wait_for_function("typeof window.htmx === 'object'")
 
+    # 1. every route, page level
     for route in SWEEP_ROUTES:
         load(route)
         measure(route)
-        openers: list[str] = phone.evaluate(_OPENERS_JS)
-        for href in dict.fromkeys(openers):
-            load(route)
-            phone.evaluate('(h) => document.querySelector(`[hx-get="${h}"]`).click()', href)
-            measure(href)
-            if phone.evaluate(_CLICK_JS, "dialog[open] .rd-catfield__search"):
-                measure(href + " picker")
-    load("/plan?tab=year&year=2026")
-    if phone.evaluate(_CLICK_JS, '[data-js="year-cell"]'):
-        measure("year cell")
+
+    # 2. every dialog the app opens from a link, from an explicit list
+    dialogs = {
+        "account new": "/accounts/new",
+        "account edit": f"/accounts/{acc}/edit",
+        "account reconcile": f"/accounts/{acc}/reconcile",
+        "category new": "/categories/new",
+        "category edit": f"/categories/{cat}/edit",
+        "entry happened": "/add?when=happened&dialog=1",
+        "entry planned": "/add?when=planned&dialog=1",
+        "entry repeats": "/add?when=repeats&dialog=1",
+        "planned edit": f"/planned/{planned}/edit",
+        "recurring edit": f"/recurring/{rule}/edit",
+        "recurring override": f"/recurring/{rule}/overrides/new?occurrence_date=2026-12-01",
+        "budget override": f"/budget/rules/{cat}/overrides/new?year=2026&month=6&tier=default",
+    }
+    load("/today")
+    for label_, url in dialogs.items():
+        phone.evaluate(_OPEN_DIALOG_JS, url)
+        phone.wait_for_selector("dialog[open]")
+        measure(label_, "dialog[open]")
+        phone.keyboard.press("Escape")
+        phone.wait_for_selector("dialog[open]", state="detached")
+
+    _sweep_popovers(phone, measure, load)
+
+    # 4. signed-out and step-up pages (their own layout)
+    anonymous = browser.new_context(viewport=PHONE, has_touch=True, is_mobile=True)
+    guest = anonymous.new_page()
+    guest.goto(f"{base_url}/auth/login")
+    result = guest.evaluate(_ZOOM_PROBLEMS_JS, [MIN_FONT_PX, None])
+    failures.update(result["out"])
+    measured["/auth/login"] = result["checked"]
+    anonymous.close()
     context.close()
-    assert sorted(failures) == [], checked
+
+    expected = {
+        *dialogs,
+        "category picker",
+        "multi-select filter",
+        "period picker",
+        "palette",
+        "year cell",
+        "afford",
+        "/auth/login",
+        "/auth/reauth",
+    }
+    unmeasured = sorted(k for k in expected if measured.get(k, 0) == 0)
+    assert unmeasured == [], measured
+    assert amount_fields >= 1, "no dialog hero amount was measured"
+    assert sorted(failures) == [], measured
