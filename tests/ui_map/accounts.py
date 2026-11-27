@@ -12,6 +12,7 @@ new_account_button = role("link", "+ new account")
 new_account_cta = role("link", "[ new account ]")  # empty state call to action
 planned_total = by_id("accounts-planned-total")
 rate_note = by_id("accounts-rate-note")
+hero = by_id("accounts-hero")
 
 credit_utilisation = by_testid("credit-utilisation")
 any_row = by_id("account-", prefix=True)
