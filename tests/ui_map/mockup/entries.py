@@ -37,6 +37,13 @@ cancel = role("button", "cancel", exact=True).inside(dialog)
 alert = role("alert")
 
 
+def category_create(name: str) -> Locator:
+    return role("button", name, exact=False).inside(category_group)
+
+
+category_create_error = role("alert").inside(category_group)
+
+
 def category_option(name: str) -> Locator:
     return label(name, exact=True)
 
@@ -78,6 +85,8 @@ NO_HANDOFF_TWIN = frozenset(
         "edit_category_query",  # the handoff search panel is hidden until opened
         "toast_undo",
         "hero_refresh",
+        "category_create",  # the handoff picker has no inline create (T-UR68)
+        "category_create_error",
     }
 )
 opener = role("region", "New entry", exact=True)

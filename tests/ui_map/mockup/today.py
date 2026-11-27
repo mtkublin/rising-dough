@@ -35,6 +35,14 @@ upcoming_rows = role("listitem").inside(upcoming)
 promote_all_due = role("button", "promote all due")
 
 # Names with no handoff twin (the handoff has fixed sample markup without these ids).
-NO_HANDOFF_TWIN: frozenset[str] = frozenset()
+NO_HANDOFF_TWIN: frozenset[str] = frozenset(
+    {"legend_glyph"}
+)  # the handoff legend has no glyph ids (T-UR94)
+
+
+def legend_glyph(kind: str) -> Locator:
+    return by_id(f"today-legend-{kind}")
+
+
 hero_per_day = by_id("hero-per-day")
 spent_bar = role("img", "percent spent")
