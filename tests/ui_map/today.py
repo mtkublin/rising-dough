@@ -37,3 +37,6 @@ promote_all_due = role("button", "promote all due")
 
 hero_per_day = by_id("hero-per-day")  # the hero "left per day" figure
 spent_bar = role("img", "percent spent")  # the hero bar: "N percent spent, M percent left"
+stats = by_id(
+    "today-stats"
+)  # period stats: each label carries its bar glyph (spent █, committed ▒, left ░)
