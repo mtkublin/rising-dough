@@ -562,7 +562,7 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Scope: single-file pytest is denied unless the brief names the file; pytest with `2>&1` or pipe redirects is misread (orchestrator tooling).
 - Source: ADR-0150.
 
-### ◻ T-UR73 [S] Stale "Left open (F4b)" line in derived.md
+### ✅ T-UR73 [S] Stale "Left open (F4b)" line in derived.md
 - Scope: derived.md:200 stale "Left open (F4b)" line.
 - Source: derived.md:200.
 
