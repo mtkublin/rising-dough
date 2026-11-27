@@ -57,3 +57,44 @@ Facts: today a cell edit writes only a one-off override (F4.8). The operator ask
 Decision: promoted planned rows stay in the Ledger Planned list, marked "promoted", without the promote button. They stay within the default Planned window (today −30 days to today +180 days, or the user's explicit date filter). There is no cleanup job.
 
 Facts: the window is `_PLANNED_LOOKBACK` = 30 days and `_PLANNED_LOOKAHEAD` = 180 days in `web/ledger_data.py:52-53`, applied by `planned_filter` (`web/ledger_data.py:105-124`). The promoted label comes from `_status_cell` in `web/ledger_view.py:468-470`, and the promote button is shown only when the row is not promoted (`web/ledger_view.py:493`). Requirement F3.10 is annotated accordingly.
+
+## Drill review 2 (2026-11-27)
+
+Second operator drill review, drill run 45987714192 on e2e962b967. The operator's list, verbatim:
+
+- R14 "Plan/budget and year - only display categories that have existing records in Ledger"
+- R15 "Edit budget overlay - scope is split to 2 rows"
+- R16 "Plan/year - the chips should have only 2 options: `This month only` / `Every <Month-Name>`. No need for the default change here."
+- R17 "Plan/year - same chips, I don't like their visual side: 1. No need for the outer box encapsulating them; 2. They are stuck to the left side of the screen, I'd rather see them right beneath the cell I clicked; 3. Seems the chips' colour in light mode is still the dark mode one; 4. Not sure about that, but I'm not entirely convinced that expanding those should move all the rows beneath lower, maybe those could simply hover above those?"
+- R18 "In recurring rules - when there are no rules and you click new entry (not the global one, the one displayed under recurring payments) the overlay is opened correctly, but once submitted it goes to an empty page (rising dough headers remain though)"
+- R19 "Nice to have - on recurring payment creation fill in the day of the month based on the start date by default (e.g. if user inputs 06-12-2026 the date of the month automatically gets 6), however still allow for manual overwrite of this"
+- R20 "Plan/budget - maybe the `set budget` button (for categories without one) would fit better in the status column?"
+- R21 "In mobile mode - clicking some fields (e.g. how much can I spend in Today) auto-zooms the page ... how much can I spend in Today works, but there are more places in the app that are affected. Fix all."
+- R22 "A few modes in mobile view (e.g. plan/year, plan/forecast) need to be scrolled horizontally ... was there a follow-up work item created for that?" Answer: yes, T-UR64 (documented 2026-11-26); T-UR71 relates.
+- R23 "Today in the spent/commited/left bar - currently only commited has a legend icon connecting it to the bar above. Spent and left shall have one as well, do them in the same manner as commited"
+
+### Triage
+
+| R | Item | Class | Task | Status |
+|---|---|---|---|---|
+| R14 | Budget and year show all categories | spec change + fix | T-UR75 | open |
+| R15 | Edit budget scope on one row | fix | T-UR76 | open |
+| R16 | Year chips: two options | spec change + fix (supersedes T-UR56 scope set) | T-UR77 | open |
+| R17 | Year chips: no box, under cell, overlay, light colours | fix | T-UR77 | open |
+| R18 | Recurring empty-state new entry lands on empty page | bug | T-UR78 | open |
+| R19 | Day of month defaults from start date | feature | T-UR79 | open |
+| R20 | Set budget in the status column | spec change + fix | T-UR80 | open |
+| R21 | No auto-zoom on any touch-width input | fix | T-UR81 | open |
+| R22 | Wide views scroll horizontally on mobile | follow-up already exists | T-UR64 (relates T-UR71) | deferred |
+| R23 | Today bar legend swatches for spent and left | fix | T-UR82 | open |
+
+### Decisions (2026-11-27)
+
+Operator answers, 2026-11-27. Requirement lines: [requirements.md](../../requirements.md) (F4.6c, F4.8, F4.8a, F3.2, §5).
+
+- R14: the current behaviour hides categories without ledger records. Wanted: Plan/budget and Plan/year show ALL categories (live expense categories; archived per ADR-0136 unchanged) whether or not they have ledger records.
+- R16: two chips only, "this month only" / "every <Month>". "this month only" is ALWAYS preselected; the year cell never changes the default tier (the default stays editable in the budget-tab dialog).
+- R17: the chips hover right beneath the clicked cell (overlay above the rows below, nothing shifts), no outer box, kept inside the viewport at the screen edge, light-mode colours correct.
+- R20: yes, "set budget" moves into the status column of unbudgeted rows.
+- R19: implement; day of month defaults from the start date until the user edits it.
+- R23: spent and left get legend swatches like committed.
