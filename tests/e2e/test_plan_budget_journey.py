@@ -150,11 +150,10 @@ def test_picker_year_arrow_swaps_the_grid_without_navigating(
     expect(picker).to_be_visible()
     # Keyboard: focus stays on the swapped next-year arrow, so Enter again goes to 2028.
     expect(_find(journey, rd_fragments.period_next_year)).to_be_focused()
-    # htmx restores focus before it processes the swapped nodes (settle delay); an Enter in that
-    # window would follow the plain href, so wait for the settle like a person would.
-    expect(_find(journey, rd_fragments.period_next_year)).not_to_have_class(
-        re.compile(r"htmx-(added|settling)")
-    )
+    # htmx marks the swapped top-level nodes (not the arrow inside them) with htmx-added until
+    # the settle delay ends, and binds hx-get on them then; an Enter before that follows the
+    # plain href. Wait until no node of the picker is still added/settling (CSP-safe, no eval).
+    expect(picker.locator(".htmx-added, .htmx-settling")).to_have_count(0)
     journey.page.keyboard.press("Enter")
     expect(picker).to_contain_text("2028")
     expect(_find(journey, rd_fragments.period_next_year)).to_be_focused()
