@@ -24,15 +24,33 @@ class FortuneTotals:
     assets_base: int
     liabilities_base: int
     net_base: int
+    unconverted_ccys: tuple[str, ...] = ()
+
+
+def _base_amounts(
+    converter: fx_service.FxConverter, bal: int, ccy: str, *, skip: bool
+) -> tuple[int, int] | None:
+    """``(balance, abs balance)`` in base; ``None`` when the rate is missing and ``skip``."""
+    try:
+        return converter.to_base(bal, ccy), converter.to_base(abs(bal), ccy)
+    except fx_service.FxUnavailableError:
+        if skip:
+            return None
+        raise
 
 
 def compute_fortune(
-    conn: sqlite3.Connection, user_id: int, converter: fx_service.FxConverter
+    conn: sqlite3.Connection,
+    user_id: int,
+    converter: fx_service.FxConverter,
+    *,
+    skip_unconvertible: bool = False,
 ) -> FortuneTotals:
     """Return the Assets / Liabilities / Net split over live accounts (ADR-0139, Q-009).
 
-    Per-currency buckets stay native; ``*_base`` fields sum each account converted
-    at the converter's latest cached rate (a missing rate raises ``FxUnavailableError``).
+    Per-currency buckets stay native; ``*_base`` fields sum each account at the latest cached
+    rate; a missing rate raises ``FxUnavailableError`` unless ``skip_unconvertible`` (T-UR69)
+    leaves the account out and lists its currency in ``unconverted_ccys``.
     """
     assets_by_ccy: dict[str, int] = {}
     liabilities_by_ccy: dict[str, int] = {}
@@ -40,6 +58,7 @@ def compute_fortune(
     assets_base = 0
     liabilities_base = 0
     net_base = 0
+    unconverted: set[str] = set()
     accounts = accounts_repo.list_all(conn, user_id)
     balances = balance_service.derive_balances(conn, user_id, accounts)
     for account in accounts:
@@ -47,12 +66,19 @@ def compute_fortune(
         ccy = account.currency
         if account.is_liability:
             liabilities_by_ccy[ccy] = liabilities_by_ccy.get(ccy, 0) + abs(bal)
-            liabilities_base += converter.to_base(abs(bal), ccy)
         else:
             assets_by_ccy[ccy] = assets_by_ccy.get(ccy, 0) + bal
-            assets_base += converter.to_base(bal, ccy)
         net_by_ccy[ccy] = net_by_ccy.get(ccy, 0) + bal
-        net_base += converter.to_base(bal, ccy)
+        amounts = _base_amounts(converter, bal, ccy, skip=skip_unconvertible)
+        if amounts is None:
+            unconverted.add(ccy)
+            continue
+        in_base, owed_base = amounts
+        if account.is_liability:
+            liabilities_base += owed_base
+        else:
+            assets_base += in_base
+        net_base += in_base
     return FortuneTotals(
         assets_by_ccy=assets_by_ccy,
         liabilities_by_ccy=liabilities_by_ccy,
@@ -60,6 +86,7 @@ def compute_fortune(
         assets_base=assets_base,
         liabilities_base=liabilities_base,
         net_base=net_base,
+        unconverted_ccys=tuple(sorted(unconverted)),
     )
 
 
