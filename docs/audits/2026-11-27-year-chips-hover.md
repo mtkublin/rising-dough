@@ -67,4 +67,20 @@ Step 3b: only app-year-cell.js changed (no template, no save path); the save, 42
 
 New finding 3 (Layout, minor): the flipped chips overlap the edited cell by 4 px. .rd-year-editor__scope has margin-top: var(--space-1) (overrides.css:33-41), which is the 4 px gap below the cell, but place() uses GAP = 0 and ignores that margin: above = box.top - height puts the group top at box.top - height + 4, so the group bottom sits 4 px inside the editor (1440x452 Travel May: group y 376..416, editor y 412..452, overlapEditor=true in every flipped case). The chips cover the top frame of the cell input (viewed light-1440-bottom-Travel-5: the input's top edge is hidden behind the chips); the input interior and text stay visible. The same ignored margin also makes fitsBelow optimistic by 4 px (chips could end up to 4 px below the viewport). Suggested: in place() count the margin (height = offsetHeight + parseFloat(getComputedStyle(group).marginTop); above = box.top - height so the group, margin included, ends at box.top; fitsBelow with that height), or flip to margin-bottom when above.
 
-Final verdict: FINDINGS (finding 1 fixed; finding 3 minor, new; finding 2 pre-existing).
+Final verdict (superseded by Re-check 2 below): FINDINGS (finding 1 fixed; finding 3 minor, new; finding 2 pre-existing).
+
+## Re-check 2 (c2e7664e, sha de184324)
+
+Scope: finding 3 (place() now counts the group's margin-top) plus a sanity pass. Fresh scratch DB, light and dark, 1440x452, 1024x452 and 375x452. Screenshots in `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/YEARCHIP/shots2` (<theme>-<width>-bottom-<category>-<month>.png, <theme>-<width>-mid.png).
+
+- Bottom-row cells (Travel Jan, May, Dec, Rent Jul) at 1440 and 1024, light and dark: chips flip above and no longer overlap the edited cell: group bottom <= editor top, inside the viewport (1440x452 Travel May: group y 372..412, editor y 412..452; Rent Jul: group 336..376, editor 376..416; 1024 Travel Jan group 372..412, editor 412..452). overlapEditor=false in all 32 cases. Finding 3 fixed.
+- Mid-viewport cell (Groceries Jun) at 1440, 1024, 375: chips below with the 4 px gap (group y 376, editor bottom 372), inside the viewport.
+- Flip back on scroll (group below, y 360..400, editor 316..356), flip above again (group 380..420, editor 420..460), resize to 900 high (below, 464..504) and back to 452 (above, 372..412): all correct, no overlap.
+- 375x452: bottom cells never reach the viewport bottom there (editor y 248..332 of 452), so chips stay below, inside the viewport, no overlap; the script's "want=above" expectation is not applicable at this width (same as Re-check 1), not a defect. Horizontal clamp holds (group x 96..367 of 375).
+- Escape removes group and editor in every case.
+
+Diagnostics (horizontalScroll / overflowingElements / duplicateIds / consoleErrors / requestFailures): 1440 light and dark false/0/0/0/0 at load and after; 1024 false/20/0/0/0 at load (table.rd-year in its own scroller, pre-existing T-UR71) and false/0/0/0/0 after; 375 false/20/0/0/0 at load and after (same pre-existing scroller). No duplicate ids, console errors or failed requests.
+
+Step 3b: only app-year-cell.js changed since Re-check 1 (no template, no save path); earlier results stand.
+
+Final verdict: CLEAN (finding 1 and finding 3 fixed; finding 2, table.rd-year overflow at 1024/375, is pre-existing, T-UR71).
