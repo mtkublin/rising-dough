@@ -99,3 +99,16 @@ budget_rows = by_id("budget-row-", prefix=True)
 budget_row_cells = role("cell").inside(budget_rows)
 budget_row_spent = role("progressbar", "Spent").inside(budget_rows)
 remainder_bar = role("progressbar", re.compile("actual vs planned"))
+
+
+# --- T-UR97: keyboard map (period nav and tab strip) -----------------------
+period_group = role("group", "Period", exact=True)
+period_label = role("button", re.compile(r"\w"), exact=False).inside(period_group)
+period_prev = role("link", "Previous period", exact=True).inside(period_group)
+period_next = role("link", "Next period", exact=True).inside(period_group)
+plan_tabs = role("navigation", "Plan view", exact=True)
+
+
+def plan_tab(name: str) -> Locator:
+    """A plan view tab (``budget``, ``year``, ``forecast``, ``analytics``)."""
+    return role("link", name, exact=True).inside(plan_tabs)

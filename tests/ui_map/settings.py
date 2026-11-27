@@ -168,3 +168,12 @@ def invite_menu_item(label_text: str, invite_id: int) -> Locator:
 
 def anchor_option(name: str) -> Locator:
     return role("option", name, exact=True).inside(income_anchor)
+
+
+# --- T-UR97: keyboard map (tab strip) ---------------------------------------
+settings_tabs = role("tablist", "Settings", exact=True)
+
+
+def settings_tab(label: str) -> Locator:
+    """A settings tab by its accessible name (``Categories``, ``Currency & FX``, ...)."""
+    return role("tab", label, exact=True).inside(settings_tabs)
