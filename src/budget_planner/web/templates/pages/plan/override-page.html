@@ -5,7 +5,7 @@
 {% extends "layouts/base.html" %}
 {% block title %}Budget · Rising Dough{% endblock %}
 {% block head_extra %}
-  <style>
+  <style id="override-page-style" nonce="{{ csp_nonce }}">
       .rd-override-page dialog:not([open]) {
           display: block;
           position: static;

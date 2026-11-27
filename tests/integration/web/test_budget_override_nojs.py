@@ -6,6 +6,7 @@ bare fragment aimed at ``#modal-root``; a failed save re-renders the page with t
 
 from __future__ import annotations
 
+import re
 import sqlite3
 
 from fastapi.testclient import TestClient
@@ -70,3 +71,12 @@ def test_failed_save_rerenders_the_page_with_the_error(
         r.text, rd_dialogs.field_error(by_id("override-budget"), "amount")
     ).endswith("enter an amount of 0 or more")
     assert budgets_repo.get_default(db, USER_ID, cat_id) is None
+
+
+def test_page_style_block_carries_the_response_nonce(client: TestClient, cat_id: int) -> None:
+    r = client.get(_url(cat_id))
+
+    header_nonce = re.search(r"'nonce-([^']+)'", r.headers["content-security-policy"])
+    assert header_nonce is not None
+    style = _html.resolve_one(r.text, by_id("override-page-style"))
+    assert style.get("nonce") == header_nonce.group(1)
