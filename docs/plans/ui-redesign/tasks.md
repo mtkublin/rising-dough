@@ -640,3 +640,8 @@ Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no ne
 ### ◻ T-UR92 [S] Year scope chips stay on the cell on touch widths (R26)
 - Scope: on touch widths the Plan/year scope chips stay attached to the edited cell while the page or grid scrolls. Owned by item CHIPMOB.
 - Source: operator drill review 3, R26.
+
+### ◻ T-UR93 [S] Outside click closes the year cell editor (R27)
+- Scope: on Plan/year a click or tap outside the edited cell and its chips closes the editor like Escape (value not saved, no request); a click on another cell opens that cell's editor; clicks on a chip or in the input do not close. Owned by item OUTCLICK (`static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`).
+- Files: `static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`, `docs/requirements.md` F4.8a.
+- Source: operator drill review 3, R27.

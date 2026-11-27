@@ -107,6 +107,7 @@ Third operator drill review. The operator's list, verbatim:
 - R24 "plan/buget + plan/year - "categories without a budget" - the outer box is ugly, remove it. let the table/list just be a part of the page, no need for adding outer boundaries"
 - R25 "plan/buget - also "categories without a budget" - don't display "no budget" next to the "set budget" button"
 - R26 "plan/year - the edit toggle chips are floating all around the page in mobile mode, should be fixed to the cell there as well"
+- R27 "one more bug - plan/year - when the chips are shown for some cell I'd expect them to disapper when I click elsewhere on the page"
 
 ### Triage
 
@@ -115,3 +116,4 @@ Third operator drill review. The operator's list, verbatim:
 | R24 | Collapsed unbudgeted list has no outer box (budget, year) | fix | T-UR90 | open |
 | R25 | Unbudgeted status cell shows only "set budget" | spec change + fix | T-UR91 | open |
 | R26 | Year scope chips stay attached to the cell on touch widths | fix | T-UR92 | open |
+| R27 | A click or tap outside the edited year cell and its chips closes the editor as Escape does | fix + spec change | T-UR93 | open |
