@@ -54,4 +54,60 @@ Measured per scenario: computed `font-size` of every visible text-like input, se
 2. **Year cell editor is tight at 16px (low).** `cur__375__year-cell-editor.png`: 76px input holds 7 characters with no slack. Suggest less side padding for `.rd-year-editor__input` under 48rem.
 3. **Afford input clips a long amount (low).** `cur__375__today-afford-over.png`: 64px input, 8 digits typed.
 
-Verdict: FINDINGS (1 blocking: auth pages). Five diagnostics clean; desktop unchanged; every shell route and dialog is at 16px at 375.
+Verdict (first pass, 260a2c19): FINDINGS (1 blocking: auth pages). See the re-check below for the final verdict.
+
+## Re-check (abbc7e73)
+
+Date: 2026-11-27. Branch wi/ui/sourdough/ZOOM at abbc7e73 (the three fixes plus the merge of ui/sourdough with YEARCHIP's year-cell scope chips). Tool: `frontend-visual-audit` skill (Playwright/Chromium), scratch DBs only (never `data/budget.sqlite`): one dev-mode DB with the login user, an account, two categories with budget defaults and one pending invite (created with `services.invites.create_invite`, known token), and a second DB started with `BUDGET_ENV=test` and `BUDGET_PLANNER_SETUP_TOKEN_HASH` set so `/setup` is open (in dev mode the dev bootstrap admin keeps setup closed). Viewports 1440x900 and 1024x768 light, 375x812 light and dark with touch emulation (`has_touch`, `is_mobile`). The "before" state of the auth pages is the same page with the `overrides.css` request aborted (`-NOOVR` screenshots).
+Screenshots and raw numbers: `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out2/`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out3/`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out4/` (`results.json` in each; `<vp>__<scheme>__<name>.png`).
+
+### Routes x viewports
+
+| Route | 1440 | 1024 | 375 light | 375 dark |
+|---|---|---|---|---|
+| /auth/login, /auth/register | audited | audited | audited | audited |
+| /auth/reauth | audited | audited | audited | audited |
+| /setup (token link) | audited | audited | audited | audited |
+| /invite/{token} | audited | audited | audited | audited |
+| /today, /today afford with 8 digits | audited | audited | audited | audited |
+| /plan?tab=year, year cell editor with "12345.00" | audited | audited | audited | audited |
+| /ledger | audited | audited | audited | audited |
+| dialogs: new entry, edit transaction, new account | audited | audited | audited | audited |
+
+Dark was run at 375 only; 1440 and 1024 light. /auth/reauth, /setup and the afford typing were rerun (see the note at the end).
+
+### Diagnostics
+
+| Viewport | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|
+| 1440 | 0 | 0 (all routes) | 0 | 0 | 0 |
+| 1024 | 0 | 0, except the year grid (inside its scroll wrapper, pre-existing, as in the first pass) | 0 | 0 | 0 |
+| 375 light | 0 | 1 on /today, dialogs and auth pages (`pre.rd-hero__loaf` / `rd-auth__loaf`, decorative, pre-existing); year grid 11 to 20 (own scroll wrapper, pre-existing) | 0 | 0 | 0 |
+| 375 dark | 0 | same as light | 0 | 0 | 0 |
+
+No page scrolls horizontally anywhere. The one console error per `-NOOVR` run is the aborted stylesheet request caused on purpose; none in the real runs.
+
+### Finding 1 (auth pages 14px): fixed
+
+`layouts/auth.html` now links `rd/app/overrides.css`. At 375 touch, light and dark, every field is 16px (computed): /auth/login (email, password), /auth/register (2 fields), /auth/reauth (current-password), /setup (email, name, password, confirm), /invite/{token} (email, name, password, confirm). Without the stylesheet the same fields are 14px, so the link is what changes them. Desktop: the auth fields stay 14px at 1440 and 1024 (the rule is gated on the touch query).
+Layout vs before: /auth/login, /auth/register and /auth/reauth full-page screenshots are byte-identical with and without the stylesheet at 375 and at 1440 (the fields are empty, same box heights); /setup and /invite differ only in the glyph size of the placeholder text ("name@example.com", "Your name", the prefilled invite email). Viewed: nothing wraps, shifts or clips; heading, buttons and loaf unchanged. Screenshots `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out3/375__light__setup.png`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out2/375__dark__invite.png`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out2/375__light__auth-login.png`.
+
+### Finding 2 (year cell editor tight at 16px): fixed
+
+375 light and dark, editor typed with "12345.00" (8 characters): font 16px, input 76x38 in its 78x40 cell, scrollWidth 76 = clientWidth 76 (no clipping), inside the cell box; row heights before and after opening identical ([20, 40, 40]); the cell did not move. The YEARCHIP scope chips ("this month only" preselected, "every March") sit directly below the cell; the chip row is fully inside the viewport (March: 117 to 367 of 375; December, last column: 96 to 367, shifted left to stay in view), no overlap with the edited cell, no page scroll. In a short viewport (375x560, cell near the bottom) the chips stay below the cell and in the viewport (cell 400-440, chips 444-484); the flip-above case was not triggered at that size and is YEARCHIP's own behaviour. Desktop: editor unchanged (11px, 83x38 at 1440, 76x38 at 1024, "12345.00" not clipped, chips under the cell). Screenshots `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out2/375__light__year-editor-12345.png`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out2/375__dark__year-editor-last-col.png`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out4/375__light__year-editor-short-viewport.png`.
+
+### Finding 3 (afford input clips 8 digits): fixed, with a note
+
+375: the afford input is 96px wide (was 64px) with 16px text; typing "12345678" shows all 8 digits (scrollWidth 96 = clientWidth 96), screenshot `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/ZOOM/out3/375__light__afford-typed-8.png`. Note (low, not blocking): a longer string still scrolls inside the field ("1234567.89", 10 characters, by 4px; "99999999.99" by 14px), and the server-rendered formatted value "12,345,678.00" from `?amount=12345678` clips too. Desktop unchanged (80px, 14px).
+
+### Spot check at 375 (touch), light and dark
+
+New entry (5 fields), edit transaction (5), new account (6), /today (1), /ledger (1): all fields 16px, none clipped. Desktop 1440 and 1024: the same pages keep their 13/14px fields and year editor 11px (rules gated on the touch query).
+
+### Step 3b
+
+The re-check adds one `<link>` in `layouts/auth.html`: no arithmetic, float or literal. No duplicate ids on any run; swap targets (`#modal-root`) unchanged; dialogs and the year cell editor open and close without error; rendered values equal the seeded ones (300.00 and 2,500.00 budget cells, afford value as typed). Failing saves: not re-run, no form, handler or route changed.
+
+Note on the run: a first attempt failed on `/auth/reauth` (my script awaited htmx with a string eval that the CSP blocks) and on `/setup` (dev mode keeps setup closed); both were rerun with the setup described above and are reported from the rerun.
+
+Final verdict: CLEAN. The three findings are fixed (finding 3 with the noted long-string limit); the five diagnostics are clean; desktop unchanged.
