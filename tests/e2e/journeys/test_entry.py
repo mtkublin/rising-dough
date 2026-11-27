@@ -137,3 +137,24 @@ def test_new_repeating_formula_rule_derives_from_source(world: World) -> None:
     row = world.find(ledger.recurring_row(rule["id"]))
     expect(row).to_contain_text("formula-rule")
     expect(row).to_contain_text("100.00")  # 10% of the 1000.00 salary rule
+
+
+def test_formula_over_categories_without_recurring_amounts_says_so_once(world: World) -> None:
+    world.account("Checking")
+    world.category("Salary", "income")
+    world.category("Savings", "expense")
+    rules_before = world.scalar("SELECT COUNT(*) FROM recurring_rules")
+    _open_dialog(world, "repeats")
+    choose_category(world.page, "Savings")
+    choose_account(world.page, "Checking")
+    world.find(entries.amount_formula).check(force=True)
+    world.find(entries.formula_pick).click()
+    world.find(label("Salary", exact=True).inside(entries.formula_group)).check(force=True)
+    fill_stable(world.find(entries.formula_percent), "10")
+    fill_stable(world.find(entries.field_note.inside(entries.dialog)), "empty-sources")
+    world.find(entries.save).click()
+
+    dialog = world.find(entries.dialog)
+    expect(dialog).to_be_visible()  # the failed save keeps it open
+    expect(dialog.get_by_text("the picked categories have no recurring amounts")).to_have_count(1)
+    assert world.scalar("SELECT COUNT(*) FROM recurring_rules") == rules_before

@@ -67,9 +67,6 @@ HERO_BAR_CELLS: Final = 20
 _SIGN_MARKS: Final = ("-", "\u2212")
 _GROUP_MARKS: Final = (",", ".")
 _NEXT_WEEK_DAYS: Final = 7
-_YEAR_TIERS: Final[Mapping[str, str]] = MappingProxyType(
-    {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"}
-)
 
 DeltaKind = Literal["up", "down", "flat"]
 
@@ -202,13 +199,6 @@ def bar_spans(
     )
 
 
-def year_cell_state(origin: str | None, *, editing: bool = False) -> str:
-    """``data-state`` of a ``.rd-year-cell``: default|recurring|one-off|unset|editing."""
-    if editing:
-        return "editing"
-    return _YEAR_TIERS.get(origin or "", "default")
-
-
 @dataclass(frozen=True, slots=True)
 class HeroFit:
     """Counts for the hero figure's ``data-digits`` / ``data-marks`` / ``data-signs``."""
@@ -259,6 +249,8 @@ class BudgetLineView:
     has_budget: bool
     over_minor: int
     bar: BarSpans
+    edit_url: str = ""
+    """Link of the row's "edit budget" dialog, opened on the row's current tier."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,6 +259,10 @@ class BudgetView:
 
     summary: budget_service.MonthSummary
     lines: tuple[BudgetLineView, ...]
+    """Categories with a budget: the table rows."""
+    unbudgeted_lines: tuple[BudgetLineView, ...]
+    """Every other live expense category: the rows of the collapsed list (R14)."""
+    unbudgeted_heading: str
     left_per_day_minor: int
     spent_pct: int
     committed_pct: int
@@ -279,6 +275,8 @@ class BudgetView:
     period_day: int
     period_total_days: int
     left_text: str = ""
+    no_budgets: bool = False
+    """True while no listed category has a budget (the tab then prints the "set budget" hint)."""
 
 
 def _delta_kind(delta_minor: int) -> DeltaKind:
@@ -295,7 +293,7 @@ def _row_bar(used_pct: int, *, is_over: bool, has_budget: bool) -> BarSpans:
     return replace(spans, label="over budget") if is_over and has_budget else spans
 
 
-def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
+def _line_view(line: budget_service.CategoryBudgetLine, edit_url: str = "") -> BudgetLineView:
     budgeted = line.budgeted_minor or 0
     used_pct = clamped_percent(line.spent_minor, budgeted)
     is_over = line.spent_minor > budgeted
@@ -312,19 +310,27 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
         has_budget=line.budgeted_minor is not None,
         over_minor=max(0, line.spent_minor - budgeted),
         bar=_row_bar(used_pct, is_over=is_over, has_budget=line.budgeted_minor is not None),
+        edit_url=edit_url,
     )
 
 
 def budget_view(
-    summary: budget_service.MonthSummary, today: date, base_currency: str | None = None
+    summary: budget_service.MonthSummary,
+    today: date,
+    base_currency: str | None = None,
+    edit_urls: Mapping[int, str] | None = None,
 ) -> BudgetView:
     """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker).
 
     With ``base_currency`` the hero text ``left_text`` is the signed remaining figure
-    (U+2212 when over).
+    (U+2212 when over). ``edit_urls`` maps a category id to its row's edit-budget dialog link.
     """
     totals = summary.totals
-    lines = tuple(_line_view(line) for line in summary.lines)
+    urls = edit_urls or {}
+    every = tuple(_line_view(line, urls.get(line.category_id, "")) for line in summary.lines)
+    lines = tuple(line for line in every if line.has_budget)
+    unbudgeted = tuple(line for line in every if not line.has_budget)
+    noun = "category" if len(unbudgeted) == 1 else "categories"
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
     is_over = totals.budgeted_minor > 0 and totals.spent_minor > totals.budgeted_minor
     cells = bar_cells_exact(
@@ -333,11 +339,15 @@ def budget_view(
     return BudgetView(
         summary=summary,
         lines=lines,
+        unbudgeted_lines=unbudgeted,
+        unbudgeted_heading=f"{len(unbudgeted)} {noun} without a budget",
         left_per_day_minor=left_per_day(summary),
         spent_pct=spent_pct,
         committed_pct=clamped_percent(totals.committed_minor, totals.budgeted_minor),
         is_over=is_over,
-        over_count=sum(1 for line in lines if line.is_over),
+        # Hero count keeps the pre-R14 meaning: every live line, unbudgeted ones with spend
+        # included (T-UR70 is the open question; the numbers must not move here).
+        over_count=sum(1 for line in every if line.is_over),
         left_pct=cells.left_pct,
         cells=cells,
         period_start=summary.period_start,
@@ -345,6 +355,7 @@ def budget_view(
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
         left_text=(format_figure(totals.remaining_minor, base_currency) if base_currency else ""),
+        no_budgets=not lines,
     )
 
 
@@ -391,24 +402,42 @@ def period_note(month: int, start: date, end: date) -> str:
 
 
 def month_period(
-    picked: budget_service.PickerMonth, *, picker_id: str, note: str, base_url: str
+    picked: budget_service.PickerMonth,
+    *,
+    picker_id: str,
+    note: str,
+    base_url: str,
+    view_year: int | None = None,
 ) -> BudgetPeriod:
-    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
+    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string.
+
+    ``view_year`` is the year the picker grid shows (F4.6b); the year arrows only change it, the
+    page period stays ``picked``.
+    """
 
     def url(year: int, month: int) -> str:
         return f"{base_url}&year={year}&month={month}"
 
+    shown = picked.year if view_year is None else view_year
+
+    def year_url(year: int) -> str:
+        return f"{url(picked.year, picked.month)}&pick_year={year}"
+
     picker = PeriodPicker(
         id=picker_id,
         is_year=False,
-        year=picked.year,
-        prev_year_url=url(picked.year - 1, picked.month),
-        next_year_url=url(picked.year + 1, picked.month),
+        year=shown,
+        prev_year_url=year_url(shown - 1),
+        next_year_url=year_url(shown + 1),
         cells=tuple(
-            PickerCell(MONTH_SHORT[n - 1], url(picked.year, n), n == picked.month)
+            PickerCell(
+                MONTH_SHORT[n - 1],
+                url(shown, n),
+                (shown, n) == (picked.year, picked.month),
+            )
             for n in range(1, 13)
         ),
-        note=note,
+        note=note if shown == picked.year else "",
     )
     return BudgetPeriod(
         label=f"{month_name(picked.month)} {picked.year}",
@@ -419,7 +448,10 @@ def month_period(
 
 
 def budget_period(
-    picked: budget_service.PickerMonth, summary: budget_service.MonthSummary, base_url: str
+    picked: budget_service.PickerMonth,
+    summary: budget_service.MonthSummary,
+    base_url: str,
+    view_year: int | None = None,
 ) -> BudgetPeriod:
     """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
     return month_period(
@@ -427,6 +459,7 @@ def budget_period(
         picker_id="period-budget",
         note=period_note(picked.month, summary.period_start, summary.next_income_date),
         base_url=base_url,
+        view_year=view_year,
     )
 
 

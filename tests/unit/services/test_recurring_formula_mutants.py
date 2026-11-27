@@ -34,7 +34,6 @@ from budget_planner.services.recurring_formula import (
     PreviewError,
     PreviewOk,
     _apply_coefficient,
-    _parse_sign,
     build_formula,
     build_term,
     compute_formula_amount,
@@ -45,6 +44,7 @@ from budget_planner.services.recurring_formula import (
     rt_expand,
     validate_formula_sources,
 )
+from budget_planner.services.recurring_formula_terms import _parse_sign
 from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 from tests.unit.services.conftest import (
     EXPENSE_RULE_DUE,

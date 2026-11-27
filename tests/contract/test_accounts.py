@@ -323,7 +323,7 @@ def test_update_renames_and_audits(client: TestClient, acc_id: int, _migrated: S
 
 
 @covers("POST /accounts/{account_id}")
-def test_update_asset_to_credit_card_sets_limit(
+def test_update_asset_to_liability_is_422_and_changes_nothing(
     client: TestClient, acc_id: int, _migrated: Settings
 ) -> None:
     r = client.post(
@@ -335,36 +335,47 @@ def test_update_asset_to_credit_card_sets_limit(
             "credit_limit": "5000.00",
         },
     )
-    assert r.status_code == 200
-    assert "5,000.00" in _html.text_of(r.text, accounts.row(acc_id))
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
     row = _account_rows(_migrated)[0]
-    assert (row["is_liability"], row["credit_limit_minor"]) == (1, 500_000)
+    assert (row["name"], row["is_liability"], row["credit_limit_minor"]) == ("Main", 0, None)
+    assert audit_ops(_migrated, "account") == [("create", acc_id)]
 
 
 @covers("POST /accounts/{account_id}")
-def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated: Settings) -> None:
+def test_update_liability_to_asset_is_422_and_keeps_limit(
+    client: TestClient, _migrated: Settings
+) -> None:
     visa = _make_account(_migrated, liability=True, limit=1_000_000, name="Visa")
     r = client.post(f"/accounts/{visa}", data={"name": "Visa", "type": "", "credit_limit": ""})
-    assert r.status_code == 200
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
     row = _account_rows(_migrated)[0]
-    assert (row["is_liability"], row["credit_limit_minor"]) == (0, None)
+    assert (row["is_liability"], row["credit_limit_minor"]) == (1, 1_000_000)
+    assert audit_ops(_migrated, "account") == [("create", visa)]
 
 
 @covers("POST /accounts/{account_id}")
 def test_update_validation_errors_are_422_and_change_nothing(
-    client: TestClient, acc_id: int, _migrated: Settings
+    client: TestClient, _migrated: Settings
 ) -> None:
-    blank = client.post(f"/accounts/{acc_id}", data={"name": "   "})
+    visa = _make_account(_migrated, liability=True, limit=1_000_000, name="Visa")
+    blank = client.post(f"/accounts/{visa}", data={"name": "   ", "is_liability": "on"})
     assert blank.status_code == 422
     no_limit = client.post(
-        f"/accounts/{acc_id}", data={"name": "V", "is_liability": "on", "credit_limit": ""}
+        f"/accounts/{visa}", data={"name": "V", "is_liability": "on", "credit_limit": ""}
     )
     assert no_limit.status_code == 422
     assert _html.error_lines(no_limit.text) == {
         "field-credit_limit-error": "▲ positive credit limit required",
     }
-    assert _account_rows(_migrated)[0]["name"] == "Main"
-    assert audit_ops(_migrated, "account") == [("create", acc_id)]
+    row = _account_rows(_migrated)[0]
+    assert (row["name"], row["credit_limit_minor"]) == ("Visa", 1_000_000)
+    assert audit_ops(_migrated, "account") == [("create", visa)]
 
 
 @covers("POST /accounts/{account_id}")

@@ -153,8 +153,8 @@ def test_plan_budget_override_item_targets_its_own_category(
     assert client.post(f"/budget/defaults/{cat_id}", data={"amount": "500"}).status_code == 200
     r = client.get("/plan?tab=budget&year=2026&month=10")
     assert r.status_code == 200
-    item = _html.resolve_one(r.text, plan_budget.override_item("Groceries"))
-    target = f"/budget/rules/{cat_id}/overrides/new?year=2026&month=10"
+    item = _html.resolve_one(r.text, plan_budget.edit_budget_item("Groceries"))
+    target = f"/budget/rules/{cat_id}/overrides/new?year=2026&month=10&tier=default"
     assert item.get("href") == target
     assert item.get("hx-get") == target
     assert item.get("hx-target") == "#modal-root"

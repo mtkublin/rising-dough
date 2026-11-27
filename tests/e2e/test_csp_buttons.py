@@ -274,11 +274,11 @@ def test_override_on_plan_budget_under_csp(live_server: tuple[str, Path], page: 
     page.goto(f"{base_url}/plan?tab=budget&year=2026&month=10")
     assert page.evaluate("typeof window.htmx") == "object"
     to_playwright(page, plan_budget.row_menu_button("Groceries")).click()
-    to_playwright(page, plan_budget.override_item("Groceries")).click()
+    to_playwright(page, plan_budget.edit_budget_item("Groceries")).click()
     dialog = plan_year.dialog("Groceries", "Oct 2026")
     expect(to_playwright(page, dialog)).to_be_visible()
     # The scope radio is visually hidden (its label is the click target).
-    to_playwright(page, plan_year.tier(dialog, "new default")).dispatch_event("click")
+    to_playwright(page, plan_year.tier(dialog, "every month (default)")).dispatch_event("click")
     to_playwright(page, plan_year.amount(dialog)).fill("321.00")
     to_playwright(page, plan_year.save(dialog)).click()
     # The dialog closes and the budget table re-renders with the override applied.

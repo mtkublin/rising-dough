@@ -30,3 +30,7 @@ Overrides do not feed back into the source's *own* formula inputs: an override r
 - Parent formula values change where a formula source has overrides/skips; this is the intended correction.
 - `date_override` behaves identically for fixed and formula sources (no cross-month move of the contribution); unchanged from fixed-source behaviour.
 - No schema change, no migration.
+
+## Amendment 2026-11-26: evaluation month of a new rule (T-UR58)
+
+The month in which a source rule's effective amounts are summed is the evaluation month of ADR-0047's amendment of the same date: the new rule's start month when it is later than today, else the current month. The override rules above are unchanged.

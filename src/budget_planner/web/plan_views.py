@@ -247,7 +247,9 @@ class AnalyticsPageView:
 
 
 def analytics_period(
-    picked: budget_service.PickerMonth, bundle: analytics_service.AnalyticsBundle
+    picked: budget_service.PickerMonth,
+    bundle: analytics_service.AnalyticsBundle,
+    view_year: int | None = None,
 ) -> BudgetPeriod:
     """Period nav for the analytics tab; the picker note shows the window being summed."""
     start, end = bundle.period_start, bundle.period_end
@@ -261,6 +263,7 @@ def analytics_period(
         picker_id="period-analytics",
         note=note,
         base_url=f"/plan?tab=analytics&period={bundle.period}",
+        view_year=view_year,
     )
 
 
@@ -269,6 +272,7 @@ def analytics_page(
     picked: budget_service.PickerMonth,
     colors: Mapping[int, str | None],
     currency: str,
+    view_year: int | None = None,
 ) -> AnalyticsPageView:
     """Analytics page values for the picked month and the bundle's range."""
     query = f"&year={picked.year}&month={picked.month}"
@@ -298,5 +302,5 @@ def analytics_page(
             )
             for item in bundle.largest_items
         ),
-        period=analytics_period(picked, bundle),
+        period=analytics_period(picked, bundle, view_year),
     )

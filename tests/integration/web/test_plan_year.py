@@ -27,6 +27,11 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from budget_planner.web.plan_year_view import (
+    TIER_ONE_OFF,
+    TIER_RECURRING,
+    tier_labels,
+)
 from tests.auth_support import seed_login_user
 from tests.ui_map import _html, plan_budget, plan_year
 
@@ -111,7 +116,7 @@ def test_cell_has_a_spoken_name_and_opens_its_dialog(
     url = f"/budget/rules/{world['Groceries']}/overrides/new?year=2026&month=3&tier=one-off"
     assert (march["href"], march["hx-get"], march["hx-target"]) == (url, url, "#modal-root")
     june = _html.resolve_one(page, plan_year.cell("Groceries", "June"))
-    assert str(june["href"]).endswith("?year=2026&month=6&tier=recurring")
+    assert str(june["href"]).endswith("?year=2026&month=6&tier=one-off")
     january = _html.resolve_one(page, plan_year.cell("Groceries", "January"))
     assert str(january["href"]).endswith("?year=2026&month=1&tier=one-off")
 
@@ -119,9 +124,11 @@ def test_cell_has_a_spoken_name_and_opens_its_dialog(
 def test_category_without_a_budget_is_listed_in_the_disclosure(
     client: TestClient, db: sqlite3.Connection, account_id: int, world: dict[str, int]
 ) -> None:
-    # F1 (derived.md year-grid rows): a category without a budget is hidden while nothing uses
-    # it and listed in the disclosure only once it has entries.
-    assert _html.count(client.get(URL).text, plan_year.disclosure) == 0
+    # R14 (2026-11-27): a category without a budget is listed in the disclosure with or without
+    # ledger entries, never as a grid row.
+    before = client.get(URL).text
+    assert _html.count(before, plan_year.row("Gym")) == 0
+    assert _html.texts(before, plan_year.unbudgeted("Gym")) == ["Gym"]
     transactions_repo.create(
         db,
         USER_ID,
@@ -188,3 +195,32 @@ def test_empty_year_lists_no_rows(client: TestClient) -> None:
 
     assert _html.count(page, plan_year.cells) == 0
     assert _html.count(page, plan_year.disclosure) == 0
+
+
+def test_scope_chips_print_the_tier_labels_of_the_override_dialog(
+    client: TestClient, world: dict[str, int]
+) -> None:
+    page = client.get(URL).text
+    labels = tier_labels(1)
+
+    chip = _html.resolve_one(page, plan_year.cell_scope(labels[TIER_ONE_OFF]))
+    assert chip["value"] == TIER_ONE_OFF
+    january = _html.resolve_one(page, plan_year.cell("Groceries", "January"))
+    assert january["data-recurring-label"] == labels[TIER_RECURRING] == "every january"
+
+
+def test_default_cell_link_opens_the_dialog_on_this_month_only_like_the_editor(
+    client: TestClient, world: dict[str, int]
+) -> None:
+    page = client.get(URL).text
+    january = _html.resolve_one(page, plan_year.cell("Groceries", "January"))
+
+    assert str(january["href"]).endswith("&tier=one-off")
+    dialog = client.get(str(january["href"])).text
+    scope = plan_year.dialog("Groceries", "Jan 2026")
+    checked = [
+        label
+        for label in ("this month only", "every january", "every month (default)")
+        if _html.resolve_one(dialog, plan_year.tier(scope, label)).has_attr("checked")
+    ]
+    assert checked == ["this month only"]

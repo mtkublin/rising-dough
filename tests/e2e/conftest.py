@@ -75,6 +75,11 @@ BROWSER_XFAILS: dict[tuple[str, str], str] = {
         "test_stale_session_reauths_with_passkey",
     )
 }
+# The setup server must run outside env=dev (dev seeds an admin and closes setup), so its
+# ``__Host-`` CSRF cookie is Secure; WebKit stores no Secure cookie over plain http://127.0.0.1.
+BROWSER_XFAILS[
+    ("webkit", "test_setup_page.py::test_mismatch_shows_an_error_then_setup_signs_in_and_closes")
+] = "Secure __Host- CSRF cookie is not stored by WebKit over plain http"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -227,6 +232,13 @@ document.addEventListener('htmx:targetError', (e) => {
   window.__reportHtmxTargetError(
     `htmx:targetError: hx-target ${JSON.stringify(d.target || null)} not found for ${who}` +
     ` at ${location.pathname}`
+  );
+});
+document.addEventListener('htmx:oobErrorNoTarget', (e) => {
+  const d = e.detail || {};
+  const content = d.content && d.content.id ? `#${d.content.id}` : 'unknown';
+  window.__reportHtmxTargetError(
+    `htmx:oobErrorNoTarget: out-of-band element ${content} matches nothing at ${location.pathname}`
   );
 });
 """

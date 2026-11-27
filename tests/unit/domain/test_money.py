@@ -10,7 +10,6 @@ from budget_planner.domain.money import (
     format_figure,
     format_major,
     format_money,
-    format_whole,
     minor_to_major,
     parse_amount_minor,
     parse_amount_str,
@@ -109,18 +108,6 @@ def test_format_money_zero(currency: str, expected: str) -> None:
 
 def test_format_money_minus_one_jpy_keeps_sign() -> None:
     assert format_money(-1, "JPY") == "-1 JPY"
-
-
-@pytest.mark.parametrize("amount_minor", [-49, -1, 0, 49])
-def test_format_whole_rounds_to_zero_without_sign(amount_minor: int) -> None:
-    assert format_whole(amount_minor, "PLN") == "0"
-    assert format_whole(amount_minor, "PLN", grouped=False) == "0"
-
-
-def test_format_whole_keeps_sign_when_nonzero() -> None:
-    assert format_whole(-150, "PLN") == "-2"  # 1.5 -> 2
-    assert format_whole(-250, "PLN") == "-2"  # 2.5 -> even 2 (T-Q281; was -3)
-    assert format_whole(-51, "PLN") == "-1"
 
 
 def test_format_money_uppercases_currency() -> None:

@@ -60,7 +60,7 @@ def test_handoff_page_has_twelve_cells_per_row_and_one_row_per_category() -> Non
     ],
 )
 def test_override_dialog_names_resolve_in_handoff(source: str, checked: str) -> None:
-    dlg = plan_year.dialog(_SAMPLE, "Oct 2026")
+    dlg = plan_year.handoff_dialog(_SAMPLE, "Oct 2026")
     assert _html.count(source, dlg) == 1
     for text in ("this month only", "every october", "new default"):
         assert _html.count(source, plan_year.tier(dlg, text)) == 1, text

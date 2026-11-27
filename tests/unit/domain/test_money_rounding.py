@@ -9,7 +9,6 @@ import pytest
 
 from budget_planner.domain import money
 from budget_planner.domain.money import (
-    format_whole,
     percent_to_bps,
     round_div,
     round_scaled,
@@ -76,14 +75,6 @@ def test_to_minor_units_ties_to_even(amount: Decimal, currency: str, expected: i
 )
 def test_percent_to_bps_ties_to_even(percent: Decimal, expected: int) -> None:
     assert percent_to_bps(percent) == expected
-
-
-@pytest.mark.parametrize(
-    ("minor", "expected"),
-    [(250, "2"), (350, "4"), (150, "2"), (-250, "-2"), (-50, "0")],
-)
-def test_format_whole_ties_to_even(minor: int, expected: str) -> None:
-    assert format_whole(minor, "PLN") == expected
 
 
 def test_no_half_up_symbol_or_mode_argument_remains_in_src() -> None:

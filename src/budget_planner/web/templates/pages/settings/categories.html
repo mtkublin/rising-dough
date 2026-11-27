@@ -19,26 +19,6 @@
            hx-target="#modal-root"
            hx-swap="innerHTML">+ new category</a>
       </div>
-      <form class="rd-anchor"
-            method="post"
-            action="/budget/preferences/income-anchor"
-            hx-post="/budget/preferences/income-anchor"
-            hx-trigger="change from:find select"
-            hx-swap="none">
-        <label class="rd-caption" for="income-anchor">INCOME ANCHOR</label>
-        <span class="rd-select-wrap rd-anchor__select">
-          <select class="rd-select rd-select--field"
-                  id="income-anchor"
-                  name="category_id">
-            <option value="" {% if current_anchor_id is none %}selected{% endif %}>none</option>
-            {% for c in anchor_income_categories %}
-              <option value="{{ c.id }}"
-                      {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-            {% endfor %}
-          </select>
-        </span>
-        <span class="rd-anchor__note">each period starts on its next date · saves on change</span>
-      </form>
       <div id="settings-categories"
            class="rd-settings"
            hx-get="/settings?tab=categories"
@@ -46,6 +26,26 @@
            hx-select="#settings-categories"
            hx-swap="outerHTML"
            hx-disinherit="hx-select hx-swap">
+        <form class="rd-anchor"
+              method="post"
+              action="/budget/preferences/income-anchor"
+              hx-post="/budget/preferences/income-anchor"
+              hx-trigger="change from:find select"
+              hx-swap="none">
+          <label class="rd-caption" for="income-anchor">INCOME ANCHOR</label>
+          <span class="rd-select-wrap rd-anchor__select">
+            <select class="rd-select rd-select--field"
+                    id="income-anchor"
+                    name="category_id">
+              <option value="" {% if current_anchor_id is none %}selected{% endif %}>none</option>
+              {% for c in anchor_income_categories %}
+                <option value="{{ c.id }}"
+                        {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </span>
+          <span class="rd-anchor__note">each period starts on its next date · saves on change</span>
+        </form>
         {% if color_rules %}
           <span hidden data-color-rules="{{ color_rules }}"></span>
         {% endif %}

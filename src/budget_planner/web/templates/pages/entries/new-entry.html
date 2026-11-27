@@ -7,7 +7,7 @@
    (the category posts as "category", the name the vendored combobox.js owns; the routes accept it). #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
 {% from "fragments/fields/field.html" import text_field, select_field %}
-{% from "fragments/fields/field-error.html" import field_error %}
+{% from "fragments/fields/field-error.html" import field_error, formula_error_slot %}
 {% call dialog("new-entry-dialog", "new entry", action=action, hx_post=action, describedby="", hero=hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
   <nav class="rd-tabs rd-tabs--fill" aria-label="Entry type">
     {% for key in ["happened", "planned", "repeats"] %}
@@ -26,7 +26,7 @@
   <div hidden
        id="hero-refresh"
        hx-get="/add?when={{ tab }}&dialog=1&hero=1"
-       hx-trigger="change from:#field-account_id, change from:#field-category_id{% if tab == "repeats" %}, change from:#field-amount_source, change from:#formula-slot, keyup changed delay:400ms from:#formula-slot{% endif %}"
+       hx-trigger="change from:#field-account_id, change from:#field-category_id{% if tab == "repeats" %}, change from:#field-amount_source, change from:#formula-slot, keyup changed delay:400ms from:#formula-slot, change from:#field-start_date{% endif %}"
        hx-sync="this:queue last"
        hx-include="closest form"
        hx-target="#modal-root .rd-dialog__hero"
@@ -80,14 +80,14 @@
          data-show-when="amount_source=formula"
          {% if amount_source != "formula" %}hidden{% endif %}
          hx-post="/recurring/formula/preview"
-         hx-trigger="change, keyup changed delay:400ms"
+         hx-trigger="change, keyup changed delay:400ms, change from:#field-start_date"
          hx-include="closest form"
          hx-target="find .rd-formula__result"
          hx-swap="outerHTML">
       {% with formula_id="formula-new-entry", options=source_categories, next_amount=hero.next_amount|default(none) %}
         {% include "fragments/fields/formula.html" %}
       {% endwith %}
-      {{ field_error("formula", errors) }}
+      {{ formula_error_slot(errors) }}
       {{ field_error("amount_source", errors) }}
     </div>
     <div class="rd-fields-row">

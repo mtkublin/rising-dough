@@ -6,6 +6,8 @@ import pytest
 from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
+from tests.ui_map import _html, settings
+
 # (page, region id, event it refetches on)
 _REGIONS = [
     ("/today", "today-hero", "today-stale"),
@@ -60,3 +62,12 @@ def test_plan_tabs_reload_main_on_their_stale_event(
     assert listener.get("hx-get") == refetch_url
     assert (listener.get("hx-target"), listener.get("hx-select")) == ("#main", "#main")
     assert listener.get("hx-swap") == "outerHTML"
+
+
+def test_income_anchor_select_lives_inside_the_categories_region(client: TestClient) -> None:
+    """T-UR53: the anchor options refetch with the list on `settings-categories-stale`."""
+    r = client.get("/settings?tab=categories")
+
+    region = _html.resolve_one(r.text, settings.category_slot)
+    select = _html.resolve_one(r.text, settings.income_anchor)
+    assert select in region.descendants

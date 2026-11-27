@@ -19,6 +19,9 @@
         {% include "fragments/plan/period-nav.html" %}
       {% endwith %}
     </div>
+    {% if budget.no_budgets %}
+      <p class="rd-muted" id="budget-hint">Budgets are set per category: use "set budget" on a row.</p>
+    {% endif %}
     <div class="rd-table-scroll"
          tabindex="0"
          role="region"
@@ -60,5 +63,25 @@
         </tfoot>
       </table>
     </div>
+    {% if budget.unbudgeted_lines %}
+      <details class="rd-disclosure rd-disclosure--table">
+        <summary class="rd-disclosure__summary">{{ budget.unbudgeted_heading }}</summary>
+        <div class="rd-disclosure__body rd-disclosure__body--table">
+          <div class="rd-table-scroll"
+               tabindex="0"
+               role="region"
+               aria-label="Budget by category without a budget, {{ header.month_label }} (scrolls sideways)">
+            <table class="rd-ledger rd-ledger--budget">
+              <caption class="u-visually-hidden">Budget by category without a budget, {{ header.month_label }}</caption>
+              <tbody>
+                {% for line in budget.unbudgeted_lines %}
+                  {% include "fragments/rows/budget-line.html" %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    {% endif %}
   </section>
 {% endblock %}

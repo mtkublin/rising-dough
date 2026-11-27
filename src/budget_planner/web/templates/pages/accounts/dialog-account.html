@@ -78,21 +78,41 @@
       </span>
     </div>
   {% endif %}
-  <div class="rd-field rd-field--seg"
-       role="radiogroup"
-       aria-labelledby="{{ dlg.dialog_id }}-counts">
-    <span class="rd-field__label" id="{{ dlg.dialog_id }}-counts">counts as</span>
-    <div class="rd-segmented">
-      <label class="rd-segmented__option"><input type="radio"
+  {% if dlg.editing %}
+    {# The kind is fixed at creation (T-UR60): read-only text; the hidden value lets the server reject a change. #}
+    <div class="rd-field rd-field--readonly">
+      <label class="rd-field__label" for="field-counts_as">counts as</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="field-counts_as"
+               type="text"
+               value="{{ dlg.counts_as }}"
+               readonly
+               {% if errors.is_liability|default(none) %}aria-invalid="true" aria-describedby="field-is_liability-error"{% endif %}>
+        <input type="hidden"
+               name="is_liability"
+               value="{{ 'on' if dlg.is_liability else '' }}">
+      </span>
+      {% if errors.is_liability|default(none) %}<p class="rd-field__error"
+   id="field-is_liability-error">▲ {{ errors.is_liability }}</p>{% endif %}
+    </div>
+  {% else %}
+    <div class="rd-field rd-field--seg"
+         role="radiogroup"
+         aria-labelledby="{{ dlg.dialog_id }}-counts">
+      <span class="rd-field__label" id="{{ dlg.dialog_id }}-counts">counts as</span>
+      <div class="rd-segmented">
+        <label class="rd-segmented__option"><input type="radio"
        name="is_liability"
        value=""
        {% if not dlg.is_liability %} checked{% endif %}>asset</label>
-      <label class="rd-segmented__option"><input type="radio"
+        <label class="rd-segmented__option"><input type="radio"
        name="is_liability"
        value="on"
        {% if dlg.is_liability %} checked{% endif %}>liability</label>
+      </div>
     </div>
-  </div>
+  {% endif %}
   {# A liability needs a positive credit limit (parse_account_patch); the handoff dialogs omit the field. #}
   <label class="rd-field"
          data-show-when="is_liability=on"

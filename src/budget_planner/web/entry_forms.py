@@ -53,6 +53,7 @@ from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.recurring_forms import (
     EMPTY_TERM_INPUT,
     category_alias,
+    evaluation_day,
     formula_source_candidates,
     parse_draft_terms,
 )
@@ -545,7 +546,8 @@ def formula_hero(
     drafts = parse_draft_terms(form)
     if drafts is None:
         return "\N{EM DASH}", "invalid source category"
-    return draft_hero(conn, user_id, drafts, currency=currency, today=today, fx=fx, rule_id=rule_id)
+    when = evaluation_day(form, today)
+    return draft_hero(conn, user_id, drafts, currency=currency, today=when, fx=fx, rule_id=rule_id)
 
 
 def draft_hero(
@@ -566,7 +568,8 @@ def draft_hero(
             figure,
             f"\N{RIGHTWARDS ARROW} next amount {format_money(result.amount_minor, currency)}",
         )
-    return "\N{EM DASH}", result.message
+    # one message at a time: a failure the formula body shows is not repeated in the hero note
+    return "\N{EM DASH}", result.message if formula_svc.preview_is_quiet(result) else ""
 
 
 def _category_view(

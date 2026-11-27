@@ -26,6 +26,7 @@ from budget_planner.domain.money import divide_minor_units, format_figure
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
+    categories as categories_service,
     fortune as fortune_service,
     fx as fx_service,
     ledger_totals,
@@ -363,9 +364,9 @@ def today_view(
         ),
         bar=_today_bar(budget),
         stats=(
-            TodayStat("spent", fmt(totals.spent_minor)),
-            TodayStat("committed ▒", fmt(totals.committed_minor)),
-            TodayStat("left", fmt(totals.remaining_minor)),
+            TodayStat(f"spent {vm.BAR_FILLED}", fmt(totals.spent_minor)),
+            TodayStat(f"committed {vm.BAR_REST}", fmt(totals.committed_minor)),
+            TodayStat(f"left {vm.BAR_LEFT}", fmt(totals.remaining_minor)),
             TodayStat("of", fmt(totals.budgeted_minor)),
         ),
         net_total=fmt(fortune.net_base),
@@ -480,6 +481,11 @@ def _row_view(item: vm.UpcomingItem, today: date, base_currency: str) -> Upcomin
         menu_sub=f"{date_text} · {account}" if account else date_text,
         occurrence=item.row.operation_date.isoformat(),
     )
+
+
+def categories_with_archived(conn: sqlite3.Connection, user_id: int) -> dict[int, Category]:
+    """Every category by id, archived included: a planned item keeps its category name."""
+    return {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
 
 
 def today_upcoming(

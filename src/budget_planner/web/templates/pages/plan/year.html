@@ -1,7 +1,9 @@
 {# Plan · year (T-UR11, ADR-0107, ADR-0136). Handoff: pages/plan/year.html.
    Context: year_page (plan_year_view.YearPage), tab, base_ccy. Rendered by GET /plan?tab=year.
    Each cell edits in place (handoff overlay override--year-cell: the rd-year-editor form below,
-   cloned by app-year-cell.js and posted to the override route as "this month only"); a modified
+   cloned by app-year-cell.js; its two scope chips (the tier_labels texts: this month only, preselected, and
+   every <month>; a popover under the edited cell, never the default tier) pick the tier the override
+   route stores, F4.8a, R16, R17); a modified
    click or no script opens the override dialog (fragments/dialogs/override-budget.html). A saved
    or removed override sends budget-stale and the hidden listener reloads #main. #}
 {% extends "layouts/base.html" %}
@@ -72,9 +74,24 @@
                inputmode="decimal"
                autocomplete="off"
                data-js="amount-input">
-        <input type="hidden" name="tier" value="one-off">
         <input type="hidden" name="year">
         <input type="hidden" name="month">
+        <input type="hidden" name="origin" value="year">
+        <div class="rd-year-editor__scope"
+             role="radiogroup"
+             aria-label="budget scope">
+          <label class="rd-year-editor__chip">
+            <input type="radio"
+                   class="u-visually-hidden"
+                   name="tier"
+                   value="one-off"
+                   checked>{{ year_page.scope_labels["one-off"] }}
+          </label>
+          <label class="rd-year-editor__chip">
+            <input type="radio" class="u-visually-hidden" name="tier" value="recurring">
+            <span data-js="year-cell-recurring"></span>
+          </label>
+        </div>
         <button type="submit" class="u-visually-hidden">save</button>
       </form>
     </template>

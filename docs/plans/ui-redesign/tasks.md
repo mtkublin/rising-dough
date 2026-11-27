@@ -363,6 +363,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Crawler, all journeys, `just test-e2e-browsers` (Firefox, WebKit), axe on every page at 375 and 1440 in both themes, visual diff on every handoff page, `frontend-visual-audit` sweep at 320 / 375 / 768 / 1024 / 1440 / 1920 on every route, budgets from README (gzip sizes, LCP / CLS / INP on `/today`, `/ledger`, `/plan`), keyboard map (`g t/l/p/a/s`, ADR-0147 §5, `n`, `/`, `[` `]`, `?`, `⌘K`), reduced motion.
 - Findings fixed or triaged with the operator; results attached to the release PR.
 - **Hardening (from v3 T-D140d, ADR-0113)**: drop inline `style=` attributes and remove `'unsafe-inline'` from `style-src` in the prod CSP (from v3 T-D140d, ADR-0113). The Caddyfile CSP lives in `terraform/cloud-init/compose/Caddyfile.tpl`; the e2e CSP guard (T-D140c) parses it. Acceptance: no `style="` attribute in any rendered page (crawler and axe runs), and the CSP guard passes with `style-src 'self'` only.
+- Progress (2026-11-26): CSP style-src hardening attempted on branch wi/ui/sourdough/CSP (not merged): nonce'd `<style>` in swapped fragments mismatched the page nonce (fixed there via `data-color-rules` + `color-rules.js`), but WebKit still reports style-src-attr violations from an unidentified source; parked until after the drill.
 
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
@@ -379,7 +380,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - **Operator**: add both contexts to the `protect-main` ruleset with `integration_id` 15368; refresh the ruleset evidence file.
 - **Acceptance**: `scripts/check_github_settings.py` passes against the live ruleset; architecture guards green.
 
-### ◻ T-UR41 [S] Re-run the T-Q316/T-Q317 frontend audit on the migrated templates → T-UR17
+### ✅ T-UR41 [S] Re-run the T-Q316/T-Q317 frontend audit on the migrated templates → T-UR17
 - Re-run `frontend-visual-audit` for the flows audited in `docs/audits/2026-11-23-t-q316-t-q317.md`: Undo reload waiting on in-flight htmx requests (T-Q316) and the passkey journey (T-Q317), on the migrated templates at 1440 / 1024 / 375. Step 3b (behaviour contract) included.
 - Commit the result as `docs/audits/<date>-t-ur41.md`. Quality-audit follow-up (h); deferred because the redesign replaces the templates the original audit covered.
 
@@ -388,9 +389,10 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - **Change**: `pillow` in the `dev` group (`pyproject.toml`, `uv.lock`); `tests/visual/handoff.py` `_decode` uses it; diff mask, ratio and cluster semantics unchanged.
 - **Acceptance**: `tests/visual/test_compare.py` and `tests/visual/test_reference_mapping.py` green with unchanged expectations; before/after timings in the commit.
 
-### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
+### ✅ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
 - Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 - Operator 2026-11-26: before the release (T-UR17).
+- Progress (2026-11-26): Done by T-UR13 (6edbed8c, a57630ce); verified 2026-11-26. The table lives at `/settings?tab=fx` (see [derived.md](derived.md), Currency & FX row).
 
 ### ✅ T-UR43a [S] Stored formula cycle: 0.00 with a warning, saves must remove it (Q25)
 - Operator decision Q25 ([operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md)); rule and exact wording in the [ADR-0047](../../adr/0047-recurring-formula-linear-combination-and-chaining.md) amendment 2026-11-25.
@@ -404,7 +406,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
   - Q16: ADR-0152 confirmed by the operator (Status line).
   - Q9: ADR-0134 amendment: invite email NO-GO for v1 (T-UR18 and requirements wording aligned).
 
-### ◻ T-UR44 [S] New-entry tabs carry typed values (D5-b)
+### ✅ T-UR44 [S] New-entry tabs carry typed values (D5-b)
 - Progress (2026-11-26, wave SCR1): D5 merged (tab carry, QFIX10 regression test, tab-carry e2e test); the QFIX11/12 diagnostics are still in place, so the task stays open.
 - Scope: switching the new-entry tab (happened, planned, repeats) keeps the typed amount, category, account and note; tab-only fields (due date, cadence) reset. The tab links add `hx-include` with the CSRF token excluded and `form_responses.open_new_entry` reads the values as `posted`. Then finish QFIX10's regression test on the new behaviour; QFIX11/12 diagnostics may be deleted once the lost-note scenario passes without `fill_stable` retries. Requirement F1.1a.
 - Decision: D5 in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0030, ADR-0040.
@@ -421,11 +423,11 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Scope: bad dialog input answers 422 with a visible field error, never 500 and never a stored bad value. Fix the 500s on bad `day_of_month`, year and opening balance (`abc`) and on a duplicate category name in dialogs; reject `day_of_month=45` on edit recurring and an empty or `abc` budget override amount. Tests assert the 422 body, the field error and that no row or audit entry is written. Requirement F1.1a. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md); list in "Follow-ups logged 2026-11-25". ADR-0030.
 
-### ◻ T-UR48 [P] Logged HTMX and route bugs
+### ✅ T-UR48 [P] Logged HTMX and route bugs
 - Scope: `/today` promote success toast is not lost to `HX-Refresh`; a service-raised `ValidationError` flash (`handle_validation`) sends `HX-Reswap: none`; removed routes such as `/transactions/new` answer 404, not 405; `/accounts/9999/edit` answers the shared 404 page, not a bare `account not found` body; palette and tab-bar `+` / `n` open a new entry in place on `/ledger` instead of navigating to `/today`. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0143, ADR-0040, T-UR41a (Q12 404 pages).
 
-### ◻ T-UR49 [S] 1024 px clipped actions column of planned and recurring tables
+### ✅ T-UR49 [S] 1024 px clipped actions column of planned and recurring tables
 - Scope: at 1024 px the actions column of the planned and recurring tables is fully visible (no clipping, no horizontal scroll); `frontend-visual-audit` at 1440 / 1024 / 375. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0027.
 
@@ -433,10 +435,13 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Scope: `tests/visual/test_reference.py` marks the intended differences listed in `derived.md` as `xfail(strict=True)` (ADR-0147 amendment, the orchestrator's); fix the harness channel mismatch (RGBA vs RGB, OVL1) and investigate the remaining unexplained reds: errors/422 pages, `edit-recurring--picking`, `new-entry--error`. Source: visual.yml run 45817258129 on bd0f6e20 (newest completed reference run, 2026-11-26): these pages fail on all six shards and are not covered by D1-D11; `new-entry--repeats-fixed` / `--repeats-formula` pass there (no longer red). Operator decision 2026-11-26 "Reds outside D1-D11": investigate and fix. The comparison stays advisory.
 - Decision: "Intended differences and the gate" and "Reds outside D1-D11" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0147.
 - Progress (2026-11-26, wave SCR1): OVL1 merged (RGBA/RGB channel compare in the harness); the xfail marking and the unexplained reds stay open.
+- Progress (2026-11-26, wave SCR3, INV1 5301de28): still open: two pages red pending designer (`new-entry--error`, `edit-recurring--picking`); plus small corner clusters on category-picker 1024 and reconcile 375 light.
+- Superseded by T-UR65 (2026-11-27): the operator accepted the UI as it renders; the remaining reds are accepted and leave with the handoff comparison ([operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md)). Close together with T-UR65.
 
-### ◻ T-UR51 [S] Dead-Python sweep
+### ✅ T-UR51 [S] Dead-Python sweep
 - Scope: delete the unused template filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans`, `year_cell_state` (and their tests); key the `_orphans` macro by field name instead of message text and drop its unused `field_count` argument; delete the unused ui_map locators `any_recurring_row` and `plan_year.disclosure`. No allowlist entry added; entries of deleted code are removed.
 - Decision: "Follow-ups logged 2026-11-25" (confirmed in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md)). ADR-0130, ADR-0123.
+- Progress (2026-11-26, wave SCR3, DEAD ec9131d5): merged. Remaining: `_orphans` is keyed by message text; `plan_year.disclosure` kept as used.
 
 ## Follow-ups logged 2026-11-25
 
@@ -463,3 +468,182 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - → T-UR51: Unused ui_map locators: `any_recurring_row` and `plan_year.disclosure`.
 - → T-UR51: Dead-Python sweep incomplete (`vulture` not installed): filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans` and `year_cell_state` are unused by templates.
 - Commit subjects that deviate from the item-id rule (history not rewritten): PAR-A audit `docs(PAR-A)`; UR10a `wip(UR10a)`.
+
+## Operator drill review 2026-11-26
+
+Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
+
+### ✅ T-UR52 [P] New account button redirects to an empty page
+- Scope: bug: New account button redirects to an empty page.
+- Source: operator-review-2026-11-26.md R1.
+
+### ✅ T-UR53 [P] New income category missing from the anchor dropdown until reload
+- Scope: bug: New income category missing from the anchor dropdown until reload.
+- Source: operator-review-2026-11-26.md R2.
+
+### ✅ T-UR54 [P] Category picker ignores mouse clicks on desktop
+- Scope: bug (likely regression of WEBKIT bea9ce19 combobox.js): Category picker ignores mouse clicks on desktop.
+- Source: operator-review-2026-11-26.md R3.
+
+### ✅ T-UR55 [S] Plan/budget: make setting the default budget discoverable
+- Scope: design decision (proposal pending): Plan/budget: make setting the default budget discoverable.
+- Proposal pending before any code (docs first).
+- Source: operator-review-2026-11-26.md R4.
+
+### ✅ T-UR56 [S] Plan/year: cell edit scopes (one-off, every year, default) (superseded by T-UR77)
+- Scope: design decision (proposal pending): Plan/year: cell edit scopes (one-off, every year, default).
+- Proposal pending before any code (docs first).
+- Source: operator-review-2026-11-26.md R5.
+
+### ✅ T-UR57 [S] Month picker arrows change the picker year only
+- Scope: spec change + fix: Month picker arrows change the picker year only.
+- Source: operator-review-2026-11-26.md R6.
+
+### ✅ T-UR58 [P] Recurring formula always warns non-positive amount
+- Scope: bug: Recurring formula always warns non-positive amount.
+- Source: operator-review-2026-11-26.md R7.
+
+### ✅ T-UR59 [S] Answer: promoted planned payments in Ledger
+- Scope: question (answer pending): Answer: promoted planned payments in Ledger.
+- Proposal pending before any code (docs first).
+- Source: operator-review-2026-11-26.md R8.
+- Done 2026-11-26: documented, no code change (F3.10, dc994669).
+
+### ✅ T-UR60 [S] Account kind read-only after creation (UI and server)
+- Scope: spec change + fix: Account kind read-only after creation (UI and server).
+- Source: operator-review-2026-11-26.md R9.
+
+### ✅ T-UR61 [S] No auto-zoom on input focus on touch widths
+- Scope: spec change + fix (inputs >= 16px on touch widths; do NOT disable pinch zoom: a11y): No auto-zoom on input focus on touch widths.
+- Source: operator-review-2026-11-26.md R10.
+
+### ✅ T-UR62 [S] Mobile overlays squeezed (formula row, override scope)
+- Scope: bug: Mobile overlays squeezed (formula row, override scope).
+- Source: operator-review-2026-11-26.md R11.
+
+### ✅ T-UR63 [P] Mobile ledger filter from/to overlap
+- Scope: bug: Mobile ledger filter from/to overlap.
+- Source: operator-review-2026-11-26.md R12.
+
+### ◻ T-UR64 [S] Mobile-first redesign of wide views (plan/year, plan/forecast)
+- Scope: follow-up (designer change request: mobile-first redesign of wide views; not in this release): Mobile-first redesign of wide views (plan/year, plan/forecast).
+- Deferred follow-up (operator): not in this release; needs a designer change request.
+- Source: operator-review-2026-11-26.md R13.
+
+### ◻ T-UR65 [S] Accepted UI becomes the visual reference (ADR-0154)
+- Scope: after the operator accepts the UI (explore drill): operator dispatches `visual.yml` with `update_baselines=true`; an agent commits the artifact under `tests/visual/__snapshots__/`; operator patch removes the `reference` job from `visual.yml` ([q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 2); overlay rows and "Intended differences" xfails removed from `tests/visual/test_reference.py` and `derived.md`; render script kept as a manual tool.
+- Blocked on: operator workflow patch and baseline dispatch. Operator acceptance given 2026-11-27 on tip `3df85e88` ([operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md)); ADR-0154 Accepted.
+- Source: operator-decisions-2026-11-26.md "Intended differences and the gate"; ADR-0154.
+
+### ◻ T-UR66 [P] Advisory reference comparison off the per-PR path until T-UR65
+- Scope: operator patch doc [q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 1: `reference` job runs on `schedule` and `workflow_dispatch` only (`if: github.event_name != 'pull_request' && ...`), `needs: changes` kept. No app change. Done when the operator applies it.
+- Source: operator ask 2026-11-26 (b); ADR-0154 §5.
+- 2026-11-27: the UI is accepted, so T-UR65 part 2 (remove the `reference` job) replaces this interim patch; apply part 2 directly.
+
+### ✅ T-UR67 [S] Accounts: duplicate name on create or rename is a 422 on name (F2.1c)
+- Scope: duplicate account name on create or rename is a 422 with a name field error, not a 500 (fix 8f88c7b1, merge 4c97e651).
+- Source: ACCDUP, F2.1c.
+
+### ◻ T-UR68 [S] New category from the entry dialog without losing the open dialog
+- Scope: nested flow; the ACCFIX review kept the plain link.
+- Source: ACCFIX review (734270aa).
+
+### ◻ T-UR69 [S] EUR account save without a cached FX rate
+- Scope: EUR account save with no cached FX rate leaves "No accounts yet" and shows "Exchange rate unavailable".
+- Source: ACCFIX audit.
+
+### ◻ T-UR70 [S] Budget hero "N over" and Total exclude unbudgeted rows
+- Scope: "N over" counts unbudgeted rows over a zero budget; Total excludes unbudgeted spend. Operator decision needed. Pre-existing.
+- Source: BUDUX audit.
+
+### ◻ T-UR71 [S] Year grid table.rd-year overflows at 1024 and 375
+- Scope: table.rd-year overflows at 1024 and 375. Pre-existing; relates to T-UR64.
+- Source: PYEAR and BUDUX audits.
+
+### ◻ T-UR72 [S] agent_guard: single-file pytest denied unless the brief names the file
+- Scope: single-file pytest is denied unless the brief names the file; pytest with `2>&1` or pipe redirects is misread (orchestrator tooling).
+- Source: ADR-0150.
+
+### ✅ T-UR73 [S] Stale "Left open (F4b)" line in derived.md
+- Scope: derived.md:200 stale "Left open (F4b)" line.
+- Source: derived.md:200.
+
+### ◻ T-UR74 [S] /ledger search placeholder cut at 375
+- Scope: /ledger search placeholder "search description…" is cut at 375 with 16px inputs (cosmetic).
+- Source: MOBILE re-audit.
+
+## Operator drill review 2 2026-11-27
+
+Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no new task: see T-UR64 (T-UR71 relates).
+
+### ✅ T-UR75 [S] Plan budget and year list all live expense categories (R14)
+- Scope: rows are all live expense categories whether or not they have ledger records (archived per ADR-0136 unchanged). Req: F4.6c, F4.8.
+
+### ✅ T-UR76 [S] Edit budget overlay: scope selector on one row (R15)
+- Scope: the scope selector, split over 2 rows, renders on one row. Req: F4.6c.
+
+### ✅ T-UR77 [S] Year chips: two options, hover popover under the cell (R16, R17)
+- Scope: "this month only" / "every <Month-Name>", this month always preselected, the year cell never changes the default tier; no outer box; overlay right beneath the clicked cell, rows below do not move, inside the viewport; light-mode colours. Supersedes the T-UR56 scope set. Req: F4.8a; ADR-0107 amendment 2026-11-27.
+
+### ✅ T-UR78 [S] Recurring empty-state new entry submit lands on an empty page (R18)
+- Scope: bug; "new entry" under an empty recurring list saves and returns the recurring list. Req: F3.2.
+
+### ✅ T-UR83 [S] Empty-state new-entry links on planned and ledger first-run open the dialog in place
+- Scope: same bug as R18 (T-UR78); reviewer finding 2026-11-27. Both links get `hx-get` / `#modal-root` like the recurring empty state. Req: F3.2.
+
+### ✅ T-UR79 [S] Recurring day of month defaults from the start date (R19)
+- Scope: day of month follows the start date until the user edits it; a manual value is kept. Req: F3.2.
+
+### ✅ T-UR80 [S] Set budget in the status column (R20)
+- Scope: "set budget" for unbudgeted rows moves from the budget cell to the status column. Req: F4.6c.
+
+### ✅ T-UR81 [S] No auto-zoom on any touch-width input (R21)
+- Scope: every focusable text input, select, textarea and contenteditable (incl. Today hero amounts) at least 16px on touch widths; pinch zoom stays. Req: §5 touch-width line; extends T-UR61.
+
+### ✅ T-UR82 [S] Today bar legend swatches for spent and left (R23)
+- Scope: spent and left get a legend swatch like committed. Req: §5 Today bar line.
+
+### ◻ T-UR84 [S] Year-cell override dialog opened without JS renders a bare fragment
+- Scope: the year-cell override dialog opened without JS (direct `/budget/rules/<id>/overrides/new` link) renders a bare unstyled fragment.
+- Source: BUDSCOPE audit 2026-11-27.
+
+### ◻ T-UR85 [S] Plan/budget unbudgeted list: spent and status columns aligned with the main table
+- Scope: spent and status columns of the unbudgeted list are not aligned with the main table at 1440 and 1024 (1440: spent 965 vs 995, status 1170 vs 1085).
+- Source: PLANCAT audit 2026-11-27.
+
+### ◻ T-UR86 [S] ui_map locators for the 12 dialog-opening links
+- Scope: add ui_map locators for the 12 dialog-opening links so `tests/e2e/test_mobile_layout.py` clicks them instead of `htmx.ajax`.
+- Source: ZOOM review 2026-11-27.
+
+### ◻ T-UR87 [S] /today afford input clips long amounts at 375 (low)
+- Scope: the /today afford input at 375 clips amounts of 10+ characters, e.g. formatted "12,345,678.00".
+- Source: ZOOM audit 2026-11-27 (low).
+
+### ◻ T-UR88 [S] Crawl no longer reaches the set-budget dialog behind the collapsed list (low)
+- Scope: the crawl no longer reaches the set-budget dialog behind the collapsed unbudgeted list.
+- Source: PLANCAT review 2026-11-27 (low).
+
+### ◻ T-UR89 [S] /recurring/formula/preview answers 422 while the formula is empty (low)
+- Scope: `/recurring/formula/preview` answers 422 while the formula is empty, which is console noise. Pre-existing.
+- Source: RECUR audit 2026-11-27 (low).
+
+### ✅ T-UR90 [S] Collapsed unbudgeted list has no outer box (R24)
+- Scope: the "N categories without a budget" disclosure on Plan/budget and Plan/year has no border, radius or panel background; summary and list/table flow as part of the page. Toggle affordance and keyboard behaviour stay.
+- Files: `pages/plan/budget.html`, `pages/plan/year.html`, `static/rd/app/overrides.css`, `tests/e2e/test_plan_unbudgeted_layout.py`.
+- Acceptance: e2e at 1440 and 375: the disclosure has zero computed border widths and a transparent background.
+- Source: operator drill review 3, R24.
+
+### ✅ T-UR91 [S] Unbudgeted status cell shows only "set budget" (R25)
+- Scope: on Plan/budget the status cell of an unbudgeted row holds only the "set budget" button, no "no budget" text; the phone card stays tidy.
+- Files: `fragments/rows/budget-line.html`, `static/rd/app/overrides.css`, `tests/integration/web/test_plan_every_category.py`.
+- Acceptance: the status cell text equals "set budget" exactly; budgeted rows unchanged.
+- Source: operator drill review 3, R25.
+
+### ✅ T-UR92 [S] Year scope chips stay on the cell on touch widths (R26)
+- Scope: on touch widths the Plan/year scope chips stay attached to the edited cell while the page or grid scrolls. Owned by item CHIPMOB.
+- Source: operator drill review 3, R26.
+
+### ✅ T-UR93 [S] Outside click closes the year cell editor (R27)
+- Scope: on Plan/year a click or tap outside the edited cell and its chips closes the editor like Escape (value not saved, no request); a click on another cell opens that cell's editor; clicks on a chip or in the input do not close. Owned by item OUTCLICK (`static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`).
+- Files: `static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`, `docs/requirements.md` F4.8a.
+- Source: operator drill review 3, R27.

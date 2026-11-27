@@ -74,6 +74,8 @@ def _clear_component(page: Page, index: int) -> None:
     trigger = comp.locator("[data-js='multiselect']")
     trigger.click()
     page.wait_for_selector(f"{_COMPONENT} .rd-msel:not([hidden])", timeout=_TIMEOUT_MS)
+    # The handoff file shows the close button's keyboard-focus ring, as for the other two states.
+    _focus_close_ring(page)
     checked = comp.locator(".rd-msel__opt:has(input:checked)")
     while checked.count():
         checked.first.click()
@@ -140,21 +142,8 @@ def _transaction_error(page: Page) -> None:
     settle(page)
 
 
-def _liability(page: Page) -> None:
-    """Accounts edit dialog with "counts as" switched to liability (the file shows it checked)."""
-    page.evaluate(
-        """() => {
-            const radio = document.querySelector(
-                '#modal-root input[name=is_liability][value=on]');
-            radio.checked = true;
-            radio.dispatchEvent(new Event('change', {bubbles: true}));
-        }"""
-    )
-
-
 # Overlay stem -> recipe run once the sourced dialog is open.
 STATE_RECIPES: Final[dict[str, Recipe]] = {
-    "edit-account--liability": _liability,
     "edit-recurring--empty": _empty,
     "edit-recurring--incomplete": _incomplete,
     "edit-recurring--picking": _picking,
@@ -173,6 +162,8 @@ SETTLED_DIALOGS: Final[frozenset[str]] = frozenset(
         "edit-recurring--fixed",
         "edit-recurring--formula",
         "override--occurrence",
+        "reconcile",
+        "reconcile--liability",
     }
 )
 

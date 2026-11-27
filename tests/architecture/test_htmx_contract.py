@@ -47,6 +47,7 @@ DOM_EVENTS = frozenset(
         "beforeinput",
         "load",
         "mousedown",
+        "pointerdown",
         "paste",
     }
 )

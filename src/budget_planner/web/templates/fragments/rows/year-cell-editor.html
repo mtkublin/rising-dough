@@ -2,7 +2,8 @@
    Inputs: cell (plan_year_view.YearCell). One month cell of the year grid: a link that edits the
    cell in place (app-year-cell.js swaps in the handoff's rd-year-editor form built from the
    data-* values; the href stays the no-script fallback and opens the override dialog, as does a
-   modified click). data-state is the tier. #}
+   modified click; its tier is one-off, the chip the editor always preselects). data-state is the
+   tier; data-recurring-label is the text of the editor's "every <month>" chip. #}
 <td class="rd-year__cell-wrap">
   <a class="rd-year-cell"
      data-state="{{ cell.state }}"
@@ -12,6 +13,7 @@
      data-month="{{ cell.month }}"
      data-amount="{{ cell.amount_text }}"
      data-editor-label="{{ cell.editor_label }}"
+     data-recurring-label="{{ cell.recurring_label }}"
      href="{{ cell.url }}"
      hx-get="{{ cell.url }}"
      hx-target="#modal-root"

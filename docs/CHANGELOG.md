@@ -1,5 +1,79 @@
 # Changelog
 
+2026-11-27 UI-ACCEPT: operator accepts the ui/sourdough UI state at 3df85e88; ADR-0154 Accepted, T-UR65 unblocked, T-UR50 superseded by T-UR65 (operator-decisions-2026-11-27.md).
+
+2026-11-27 OUTCLICK: outside click or tap closes the year cell editor and its chips; value not saved (T-UR93, R27) (ae8e960f).
+
+2026-11-27 CHIPMOB: year scope chips re-place on visual viewport changes and stay attached to the edited cell on touch widths (T-UR92, R26) (457f4767).
+
+2026-11-27 UNBOX: collapsed "categories without a budget" list has no outer box; unbudgeted status cell shows only set budget (T-UR90, T-UR91, R24, R25) (f732ed4d).
+
+2026-11-27 CIFIX4: hero N over keeps counting unbudgeted lines with spend after the collapsed list split (T-UR75; T-UR70 still open) (93f57deb).
+
+2026-11-27 REFDIFF2: intended-difference rows for operator reviews R4-R23 (256 reference cases); derived.md F4b line closed (T-UR66, T-UR73) (098526ca).
+
+2026-11-27 ZOOM: no touch-width field renders below 16px (auth pages included), non-vacuous zoom sweep, year editor and afford fit at 16px (T-UR81, R21) (321231ac).
+
+2026-11-27 PLANCAT: Plan/budget and Plan/year: budgeted categories are rows, every live unbudgeted category sits in the collapsed list (archived never linked), set budget in the status column (T-UR75, T-UR80, R14, R20) (9acc546a).
+
+2026-11-27 YEARCHIP: year cell scope is two chips (this month only, every <Month>) hovering under the cell, this month preselected, no default from the year cell; flip above at the viewport bottom; theme colours (T-UR77, R16, R17) (7e81a1ba).
+
+2026-11-27 BUDSCOPE: the budget override scope selector stays on one row at desktop widths (T-UR76, R15) (e2b3d292).
+
+2026-11-27 EMPTYNE: planned and ledger first-run empty-state new entry opens the dialog in place (T-UR83) (0267134e).
+
+2026-11-27 TODAYLEG: Today spent and left labels carry their bar glyph like committed, built from the bar constants (T-UR82, R23) (e9ed0d71).
+
+2026-11-27 RECUR: recurring empty-state new entry opens the dialog in place; day of month follows the start date until typed (T-UR78, T-UR79, R18, R19) (95af9e5f).
+
+2026-11-27 DOCREV2: operator drill review 2 (R14-R23), tasks T-UR75..T-UR82, requirement amendments (16010c5a).
+
+2026-11-27 YEARUX: year grid cell edit picks its scope inline (this month, every <month>, default); chip row in flow, labels from tier_labels, link and inline agree (T-UR56, F4.8a, R5) (7e870377).
+
+2026-11-27 CIFIX3: budget edit link test carries the row tier; picker year-arrow journey waits on the swapped head wrapper (bcf445c2).
+
+2026-11-26 MOBILE: touch-width inputs 16px, ledger from/to and dialog field pairs stack at <48rem, formula component and scope selector fit 375 (T-UR61..T-UR63) (b731025c).
+
+2026-11-26 FORM: repeats formula preview evaluates in the start month and retriggers on start date, one message at a time, add component keeps the sign (T-UR58) (5472d1a2).
+
+2026-11-26 BUDUX: budget tab: set budget on unbudgeted rows, edit budget opens on the row's tier, every month (default) label (T-UR55, F4.6c) (0bf5cd4a).
+
+2026-11-26 CIFIX2: contract and mockup-map tests follow the fixed account kind and the anchor locators (088adb7b).
+
+2026-11-26 ACCDUP: duplicate account name on create or rename is a 422 on name (T-UR67, F2.1c) (4c97e651).
+
+2026-11-26 PYEAR: month picker year arrows change only the shown year; a month click navigates (T-UR57, F4.6b) (cbd51cb9).
+
+2026-11-26 ACCFIX: empty-state new account opens the dialog in place; new income category appears in the anchor list without reload (T-UR52, T-UR53) (30fef1db).
+
+2026-11-26 ACCTYPE: an existing account's kind is fixed: read-only on edit, 422 on change (T-UR60, F2.1b) (67aa36c6).
+
+2026-11-26 PICK: category picker: a desktop mouse click on a listed category selects it (T-UR54) (e32a1e14).
+
+2026-11-26 DOCDEC: operator decisions R4 set budget, R5 year scope chips, R8 promoted rows stay (T-UR55, T-UR56, T-UR59) (dc994669).
+
+2026-11-26 VISDOC: ADR-0154 accepted UI becomes the visual reference, T-UR65/T-UR66, visual.yml operator patch (237284a8).
+
+2026-11-26 DOCREV: operator drill review 2026-11-26: tasks T-UR52..T-UR64, requirements F2.1b, F4.6b, touch-width inputs (ce941646).
+
+2026-11-26 WEBKIT: WebKit e2e green: download interruptions settled in the crawl, picker chip leads on WebKit (pointerdown), setup journey xfail on http (T-UR40 prep) (bea9ce19).
+
+2026-11-26 UR41: frontend audit re-run on the migrated templates: no blockers, 3 minor designer findings (T-UR41) (b63b2283).
+
+2026-11-26 INV1: reference reds: reconcile/picker recipes, D6-B rows; reconcile lists newest snapshots first; Today names archived categories (T-UR00b, T-UR50) (5301de28).
+
+2026-11-26 RACE: typed note no longer lost: the amount's delayed focus-select runs only while it still has focus (T-UR44, T-UR48) (7bae62cf).
+
+2026-11-26 DEAD: dead-Python sweep: unused Jinja filters, year_cell_state, format_whole, any_recurring_row removed (T-UR51) (ec9131d5).
+
+2026-11-26 RECSYNC: zero-delta reconcile says Already in sync; snapshot wording matches the schema (T-UR45, S1.10) (279d0c4c).
+
+2026-11-26 CIFIX: formula create test expects the off-ledger stale events (T-UR48a) (84ebafda).
+
+2026-11-26 FLASHCA: new category and account saves keep the flash and refetch via events, no HX-Refresh (T-UR48a) (d9309309).
+
+2026-11-26 W2FIX: tests follow wave-2 behaviour: blank override refused, :int route keys normalised, reconcile ignores posted category (T-UR45, T-UR47) (ec1f2345).
+
 2026-11-26 T22: drill setup token via a hashed dispatch input, token never in GitHub; bootstrap admin fallback until the workflow patch is applied (T-UR22, ADR-0134 amendment) (8b4e0d1f).
 
 2026-11-26 BUGA2: saves and promotes off the ledger keep the flash and refetch via events instead of HX-Refresh (T-UR48a) (c57383e1).

@@ -15,7 +15,6 @@ from typing import Final
 
 from budget_planner.domain.money import format_figure, format_major
 from budget_planner.services import budget as budget_service
-from budget_planner.services.categories import CategoryUsage
 from budget_planner.web.view_models import (
     MONTH_SHORT,
     BudgetPeriod,
@@ -79,9 +78,29 @@ class OverrideTarget:
         return f"{base}&remove=1" if remove else base
 
 
-def dialog_tier(state: str) -> str:
-    """Scope a cell opens its dialog on: its own override tier, else this month only."""
-    return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_ONE_OFF
+def tier_labels(month: int) -> Mapping[str, str]:
+    """Scope names shared by the dialog's radios and the year cell's chips (``every June``)."""
+    return {
+        TIER_ONE_OFF: "this month only",
+        TIER_RECURRING: f"every {month_name(month).lower()}",
+        TIER_DEFAULT: "every month (default)",
+    }
+
+
+_ORIGIN_TIER: Final = MappingProxyType(
+    {
+        "one_off": TIER_ONE_OFF,
+        "recurring": TIER_RECURRING,
+        "default": TIER_DEFAULT,
+        "unset": TIER_DEFAULT,
+    }
+)
+
+
+def row_tier(state: OverrideState) -> str:
+    """Scope a budget row's edit dialog opens on: the tier its figure comes from (R4, R5)."""
+    _, origin = budget_service.pick_tier(state.one_off, state.recurring, state.default)
+    return _ORIGIN_TIER.get(origin, TIER_DEFAULT)
 
 
 # --- Year grid ---------------------------------------------------------------
@@ -98,8 +117,9 @@ class YearCell:
     url: str
     editor_label: str  # the inline editor's field label: ``Nights Out, November budget``
     amount_text: str  # the editor's start value (empty for an unset cell)
-    action: str  # where the editor posts (the override route, tier "one-off")
+    action: str  # where the editor posts (the override route; the two chips pick the tier)
     year: int
+    recurring_label: str  # the "every <month>" chip text (the chip row is one shared template)
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +161,9 @@ class YearPage:
     unbudgeted_heading: str
     period: BudgetPeriod
     reload_url: str
+    scope_labels: Mapping[
+        str, str
+    ]  # the editor's chip texts (``tier_labels``, one source with the dialog)
 
 
 def _cell(
@@ -160,11 +183,12 @@ def _cell(
         text=text,
         state=state,
         label=f"{row.category_name}, {month_name(target.month)}: {spoken}, {_STATE_LABEL[state]}",
-        url=target.url(dialog_tier(state)),
+        url=target.url(TIER_ONE_OFF),
         editor_label=f"{row.category_name}, {month_name(target.month)} budget",
         amount_text="" if state == "unset" else amount,
         action=target.action,
         year=target.year,
+        recurring_label=tier_labels(target.month)[TIER_RECURRING],
     )
 
 
@@ -202,36 +226,24 @@ def year_period(selected: int) -> BudgetPeriod:
     )
 
 
-def _split_rows(
-    rows: tuple[budget_service.YearlyRow, ...], usage: Mapping[int, CategoryUsage]
-) -> tuple[tuple[budget_service.YearlyRow, ...], tuple[budget_service.YearlyRow, ...]]:
-    """``(grid rows, disclosure rows)``: budgeted, then unset ones only a rule or plan uses."""
-    entries = {cid: u.entry_count for cid, u in usage.items()}
-    with_budget = tuple(r for r in rows if r.total_minor)
-    unset = tuple(r for r in rows if not r.total_minor)
-    grid_unset = tuple(r for r in unset if entries.get(r.category_id) == 0)
-    listed = tuple(r for r in unset if entries.get(r.category_id))
-    return (*with_budget, *grid_unset), listed
-
-
 def year_page(
     rows: tuple[budget_service.YearlyRow, ...],
     selected: int,
     *,
     current: tuple[int, int],
     currency: str,
-    usage: Mapping[int, CategoryUsage],
+    linkable: frozenset[int],
 ) -> YearPage:
-    """Grid rows for categories with a budget, the rest as links in the disclosure.
+    """Grid rows for categories with a budget, every other live category in the disclosure.
 
-    A category without a budget is a grid row of unset cells when only a planned item or rule
-    uses it, a disclosure link when it has entries, and hidden when nothing uses it (handoff
-    ``pages/plan/year``; ``derived.md``). ``current`` is today's ``(year, month)``: it marks the
-    column heading and picks the month a "set budget" link opens on.
+    A category without a budget (with or without ledger entries) is a link in the collapsed
+    "N categories without a budget" list, never a grid row (R14, T-UR75). ``current`` is today's
+    ``(year, month)``: it marks the column heading and picks the month a "set budget" link opens on.
+    ``linkable`` holds the live category ids, the ones the set-budget dialog accepts: an archived
+    category is never listed, in any year.
     """
     current_year, current_month = current
-    on_grid, listed = _split_rows(rows, usage)
-    budgeted = tuple(_row(r, selected, currency) for r in on_grid)
+    budgeted = tuple(_row(r, selected, currency) for r in rows if r.total_minor)
     unset = tuple(
         Unbudgeted(
             r.category_id,
@@ -241,7 +253,8 @@ def year_page(
                 TIER_DEFAULT
             ),
         )
-        for r in listed
+        for r in rows
+        if not r.total_minor and r.category_id in linkable
     )
     noun = "category" if len(unset) == 1 else "categories"
     return YearPage(
@@ -255,6 +268,7 @@ def year_page(
         unbudgeted_heading=f"{len(unset)} {noun} without a budget",
         period=year_period(selected),
         reload_url=f"{YEAR_TAB_URL}{selected}",
+        scope_labels=tier_labels(current_month),
     )
 
 
@@ -309,6 +323,13 @@ def _stored(state: OverrideState, tier: str) -> int | None:
     }[tier]
 
 
+def _dialog_title(target: OverrideTarget, state: OverrideState) -> str:
+    """``set budget · <category>`` while nothing is stored, else ``edit budget`` with the period."""
+    if state.one_off is None and state.recurring is None and state.default is None:
+        return f"set budget · {target.category_name}"
+    return f"edit budget · {target.category_name} · {target.period}"
+
+
 def override_dialog(
     target: OverrideTarget,
     *,
@@ -324,11 +345,7 @@ def override_dialog(
     prefill = stored if stored is not None else resolved
     if amount_text is None:
         amount_text = "" if prefill is None else format_major(prefill, currency)
-    labels = {
-        TIER_ONE_OFF: "this month only",
-        TIER_RECURRING: f"every {month_name(target.month).lower()}",
-        TIER_DEFAULT: "new default",
-    }
+    labels = tier_labels(target.month)
     actions: list[Mapping[str, str]] = [{"tone": "cancel"}]
     dropped = removable_tier(state, tier)
     if dropped is not None:
@@ -348,7 +365,7 @@ def override_dialog(
     )
     return OverrideDialog(
         target=target,
-        title=f"override budget · {target.category_name} · {target.period}",
+        title=_dialog_title(target, state),
         hero={
             "currency": currency,
             "amount_value": amount_text,
