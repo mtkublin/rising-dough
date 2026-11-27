@@ -345,9 +345,8 @@ def budget_view(
         spent_pct=spent_pct,
         committed_pct=clamped_percent(totals.committed_minor, totals.budgeted_minor),
         is_over=is_over,
-        # Hero count keeps the pre-R14 meaning: every live line, unbudgeted ones with spend
-        # included (T-UR70 is the open question; the numbers must not move here).
-        over_count=sum(1 for line in every if line.is_over),
+        # Budgeted rows only; unbudgeted spend shows only in the collapsed list (T-UR70).
+        over_count=sum(1 for line in lines if line.is_over),
         left_pct=cells.left_pct,
         cells=cells,
         period_start=summary.period_start,
