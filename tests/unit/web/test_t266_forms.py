@@ -141,8 +141,22 @@ def test_account_patch_clears_limit_for_non_liability(conn: sqlite3.Connection) 
 
 
 def _override(**kw: str) -> tuple[object, str | None]:
-    base = {"tier": "default", "month": "", "year": "", "amount": "10", "currency": "PLN"}
-    parsed = parse_override(5, **{**base, **kw})
+    base: dict[str, str] = {
+        "tier": "default",
+        "month": "",
+        "year": "",
+        "amount": "10",
+        "currency": "PLN",
+    }
+    f = {**base, **kw}
+    parsed = parse_override(
+        5,
+        tier=f["tier"],
+        month=f["month"],
+        year=f["year"],
+        amount=f["amount"],
+        currency=f["currency"],
+    )
     return parsed.command, parsed.error
 
 

@@ -28,7 +28,6 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.web.plan_year_view import (
-    TIER_DEFAULT,
     TIER_ONE_OFF,
     TIER_RECURRING,
     tier_labels,
@@ -117,9 +116,9 @@ def test_cell_has_a_spoken_name_and_opens_its_dialog(
     url = f"/budget/rules/{world['Groceries']}/overrides/new?year=2026&month=3&tier=one-off"
     assert (march["href"], march["hx-get"], march["hx-target"]) == (url, url, "#modal-root")
     june = _html.resolve_one(page, plan_year.cell("Groceries", "June"))
-    assert str(june["href"]).endswith("?year=2026&month=6&tier=recurring")
+    assert str(june["href"]).endswith("?year=2026&month=6&tier=one-off")
     january = _html.resolve_one(page, plan_year.cell("Groceries", "January"))
-    assert str(january["href"]).endswith("?year=2026&month=1&tier=default")
+    assert str(january["href"]).endswith("?year=2026&month=1&tier=one-off")
 
 
 def test_category_without_a_budget_is_listed_in_the_disclosure(
@@ -204,21 +203,19 @@ def test_scope_chips_print_the_tier_labels_of_the_override_dialog(
     page = client.get(URL).text
     labels = tier_labels(1)
 
-    for tier in (TIER_ONE_OFF, TIER_DEFAULT):
-        chip = _html.resolve_one(page, plan_year.cell_scope(labels[tier]))
-        assert chip["value"] == tier
+    chip = _html.resolve_one(page, plan_year.cell_scope(labels[TIER_ONE_OFF]))
+    assert chip["value"] == TIER_ONE_OFF
     january = _html.resolve_one(page, plan_year.cell("Groceries", "January"))
     assert january["data-recurring-label"] == labels[TIER_RECURRING] == "every january"
 
 
-def test_default_cell_link_opens_the_dialog_on_the_tier_the_editor_preselects(
+def test_default_cell_link_opens_the_dialog_on_this_month_only_like_the_editor(
     client: TestClient, world: dict[str, int]
 ) -> None:
     page = client.get(URL).text
     january = _html.resolve_one(page, plan_year.cell("Groceries", "January"))
 
-    assert january["data-scope"] == "default"
-    assert str(january["href"]).endswith("&tier=default")
+    assert str(january["href"]).endswith("&tier=one-off")
     dialog = client.get(str(january["href"])).text
     scope = plan_year.dialog("Groceries", "Jan 2026")
     checked = [
@@ -226,4 +223,4 @@ def test_default_cell_link_opens_the_dialog_on_the_tier_the_editor_preselects(
         for label in ("this month only", "every january", "every month (default)")
         if _html.resolve_one(dialog, plan_year.tier(scope, label)).has_attr("checked")
     ]
-    assert checked == ["every month (default)"]
+    assert checked == ["this month only"]

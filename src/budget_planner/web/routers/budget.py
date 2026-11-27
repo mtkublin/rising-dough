@@ -106,6 +106,7 @@ def create_override(
     year: str = Form(""),
     amount: str = Form(""),
     remove: str = Form(""),
+    origin: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
@@ -117,7 +118,7 @@ def create_override(
     shown = override_forms.shown_target(
         cat.id, cat.name, year=year, month=month, today=clock.today_local(settings)
     )
-    form = override_dialogs.OverrideForm(tier, month, year, amount, settings.base_currency)
+    form = override_dialogs.OverrideForm(tier, month, year, amount, settings.base_currency, origin)
     if remove == "1":
         return override_dialogs.remove(request, conn, user_id, shown, form)
     return override_dialogs.save(request, conn, user_id, shown, form)
