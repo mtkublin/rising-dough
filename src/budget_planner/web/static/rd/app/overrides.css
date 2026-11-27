@@ -178,3 +178,22 @@ inside a 2px frame), so the row does not grow and nothing below shifts. */
     text-align: center;
   }
 }
+
+/* T-UR76 (R15): the budget override scope ("this month only / every <month> / every month
+   (default)") wrapped onto two rows in the 520px dialog at desktop widths (the pill's 16px option
+   padding plus nowrap labels exceed the dialog body). Keep one row: the control spans the field,
+   never wraps, and the options share the width with slimmer padding. Phones keep the equal-column
+   grid above. */
+@media (width >= 48rem) {
+  .rd-field--seg[aria-labelledby="override-budget-scope"] > .rd-segmented {
+    display: flex;
+    flex-wrap: nowrap;
+    align-self: stretch;
+  }
+
+  .rd-field--seg[aria-labelledby="override-budget-scope"] > .rd-segmented .rd-segmented__option {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
+}

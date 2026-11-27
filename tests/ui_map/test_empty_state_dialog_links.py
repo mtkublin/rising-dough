@@ -46,3 +46,19 @@ def test_ledger_first_run_new_account_opens_the_dialog() -> None:
     _opens_in_modal(
         _html.resolve_one(html, role("link", "new account", exact=True)), "/accounts/new"
     )
+
+
+def test_planned_empty_state_cta_opens_the_dialog() -> None:
+    html = _render("fragments/states/planned-empty.html")
+    _opens_in_modal(
+        _html.resolve_one(html, role("link", "[ new entry ]", exact=True)),
+        "/add?when=happened&dialog=1",
+    )
+
+
+def test_ledger_first_run_new_entry_opens_the_dialog() -> None:
+    html = _render("fragments/states/ledger-first-run.html")
+    _opens_in_modal(
+        _html.resolve_one(html, role("link", "[ new entry ]", exact=True)),
+        "/add?when=happened&dialog=1",
+    )
