@@ -52,3 +52,44 @@ Notes:
 ## Screenshots
 
 Viewed: budget expanded at 1440 light, 1024 dark and 375 light; year expanded at 1440 light. Others captured and read via JSON. Directory: /private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/PLANCAT/shots (<viewport>-<theme>__01-budget-collapsed, 02-budget-expanded, 03-set-budget-dialog, 04-after-save, 05-year-collapsed, 06-year-expanded, 07-year-dialog); notes in /private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/PLANCAT/out.txt and out-375d.txt.
+
+## Re-check (09d2cc79)
+
+Date: 2026-11-27, sha 09d2cc79, same scratch DB setup (Taxes, Fixed Costs, Bank Fees #18, Takeaway unbudgeted; archived Bank Fees, Bank Fees #17), 127.0.0.1:8137, Chromium, 1440/1024/375 x light/dark. Driver: scratchpad PLANCAT/recheck.py; log rc.log; screenshots in /private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/PLANCAT/shots2 (<viewport>-<theme>__<step>.png).
+
+Routes: /plan?tab=budget&year=2026&month=11 (collapsed, expanded, set budget Taxes), /plan?tab=year&year=2026 (current), year=2025 (past), year=2027 (future); every disclosure link clicked in every year.
+
+### Diagnostics (horizontalScroll / overflowingElements / duplicateIds / consoleErrors / requestFailures, identical in light and dark)
+
+| Route / step | 1440 | 1024 | 375 |
+|---|---|---|---|
+| budget collapsed | false/0/0/0/0 | false/0/0/0/0 | false/0/0/0/0 |
+| budget expanded | false/0/0/0/0 | false/0/0/0/0 | false/0/0/0/0 |
+| budget after save | false/0/0/0/0 | false/0/0/0/0 | false/0/0/0/0 |
+| year 2026 expanded | false/0/0/0/0 | false/10/0/0/0 (a) | false/10/0/0/0 (a) |
+| year 2026 link dialog | false/0/0/0/0 | false/10/0/0/0 (a) | false/10/0/0/0 (a) |
+| year 2025 expanded (before clicking links) | false/0/0/0/0 | false/10/0/0/0 (a) | false/10/0/0/0 (a) |
+| year 2025 after clicking its archived links (F3) | 2 console / 2 request failures (404) | same | same |
+
+(a) table.rd-year inside the sideways-scrolling year grid, same 10 elements as MAIN (pre-existing, page has no horizontal scroll). Year 2027 rows show the F3 404s only because errors accumulate in the same page session.
+
+### F1 (375 second-table cards): FIXED
+Unbudgeted row is display:grid at 375: chip 118x25 (was squashed to 54 px), bar 257 wide (was 19), spent right of the bar, status cell 309 wide on its own row under the bar (top 786 vs bar 757), "set budget" button below "no budget" at the card edge. Light and dark viewed (375-dark__02-budget-expanded.png). No overlap.
+
+### F2 (archived in the year disclosure, current year): FIXED
+Year 2026: "3 categories without a budget" (Bank Fees #18, Fixed Costs, Takeaway; Taxes got a budget in the same run, so it is absent), archived Bank Fees and Bank Fees #17 absent. All 3 links return 200 and open "set budget · <name>". Same at all viewports and themes. Future year 2027: same 3, all links 200.
+
+### Minor (column alignment): partly fixed, not blocking
+rd-disclosure--table makes the list fill the panel (1440: disclosure 104/1232, second table 105/1230, main table 104/1232; 1024: 48/928 vs 49/926; 375: 32/311 vs 33/309). Category and bar columns now line up within 1 px (1440: 118 / 314 vs 315). The spent and status columns still start at different x (1440: spent 965 vs 995, status 1170 vs 1085) because the second table has narrower spent and wider status columns; readable, no overflow.
+
+### F3 (Behavior/Content, blocking): past year lists archived categories whose links 404 silently
+/plan?tab=year&year=2025, list expanded, all viewports: the disclosure shows 5 ("Bank Fees", "Bank Fees #17", "Bank Fees #18", "Fixed Costs", "Takeaway"). Archived Bank Fees (rule 23) and Bank Fees #17 (rule 25) are listed (budgeted-until-archive-month rule, ADR-0136) but GET /budget/rules/23|25/overrides/new?year=2025... returns 404: no dialog, no flash, console 404, request failure. Live links in 2025 return 200. Screenshot: shots2/1440-light__06-year2025-expanded.png. Fix: the year disclosure must not offer links for archived categories in any year (omit them, or render them as non-links), or the dialog route must accept archived categories for past periods.
+
+### Sanity: set budget from the expanded list
+Taxes 500.00 saved at all 6 combos: dialog closes, flash "Taxes budget saved", Taxes leaves the second table, heading "3 categories without a budget", Taxes row in the main table. No duplicate ids, no console errors on the budget tab.
+
+### Step 3b (re-check)
+Template diff unchanged in nature (no float, / 100, * 100, set blocks); counts come from the view model. Rendered counts equal the number of links in each year (3 / 5 / 3). Swap targets and failing-save behaviour unchanged from the first audit, except F3 (silent 404 on archived link in past years: blocking).
+
+### Verdict
+FINDINGS: F1, F2 fixed; minor alignment partly fixed (non-blocking); F3 open (blocking).
