@@ -10,7 +10,11 @@ from fastapi.responses import HTMLResponse, Response
 from budget_planner.domain.errors import ValidationError, require_present
 from budget_planner.services import categories as categories_service
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
-from budget_planner.web.category_dialogs import edit_category_invalid, new_category_invalid
+from budget_planner.web.category_dialogs import (
+    create_from_picker,
+    edit_category_invalid,
+    new_category_invalid,
+)
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.dialogs import (
     MODAL_ROOT,
@@ -84,6 +88,18 @@ def create_category(
     # The category list refetches on settings-categories-stale; the flash is out of band.
     response.headers[HX_RESWAP] = "none"
     return response
+
+
+@router.post("/picker")
+def create_category_from_picker(
+    request: Request,
+    *,
+    name: str = Form(...),
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
+    """T-UR68: create an expense category from the entry dialog's picker (fragment, no dialog)."""
+    return create_from_picker(request, conn, user_id, name=name)
 
 
 @router.get("/{category_id:int}/edit", response_class=HTMLResponse)

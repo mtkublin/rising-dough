@@ -8,6 +8,8 @@ tabs (happened, planned, repeats) and one promote dialog per source (planned: "p
 
 from __future__ import annotations
 
+import re
+
 from tests.ui_map.locator import Locator, by_id, label, role
 
 dialog = role("dialog", "new entry", exact=True)
@@ -89,3 +91,13 @@ formula_subtract = role("radio", "subtract", exact=True).inside(formula_group)
 formula_add_component = role("button", "+ add component", exact=True).inside(formula_group)
 formula_pick = role("button", "pick categories", exact=True).inside(formula_group)
 formula_result = role("status").inside(formula_group)
+
+
+def category_create(name: str) -> Locator:
+    """The picker's no-match button `+ new category “<name>”` (T-UR68)."""
+    # the button is a flex row: the browser's accessible name pads the typed query with spaces
+    pattern = re.compile(rf"^\+ new category “\s*{re.escape(name)}\s*”$")
+    return role("button", pattern).inside(category_group)
+
+
+category_create_error = role("alert").inside(category_group)

@@ -132,4 +132,27 @@
       trigger.focus();
     }
   });
+
+  // No term yet (no percentage typed, no category picked): the preview has nothing to compute and
+  // the server would answer 422, so the request is not sent and the result goes quiet.
+  function hasTerm(formula) {
+    return components(formula).some((comp) => {
+      const percent = comp.querySelector('input[inputmode="decimal"]');
+      return (percent && percent.value.trim() !== '')
+        || comp.querySelector('.rd-msel input[type="checkbox"]:checked') !== null;
+    });
+  }
+
+  document.addEventListener('htmx:beforeRequest', (event) => {
+    const slot = event.detail.elt;
+    if (!slot || slot.getAttribute('hx-post') !== '/recurring/formula/preview') return;
+    const formula = slot.querySelector('[data-js="formula"]');
+    if (!formula || hasTerm(formula)) return;
+    event.preventDefault();
+    const result = formula.querySelector('.rd-formula__result');
+    if (result) {
+      result.replaceChildren();
+      result.hidden = true;
+    }
+  });
 })();
