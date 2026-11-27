@@ -34,7 +34,9 @@
     group.style.setProperty('max-width', `${room}px`);
     const width = Math.min(group.offsetWidth, room);
     const left = Math.max(MARGIN, Math.min(box.left, MARGIN + room - width));
-    const height = group.offsetHeight;
+    // The group's own top margin shifts it down from `top`, so it counts in both placements.
+    const lift = parseFloat(getComputedStyle(group).marginTop) || 0;
+    const height = group.offsetHeight + lift;
     const fitsBelow = box.bottom + GAP + height <= document.documentElement.clientHeight;
     const above = box.top - GAP - height;
     const top = !fitsBelow && above >= 0 ? above : box.bottom;
