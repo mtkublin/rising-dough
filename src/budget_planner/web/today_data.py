@@ -364,9 +364,9 @@ def today_view(
         ),
         bar=_today_bar(budget),
         stats=(
-            TodayStat("spent", fmt(totals.spent_minor)),
+            TodayStat("spent █", fmt(totals.spent_minor)),
             TodayStat("committed ▒", fmt(totals.committed_minor)),
-            TodayStat("left", fmt(totals.remaining_minor)),
+            TodayStat("left ░", fmt(totals.remaining_minor)),
             TodayStat("of", fmt(totals.budgeted_minor)),
         ),
         net_total=fmt(fortune.net_base),
