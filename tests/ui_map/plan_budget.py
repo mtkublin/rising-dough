@@ -24,11 +24,31 @@ def tab(name: str) -> Locator:
 
 
 # The category table
-table = role("table", re.compile(r"^Budget by category"))
-table_region = role("region", re.compile(r"^Budget by category"))
+table = role("table", re.compile(r"^Budget by category(?! without)"))
+table_region = role("region", re.compile(r"^Budget by category(?! without)"))
 rows = role("row").inside(table)
 total_row = role("row", re.compile(r"^Total\b")).inside(table)
 column_headers = role("columnheader").inside(table)
+
+
+# Categories without a budget: a collapsed disclosure under the table (R14, R20)
+disclosure = role("button", re.compile(r"without a budget$"))
+unbudgeted_table = role("table", re.compile(r"^Budget by category without a budget"))
+unbudgeted_rows = role("row").inside(unbudgeted_table)
+unbudgeted_table_region = role("region", re.compile(r"^Budget by category without a budget"))
+
+
+def unbudgeted_row(category_name: str) -> Locator:
+    return role("row", category_name).inside(unbudgeted_table)
+
+
+def unbudgeted_cells(category_name: str) -> Locator:
+    return role("cell").inside(unbudgeted_row(category_name))
+
+
+def unbudgeted_status_cell(category_name: str) -> Locator:
+    """The STATUS cell (4th) of an unbudgeted row: it holds the "set budget" button."""
+    return role("cell", re.compile(r"set budget")).inside(unbudgeted_row(category_name))
 
 
 def row(category_name: str) -> Locator:
@@ -61,8 +81,8 @@ def edit_budget_item(category_name: str) -> Locator:
 
 
 def set_budget_button(category_name: str) -> Locator:
-    """The visible "set budget" button in the budget cell of an unbudgeted row (F4.6c)."""
-    return role("button", "set budget", exact=True).inside(row(category_name))
+    """The visible "set budget" button in the status cell of an unbudgeted row (F4.6c, R20)."""
+    return role("button", "set budget", exact=True).inside(unbudgeted_row(category_name))
 
 
 no_budget_hint = by_id("budget-hint")

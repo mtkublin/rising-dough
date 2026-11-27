@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping
-from dataclasses import replace
 from datetime import date
 from typing import get_args
 
@@ -105,13 +104,6 @@ def budget_view_for(
         base_currency=settings.base_currency,
         display_timezone=settings.display_timezone,
     )
-    # A category without a budget is listed only while something uses it (handoff plan/budget).
-    used = categories_service.usage_by_category(conn, user_id)
-    lines = tuple(
-        line
-        for line in summary.lines
-        if line.budgeted_minor is not None or line.category_id in used
-    )
     edit_urls = {
         line.category_id: plan_year_view.OverrideTarget(
             line.category_id, line.category_name, picked.year, picked.month
@@ -120,12 +112,10 @@ def budget_view_for(
                 override_state(conn, user_id, line.category_id, picked.year, picked.month)
             )
         )
-        for line in lines
+        for line in summary.lines
         if line.budgeted_minor is not None
     }
-    return view_models.budget_view(
-        replace(summary, lines=lines), today, settings.base_currency, edit_urls
-    )
+    return view_models.budget_view(summary, today, settings.base_currency, edit_urls)
 
 
 def budget_period_for(
@@ -162,7 +152,10 @@ def year_page_for(
         selected,
         current=(today.year, today.month),
         currency=settings.base_currency,
-        usage=categories_service.usage_by_category(conn, user_id),
+        linkable=frozenset(
+            c.id
+            for c in categories_service.expense_categories(conn, user_id, include_archived=False)
+        ),
     )
 
 

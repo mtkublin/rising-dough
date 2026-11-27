@@ -487,14 +487,14 @@
       "target": ""
     },
     {
-      "kind": "hx-get",
-      "name": "[ new entry ]",
-      "target": "/add?when=happened&dialog={n}"
+      "kind": "disclosure",
+      "name": "1 category without a budget",
+      "target": ""
     },
     {
       "kind": "hx-get",
-      "name": "set budget",
-      "target": "/budget/rules/{id}/overrides/new?year={n}&month={n}&tier=default"
+      "name": "[ new entry ]",
+      "target": "/add?when=happened&dialog={n}"
     },
     {
       "kind": "link",
@@ -575,6 +575,24 @@
       "target": "/auth/logout"
     },
     {
+      "kind": "hx-get",
+      "name": "set budget",
+      "target": "/budget/rules/{id}/overrides/new?year={n}&month={n}&tier=default",
+      "via": "1 category without a budget"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Next year",
+      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Previous year",
+      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
       "kind": "link",
       "name": "Apr",
       "target": "/plan?tab=budget&year={n}&month={n}",
@@ -629,12 +647,6 @@
       "via": "November 2026 \u25be"
     },
     {
-      "kind": "hx-get",
-      "name": "Next year",
-      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
-      "via": "November 2026 \u25be"
-    },
-    {
       "kind": "link",
       "name": "Nov",
       "target": "/plan?tab=budget&year={n}&month={n}",
@@ -647,43 +659,10 @@
       "via": "November 2026 \u25be"
     },
     {
-      "kind": "hx-get",
-      "name": "Previous year",
-      "target": "/plan?tab=budget&year={n}&month={n}&pick_year={n}",
-      "via": "November 2026 \u25be"
-    },
-    {
       "kind": "link",
       "name": "Sep",
       "target": "/plan?tab=budget&year={n}&month={n}",
       "via": "November 2026 \u25be"
-    },
-    {
-      "kind": "button",
-      "name": "Close",
-      "target": "",
-      "via": "set budget"
-    },
-    {
-      "kind": "button",
-      "name": "cancel",
-      "target": "",
-      "via": "set budget"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "set budget \u00b7 Groceries Amount PLN scope this month only ever...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "set budget"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "[ save ]",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "set budget"
     }
   ],
   "/plan?tab=year": [

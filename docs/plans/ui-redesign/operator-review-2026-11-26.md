@@ -93,6 +93,7 @@ Second operator drill review, drill run 45987714192 on e2e962b967. The operator'
 Operator answers, 2026-11-27. Requirement lines: [requirements.md](../../requirements.md) (F4.6c, F4.8, F4.8a, F3.2, §5).
 
 - R14: the current behaviour hides categories without ledger records. Wanted: Plan/budget and Plan/year show ALL categories (live expense categories; archived per ADR-0136 unchanged) whether or not they have ledger records.
+- R14 clarified: budgeted categories are rows; every live expense category without a budget (with or without ledger records) sits in the collapsed "N categories without a budget" list on both Plan tabs; on Plan/budget the list shows full rows with "set budget" in the status column.
 - R16: two chips only, "this month only" / "every <Month>". "this month only" is ALWAYS preselected; the year cell never changes the default tier (the default stays editable in the budget-tab dialog).
 - R17: the chips hover right beneath the clicked cell (overlay above the rows below, nothing shifts), no outer box, kept inside the viewport at the screen edge, light-mode colours correct.
 - R20: yes, "set budget" moves into the status column of unbudgeted rows.

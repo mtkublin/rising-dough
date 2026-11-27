@@ -124,9 +124,11 @@ def test_cell_has_a_spoken_name_and_opens_its_dialog(
 def test_category_without_a_budget_is_listed_in_the_disclosure(
     client: TestClient, db: sqlite3.Connection, account_id: int, world: dict[str, int]
 ) -> None:
-    # F1 (derived.md year-grid rows): a category without a budget is hidden while nothing uses
-    # it and listed in the disclosure only once it has entries.
-    assert _html.count(client.get(URL).text, plan_year.disclosure) == 0
+    # R14 (2026-11-27): a category without a budget is listed in the disclosure with or without
+    # ledger entries, never as a grid row.
+    before = client.get(URL).text
+    assert _html.count(before, plan_year.row("Gym")) == 0
+    assert _html.texts(before, plan_year.unbudgeted("Gym")) == ["Gym"]
     transactions_repo.create(
         db,
         USER_ID,

@@ -179,6 +179,56 @@ inside a 2px frame), so the row does not grow and nothing below shifts. */
   }
 }
 
+/* R14, R20: the collapsed "without a budget" list on Plan/budget holds a full table, not chips */
+.rd-disclosure__body--table {
+  display: block;
+  padding-inline: 0;
+}
+
+/* The table fills the panel like the main one (same column tracks), so the disclosure's own inline
+   padding moves from the frame onto its summary. */
+.rd-disclosure--table {
+  padding-inline: 0;
+}
+
+.rd-disclosure--table > .rd-disclosure__summary {
+  padding-inline: var(--space-4);
+}
+
+/* Phones: the status cell of an unbudgeted row holds "no budget" and the set-budget button, too wide
+   for the card's top row (it squashed the chip). It takes its own row under the bar. */
+.rd-row--unbudgeted {
+  grid-template-columns: minmax(0, 1fr) var(--track-icon);
+  grid-template-areas:
+    "cat actions"
+    "bar spent"
+    "status status";
+}
+
+.rd-row--unbudgeted .rd-budget__spent {
+  white-space: nowrap;
+}
+
+.rd-row--unbudgeted .rd-budget__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  justify-self: stretch;
+}
+
+@media (width >= 48rem) {
+  .rd-row--unbudgeted {
+    grid-template-columns: var(--ledger-cols);
+    grid-template-areas: none;
+  }
+
+  .rd-row--unbudgeted .rd-budget__status {
+    display: block;
+    justify-self: end;
+  }
+}
+
 /* T-UR76 (R15): the budget override scope ("this month only / every <month> / every month
    (default)") wrapped onto two rows in the 520px dialog at desktop widths (the pill's 16px option
    padding plus nowrap labels exceed the dialog body). Keep one row: the control spans the field,
