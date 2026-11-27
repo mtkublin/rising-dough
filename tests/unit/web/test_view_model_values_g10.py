@@ -156,3 +156,36 @@ def test_upcoming_group_counts() -> None:
     view = view_models.upcoming_view(rows, TODAY, {}, {})
     assert (view.overdue_count, view.due_today_count) == (1, 1)
     assert (view.next_7_count, view.later_count) == (3, 2)
+
+
+def test_budget_view_over_count_includes_unbudgeted_spend() -> None:
+    """R14 only moved unbudgeted rows into a list: hero "N over" still counts them (T-UR75)."""
+    unbudgeted = CategoryBudgetLine(
+        category_id=9,
+        category_name="c9",
+        category_direction=Direction.EXPENSE,
+        category_color=None,
+        budgeted_minor=None,
+        spent_minor=700,
+        remaining_minor=-700,
+        avg_monthly_overall_minor=0,
+        avg_this_year_minor=0,
+        delta_vs_prev_month_minor=0,
+    )
+    summary = budget_service.MonthSummary(
+        year=2026,
+        month=10,
+        lines=(_line(1, 1000, 1500), unbudgeted),
+        totals=budget_service.MonthTotals(
+            budgeted_minor=1000, spent_minor=1500, committed_minor=0, remaining_minor=-500
+        ),
+        left_daily_spend_minor=None,
+        next_income_date=date(2026, 11, 7),
+        days_until_next_income=7,
+        anchor_category_name=None,
+        period_start=date(2026, 10, 7),
+    )
+    view = view_models.budget_view(summary, TODAY)
+    assert [v.line.category_id for v in view.lines] == [1]
+    assert [v.line.category_id for v in view.unbudgeted_lines] == [9]
+    assert view.over_count == 2
