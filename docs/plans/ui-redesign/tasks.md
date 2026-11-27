@@ -365,6 +365,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - **Hardening (from v3 T-D140d, ADR-0113)**: drop inline `style=` attributes and remove `'unsafe-inline'` from `style-src` in the prod CSP (from v3 T-D140d, ADR-0113). The Caddyfile CSP lives in `terraform/cloud-init/compose/Caddyfile.tpl`; the e2e CSP guard (T-D140c) parses it. Acceptance: no `style="` attribute in any rendered page (crawler and axe runs), and the CSP guard passes with `style-src 'self'` only.
 - Progress (2026-11-26): CSP style-src hardening attempted on branch wi/ui/sourdough/CSP (not merged): nonce'd `<style>` in swapped fragments mismatched the page nonce (fixed there via `data-color-rules` + `color-rules.js`), but WebKit still reports style-src-attr violations from an unidentified source; parked until after the drill.
 - Decided (2026-11-27): CSP style-src: one timeboxed attempt (< 1 h); if unsolved, release keeps 'unsafe-inline' and the hardening becomes a post-release follow-up.
+- 2026-11-27 CSP attempt (timeboxed): Chromium and Firefox show 0 violations with style-src nonce-only; WebKit reports 3 style-src-attr violations on the native <select class=rd-select> in fragments/ledger/filter-bar.html (empty sample, no app source; likely WebKit-internal, unconfirmed). Per operator rule the release keeps 'unsafe-inline'; hardening is a post-release follow-up; branch origin/wi/ui/sourdough/CSP (351d7930).
 
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
@@ -545,25 +546,25 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Scope: duplicate account name on create or rename is a 422 with a name field error, not a 500 (fix 8f88c7b1, merge 4c97e651).
 - Source: ACCDUP, F2.1c.
 
-### ◻ T-UR68 [S] New category from the entry dialog without losing the open dialog
+### ✅ T-UR68 [S] New category from the entry dialog without losing the open dialog (merged 3b360a20)
 - Scope: nested flow; the ACCFIX review kept the plain link.
 - Source: ACCFIX review (734270aa).
 - Decided (2026-11-27): inline create "<typed>" in the picker's no-match state; dialog stays open with typed values.
 
-### ◻ T-UR69 [S] EUR account save without a cached FX rate
+### ✅ T-UR69 [S] EUR account save without a cached FX rate (merged 08906bf2)
 - Scope: EUR account save with no cached FX rate leaves "No accounts yet" and shows "Exchange rate unavailable".
 - Source: ACCFIX audit.
 
-### ◻ T-UR70 [S] Budget hero "N over" and Total exclude unbudgeted rows
+### ✅ T-UR70 [S] Budget hero "N over" and Total exclude unbudgeted rows (merged c5643be5)
 - Scope: "N over" counts unbudgeted rows over a zero budget; Total excludes unbudgeted spend. Operator decision needed. Pre-existing.
 - Source: BUDUX audit.
 - Decided (2026-11-27): budgeted rows only (operator-decisions-2026-11-27.md).
 
-### ◻ T-UR71 [S] Year grid table.rd-year overflows at 1024 and 375
+### ✅ T-UR71 [S] Year grid table.rd-year overflows at 1024 and 375 (merged d3d9ca1c)
 - Scope: table.rd-year overflows at 1024 and 375. Pre-existing; relates to T-UR64.
 - Source: PYEAR and BUDUX audits.
 
-### ◻ T-UR72 [S] agent_guard: single-file pytest denied unless the brief names the file
+### ✅ T-UR72 [S] agent_guard: single-file pytest denied unless the brief names the file (merged b196e379)
 - Scope: single-file pytest is denied unless the brief names the file; pytest with `2>&1` or pipe redirects is misread (orchestrator tooling).
 - Source: ADR-0150.
 
@@ -606,27 +607,28 @@ Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no ne
 ### ✅ T-UR82 [S] Today bar legend swatches for spent and left (R23)
 - Scope: spent and left get a legend swatch like committed. Req: §5 Today bar line.
 
-### ◻ T-UR84 [S] Year-cell override dialog opened without JS renders a bare fragment
+### ✅ T-UR84 [S] Year-cell override dialog opened without JS renders a bare fragment (merged 0134a4e7)
 - Scope: the year-cell override dialog opened without JS (direct `/budget/rules/<id>/overrides/new` link) renders a bare unstyled fragment.
 - Source: BUDSCOPE audit 2026-11-27.
 
-### ◻ T-UR85 [S] Plan/budget unbudgeted list: spent and status columns aligned with the main table
+### ✅ T-UR85 [S] Plan/budget unbudgeted list: spent and status columns aligned with the main table (merged d3d9ca1c)
 - Scope: spent and status columns of the unbudgeted list are not aligned with the main table at 1440 and 1024 (1440: spent 965 vs 995, status 1170 vs 1085).
 - Source: PLANCAT audit 2026-11-27.
 
-### ◻ T-UR86 [S] ui_map locators for the 12 dialog-opening links
+### ✅ T-UR86 [S] ui_map locators for the 12 dialog-opening links (merged 29a0b6e4)
 - Scope: add ui_map locators for the 12 dialog-opening links so `tests/e2e/test_mobile_layout.py` clicks them instead of `htmx.ajax`.
 - Source: ZOOM review 2026-11-27.
 
-### ◻ T-UR87 [S] /today afford input clips long amounts at 375 (low)
+### ✅ T-UR87 [S] /today afford input clips long amounts at 375 (low) (merged 134e05b2)
 - Scope: the /today afford input at 375 clips amounts of 10+ characters, e.g. formatted "12,345,678.00".
 - Source: ZOOM audit 2026-11-27 (low).
 
-### ◻ T-UR88 [S] Crawl no longer reaches the set-budget dialog behind the collapsed list (low)
+### ✅ T-UR88 [S] Crawl no longer reaches the set-budget dialog behind the collapsed list (low) (merged 29a0b6e4)
 - Scope: the crawl no longer reaches the set-budget dialog behind the collapsed unbudgeted list.
 - Source: PLANCAT review 2026-11-27 (low).
+- Done 2026-11-27: no code needed: crawl reaches set budget via the disclosure (merged 29a0b6e4).
 
-### ◻ T-UR89 [S] /recurring/formula/preview answers 422 while the formula is empty (low)
+### ✅ T-UR89 [S] /recurring/formula/preview answers 422 while the formula is empty (low) (merged e85b245e)
 - Scope: `/recurring/formula/preview` answers 422 while the formula is empty, which is console noise. Pre-existing.
 - Source: RECUR audit 2026-11-27 (low).
 
@@ -655,22 +657,42 @@ Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no ne
 
 Source: [operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md) "Pre-release scope"; operator: do everything possible before T-UR17.
 
-### ◻ T-UR94 [S] Today bar legend swatches use the bar segment colours
+### ✅ T-UR94 [S] Today bar legend swatches use the bar segment colours (merged 134e05b2)
 - Scope: the spent, committed and left legend tiles on /today use exactly the same colours (tokens) as the matching bar segments, light and dark.
 - Source: operator 2026-11-27 (after drill review 3; T-UR82 follow-up).
 
-### ◻ T-UR95 [S] Category names unique ignoring case
+### ✅ T-UR95 [S] Category names unique ignoring case (merged cd83c243)
 - Scope: create and rename reject a name equal ignoring case to another live category of the user (422 on name); no migration; rename to own case variant allowed.
 - Source: operator 2026-11-27.
 
-### ◻ T-UR96 [S] Planned save shows its flash
+### ✅ T-UR96 [S] Planned save shows its flash (merged 8ed5a6f4)
 - Scope: a successful planned save from the new-entry dialog shows the success flash (docs/audits/2026-11-26-d5-new-entry-tab-carry.md:25 saw none after the HX-Refresh path; docs/audits/2026-11-26-bugce-new-entry-in-place-ledger-1024.md:52 saw it). Investigate per page, fix where missing.
 - Source: operator open question, docs/runs/2026-11-26-ui-sourdough-release-prep.md:102.
 
-### ◻ T-UR97 [S] Keyboard map and reduced-motion journeys
+### ✅ T-UR97 [S] Keyboard map and reduced-motion journeys (merged f7b673c1)
 - Scope: e2e journeys for the missing keys of the T-UR16 keyboard map (`g a`, `g p`, `g s`, `n`, `[`, `]`, ⌘K as Meta+k) and a reduced-motion check; part of T-UR16.
 - Source: T-UR16.
 
-### ◻ T-UR98 [S] Accepted-UI snapshot routes
+### ✅ T-UR98 [S] Accepted-UI snapshot routes (merged 99d99658)
 - Scope: `tests/visual/test_snapshots.py` ROUTES (empty today) lists every page route and the main dialogs on a deterministic seed, so the `update_baselines` dispatch of T-UR65 produces the accepted-UI baselines; precondition of T-UR65.
 - Source: ADR-0154 §2; explorer 2026-11-27.
+
+### ◻ T-UR99 [S] CSP WebKit select style-src-attr follow-up (post-release)
+- Scope: WebKit reports 3 style-src-attr violations on the native `<select class=rd-select>` in `fragments/ledger/filter-bar.html`; source unconfirmed (likely WebKit-internal). Post-release: confirm the source and drop `'unsafe-inline'` from `style-src` (T-UR16 hardening).
+- Source: T-UR16 CSP attempt 2026-11-27; branch origin/wi/ui/sourdough/CSP (351d7930).
+
+### ◻ T-UR100 [S] Today and forecast raise or 503 when an FX rate is missing
+- Scope: Today and forecast raise or answer 503 when an FX rate is missing; extend the T-UR69 `skip_unconvertible` approach.
+- Source: pre-release run 2026-11-27.
+
+### ◻ T-UR101 [S] audit_frontend overflowingElements skips scroll-container descendants
+- Scope: `scripts/audit_frontend.py` overflowingElements should skip descendants of `overflow: auto` / `hidden` scroll containers (plan year cells, `rd-tabs` strip, hero loaf).
+- Source: pre-release run 2026-11-27.
+
+### ◻ T-UR102 [S] tests/e2e/test_today_legend.py uses date.today()
+- Scope: `tests/e2e/test_today_legend.py` uses `date.today()` with `noqa DTZ011`; use the clock seam (`budget_planner.clock`).
+- Source: pre-release run 2026-11-27.
+
+### ◻ T-UR103 [S] Invalid afford input re-renders empty
+- Scope: an invalid afford input re-renders empty; keep the typed value.
+- Source: pre-release run 2026-11-27.
