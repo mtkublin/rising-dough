@@ -193,3 +193,133 @@ def test_repeats_formula_component_fits_the_phone(
     trigger = to_playwright(page, entries.formula_pick).first.bounding_box()
     assert trigger is not None
     assert trigger["width"] >= 120
+
+
+# T-UR81 (R21): every focusable text control on a touch viewport, in every route, dialog and
+# popover, computes >= 16px and sits in no scaled ancestor (iOS zooms on focus otherwise).
+_ZOOM_PROBLEMS_JS = """
+(min) => {
+  const skip = new Set(['hidden', 'checkbox', 'radio', 'submit', 'button', 'file', 'range',
+                        'image', 'reset', 'color']);
+  const out = [];
+  const sel = 'input, select, textarea, [contenteditable]:not([contenteditable=false])';
+  let checked = 0;
+  for (const el of document.querySelectorAll(sel)) {
+    if (skip.has(el.type) || el.getClientRects().length === 0 || el.closest('[hidden]')) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden') continue;
+    checked += 1;
+    const name = (el.id || el.name || '') + '.' + String(el.className).split(' ')[0];
+    let scale = 1;
+    for (let a = el; a && a.nodeType === 1; a = a.parentElement) {
+      const acs = getComputedStyle(a);
+      if (acs.transform && acs.transform !== 'none') scale *= new DOMMatrix(acs.transform).a;
+      const z = parseFloat(acs.zoom || '1');
+      if (z && z !== 1) scale *= z;
+    }
+    const px = parseFloat(cs.fontSize) * scale;
+    if (px < min - 0.01) out.push(location.pathname + ' ' + name + ' ' + px.toFixed(2));
+  }
+  return { out, checked };
+}
+"""
+
+_OPENERS_JS = """
+() => [...document.querySelectorAll('[hx-get]')]
+  .map((el) => el.getAttribute('hx-get'))
+  .filter((h) => /\\/(new|edit|add|reconcile|overrides|pick)|period|picker/.test(h))
+"""
+
+SWEEP_ROUTES = [
+    "/today",
+    "/ledger",
+    "/accounts",
+    "/plan?tab=budget&year=2026&month=6",
+    "/plan?tab=year&year=2026",
+    "/plan?tab=forecast",
+    "/plan?tab=analytics",
+    "/settings?tab=categories",
+    "/settings?tab=fx",
+    "/settings?tab=prefs",
+    "/settings/security",
+    "/settings/password",
+    "/settings/users",
+    "/ledger/recently-deleted",
+]
+
+
+def _seed_sweep(base_url: str, db_path: Path, page: Page) -> None:
+    _seed(base_url, db_path, page)
+    post = page.request.post
+    acc = db_probe.account_id(db_path, "Checking")
+    cat = db_probe.category_id(db_path, "Savings")
+    assert post(f"{base_url}/budget/defaults/{cat}", form={"amount": "500.00"}).ok
+    assert post(
+        f"{base_url}/planned",
+        form={
+            "operation_date": "2026-12-01",
+            "category_id": cat,
+            "account_id": acc,
+            "amount": "10.00",
+            "description": "sweep planned",
+        },
+    ).ok
+    assert post(
+        f"{base_url}/recurring",
+        form={
+            "cadence": "monthly",
+            "start_date": "2026-12-01",
+            "category_id": cat,
+            "account_id": acc,
+            "default_amount": "20.00",
+            "default_description": "sweep rule",
+        },
+    ).ok
+
+
+def test_every_touch_input_is_16px_in_every_route_and_dialog(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, db_path = live_server
+    _seed_sweep(base_url, db_path, page)
+    browser = page.context.browser
+    assert browser is not None
+    context = browser.new_context(
+        storage_state=page.context.storage_state(),
+        viewport=PHONE,
+        has_touch=True,
+        is_mobile=True,
+    )
+    phone = context.new_page()
+    failures: set[str] = set()
+    checked: list[str] = []
+
+    def measure(label: str) -> None:
+        phone.wait_for_timeout(350)
+        result = phone.evaluate(_ZOOM_PROBLEMS_JS, MIN_FONT_PX)
+        failures.update(result["out"])
+        checked.append(f"{label}={result['checked']}")
+
+    def load(route: str) -> None:
+        phone.goto(f"{base_url}{route}")
+        phone.wait_for_function("typeof window.htmx === 'object'")
+
+    for route in SWEEP_ROUTES:
+        load(route)
+        measure(route)
+        openers: list[str] = phone.evaluate(_OPENERS_JS)
+        for href in dict.fromkeys(openers):
+            load(route)
+            phone.evaluate('(h) => document.querySelector(`[hx-get="${h}"]`).click()', href)
+            measure(href)
+            for opener in phone.locator("dialog[open] .rd-catpick__open").all():
+                if opener.is_visible():
+                    opener.click()
+                    measure(href + " picker")
+    load("/plan?tab=year&year=2026")
+    cell = phone.locator("[data-year-cell], .rd-year__cell button, .rd-year__cell a").first
+    if cell.count():
+        cell.evaluate("el => el.click()")
+        measure("year cell")
+    context.close()
+    assert sorted(failures) == [], checked

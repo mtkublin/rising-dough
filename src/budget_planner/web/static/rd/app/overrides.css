@@ -60,13 +60,22 @@ edge and wrap inside the viewport width, so they stay whole on a phone whatever 
 @media (width < 48rem), (pointer: coarse) {
   select,
   textarea,
+  [contenteditable]:not([contenteditable="false"]),
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="submit"], [type="button"], [type="image"], [type="reset"], .rd-dialog__amount),
   .rd-text,
   .rd-select,
   .rd-input__control,
   .rd-filters .rd-text,
-  .rd-filters .rd-select {
+  .rd-filters .rd-select,
+  .rd-catpick__input,
+  .rd-year-editor__input,
+  .rd-msel__filter-input,
+  .rd-palette__input {
     font-size: max(1rem, 16px);
   }
+
+  /* T-UR81 (R21): the dialog hero amount is 56px, far over the minimum, and keeps its size; the
+     year cell editor and picker search fields were 11px to 14px and zoomed the page on focus. */
 }
 
 /* T-UR63 (R12): the native date input has an intrinsic minimum width wider than its half column
