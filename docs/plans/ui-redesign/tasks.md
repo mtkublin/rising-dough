@@ -436,6 +436,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Decision: "Intended differences and the gate" and "Reds outside D1-D11" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0147.
 - Progress (2026-11-26, wave SCR1): OVL1 merged (RGBA/RGB channel compare in the harness); the xfail marking and the unexplained reds stay open.
 - Progress (2026-11-26, wave SCR3, INV1 5301de28): still open: two pages red pending designer (`new-entry--error`, `edit-recurring--picking`); plus small corner clusters on category-picker 1024 and reconcile 375 light.
+- Superseded by T-UR65 (2026-11-27): the operator accepted the UI as it renders; the remaining reds are accepted and leave with the handoff comparison ([operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md)). Close together with T-UR65.
 
 ### ✅ T-UR51 [S] Dead-Python sweep
 - Scope: delete the unused template filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans`, `year_cell_state` (and their tests); key the `_orphans` macro by field name instead of message text and drop its unused `field_count` argument; delete the unused ui_map locators `any_recurring_row` and `plan_year.disclosure`. No allowlist entry added; entries of deleted code are removed.
@@ -531,12 +532,13 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 
 ### ◻ T-UR65 [S] Accepted UI becomes the visual reference (ADR-0154)
 - Scope: after the operator accepts the UI (explore drill): operator dispatches `visual.yml` with `update_baselines=true`; an agent commits the artifact under `tests/visual/__snapshots__/`; operator patch removes the `reference` job from `visual.yml` ([q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 2); overlay rows and "Intended differences" xfails removed from `tests/visual/test_reference.py` and `derived.md`; render script kept as a manual tool.
-- Blocked on: operator acceptance of the UI; operator workflow patch.
+- Blocked on: operator workflow patch and baseline dispatch. Operator acceptance given 2026-11-27 on tip `3df85e88` ([operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md)); ADR-0154 Accepted.
 - Source: operator-decisions-2026-11-26.md "Intended differences and the gate"; ADR-0154.
 
 ### ◻ T-UR66 [P] Advisory reference comparison off the per-PR path until T-UR65
 - Scope: operator patch doc [q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 1: `reference` job runs on `schedule` and `workflow_dispatch` only (`if: github.event_name != 'pull_request' && ...`), `needs: changes` kept. No app change. Done when the operator applies it.
 - Source: operator ask 2026-11-26 (b); ADR-0154 §5.
+- 2026-11-27: the UI is accepted, so T-UR65 part 2 (remove the `reference` job) replaces this interim patch; apply part 2 directly.
 
 ### ✅ T-UR67 [S] Accounts: duplicate name on create or rename is a 422 on name (F2.1c)
 - Scope: duplicate account name on create or rename is a 422 with a name field error, not a 500 (fix 8f88c7b1, merge 4c97e651).

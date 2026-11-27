@@ -1,5 +1,7 @@
 # Changelog
 
+2026-11-27 UI-ACCEPT: operator accepts the ui/sourdough UI state at 3df85e88; ADR-0154 Accepted, T-UR65 unblocked, T-UR50 superseded by T-UR65 (operator-decisions-2026-11-27.md).
+
 2026-11-27 OUTCLICK: outside click or tap closes the year cell editor and its chips; value not saved (T-UR93, R27) (ae8e960f).
 
 2026-11-27 CHIPMOB: year scope chips re-place on visual viewport changes and stay attached to the edited cell on touch widths (T-UR92, R26) (457f4767).

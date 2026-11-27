@@ -1,6 +1,6 @@
 # ADR-0154: Accepted UI Screenshots Replace the Handoff References
 
-- **Status**: Proposed (becomes Accepted when the operator accepts the UI after the explore drill, T-UR65)
+- **Status**: Accepted (2026-11-27: operator accepted the UI on `ui/sourdough` tip `3df85e88`, [operator-decisions-2026-11-27.md](../plans/ui-redesign/operator-decisions-2026-11-27.md); implementation pending, T-UR65)
 - **Date**: 2026-11-26
 - **Supersedes (in part, on acceptance)**: [ADR-0147](0147-handoff-parity-ci-rendered-references-and-data-overlay.md) §1 (CI-rendered handoff references), the data overlay and the cluster-cap comparison against the handoff
 - **Relates to**: [ADR-0027](0027-frontend-toolchain-hardening.md) (visual suite, baselines), [ADR-0106](0106-ui-behaviour-test-harness.md), [ADR-0121](0121-drill-gate-skip-for-non-deploy-prs.md) (gate skip pattern)

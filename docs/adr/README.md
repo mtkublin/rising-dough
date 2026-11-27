@@ -160,4 +160,4 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0151 | [Designer Follow-up Answers (2026-11-23) and Where Their Backend Deltas Land](0151-designer-follow-up-answers-2026-11-23.md) (amends ADR-0148, ADR-0134; relates to ADR-0147, ADR-0008, ADR-0048, ADR-0025, ADR-0139) |
 | 0152 | [Contract Tests Pin Behaviour, Not Dialog Transport](0152-contract-tests-pin-behaviour-not-dialog-transport.md) (amends ADR-0107 guardrail; relates to ADR-0143, ADR-0120) |
 | 0153 | [Pillow as a Dev-Only Dependency for the Visual Compare Decode](0153-pillow-dev-dependency-for-visual-compare-decode.md) (amends ADR-0107; relates to ADR-0130, ADR-0027) |
-| 0154 | [Accepted UI Screenshots Replace the Handoff References](0154-accepted-ui-screenshots-replace-the-handoff-references.md) (proposed; supersedes in part ADR-0147; relates to ADR-0027, ADR-0106, ADR-0121) |
+| 0154 | [Accepted UI Screenshots Replace the Handoff References](0154-accepted-ui-screenshots-replace-the-handoff-references.md) (accepted 2026-11-27 on operator UI acceptance, implementation T-UR65; supersedes in part ADR-0147; relates to ADR-0027, ADR-0106, ADR-0121) |

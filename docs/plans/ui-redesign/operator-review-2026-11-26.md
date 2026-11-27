@@ -22,18 +22,18 @@ Source: explore drill run 45874586774 on ddab3a17. The operator's list is verbat
 
 | id | item | class | task | status |
 |---|---|---|---|---|
-| R1 | New account button redirects to an empty page | bug | T-UR52 | open |
-| R2 | New income category missing from the anchor dropdown until reload | bug | T-UR53 | open |
-| R3 | Category picker ignores mouse clicks on desktop | bug (likely regression of WEBKIT bea9ce19 combobox.js) | T-UR54 | open |
+| R1 | New account button redirects to an empty page | bug | T-UR52 | done |
+| R2 | New income category missing from the anchor dropdown until reload | bug | T-UR53 | done |
+| R3 | Category picker ignores mouse clicks on desktop | bug (likely regression of WEBKIT bea9ce19 combobox.js) | T-UR54 | done |
 | R4 | Plan/budget: make setting the default budget discoverable | design decision (proposal pending) | T-UR55 | decided |
 | R5 | Plan/year: cell edit scopes (one-off, every year, default) | design decision (proposal pending) | T-UR56 | decided |
-| R6 | Month picker arrows change the picker year only | spec change + fix | T-UR57 | open |
-| R7 | Recurring formula always warns non-positive amount | bug | T-UR58 | open |
+| R6 | Month picker arrows change the picker year only | spec change + fix | T-UR57 | done |
+| R7 | Recurring formula always warns non-positive amount | bug | T-UR58 | done |
 | R8 | Answer: promoted planned payments in Ledger | question (answer pending) | T-UR59 | decided |
-| R9 | Account kind read-only after creation (UI and server) | spec change + fix | T-UR60 | open |
-| R10 | No auto-zoom on input focus on touch widths | spec change + fix (inputs >= 16px on touch widths; do NOT disable pinch zoom: a11y) | T-UR61 | open |
-| R11 | Mobile overlays squeezed (formula row, override scope) | bug | T-UR62 | open |
-| R12 | Mobile ledger filter from/to overlap | bug | T-UR63 | open |
+| R9 | Account kind read-only after creation (UI and server) | spec change + fix | T-UR60 | done |
+| R10 | No auto-zoom on input focus on touch widths | spec change + fix (inputs >= 16px on touch widths; do NOT disable pinch zoom: a11y) | T-UR61 | done |
+| R11 | Mobile overlays squeezed (formula row, override scope) | bug | T-UR62 | done |
+| R12 | Mobile ledger filter from/to overlap | bug | T-UR63 | done |
 | R13 | Mobile-first redesign of wide views (plan/year, plan/forecast) | follow-up (designer change request: mobile-first redesign of wide views; not in this release) | T-UR64 | deferred |
 
 ## Decisions (2026-11-26)
@@ -77,16 +77,16 @@ Second operator drill review, drill run 45987714192 on e2e962b967. The operator'
 
 | R | Item | Class | Task | Status |
 |---|---|---|---|---|
-| R14 | Budget and year show all categories | spec change + fix | T-UR75 | open |
-| R15 | Edit budget scope on one row | fix | T-UR76 | open |
-| R16 | Year chips: two options | spec change + fix (supersedes T-UR56 scope set) | T-UR77 | open |
-| R17 | Year chips: no box, under cell, overlay, light colours | fix | T-UR77 | open |
-| R18 | Recurring empty-state new entry lands on empty page | bug | T-UR78 | open |
-| R19 | Day of month defaults from start date | feature | T-UR79 | open |
-| R20 | Set budget in the status column | spec change + fix | T-UR80 | open |
-| R21 | No auto-zoom on any touch-width input | fix | T-UR81 | open |
+| R14 | Budget and year show all categories | spec change + fix | T-UR75 | done |
+| R15 | Edit budget scope on one row | fix | T-UR76 | done |
+| R16 | Year chips: two options | spec change + fix (supersedes T-UR56 scope set) | T-UR77 | done |
+| R17 | Year chips: no box, under cell, overlay, light colours | fix | T-UR77 | done |
+| R18 | Recurring empty-state new entry lands on empty page | bug | T-UR78 | done |
+| R19 | Day of month defaults from start date | feature | T-UR79 | done |
+| R20 | Set budget in the status column | spec change + fix | T-UR80 | done |
+| R21 | No auto-zoom on any touch-width input | fix | T-UR81 | done |
 | R22 | Wide views scroll horizontally on mobile | follow-up already exists | T-UR64 (relates T-UR71) | deferred |
-| R23 | Today bar legend swatches for spent and left | fix | T-UR82 | open |
+| R23 | Today bar legend swatches for spent and left | fix | T-UR82 | done |
 
 ### Decisions (2026-11-27)
 
@@ -113,7 +113,11 @@ Third operator drill review. The operator's list, verbatim:
 
 | R | Item | Class | Task | Status |
 |---|---|---|---|---|
-| R24 | Collapsed unbudgeted list has no outer box (budget, year) | fix | T-UR90 | open |
-| R25 | Unbudgeted status cell shows only "set budget" | spec change + fix | T-UR91 | open |
-| R26 | Year scope chips stay attached to the cell on touch widths | fix | T-UR92 | open |
-| R27 | A click or tap outside the edited year cell and its chips closes the editor as Escape does | fix + spec change | T-UR93 | open |
+| R24 | Collapsed unbudgeted list has no outer box (budget, year) | fix | T-UR90 | done |
+| R25 | Unbudgeted status cell shows only "set budget" | spec change + fix | T-UR91 | done |
+| R26 | Year scope chips stay attached to the cell on touch widths | fix | T-UR92 | done (real-phone re-check optional) |
+| R27 | A click or tap outside the edited year cell and its chips closes the editor as Escape does | fix + spec change | T-UR93 | done |
+
+## UI accepted (2026-11-27)
+
+The operator accepts the UI state of `ui/sourdough` as of tip `3df85e88`; no further drill review round before the release. Record and consequences: [operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md) (ADR-0154 Accepted, T-UR65 unblocked).
