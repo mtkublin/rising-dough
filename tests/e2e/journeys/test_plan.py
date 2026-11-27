@@ -195,7 +195,8 @@ def _chip_geometry(world: World, width: int, month: str) -> dict[str, Any]:
     world.goto("/plan?tab=year")
     world.find(plan_year.cell("Groceries", month)).click()
     expect(world.find(plan_year.cell_scope("every month (default)"))).to_be_checked()
-    return world.page.evaluate(_CHIP_GEOMETRY)  # type: ignore[no-any-return]
+    geometry: dict[str, Any] = world.page.evaluate(_CHIP_GEOMETRY)
+    return geometry
 
 
 def test_year_cell_chip_row_covers_no_cell_value_at_desktop(world: World) -> None:
