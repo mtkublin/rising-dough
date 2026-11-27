@@ -93,3 +93,31 @@ Template diff unchanged in nature (no float, / 100, * 100, set blocks); counts c
 
 ### Verdict
 FINDINGS: F1, F2 fixed; minor alignment partly fixed (non-blocking); F3 open (blocking).
+
+## Re-check 2 (9d98352e)
+
+Scratch DB, light theme, 1440 / 1024 / 375 (screenshots in /private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/9636d2bf-61b0-42d2-957e-732cfda6a6a7/scratchpad/PLANCAT/shots2, rc3-*.log).
+
+| Route | 1440 | 1024 | 375 |
+|---|---|---|---|
+| budget collapsed / expanded / after save (set Taxes) | false/0/0/0/0 | false/0/0/0/0 | false/0/0/0/0 |
+| year 2025 expanded + 3 links | false/0/0/0/0 | false/10/0/0/0 (a) | false/10/0/0/0 (a) |
+| year 2026 expanded + 3 links | false/0/0/0/0 | false/10/0/0/0 (a) | false/10/0/0/0 (a) |
+| year 2027 expanded + 3 links | false/0/0/0/0 | false/10/0/0/0 (a) | false/10/0/0/0 (a) |
+
+Cells are horizontalScroll/overflowingElements/duplicateIds/consoleErrors/requestFailures. (a) table.rd-year inside the sideways-scrolling year grid: the same 10 elements as MAIN, pre-existing, no page horizontal scroll. consoleErrors and requestFailures are 0 everywhere, including after clicking every link.
+
+### F3: FIXED
+Years 2025, 2026 and 2027 all show "3 categories without a budget" (Bank Fees #18, Fixed Costs, Takeaway). Archived Bank Fees and Bank Fees #17 are absent in every year. Every link (9 per viewport) returns 200 and opens the dialog "set budget · <name>"; no 404, no console error, no request failure. The disclosure count equals the number of links.
+
+### Sanity after the YEARCHIP merge
+Budget tab expanded at 1440/1024/375: no overflow, same layout as before; Taxes set from the list moves into the main table. Year cell click at 1440/1024/375: scope chips "this month only" (preselected) and "every <month>" float under the cell, no console error (yc-1440.png viewed).
+
+### Minor (column alignment): logged follow-up, not blocking
+Spent and status columns of the second table still start at different x than the main table (1440: spent 965 vs 995, status 1170 vs 1085). Readable, no overflow. Tracked as a follow-up.
+
+### Step 3b (re-check 2)
+Python-only change plus merge; templates unchanged by this fix. No float or arithmetic in the touched templates; rendered counts equal the service-provided linkable set (3 / 3 / 3); swap targets, duplicate ids (0) and failing-save behaviour unchanged.
+
+### Final verdict
+CLEAN: F1, F2, F3 fixed; column alignment is a logged non-blocking follow-up.
