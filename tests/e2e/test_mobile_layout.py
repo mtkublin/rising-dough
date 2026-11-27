@@ -230,6 +230,14 @@ _OPENERS_JS = """
   .filter((h) => /\\/(new|edit|add|reconcile|overrides|pick)|period|picker/.test(h))
 """
 
+_CLICK_JS = """
+(sel) => {
+  const el = document.querySelector(sel);
+  if (el) el.click();
+  return Boolean(el);
+}
+"""
+
 SWEEP_ROUTES = [
     "/today",
     "/ledger",
@@ -312,14 +320,10 @@ def test_every_touch_input_is_16px_in_every_route_and_dialog(
             load(route)
             phone.evaluate('(h) => document.querySelector(`[hx-get="${h}"]`).click()', href)
             measure(href)
-            for opener in phone.locator("dialog[open] .rd-catpick__open").all():
-                if opener.is_visible():
-                    opener.click()
-                    measure(href + " picker")
+            if phone.evaluate(_CLICK_JS, "dialog[open] .rd-catfield__search"):
+                measure(href + " picker")
     load("/plan?tab=year&year=2026")
-    cell = phone.locator("[data-year-cell], .rd-year__cell button, .rd-year__cell a").first
-    if cell.count():
-        cell.evaluate("el => el.click()")
+    if phone.evaluate(_CLICK_JS, '[data-js="year-cell"]'):
         measure("year cell")
     context.close()
     assert sorted(failures) == [], checked
