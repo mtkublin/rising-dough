@@ -59,7 +59,8 @@ def test_tier_toggle_on_plan_year_dialog(live_server: tuple[str, Path], page: Pa
     to_playwright(page, plan_year.cell("Groceries", "March")).click(modifiers=["Shift"])
     dialog = plan_year.dialog("Groceries", "Mar 2026")
     expect(to_playwright(page, plan_year.amount(dialog))).to_be_visible()
-    _assert_toggle(page, dialog)
+    # a default-tier cell opens the dialog on the tier its inline editor preselects
+    _assert_toggle(page, dialog, opens_on=_LABELS[2])
 
 
 def test_recurring_override_saved_from_plan_year(live_server: tuple[str, Path], page: Page) -> None:
