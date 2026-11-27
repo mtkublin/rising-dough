@@ -409,3 +409,17 @@
   max-width: 32rem;
   border-radius: var(--radius-lg);
 }
+
+/* The scope options wrap inside the card instead of clipping at narrow widths (NOJSCSRF). */
+.rd-override-page .rd-segmented {
+  border-radius: var(--radius-lg);
+}
+
+.rd-override-page .rd-segmented__option {
+  height: auto;
+  min-height: var(--size-control-sm);
+  padding-block: var(--space-1);
+  border-radius: var(--radius-lg);
+  white-space: normal;
+  text-align: center;
+}

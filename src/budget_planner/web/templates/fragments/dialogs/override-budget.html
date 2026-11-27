@@ -5,6 +5,7 @@
    POST /budget/rules/{id}/overrides; success closes the dialog and sends budget-stale. #}
 {% from "fragments/dialogs/dialog.html" import dialog %}
 {% call dialog("override-budget", override.title, action=override.target.action, hx_post=override.target.action, hero=override.hero, actions=override.actions, field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="year" value="{{ override.target.year }}">
   <input type="hidden" name="month" value="{{ override.target.month }}">
   <div class="rd-field rd-field--seg"
