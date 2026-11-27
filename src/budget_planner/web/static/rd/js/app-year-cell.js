@@ -18,7 +18,9 @@
   const MARGIN = 8;
   const GAP = 0;
   let pending = null;
+  const SETTLE_MS = [120, 350, 700];
   let placed = null;
+  let stop = null;
 
   function keyOf(cell) {
     return `${cell.dataset.action}|${cell.dataset.month}`;
@@ -37,24 +39,56 @@
     // The group's own top margin shifts it down from `top`, so it counts in both placements.
     const lift = parseFloat(getComputedStyle(group).marginTop) || 0;
     const height = group.offsetHeight + lift;
-    const fitsBelow = box.bottom + GAP + height <= document.documentElement.clientHeight;
+    // The visible area is the visual viewport: the on-screen keyboard or a pinch shrinks and moves
+    // it inside the layout viewport the fixed group is laid out against (T-UR92).
+    const vv = window.visualViewport;
+    const seenTop = vv ? vv.offsetTop : 0;
+    const seenBottom = vv ? vv.offsetTop + vv.height : document.documentElement.clientHeight;
+    const fitsBelow = box.bottom + GAP + height <= seenBottom;
     const above = box.top - GAP - height;
-    const top = !fitsBelow && above >= 0 ? above : box.bottom;
+    const top = !fitsBelow && above >= seenTop ? above : box.bottom;
     group.style.setProperty('top', `${top}px`);
     group.style.setProperty('left', `${left}px`);
   }
 
+  // Every source that moves the cell or the visible area re-places the group, once per frame:
+  // window and grid scroll (captured, scroll does not bubble), resize, visualViewport resize and
+  // scroll (keyboard, pinch: no window event), and a short settle after the editor opens while
+  // the keyboard animates in (T-UR92, R26).
   function track(form) {
     untrack();
-    placed = () => place(form);
+    let frame = 0;
+    const run = () => {
+      frame = 0;
+      place(form);
+    };
+    placed = () => {
+      if (!frame) frame = window.requestAnimationFrame(run);
+    };
+    const vv = window.visualViewport;
     window.addEventListener('resize', placed);
     window.addEventListener('scroll', placed, true);
+    if (vv) {
+      vv.addEventListener('resize', placed);
+      vv.addEventListener('scroll', placed);
+    }
+    const settle = SETTLE_MS.map((ms) => window.setTimeout(placed, ms));
+    stop = () => {
+      window.removeEventListener('resize', placed);
+      window.removeEventListener('scroll', placed, true);
+      if (vv) {
+        vv.removeEventListener('resize', placed);
+        vv.removeEventListener('scroll', placed);
+      }
+      settle.forEach((id) => window.clearTimeout(id));
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }
 
   function untrack() {
-    if (!placed) return;
-    window.removeEventListener('resize', placed);
-    window.removeEventListener('scroll', placed, true);
+    if (!stop) return;
+    stop();
+    stop = null;
     placed = null;
   }
 

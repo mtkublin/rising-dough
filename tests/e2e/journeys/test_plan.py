@@ -323,6 +323,53 @@ def test_year_cell_chips_follow_a_horizontally_scrolled_grid_on_a_phone(world: W
     _assert_chips_under_cell_inside_viewport(world.page.evaluate(_CHIP_GEOMETRY))
 
 
+def _assert_attached(world: World) -> None:
+    """The chip group sits right under the edited cell (above it when flipped), over its column."""
+    g = world.page.evaluate(_CHIP_GEOMETRY)
+    group, wrap = g["group"], g["wrap"]
+    below = 0 <= group["t"] - wrap["b"] <= 8
+    above = 0 <= wrap["t"] - group["b"] <= 8
+    assert below or above, (group, wrap)
+    assert group["l"] < wrap["r"]
+    assert group["r"] > wrap["l"]
+    for chip in g["chips"]:
+        assert chip["l"] >= 0
+        assert chip["r"] <= g["width"]
+
+
+def test_year_cell_chips_stay_attached_on_a_phone_while_page_grid_and_keyboard_move(
+    world: World,
+) -> None:
+    world.page.set_viewport_size({"width": 375, "height": 700})
+    _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.page.evaluate("document.querySelector('.rd-year__scroll').scrollLeft = 120")
+    world.find(plan_year.cell("Groceries", "May")).click()
+    expect(world.find(plan_year.cell_scope("this month only"))).to_be_checked()
+    _assert_attached(world)
+
+    world.page.evaluate("window.scrollBy(0, 60)")  # the page scrolls
+    world.page.wait_for_timeout(100)
+    _assert_attached(world)
+
+    world.page.evaluate("document.querySelector('.rd-year__scroll').scrollLeft += 90")
+    world.page.wait_for_timeout(100)  # the grid scrolls
+    _assert_attached(world)
+
+    # The on-screen keyboard or a pinch moves the visual viewport without a window scroll event:
+    # the cell shifts in layout terms and only visualViewport events announce it.
+    world.page.evaluate(
+        """() => {
+          document.querySelector('.rd-year__scroll').style.marginTop = '90px';
+          window.visualViewport.dispatchEvent(new Event('resize'));
+        }"""
+    )
+    world.page.wait_for_timeout(150)
+    _assert_attached(world)
+    world.page.keyboard.press("Escape")
+    expect(world.find(plan_year.cell_scope_chips)).to_have_count(0)
+
+
 _CHIP_COLOURS = """(theme) => {
   document.documentElement.dataset.theme = theme;
   const probe = (prop, token) => {
