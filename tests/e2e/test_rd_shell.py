@@ -13,7 +13,13 @@ from typing import Any
 import pytest
 
 from tests.e2e.mockup_target import Journey
-from tests.ui_map import ledger as ledger_map, rd_shell as shell
+from tests.ui_map import (
+    entries,
+    ledger as ledger_map,
+    plan as plan_map,
+    rd_shell as shell,
+    settings as settings_map,
+)
 from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -98,6 +104,103 @@ def test_go_to_shortcut_navigates(journey: Journey) -> None:
     journey.page.keyboard.press("g")
     journey.page.keyboard.press("l")
     journey.page.wait_for_url(_url_matches(journey, "ledger"))
+
+
+@pytest.mark.parametrize(
+    ("second", "label"), [("t", "today"), ("l", "ledger"), ("p", "plan"), ("a", "accounts")]
+)
+def test_go_to_shortcut_reaches_each_destination(journey: Journey, second: str, label: str) -> None:
+    start = "/accounts" if label == "today" else "/dev/shell"
+    journey.goto(start)
+    journey.page.keyboard.press("g")
+    journey.page.keyboard.press(second)
+    journey.page.wait_for_url(_url_matches(journey, label))
+
+
+def test_go_to_settings_shortcut(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("app-only: the handoff settings link carries no shortcut")
+    journey.goto("/dev/shell")
+    journey.page.keyboard.press("g")
+    journey.page.keyboard.press("s")
+    journey.page.wait_for_url(re.compile(r"/settings$"))
+
+
+def test_n_opens_new_entry_dialog_in_place(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("app-only: the dialog comes from the server")
+    journey.goto("/ledger")
+    assert journey.page.evaluate("typeof window.htmx") == "object"
+    journey.page.keyboard.press("n")
+    _loc(journey, entries.dialog).wait_for(state="visible")
+    assert journey.page.url.endswith("/ledger")
+    journey.page.keyboard.press("Escape")
+    assert (
+        _loc(journey, entries.dialog).count() == 0 or not _loc(journey, entries.dialog).is_visible()
+    )
+
+
+def test_n_is_ignored_while_typing_in_a_field(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("app-only: the ledger filter bar is the app template")
+    journey.goto("/ledger")
+    _loc(journey, ledger_map.filter_search).focus()
+    journey.page.keyboard.type("nn")
+    assert _loc(journey, ledger_map.filter_search).input_value() == "nn"
+    assert _loc(journey, entries.dialog).count() == 0
+
+
+def test_bracket_keys_cycle_plan_tabs(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("app-only: tab hrefs differ in the handoff")
+    journey.goto("/plan?tab=budget")
+    journey.page.keyboard.press("]")
+    journey.page.wait_for_url(re.compile(r"/plan\?tab=year$"))
+    assert _loc(journey, plan_map.plan_tab("year")).get_attribute("aria-current") == "page"
+    journey.page.keyboard.press("[")
+    journey.page.wait_for_url(re.compile(r"/plan\?tab=budget$"))
+    journey.page.keyboard.press("[")
+    journey.page.wait_for_url(re.compile(r"/plan\?tab=analytics$"))
+
+
+def test_bracket_keys_cycle_settings_tabs(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("app-only: tab hrefs differ in the handoff")
+    journey.goto("/settings?tab=categories")
+    journey.page.keyboard.press("]")
+    journey.page.wait_for_url(re.compile(r"/settings\?tab=fx$"))
+    assert (
+        _loc(journey, settings_map.settings_tab("Currency & FX")).get_attribute("aria-current")
+        == "page"
+    )
+    journey.page.keyboard.press("[")
+    journey.page.wait_for_url(re.compile(r"/settings\?tab=categories$"))
+
+
+def test_arrow_keys_move_the_plan_period(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("app-only: the period nav is the app template")
+    journey.goto("/plan?tab=budget")
+    before = _loc(journey, plan_map.period_label).inner_text()
+    next_href = _loc(journey, plan_map.period_next).get_attribute("href")
+    prev_href = _loc(journey, plan_map.period_prev).get_attribute("href")
+    assert next_href != prev_href
+    journey.page.keyboard.press("ArrowRight")
+    journey.page.wait_for_url(re.compile(re.escape(str(next_href)) + r"$"))
+    assert _loc(journey, plan_map.period_label).inner_text() != before
+    moved_url = journey.page.url
+    journey.page.keyboard.press("ArrowLeft")
+    journey.page.wait_for_url(lambda url: url != moved_url)
+    assert _loc(journey, plan_map.period_label).inner_text() == before
+
+
+def test_meta_k_opens_palette(journey: Journey) -> None:
+    journey.goto("/dev/shell")
+    journey.page.keyboard.press("Meta+k")
+    assert _loc(journey, shell.palette_dialog).is_visible()
+    assert _loc(journey, shell.palette_input).evaluate("el => el === document.activeElement")
+    journey.page.keyboard.press("Escape")
+    assert _loc(journey, shell.palette_dialog).is_visible() is False
 
 
 def test_palette_opens_filters_and_goes(journey: Journey) -> None:

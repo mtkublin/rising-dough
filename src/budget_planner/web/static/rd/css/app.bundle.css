@@ -6135,6 +6135,11 @@ form.htmx-request .rd-btn[type="submit"]::after {
   font-size: var(--font-size-data);
 }
 
+/* Legend glyphs: spent and committed cells are ink in the bar; "left" reuses .rd-bar__left. */
+.rd-stats__glyph {
+  color: var(--color-ink);
+}
+
 .rd-afford {
   display: flex;
   flex-wrap: wrap;
@@ -6201,6 +6206,11 @@ form.htmx-request .rd-btn[type="submit"]::after {
   .rd-today {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   }
+}
+
+/* Over budget the whole bar is --color-over (bar.css): the ink legend glyphs follow it. */
+.rd-stats[data-bar="rd-bar--over"] .rd-stats__glyph {
+  color: var(--color-over);
 }
 }
 
