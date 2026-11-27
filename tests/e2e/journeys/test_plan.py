@@ -7,6 +7,8 @@ every month (default)). A saved or removed override closes the dialog and reload
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from playwright.sync_api import expect
 
@@ -169,6 +171,47 @@ def test_year_cell_editor_preselects_the_cells_tier_and_labels_the_chips(world: 
     expect(world.find(plan_year.cell_scope("every month (default)"))).to_be_checked()
     expect(world.find(plan_year.cell_scope("every march"))).not_to_be_checked()
     expect(world.find(plan_year.cell_scope("this month only"))).not_to_be_checked()
+
+
+_CHIP_GEOMETRY = """() => {
+  const box = (el) => { const r = el.getBoundingClientRect();
+    return {l: r.left, t: r.top, r: r.right, b: r.bottom}; };
+  const group = document.querySelector('[role="radiogroup"][aria-label="budget scope"]');
+  const chip = box(group);
+  const hit = [...document.querySelectorAll('.rd-year-cell')]
+    .filter((c) => c.getClientRects().length)
+    .map((c) => ({name: c.getAttribute('aria-label'), ...box(c)}))
+    .filter((c) => c.l < chip.r && c.r > chip.l && c.t < chip.b && c.b > chip.t)
+    .map((c) => c.name);
+  const chips = [...group.querySelectorAll('label')].map(box);
+  return {hit, chips, width: window.innerWidth};
+}"""
+
+
+def _chip_geometry(world: World, width: int, month: str) -> dict[str, Any]:
+    world.page.set_viewport_size({"width": width, "height": 900})
+    _budgeted(world)
+    world.post(f"/budget/defaults/{world.category('Rent')}", {"amount": "1200.00"})
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", month)).click()
+    expect(world.find(plan_year.cell_scope("every month (default)"))).to_be_checked()
+    return world.page.evaluate(_CHIP_GEOMETRY)  # type: ignore[no-any-return]
+
+
+def test_year_cell_chip_row_covers_no_cell_value_at_desktop(world: World) -> None:
+    geometry = _chip_geometry(world, 1440, "March")
+
+    assert geometry["hit"] == []
+
+
+def test_year_cell_chips_stay_inside_the_phone_viewport(world: World) -> None:
+    geometry = _chip_geometry(world, 375, "December")
+
+    assert geometry["hit"] == []
+    assert len(geometry["chips"]) == 3
+    for chip in geometry["chips"]:
+        assert chip["l"] >= 0
+        assert chip["r"] <= geometry["width"]
 
 
 def test_year_cell_every_month_default_changes_every_months_cell(world: World) -> None:

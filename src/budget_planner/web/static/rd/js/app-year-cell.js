@@ -1,8 +1,10 @@
 /*
  * Plan, year tab (T-UR00b, handoff overlay override--year-cell): a plain click on a month cell
  * turns it into the inline editor (the handoff's `rd-year-editor` form, cloned from the page's
- * <template data-js="year-cell-form">). A scope chip row under the cell (this month only, every
- * <month>, every month (default)) starts on the cell's own tier (data-scope). Enter saves the
+ * <template data-js="year-cell-form">). A scope chip row in its own table row under the edited row
+ * (so no cell value is covered; the radios stay in the form through their form attribute) offers
+ * the template's chips (the server prints this month only and every month (default); the "every
+ * <month>" text is filled from data-recurring-label) and starts on the cell's own tier (data-scope). Enter saves the
  * amount with the chosen scope (the form posts to the override route the dialog uses, through
  * HTMX) and focus returns to the cell once the grid reloads; a failed save answers 422 with the
  * override dialog in #modal-root, so the error is visible there. Escape cancels and gives the cell
@@ -16,7 +18,12 @@
     return `${cell.dataset.action}|${cell.dataset.month}`;
   }
 
+  function dropScopeRows() {
+    document.querySelectorAll('[data-js="year-cell-scope-row"]').forEach((row) => row.remove());
+  }
+
   function close(form) {
+    dropScopeRows();
     const cell = form.previousElementSibling;
     form.remove();
     if (cell && cell.matches('[data-js="year-cell"]')) {
@@ -26,6 +33,7 @@
   }
 
   function closeOthers() {
+    dropScopeRows();
     document.querySelectorAll('[data-js="year-cell-editor"]').forEach((form) => {
       const cell = form.previousElementSibling;
       form.remove();
@@ -55,8 +63,22 @@
       radio.checked = radio.value === cell.dataset.scope;
     });
     pending = null;
+    form.id = `${id}-form`;
+    const scope = form.querySelector('.rd-year-editor__scope');
+    const row = cell.closest('tr');
+    const scopeRow = document.createElement('tr');
+    scopeRow.className = 'rd-year__scope-row';
+    scopeRow.dataset.js = 'year-cell-scope-row';
+    const scopeCell = document.createElement('td');
+    scopeCell.colSpan = row.cells.length;
+    scope.querySelectorAll('input[name="tier"]').forEach((radio) => {
+      radio.setAttribute('form', form.id);
+    });
+    scopeCell.append(scope);
+    scopeRow.append(scopeCell);
     cell.hidden = true;
     cell.after(form);
+    row.after(scopeRow);
     if (window.htmx) window.htmx.process(form);
     input.focus();
     return true;
@@ -94,7 +116,10 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    const form = event.target.closest && event.target.closest('[data-js="year-cell-editor"]');
+    const inside =
+      event.target.closest &&
+      event.target.closest('[data-js="year-cell-editor"], [data-js="year-cell-scope-row"]');
+    const form = inside && document.querySelector('[data-js="year-cell-editor"]');
     if (!form) return;
     event.preventDefault();
     event.stopPropagation();

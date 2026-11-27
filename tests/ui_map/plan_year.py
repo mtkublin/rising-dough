@@ -62,7 +62,8 @@ cell_scope_group = role("radiogroup", "budget scope")
 
 def cell_scope(label_text: str) -> Locator:
     """A scope chip of the inline editor: ``this month only`` / ``every <month>`` / default."""
-    return role("radio", label_text, exact=True).inside(cell_scope_group)
+    # the checked chip prints a leading check mark (chip.css), which is part of its name
+    return role("radio", re.compile(rf"^(✓ )?{re.escape(label_text)}$")).inside(cell_scope_group)
 
 
 def unbudgeted(category_name: str) -> Locator:

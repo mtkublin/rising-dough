@@ -26,22 +26,28 @@
   }
 }
 
-/* F4.8a: the year grid inline editor shows its scope chips as a row under the edited cell, so the
-narrow cell keeps its size and the chips overlay the rows below */
-.rd-year__cell-wrap {
-  position: relative;
+/* F4.8a: the year grid inline editor offers its scope chips in a row of their own under the edited
+row (app-year-cell.js), so no neighbouring value is covered. The chips stick to the scroller's start
+edge and wrap inside the viewport width, so they stay whole on a phone whatever month is edited. */
+.rd-year__scope-row,
+.rd-year__scope-row > td {
+  display: block;
+}
+
+.rd-year__scope-row > td {
+  padding: var(--space-1) 0;
 }
 
 .rd-year-editor__scope {
-  position: absolute;
-  inset-block-start: 100%;
+  position: sticky;
   inset-inline-start: 0;
-  z-index: 2;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
+  width: max-content;
+  max-width: calc(100vw - 4.5rem);
   padding: var(--space-1);
   border: var(--border-width) solid var(--color-rule);
   border-radius: var(--radius-menu);
   background: var(--color-panel);
-  white-space: nowrap;
 }

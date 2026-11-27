@@ -79,11 +79,6 @@ class OverrideTarget:
         return f"{base}&remove=1" if remove else base
 
 
-def dialog_tier(state: str) -> str:
-    """Scope a cell opens its dialog on: its own override tier, else this month only."""
-    return state if state in (TIER_ONE_OFF, TIER_RECURRING) else TIER_ONE_OFF
-
-
 def tier_labels(month: int) -> Mapping[str, str]:
     """Scope names shared by the dialog's radios and the year cell's chips (``every June``)."""
     return {
@@ -173,6 +168,7 @@ class YearPage:
     unbudgeted_heading: str
     period: BudgetPeriod
     reload_url: str
+    scope_labels: Mapping[str, str]  # the editor's chip texts (``tier_labels``, one source)
 
 
 def _cell(
@@ -192,7 +188,7 @@ def _cell(
         text=text,
         state=state,
         label=f"{row.category_name}, {month_name(target.month)}: {spoken}, {_STATE_LABEL[state]}",
-        url=target.url(dialog_tier(state)),
+        url=target.url(cell_scope(state)),
         editor_label=f"{row.category_name}, {month_name(target.month)} budget",
         amount_text="" if state == "unset" else amount,
         action=target.action,
@@ -289,6 +285,7 @@ def year_page(
         unbudgeted_heading=f"{len(unset)} {noun} without a budget",
         period=year_period(selected),
         reload_url=f"{YEAR_TAB_URL}{selected}",
+        scope_labels=tier_labels(current_month),
     )
 
 
