@@ -357,7 +357,7 @@ def _dialog_openers(
         ),
         "account reconcile": (
             "/accounts",
-            (accounts.reconcile_button(acc),),
+            (accounts.row_menu(acc), accounts.menu_item("reconcile").inside(accounts.row(acc))),
             accounts.reconcile_dialog,
         ),
         "category new": (
@@ -381,12 +381,12 @@ def _dialog_openers(
         "recurring edit": (
             f"/ledger?view=recurring&{rng}",
             (ledger.row_kebab(rule_row), ledger.row_menu_item(rule_row, "edit")),
-            edit_dialogs.recurring_dialog("Savings"),
+            edit_dialogs.recurring_dialog("sweep rule"),
         ),
         "recurring override": (
             f"/ledger?view=recurring&{rng}",
             (ledger.row_kebab(rule_row), ledger.row_menu_item(rule_row, "override")),
-            edit_dialogs.occurrence_dialog("Savings"),
+            edit_dialogs.occurrence_dialog("sweep rule"),
         ),
         "budget override": (
             "/plan?tab=budget&year=2026&month=6",
