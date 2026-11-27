@@ -148,7 +148,15 @@ def _override(**kw: str) -> tuple[object, str | None]:
         "amount": "10",
         "currency": "PLN",
     }
-    parsed = parse_override(5, **{**base, **kw})  # type: ignore[arg-type]  # str kwargs; allow_default stays its bool default
+    f = {**base, **kw}
+    parsed = parse_override(
+        5,
+        tier=f["tier"],
+        month=f["month"],
+        year=f["year"],
+        amount=f["amount"],
+        currency=f["currency"],
+    )
     return parsed.command, parsed.error
 
 
