@@ -200,3 +200,10 @@ def test_today_upcoming_chip_names_an_archived_category(
         assert "Bank Fees" in row
         assert "\u2014" not in row
         assert "Mallory Secret" not in html
+
+
+def test_today_stat_labels_carry_their_bar_glyph(client: TestClient) -> None:
+    stats_text = _html.text_of(client.get("/today").text, today.stats)
+    assert "spent █" in stats_text
+    assert "committed ▒" in stats_text
+    assert "left ░" in stats_text
