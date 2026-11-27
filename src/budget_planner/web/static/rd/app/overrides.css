@@ -153,3 +153,66 @@ edge and wrap inside the viewport width, so they stay whole on a phone whatever 
   display: block;
   padding-inline: 0;
 }
+
+/* The table fills the panel like the main one (same column tracks), so the disclosure's own inline
+   padding moves from the frame onto its summary. */
+.rd-disclosure--table {
+  padding-inline: 0;
+}
+
+.rd-disclosure--table > .rd-disclosure__summary {
+  padding-inline: var(--space-4);
+}
+
+/* Phones: the status cell of an unbudgeted row holds "no budget" and the set-budget button, too wide
+   for the card's top row (it squashed the chip). It takes its own row under the bar. */
+.rd-row--unbudgeted {
+  grid-template-columns: minmax(0, 1fr) var(--track-icon);
+  grid-template-areas:
+    "cat actions"
+    "bar spent"
+    "status status";
+}
+
+.rd-row--unbudgeted .rd-budget__spent {
+  white-space: nowrap;
+}
+
+.rd-row--unbudgeted .rd-budget__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  justify-self: stretch;
+}
+
+@media (width >= 48rem) {
+  .rd-row--unbudgeted {
+    grid-template-columns: var(--ledger-cols);
+    grid-template-areas: none;
+  }
+
+  .rd-row--unbudgeted .rd-budget__status {
+    display: block;
+    justify-self: end;
+  }
+}
+
+/* T-UR76 (R15): the budget override scope ("this month only / every <month> / every month
+   (default)") wrapped onto two rows in the 520px dialog at desktop widths (the pill's 16px option
+   padding plus nowrap labels exceed the dialog body). Keep one row: the control spans the field,
+   never wraps, and the options share the width with slimmer padding. Phones keep the equal-column
+   grid above. */
+@media (width >= 48rem) {
+  .rd-field--seg[aria-labelledby="override-budget-scope"] > .rd-segmented {
+    display: flex;
+    flex-wrap: nowrap;
+    align-self: stretch;
+  }
+
+  .rd-field--seg[aria-labelledby="override-budget-scope"] > .rd-segmented .rd-segmented__option {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
+}

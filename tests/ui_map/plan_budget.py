@@ -35,6 +35,7 @@ column_headers = role("columnheader").inside(table)
 disclosure = role("button", re.compile(r"without a budget$"))
 unbudgeted_table = role("table", re.compile(r"^Budget by category without a budget"))
 unbudgeted_rows = role("row").inside(unbudgeted_table)
+unbudgeted_table_region = role("region", re.compile(r"^Budget by category without a budget"))
 
 
 def unbudgeted_row(category_name: str) -> Locator:

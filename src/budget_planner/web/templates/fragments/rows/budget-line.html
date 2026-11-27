@@ -2,7 +2,7 @@
    Inputs: line (view_models.BudgetLineView), base_ccy, year and month (the picked period, for the
    override link). One category row of the budget table: chip, block bar, spent / budget, status, and
    a one-item row menu (edit budget, or "set budget" in the status cell while unbudgeted). Popover and menu ids derive from the category id. #}
-<tr class="rd-row rd-row--budget">
+<tr class="rd-row rd-row--budget{% if not line.has_budget %} rd-row--unbudgeted{% endif %}">
   <td class="rd-budget__cat">
     <span class="rd-chip"
           {% if (line.line.category_color|category_color).name %} data-color="{{ (line.line.category_color|category_color).name }}"{% endif %}>{{ line.line.category_name }}</span>

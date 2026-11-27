@@ -27,7 +27,9 @@ def test_budgeted_rows_and_every_unbudgeted_category_in_the_disclosure() -> None
         _row(4, "Unused", None),
     )
 
-    page = year_page(rows, 2026, current=(2026, 10), currency="PLN")
+    page = year_page(
+        rows, 2026, current=(2026, 10), currency="PLN", linkable=frozenset({1, 2, 3, 4})
+    )
 
     assert [r.category_name for r in page.rows] == ["Big purchases"]
     assert [u.category_name for u in page.unbudgeted] == ["Bank fees", "Fixed costs", "Unused"]
@@ -36,7 +38,7 @@ def test_budgeted_rows_and_every_unbudgeted_category_in_the_disclosure() -> None
 
 def test_cells_carry_the_inline_editor_values() -> None:
     rows = (_row(2, "Big purchases", 60_435), _row(1, "Bank fees", None))
-    page = year_page(rows, 2026, current=(2026, 10), currency="PLN")
+    page = year_page(rows, 2026, current=(2026, 10), currency="PLN", linkable=frozenset({1, 2}))
 
     november = page.rows[0].cells[10]
     assert november.editor_label == "Big purchases, November budget"
@@ -46,3 +48,12 @@ def test_cells_carry_the_inline_editor_values() -> None:
         2026,
     )
     assert len(page.rows) == 1
+
+
+def test_a_category_that_does_not_reserve_the_link_month_is_not_listed() -> None:
+    rows = (_row(1, "Archived", None), _row(2, "Unused", None))
+
+    page = year_page(rows, 2026, current=(2026, 10), currency="PLN", linkable=frozenset({2}))
+
+    assert [u.category_name for u in page.unbudgeted] == ["Unused"]
+    assert page.unbudgeted_heading == "1 category without a budget"

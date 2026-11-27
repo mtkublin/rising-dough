@@ -152,6 +152,11 @@ def year_page_for(
         selected,
         current=(today.year, today.month),
         currency=settings.base_currency,
+        linkable=frozenset(
+            categories_service.budgeted_expense_category_ids(
+                conn, user_id, selected, today.month, display_timezone=settings.display_timezone
+            )
+        ),
     )
 
 

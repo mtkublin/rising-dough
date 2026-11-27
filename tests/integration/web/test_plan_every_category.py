@@ -112,9 +112,12 @@ def test_year_has_budgeted_rows_and_lists_the_rest_in_the_disclosure(
     assert _html.count(page, plan_year.row("Budgeted")) == 1
     assert _html.count(page, plan_year.row("Shop")) == 0
     assert _html.count(page, plan_year.row("Unused")) == 0
-    assert _html.text_of(page, plan_year.disclosure) == "3 categories without a budget"
+    # Old is archived this month (it keeps a yearly row) but the "set budget" link opens on this
+    # month, which it no longer reserves: it is not listed (ADR-0136; its link would 404).
+    assert _html.text_of(page, plan_year.disclosure) == "2 categories without a budget"
     assert _html.texts(page, plan_year.unbudgeted("Shop")) == ["Shop"]
     assert _html.texts(page, plan_year.unbudgeted("Unused")) == ["Unused"]
+    assert _html.count(page, plan_year.unbudgeted("Old")) == 0
     assert _html.count(page, plan_year.unbudgeted("Other")) == 0
 
 
