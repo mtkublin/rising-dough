@@ -210,8 +210,10 @@ _CSP_CONSOLE = re.compile(r"Content Security Policy")
 _CSP_LISTENER_JS = """
 document.addEventListener('securitypolicyviolation', (e) => {
   window.__reportCspViolation(
-    `event: ${e.violatedDirective} blocked ${e.blockedURI || 'inline'}` +
-    ` at ${e.sourceFile}:${e.lineNumber}`
+    `event: ${e.violatedDirective} (${e.effectiveDirective}) blocked ${e.blockedURI || 'inline'}` +
+    ` at ${e.sourceFile}:${e.lineNumber}:${e.columnNumber}` +
+    ` sample=${JSON.stringify(e.sample || '')}` +
+    ` el=${JSON.stringify(String((e.target && e.target.outerHTML) || '').slice(0, 200))}`
   );
 });
 """
