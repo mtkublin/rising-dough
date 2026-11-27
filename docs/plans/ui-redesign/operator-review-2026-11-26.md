@@ -99,3 +99,19 @@ Operator answers, 2026-11-27. Requirement lines: [requirements.md](../../require
 - R20: yes, "set budget" moves into the status column of unbudgeted rows.
 - R19: implement; day of month defaults from the start date until the user edits it.
 - R23: spent and left get legend swatches like committed.
+
+## Drill review 3 (2026-11-27)
+
+Third operator drill review. The operator's list, verbatim:
+
+- R24 "plan/buget + plan/year - "categories without a budget" - the outer box is ugly, remove it. let the table/list just be a part of the page, no need for adding outer boundaries"
+- R25 "plan/buget - also "categories without a budget" - don't display "no budget" next to the "set budget" button"
+- R26 "plan/year - the edit toggle chips are floating all around the page in mobile mode, should be fixed to the cell there as well"
+
+### Triage
+
+| R | Item | Class | Task | Status |
+|---|---|---|---|---|
+| R24 | Collapsed unbudgeted list has no outer box (budget, year) | fix | T-UR90 | open |
+| R25 | Unbudgeted status cell shows only "set budget" | spec change + fix | T-UR91 | open |
+| R26 | Year scope chips stay attached to the cell on touch widths | fix | T-UR92 | open |
