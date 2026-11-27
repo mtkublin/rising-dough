@@ -138,7 +138,10 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
         for a in ordered
     ]
     fortune = fortune_service.compute_fortune(
-        conn, user_id, fx_service.converter_for(conn, settings, today)
+        conn,
+        user_id,
+        fx_service.converter_for(conn, settings, today),
+        skip_unconvertible=True,
     )
     return {
         "rows": [account_row(c) for c in cards],
@@ -151,6 +154,11 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
             currency=settings.base_currency,
         ),
         "base_ccy": settings.base_currency,
+        "unconverted_note": (
+            "rate unavailable for " + ", ".join(fortune.unconverted_ccys) + ": left out of totals"
+            if fortune.unconverted_ccys
+            else None
+        ),
     }
 
 

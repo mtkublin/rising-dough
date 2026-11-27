@@ -26,6 +26,9 @@
       <p class="rd-hero__note">
         <span class="u-hide-below-md">assets {{ hero.assets_text }} · liabilities {{ hero.liabilities_text }} · <span id="accounts-planned-total">planned {{ hero.planned_text }}</span></span><span class="u-hide-from-md">assets {{ hero.assets_text }} · liabilities {{ hero.liabilities_text }}</span>
       </p>
+      {% if unconverted_note %}<p class="rd-hero__note"
+   id="accounts-rate-note"
+   role="status">{{ unconverted_note }}</p>{% endif %}
     </div>
   </section>
   <section class="rd-panel rd-accounts"
