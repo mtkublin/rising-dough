@@ -7,7 +7,7 @@ the app render the same markup, so a page journey reuses these names.
 
 from __future__ import annotations
 
-from tests.ui_map.locator import Locator, label, role
+from tests.ui_map.locator import Locator, by_testid, label, role
 
 # Category picker
 category_recent_radios = role("radio")  # the picker is the only radio group of its fragment
@@ -56,6 +56,8 @@ period_trigger = role("button", "▾").inside(period_nav)
 period_picker = role("dialog", "Pick period")
 period_prev_year = role("link", "Previous year").inside(period_picker)
 period_next_year = role("link", "Next year").inside(period_picker)
+# htmx marks this swapped node htmx-added/htmx-settling until it has bound the arrows (hx-get)
+period_picker_head = by_testid("period-pick-head")
 
 
 def period_cell(text: str) -> Locator:
