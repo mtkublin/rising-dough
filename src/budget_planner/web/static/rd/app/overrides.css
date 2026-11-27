@@ -26,30 +26,61 @@
   }
 }
 
-/* F4.8a: the year grid inline editor offers its scope chips in a row of their own under the edited
-row (app-year-cell.js), so no neighbouring value is covered. The chips stick to the scroller's start
-edge and wrap inside the viewport width, so they stay whole on a phone whatever month is edited. */
-.rd-year__scope-row,
-.rd-year__scope-row > td {
-  display: block;
-}
-
-.rd-year__scope-row > td {
-  padding: var(--space-1) 0;
-}
-
+/* F4.8a, T-UR77 (R16, R17): the year grid inline editor's two scope chips hover right beneath the
+edited cell (app-year-cell.js sets top and left from the cell and clamps them into the viewport).
+Fixed, so no table row shifts and the scroller does not clip them; no outer box, only the chips.
+Their colours are the rd theme tokens (ink, panel, rule, raised), which switch with the theme. */
 .rd-year-editor__scope {
-  position: sticky;
-  inset-inline-start: 0;
+  position: fixed;
+  z-index: var(--z-popover);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
   width: max-content;
-  max-width: calc(100vw - 4.5rem);
-  padding: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+/* The open editor is exactly as tall as the cell it replaces (the rd input is a full cell height
+inside a 2px frame), so the row does not grow and nothing below shifts. */
+.rd-year__cell-wrap .rd-year-editor {
+  height: var(--size-cell);
+}
+
+.rd-year__cell-wrap .rd-year-editor__input {
+  height: 100%;
+}
+
+.rd-year-editor__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-cell);
+  padding: 0 var(--space-3);
   border: var(--border-width) solid var(--color-rule);
-  border-radius: var(--radius-menu);
+  border-radius: var(--radius-pill);
   background: var(--color-panel);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-menu);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-caption);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rd-year-editor__chip:has(input:checked) {
+  border-color: var(--color-ink);
+  background: var(--color-raised);
+}
+
+.rd-year-editor__chip:has(input:checked)::before {
+  content: "✓";
+}
+
+.rd-year-editor__chip:has(input:focus-visible) {
+  outline: var(--border-width-focus) solid var(--color-ink);
+  outline-offset: var(--focus-offset);
 }
 
 /* T-UR61 (R10): mobile browsers zoom the page when a focused field renders under 16px. On touch

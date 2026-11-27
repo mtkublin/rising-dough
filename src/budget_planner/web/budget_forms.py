@@ -34,10 +34,20 @@ def non_negative_amount(raw: str, currency: str) -> int | None:
 
 
 def parse_override(
-    category_id: int, *, tier: str, month: str, year: str, amount: str, currency: str
+    category_id: int,
+    *,
+    tier: str,
+    month: str,
+    year: str,
+    amount: str,
+    currency: str,
+    allow_default: bool = True,
 ) -> ParsedOverride:
-    """Validate the Override slide-over form (ADR-0031 section 2)."""
-    if tier not in _TIERS:
+    """Validate the Override slide-over form (ADR-0031 section 2).
+
+    ``allow_default=False`` is the year grid's inline editor: it never writes the default tier.
+    """
+    if tier not in _TIERS or (tier == "default" and not allow_default):
         return ParsedOverride(None, "invalid tier")
     minor = non_negative_amount(amount, currency) if amount.strip() else None
     if minor is None:

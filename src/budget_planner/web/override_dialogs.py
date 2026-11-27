@@ -33,6 +33,7 @@ class OverrideForm:
     year: str
     amount: str
     currency: str
+    origin: str = ""  # ``override_forms.YEAR_ORIGIN`` from the year grid's inline editor
 
 
 def save(
@@ -43,8 +44,10 @@ def save(
     form: OverrideForm,
 ) -> Response:
     """Store the default, recurring or one-off amount, or answer 422 with the dialog again."""
+    from_year = form.origin == override_forms.YEAR_ORIGIN
     parsed = parse_override(
         shown.category_id,
+        allow_default=not from_year,
         tier=form.tier,
         month=form.month,
         year=form.year,
@@ -53,11 +56,12 @@ def save(
     )
     if parsed.command is None:
         field, message = override_forms.rejection(parsed.error)
+        tier = plan_year_view.TIER_ONE_OFF if from_year else override_forms.scope(form.tier)
         dialog = plan_data.override_dialog_for(
             conn,
             user_id,
             shown,
-            tier=override_forms.scope(form.tier),
+            tier=tier,
             currency=form.currency,
             amount_text=form.amount,
             error=message if field == "amount" else None,
