@@ -64,3 +64,25 @@
 - **Context**: PR #23 had no Terraform changes, so the path-filtered `terraform.yml` never posted its three required checks and the PR stayed blocked. The operator removed them from the `protect-main` ruleset by hand on 2026-11-18 (no bypass, no drill gate rerun).
 - **Deliverables**: ADR-0121; `github-settings.md` §3 lists the actual required checks; CHANGELOG line.
 - **Acceptance**: a PR without Terraform changes is mergeable once `drill-gate`, `just ci`, the lock check and the security scans pass.
+
+### T-CS20 [S] Measure billable CI minutes per job → ADR-0151
+- **Context**: ADR-0151 rests on an estimate (~20k–40k billable min/month); the full fetch was stopped by the API rate limit on 2026-11-27.
+- **Deliverables**: `baseline.md` section "Billable minutes": 30 days of jobs, each rounded up to a whole minute, per workflow and job, peak concurrent jobs per hour; fetched under the rate limit (resumable cache, ≤ 4,000 calls/h).
+- **Acceptance**: ADR-0151 Context and Consequences updated with the measured numbers before the ADR is accepted.
+
+### T-CS21 [P] Trim CI minutes → ADR-0151
+- **Deliverables**: `concurrency` with `cancel-in-progress` on PR workflows; no duplicate push + pull_request runs on the same commit; path filters where the check is not required (ADR-0121); Security scans on PRs that change dependencies or the image, plus the weekly schedule.
+- **Acceptance**: required checks unchanged; T-CS20 numbers re-measured over 7 days show the saving.
+
+### T-CS22 [S] Runner host: `terraform/ci-runner` + `ci-runner.yml` → ADR-0151, T-CS20
+- **Deliverables**: separate Scaleway project and scoped API key; Terraform stack `terraform/ci-runner` (`DEV1-L`, Flex IPv4, security group with no inbound, cloud-init: Docker, unattended-upgrades, two ephemeral-workspace runner processes with label `rd-ci`); hosted `ci-runner.yml` (environment `ci-runner`, `main`-only) that mints a one-hour registration token and applies, weekly and on dispatch; `ci_environments.toml` entry; Scaleway billing alert.
+- **Acceptance**: a dispatched rebuild registers two online runners; the old host is destroyed; no long-lived GitHub credential on the host.
+- **Validation**: ADR-0108 job times re-measured on the runner (5 runs of `ci`, `e2e`).
+
+### T-CS23 [S] Move secret-free workflows behind `vars.CI_RUNS_ON` → T-CS22
+- **Deliverables**: `runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}` in `ci.yml`, `e2e.yml`, `security.yml`, `visual.yml`, `lock-check.yml`, `a11y-perf.yml`, `mutation.yml`; guard test: a job using that expression has no `environment:`, no `secrets.*` other than `GITHUB_TOKEN`, no `id-token: write`; `docs/requirements.md` §3.6 runner line.
+- **Acceptance**: with the variable unset every job runs on `ubuntu-latest` (green); with it set the same jobs run on `rd-ci` (green); deleting the variable falls back within one run.
+
+### T-CS24 [S] Operator: go private → T-CS23
+- **Deliverables**: GitHub Pro; Actions spending limit (~$25); set `CI_RUNS_ON`; switch visibility; `scripts/check_github_settings.py` run; `prod` / `prod-restore-read` reviewers and `protect-main` / release-tag rulesets confirmed enforced; CHANGELOG line.
+- **Acceptance**: a PR merges with all required checks green on the runner; a release from `main` passes the `prod` approval.

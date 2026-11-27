@@ -177,7 +177,8 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 ### 3.6 CI
 
 - GitHub Actions.
-- Single matrix row: `ubuntu-latest` + Python 3.12 + Node 20 (dev-only, for the Tailwind + stylelint + Playwright toolchain).
+- Runners: secret-free workflows (`ci`, `e2e`, `security`, `visual`, `lock-check`, `a11y-perf`, `mutation`) run where `vars.CI_RUNS_ON` points (self-hosted `rd-ci` on Scaleway, fallback `ubuntu-latest`); jobs with an environment, secrets or OIDC stay on `ubuntu-latest` ([ADR-0151](adr/0151-private-repository-with-self-hosted-ci-runner-on-scaleway.md), Proposed).
+- Single matrix row: Python 3.12 + Node 20 (dev-only, for the Tailwind + stylelint + Playwright toolchain).
 - Setup steps: `actions/setup-python@v5` + `actions/setup-node@v4` + `npm ci`.
 - Runs `just ci` on push/PR.
 - Coverage uploaded as artifact.
