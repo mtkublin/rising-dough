@@ -43,6 +43,6 @@ def test_planned_save_shows_its_flash(live_server: tuple[str, Path], page: Page,
     expect(to_playwright(page, rd_shell.flash_saved)).to_contain_text("Planned entry saved")
     expect(to_playwright(page, entries.dialog)).not_to_be_visible()
     stored = db_probe.scalar(
-        db_path, "SELECT amount_minor FROM planned_transactions WHERE description = 'flash-check'"
+        db_path, "SELECT amount FROM planned_transactions WHERE description = 'flash-check'"
     )
     assert stored == 1234
