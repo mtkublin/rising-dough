@@ -78,4 +78,5 @@ def test_page_has_no_inline_style_and_loads_the_open_script(
     r = client.get(_url(cat_id))
 
     assert not _html.exists(r.text, by_id("override-page-style"))
-    assert "rd/js/app-override-page.js" in r.text
+    script = _html.resolve_one(r.text, by_id("override-page-script"))
+    assert str(script.get("src")).endswith("/rd/js/app-override-page.js")
