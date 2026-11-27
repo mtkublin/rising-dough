@@ -99,6 +99,11 @@ def test_first_budget_from_the_set_budget_button_on_the_budget_tab(
 
     page.goto(f"{base_url}/plan?tab=budget&year=2026&month=10")
     expect(to_playwright(page, plan_budget.no_budget_hint)).to_be_visible()
+    # R14, R20: the unbudgeted category sits in the collapsed list; its set-budget button is in the
+    # status cell. The disclosure is a <details> summary (no button role in the accessibility tree).
+    expect(to_playwright(page, plan_budget.row("Groceries"))).to_have_count(0)
+    page.get_by_text("1 category without a budget").click()
+    expect(to_playwright(page, plan_budget.unbudgeted_status_cell("Groceries"))).to_be_visible()
     to_playwright(page, plan_budget.set_budget_button("Groceries")).click()
     dialog = plan_year.set_dialog("Groceries")
     expect(to_playwright(page, dialog)).to_be_visible()

@@ -1,10 +1,9 @@
-"""Plan year rows: budgeted first, then used but unbudgeted, hidden when unused (T-UR00b)."""
+"""Plan year rows: budgeted rows, every unbudgeted category in the disclosure (T-UR75)."""
 
 from __future__ import annotations
 
 from budget_planner.domain.enums import Direction
 from budget_planner.services.budget import YearlyCell, YearlyRow
-from budget_planner.services.categories import CategoryUsage
 from budget_planner.web.plan_year_view import year_page
 
 
@@ -20,35 +19,26 @@ def _row(category_id: int, name: str, amount: int | None) -> YearlyRow:
     )
 
 
-def _usage(entries: int, planned: int = 0, rules: int = 0) -> CategoryUsage:
-    return CategoryUsage(
-        entry_count=entries, planned_count=planned, rule_count=rules, last_used=None
-    )
-
-
-def test_unbudgeted_categories_are_listed_by_use() -> None:
+def test_budgeted_rows_and_every_unbudgeted_category_in_the_disclosure() -> None:
     rows = (
-        _row(1, "Bank fees", None),  # a rule only: an unset grid row
+        _row(1, "Bank fees", None),
         _row(2, "Big purchases", 60_435),
-        _row(3, "Fixed costs", None),  # entries: the disclosure
-        _row(4, "Taxes", None),  # entries and a rule: the disclosure
-        _row(5, "Unused", None),  # nothing uses it: hidden
+        _row(3, "Fixed costs", None),
+        _row(4, "Unused", None),
     )
-    usage = {1: _usage(0, rules=1), 3: _usage(7), 4: _usage(2, rules=1)}
 
-    page = year_page(rows, 2026, current=(2026, 10), currency="PLN", usage=usage)
+    page = year_page(
+        rows, 2026, current=(2026, 10), currency="PLN", linkable=frozenset({1, 2, 3, 4})
+    )
 
-    assert [r.category_name for r in page.rows] == ["Big purchases", "Bank fees"]
-    assert [c.text for c in page.rows[1].cells] == ["\N{EN DASH}"] * 12
-    assert [u.category_name for u in page.unbudgeted] == ["Fixed costs", "Taxes"]
-    assert page.unbudgeted_heading == "2 categories without a budget"
+    assert [r.category_name for r in page.rows] == ["Big purchases"]
+    assert [u.category_name for u in page.unbudgeted] == ["Bank fees", "Fixed costs", "Unused"]
+    assert page.unbudgeted_heading == "3 categories without a budget"
 
 
 def test_cells_carry_the_inline_editor_values() -> None:
     rows = (_row(2, "Big purchases", 60_435), _row(1, "Bank fees", None))
-    usage = {1: _usage(0, rules=1)}
-
-    page = year_page(rows, 2026, current=(2026, 10), currency="PLN", usage=usage)
+    page = year_page(rows, 2026, current=(2026, 10), currency="PLN", linkable=frozenset({1, 2}))
 
     november = page.rows[0].cells[10]
     assert november.editor_label == "Big purchases, November budget"
@@ -57,5 +47,13 @@ def test_cells_carry_the_inline_editor_values() -> None:
         "/budget/rules/2/overrides",
         2026,
     )
-    unset = page.rows[1].cells[10]
-    assert (unset.editor_label, unset.amount_text) == ("Bank fees, November budget", "")
+    assert len(page.rows) == 1
+
+
+def test_a_category_that_does_not_reserve_the_link_month_is_not_listed() -> None:
+    rows = (_row(1, "Archived", None), _row(2, "Unused", None))
+
+    page = year_page(rows, 2026, current=(2026, 10), currency="PLN", linkable=frozenset({2}))
+
+    assert [u.category_name for u in page.unbudgeted] == ["Unused"]
+    assert page.unbudgeted_heading == "1 category without a budget"

@@ -1,8 +1,8 @@
 {# fragment: rows/budget-line
    Inputs: line (view_models.BudgetLineView), base_ccy, year and month (the picked period, for the
    override link). One category row of the budget table: chip, block bar, spent / budget, status, and
-   a one-item row menu (edit budget, or "set budget" while unbudgeted). Popover and menu ids derive from the category id. #}
-<tr class="rd-row rd-row--budget">
+   a one-item row menu (edit budget, or "set budget" in the status cell while unbudgeted). Popover and menu ids derive from the category id. #}
+<tr class="rd-row rd-row--budget{% if not line.has_budget %} rd-row--unbudgeted{% endif %}">
   <td class="rd-budget__cat">
     <span class="rd-chip"
           {% if (line.line.category_color|category_color).name %} data-color="{{ (line.line.category_color|category_color).name }}"{% endif %}>{{ line.line.category_name }}</span>
@@ -14,15 +14,15 @@
   </td>
   <td class="rd-budget__spent rd-num">
     {{ line.line.spent_minor|money_num(base_ccy) }} <span class="rd-muted">/ {% if line.has_budget %}{{ line.budgeted_minor|money_num(base_ccy) }}{% else %}—{% endif %}</span>
-    {% if not line.has_budget %}
+  </td>
+  {% if not line.has_budget %}
+    <td class="rd-budget__status rd-budget__status--none rd-num">
+      no budget
       <button type="button"
               class="rd-btn"
               hx-get="/budget/rules/{{ line.line.category_id }}/overrides/new?year={{ year }}&amp;month={{ month }}&amp;tier=default"
               hx-target="#modal-root">set budget</button>
-    {% endif %}
-  </td>
-  {% if not line.has_budget %}
-    <td class="rd-budget__status rd-budget__status--none rd-num">no budget</td>
+    </td>
   {% elif line.is_over %}
     <td class="rd-budget__status rd-budget__status--over rd-num">▲ over {{ line.over_minor|money_num(base_ccy) }}</td>
   {% else %}
