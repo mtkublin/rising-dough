@@ -586,6 +586,9 @@ Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no ne
 ### ◻ T-UR78 [S] Recurring empty-state new entry submit lands on an empty page (R18)
 - Scope: bug; "new entry" under an empty recurring list saves and returns the recurring list. Req: F3.2.
 
+### ◻ T-UR83 [S] Empty-state new-entry links on planned and ledger first-run open the dialog in place
+- Scope: same bug as R18 (T-UR78); reviewer finding 2026-11-27. Both links get `hx-get` / `#modal-root` like the recurring empty state. Req: F3.2.
+
 ### ◻ T-UR79 [S] Recurring day of month defaults from the start date (R19)
 - Scope: day of month follows the start date until the user edits it; a manual value is kept. Req: F3.2.
 
