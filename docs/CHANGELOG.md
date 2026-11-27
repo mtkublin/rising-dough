@@ -1,5 +1,11 @@
 # Changelog
 
+2026-11-27 OUTCLICK: outside click or tap closes the year cell editor and its chips; value not saved (T-UR93, R27) (ae8e960f).
+
+2026-11-27 CHIPMOB: year scope chips re-place on visual viewport changes and stay attached to the edited cell on touch widths (T-UR92, R26) (457f4767).
+
+2026-11-27 UNBOX: collapsed "categories without a budget" list has no outer box; unbudgeted status cell shows only set budget (T-UR90, T-UR91, R24, R25) (f732ed4d).
+
 2026-11-27 CIFIX4: hero N over keeps counting unbudgeted lines with spend after the collapsed list split (T-UR75; T-UR70 still open) (93f57deb).
 
 2026-11-27 REFDIFF2: intended-difference rows for operator reviews R4-R23 (256 reference cases); derived.md F4b line closed (T-UR66, T-UR73) (098526ca).

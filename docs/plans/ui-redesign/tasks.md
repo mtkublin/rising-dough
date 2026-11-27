@@ -625,23 +625,23 @@ Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no ne
 - Scope: `/recurring/formula/preview` answers 422 while the formula is empty, which is console noise. Pre-existing.
 - Source: RECUR audit 2026-11-27 (low).
 
-### ◻ T-UR90 [S] Collapsed unbudgeted list has no outer box (R24)
+### ✅ T-UR90 [S] Collapsed unbudgeted list has no outer box (R24)
 - Scope: the "N categories without a budget" disclosure on Plan/budget and Plan/year has no border, radius or panel background; summary and list/table flow as part of the page. Toggle affordance and keyboard behaviour stay.
 - Files: `pages/plan/budget.html`, `pages/plan/year.html`, `static/rd/app/overrides.css`, `tests/e2e/test_plan_unbudgeted_layout.py`.
 - Acceptance: e2e at 1440 and 375: the disclosure has zero computed border widths and a transparent background.
 - Source: operator drill review 3, R24.
 
-### ◻ T-UR91 [S] Unbudgeted status cell shows only "set budget" (R25)
+### ✅ T-UR91 [S] Unbudgeted status cell shows only "set budget" (R25)
 - Scope: on Plan/budget the status cell of an unbudgeted row holds only the "set budget" button, no "no budget" text; the phone card stays tidy.
 - Files: `fragments/rows/budget-line.html`, `static/rd/app/overrides.css`, `tests/integration/web/test_plan_every_category.py`.
 - Acceptance: the status cell text equals "set budget" exactly; budgeted rows unchanged.
 - Source: operator drill review 3, R25.
 
-### ◻ T-UR92 [S] Year scope chips stay on the cell on touch widths (R26)
+### ✅ T-UR92 [S] Year scope chips stay on the cell on touch widths (R26)
 - Scope: on touch widths the Plan/year scope chips stay attached to the edited cell while the page or grid scrolls. Owned by item CHIPMOB.
 - Source: operator drill review 3, R26.
 
-### ◻ T-UR93 [S] Outside click closes the year cell editor (R27)
+### ✅ T-UR93 [S] Outside click closes the year cell editor (R27)
 - Scope: on Plan/year a click or tap outside the edited cell and its chips closes the editor like Escape (value not saved, no request); a click on another cell opens that cell's editor; clicks on a chip or in the input do not close. Owned by item OUTCLICK (`static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`).
 - Files: `static/rd/js/app-year-cell.js`, `tests/e2e/journeys/test_plan.py`, `docs/requirements.md` F4.8a.
 - Source: operator drill review 3, R27.

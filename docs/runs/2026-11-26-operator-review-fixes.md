@@ -4,6 +4,58 @@
 - Request: fix the operator drill review items R14-R23 (tasks T-UR75..T-UR82, plus T-UR83 and T-UR78/T-UR79 from the same review), then close the wave bookkeeping.
 - Waves: ?; items: 10 merges in this section (see below); agent runs: 35 rows in the table below (the rest are not reconstructed).
 
+## Drill review 3 (2026-11-27)
+
+Source: operator drill review 3 (R24-R27). Tasks marked done in `docs/plans/ui-redesign/tasks.md`: T-UR90, T-UR91, T-UR92, T-UR93. Explore drill 46023778900 on 9503cea2, torn down by run 46031583287.
+
+### Items merged
+
+Merge shas as on `ui/sourdough`.
+
+| item | merge sha | summary |
+|---|---|---|
+| UNBOX | f732ed4d | collapsed "categories without a budget" list has no outer box; unbudgeted status cell shows only set budget (T-UR90, T-UR91, R24, R25) |
+| CHIPMOB | 457f4767 | year scope chips re-place on visual viewport changes and stay attached to the edited cell on touch widths (T-UR92, R26) |
+| OUTCLICK | ae8e960f | outside click or tap closes the year cell editor and its chips; value not saved (T-UR93, R27) |
+
+### Agent runs
+
+Verdicts are the role's report status. `?` is an unknown value.
+
+| wave | item | role | model | attempt | wall time | verdict | note |
+|---|---|---|---|---|---|---|---|
+| ? | UNBOX | implementer | ? | 1 | ? | DONE | |
+| ? | UNBOX | visual-auditor | ? | 1 | ? | CLEAN | |
+| ? | UNBOX | reviewer | ? | 1 | ? | MERGE | |
+| ? | CHIPMOB | implementer | ? | 1 | ? | DONE | |
+| ? | CHIPMOB | visual-auditor | ? | 1 | ? | CLEAN | |
+| ? | CHIPMOB | reviewer | ? | 1 | ? | MERGE | |
+| ? | OUTCLICK | implementer | ? | 1 | ? | DONE | |
+| ? | OUTCLICK | visual-auditor | ? | 1 | ? | CLEAN | |
+| ? | OUTCLICK | reviewer | ? | 1 | ? | MERGE | |
+
+### Wave tests
+
+| wave | base..head | test-changed | test-e2e | failures (blamed item) |
+|---|---|---|---|---|
+| ? | ? | ? | CI and e2e green on tip 457f4767 | none on tip |
+
+### Notes
+
+- R26 (CHIPMOB) was not reproduced in Chromium phone emulation on the base; WebKit hangs locally. The fix differs from the base only under pinch zoom. Operator to re-check on a real phone.
+- R27 (OUTCLICK: outside click closes the editor) may be the real R26 symptom.
+- A touch swipe that starts outside the editor closes it. This is accepted behaviour.
+- Affordance observation: the disclosure summary is now plain text with a ▾ marker.
+
+### Load and incidents
+
+- Peak 5-min load: ?.
+- Stuck or stopped agents, overruns past 1 h, lock waits: ?.
+
+### Escalations and deferred questions
+
+- ?
+
 ## Drill review 2 (2026-11-27)
 
 Source: [operator-review-2026-11-26.md](../plans/ui-redesign/operator-review-2026-11-26.md). Tasks marked done in `docs/plans/ui-redesign/tasks.md`; follow-ups T-UR84..T-UR89 added.
