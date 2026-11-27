@@ -15,7 +15,6 @@ from typing import Final
 
 from budget_planner.domain.money import format_figure, format_major
 from budget_planner.services import budget as budget_service
-from budget_planner.services.categories import CategoryUsage
 from budget_planner.web.view_models import (
     MONTH_SHORT,
     BudgetPeriod,
@@ -232,36 +231,21 @@ def year_period(selected: int) -> BudgetPeriod:
     )
 
 
-def _split_rows(
-    rows: tuple[budget_service.YearlyRow, ...], usage: Mapping[int, CategoryUsage]
-) -> tuple[tuple[budget_service.YearlyRow, ...], tuple[budget_service.YearlyRow, ...]]:
-    """``(grid rows, disclosure rows)``: budgeted, then unset ones with no ledger entry."""
-    entries = {cid: u.entry_count for cid, u in usage.items()}
-    with_budget = tuple(r for r in rows if r.total_minor)
-    unset = tuple(r for r in rows if not r.total_minor)
-    grid_unset = tuple(r for r in unset if not entries.get(r.category_id))
-    listed = tuple(r for r in unset if entries.get(r.category_id))
-    return (*with_budget, *grid_unset), listed
-
-
 def year_page(
     rows: tuple[budget_service.YearlyRow, ...],
     selected: int,
     *,
     current: tuple[int, int],
     currency: str,
-    usage: Mapping[int, CategoryUsage],
 ) -> YearPage:
-    """Grid rows for categories with a budget, the rest as links in the disclosure.
+    """Grid rows for categories with a budget, every other live category in the disclosure.
 
-    A category without a budget is a grid row of unset cells when it has no ledger entry, and a
-    disclosure link when it has entries; every live category is listed (R14, T-UR75).
-    ``current`` is today's ``(year, month)``: it marks the column heading and picks the month a
-    "set budget" link opens on.
+    A category without a budget (with or without ledger entries) is a link in the collapsed
+    "N categories without a budget" list, never a grid row (R14, T-UR75). ``current`` is today's
+    ``(year, month)``: it marks the column heading and picks the month a "set budget" link opens on.
     """
     current_year, current_month = current
-    on_grid, listed = _split_rows(rows, usage)
-    budgeted = tuple(_row(r, selected, currency) for r in on_grid)
+    budgeted = tuple(_row(r, selected, currency) for r in rows if r.total_minor)
     unset = tuple(
         Unbudgeted(
             r.category_id,
@@ -271,7 +255,8 @@ def year_page(
                 TIER_DEFAULT
             ),
         )
-        for r in listed
+        for r in rows
+        if not r.total_minor
     )
     noun = "category" if len(unset) == 1 else "categories"
     return YearPage(

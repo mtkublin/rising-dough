@@ -259,6 +259,10 @@ class BudgetView:
 
     summary: budget_service.MonthSummary
     lines: tuple[BudgetLineView, ...]
+    """Categories with a budget: the table rows."""
+    unbudgeted_lines: tuple[BudgetLineView, ...]
+    """Every other live expense category: the rows of the collapsed list (R14)."""
+    unbudgeted_heading: str
     left_per_day_minor: int
     spent_pct: int
     committed_pct: int
@@ -323,7 +327,10 @@ def budget_view(
     """
     totals = summary.totals
     urls = edit_urls or {}
-    lines = tuple(_line_view(line, urls.get(line.category_id, "")) for line in summary.lines)
+    every = tuple(_line_view(line, urls.get(line.category_id, "")) for line in summary.lines)
+    lines = tuple(line for line in every if line.has_budget)
+    unbudgeted = tuple(line for line in every if not line.has_budget)
+    noun = "category" if len(unbudgeted) == 1 else "categories"
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
     is_over = totals.budgeted_minor > 0 and totals.spent_minor > totals.budgeted_minor
     cells = bar_cells_exact(
@@ -332,6 +339,8 @@ def budget_view(
     return BudgetView(
         summary=summary,
         lines=lines,
+        unbudgeted_lines=unbudgeted,
+        unbudgeted_heading=f"{len(unbudgeted)} {noun} without a budget",
         left_per_day_minor=left_per_day(summary),
         spent_pct=spent_pct,
         committed_pct=clamped_percent(totals.committed_minor, totals.budgeted_minor),
@@ -344,7 +353,7 @@ def budget_view(
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
         left_text=(format_figure(totals.remaining_minor, base_currency) if base_currency else ""),
-        no_budgets=not any(line.has_budget for line in lines),
+        no_budgets=not lines,
     )
 
 

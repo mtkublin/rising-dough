@@ -147,3 +147,9 @@ edge and wrap inside the viewport width, so they stay whole on a phone whatever 
     text-align: center;
   }
 }
+
+/* R14, R20: the collapsed "without a budget" list on Plan/budget holds a full table, not chips */
+.rd-disclosure__body--table {
+  display: block;
+  padding-inline: 0;
+}

@@ -125,9 +125,11 @@ def test_cell_has_a_spoken_name_and_opens_its_dialog(
 def test_category_without_a_budget_is_listed_in_the_disclosure(
     client: TestClient, db: sqlite3.Connection, account_id: int, world: dict[str, int]
 ) -> None:
-    # R14: a category without a budget is an unset grid row while it has no entries and moves to
-    # the disclosure once it has entries.
-    assert _html.count(client.get(URL).text, plan_year.disclosure) == 0
+    # R14 (2026-11-27): a category without a budget is listed in the disclosure with or without
+    # ledger entries, never as a grid row.
+    before = client.get(URL).text
+    assert _html.count(before, plan_year.row("Gym")) == 0
+    assert _html.texts(before, plan_year.unbudgeted("Gym")) == ["Gym"]
     transactions_repo.create(
         db,
         USER_ID,
@@ -151,13 +153,13 @@ def test_category_without_a_budget_is_listed_in_the_disclosure(
     assert str(link["href"]).endswith("&tier=default")
 
 
-def test_grid_has_one_row_per_live_category_and_twelve_month_headings(
+def test_grid_has_one_row_per_budgeted_category_and_twelve_month_headings(
     client: TestClient, world: dict[str, int]
 ) -> None:
     page = client.get(URL).text
 
     names = [_html.accessible_name(r) for r in _html.resolve(page, plan_year.rows)]
-    assert len(names) == 4  # head row, Groceries, Gym (unset), Rent
+    assert len(names) == 3  # head row, Groceries, Rent
     assert _html.count(page, plan_year.month_headers) == 12
     assert _html.text_of(page, plan_year.heading) == "Yearly budget"
 
