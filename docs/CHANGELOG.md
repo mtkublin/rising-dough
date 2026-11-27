@@ -1,5 +1,9 @@
 # Changelog
 
+2026-11-27 CIFIX4: hero N over keeps counting unbudgeted lines with spend after the collapsed list split (T-UR75; T-UR70 still open) (93f57deb).
+
+2026-11-27 REFDIFF2: intended-difference rows for operator reviews R4-R23 (256 reference cases); derived.md F4b line closed (T-UR66, T-UR73) (098526ca).
+
 2026-11-27 ZOOM: no touch-width field renders below 16px (auth pages included), non-vacuous zoom sweep, year editor and afford fit at 16px (T-UR81, R21) (321231ac).
 
 2026-11-27 PLANCAT: Plan/budget and Plan/year: budgeted categories are rows, every live unbudgeted category sits in the collapsed list (archived never linked), set budget in the status column (T-UR75, T-UR80, R14, R20) (9acc546a).

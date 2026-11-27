@@ -14,6 +14,8 @@ Merge shas as on `ui/sourdough`, first-parent order (newest first).
 
 | item | merge sha | summary |
 |---|---|---|
+| CIFIX4 | 93f57deb | hero N over keeps counting unbudgeted lines with spend after the collapsed list split (T-UR75; T-UR70 still open); CI was red since PLANCAT 9acc546a on tests/visual/test_overlay_values.py (hero "8 over" vs "6 over", over_count summed only budgeted lines after the split) |
+| REFDIFF2 | 098526ca | intended-difference rows for operator reviews R4-R23 (256 reference cases); derived.md F4b line closed (T-UR66, T-UR73). 256 of 264 reference cases signed off as intended, 8 left red: overlays/new-entry--error and overlays/edit-recurring--picking at 1440/1024, pre-existing on e2b3d292 (operator questions q1, q2) |
 | ZOOM | 321231ac | no touch-width field below 16px (auth pages included), non-vacuous zoom sweep, year editor and afford fit at 16px (T-UR81, R21) |
 | PLANCAT | 9acc546a | Plan/budget and Plan/year: budgeted categories are rows, every live unbudgeted category in the collapsed list, set budget in the status column (T-UR75, T-UR80, R14, R20) |
 | YEARCHIP | 7e81a1ba | year cell scope is two chips hovering under the cell, this month preselected (T-UR77, R16, R17) |
@@ -66,6 +68,10 @@ Verdicts are the role's report status. Where the brief gave a verdict without na
 | ? | EMPTYNE | implementer | ? | 1 | ? | ? | from RECUR reviewer finding |
 | ? | EMPTYNE | auditor | ? | 1 | ? | CLEAN | |
 | ? | EMPTYNE | reviewer | ? | 1 | ? | MERGE | |
+| ? | CIFIX4 | implementer | ? | 1 | ? | ? | CI red since PLANCAT 9acc546a on tests/visual/test_overlay_values.py: hero "8 over" vs "6 over" |
+| ? | CIFIX4 | reviewer | ? | 1 | ? | MERGE | |
+| ? | REFDIFF2 | implementer | ? | 1 | ? | ? | 256 of 264 reference cases signed off as intended; 8 left red (pre-existing on e2b3d292) |
+| ? | REFDIFF2 | reviewer | ? | 1 | ? | MERGE | |
 
 Note: the run table lists the runs the brief records. Runs for YEARUX and CIFIX3 are not in the brief and are not reconstructed.
 
@@ -98,3 +104,6 @@ Note: the run table lists the runs the brief records. Runs for YEARUX and CIFIX3
   - PR #54 ready
   - ADR-0154 clash note for PR #59
   - CSP parked branch
+  - q1: sign off overlays/new-entry--error (app leaves Takeaway unchecked beside "Pick a category") as intended?
+  - q2: overlays/edit-recurring--picking category-list diff: bug or intended?
+  - q3: T-UR70 hero "N over" counts unbudgeted categories with spend: keep?
