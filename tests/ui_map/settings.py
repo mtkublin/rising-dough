@@ -177,3 +177,7 @@ settings_tabs = role("tablist", "Settings", exact=True)
 def settings_tab(label: str) -> Locator:
     """A settings tab by its accessible name (``Categories``, ``Currency & FX``, ...)."""
     return role("tab", label, exact=True).inside(settings_tabs)
+
+
+# --- landmarks (A11YHERO: axe landmark-unique) ---
+any_region = role("region")

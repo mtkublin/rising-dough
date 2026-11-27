@@ -236,3 +236,23 @@ def test_settings_pages_do_not_link_to_password_page(client: TestClient, path: s
     r = client.get(path)
     hrefs = {a.get("href") for a in _html.resolve(r.text, ui.any_link)}
     assert "/settings/password" not in hrefs
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/settings",
+        "/settings?tab=prefs",
+        "/settings?tab=fx",
+        "/settings/security",
+        "/settings/users",
+    ],
+)
+@covers("GET /settings")
+def test_settings_landmarks_have_unique_names(admin_client: TestClient, path: str) -> None:
+    """The hero and the panel are two regions; axe landmark-unique needs distinct names."""
+    r = admin_client.get(path)
+    assert r.status_code == 200
+    names = [_html.accessible_name(el) for el in _html.resolve(r.text, ui.any_region)]
+    assert len(names) >= 2
+    assert len(names) == len(set(names)), names
