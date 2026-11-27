@@ -3098,10 +3098,11 @@ form.htmx-request .rd-btn[type="submit"]::after {
 /* Filter bar */
 .rd-filters {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "search toggle"
-    "extra extra";
+    "search"
+    "toggle"
+    "extra";
   align-items: end;
   gap: var(--space-2);
   margin-top: var(--space-2);
@@ -3113,6 +3114,7 @@ form.htmx-request .rd-btn[type="submit"]::after {
 
 .rd-filters__toggle {
   grid-area: toggle;
+  justify-self: start;
 }
 
 .rd-filters__toggle[aria-expanded="true"] {
@@ -3220,8 +3222,11 @@ form.htmx-request .rd-btn[type="submit"]::after {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  /* Between 48rem and 90rem the six fields wrap: the search takes the first full row, then
+     from / to / category, then account / direction. In one row at 1024 to 1152 the placeholder
+     and the selects clipped (LEDGERPH). */
   .rd-filters {
-    grid-template-columns: var(--track-filter-date) var(--track-filter-date) 1fr 1fr 1fr 1.3fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-areas: none;
     gap: var(--space-3);
     margin-top: var(--space-5);
@@ -3238,10 +3243,24 @@ form.htmx-request .rd-btn[type="submit"]::after {
 
   .rd-filters__search {
     grid-area: auto;
+    grid-column: 1 / -1;
+    order: -1;
   }
 
   .rd-filters__toggle {
     display: none;
+  }
+}
+
+/* One row of six fields only from 90rem: the selects and the search placeholder fit their tracks. */
+@media (width >= 90rem) {
+  .rd-filters {
+    grid-template-columns: var(--track-filter-date) var(--track-filter-date) 1fr 1fr 1fr 1.3fr;
+  }
+
+  .rd-filters__search {
+    grid-column: auto;
+    order: 0;
   }
 }
 }
