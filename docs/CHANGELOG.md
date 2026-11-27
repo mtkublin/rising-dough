@@ -1,5 +1,31 @@
 # Changelog
 
+2026-11-27 FORMULA (T-UR89): formula preview skips the request while no term is set (e85b245e).
+
+2026-11-27 PICKNEW (T-UR68): picker no-match creates the typed category inline (3b360a20).
+
+2026-11-27 KEYMAP (T-UR97): keyboard map and reduced-motion journeys (f7b673c1).
+
+2026-11-27 LEGEND (T-UR94, T-UR87): Today legend tiles take the bar colours; afford fits 13 chars (134e05b2).
+
+2026-11-27 UIMAP (T-UR86, T-UR88): mobile layout sweep opens dialogs by real clicks (29a0b6e4).
+
+2026-11-27 SNAPROUTES (T-UR98): accepted-UI snapshot cases on the handoff seed (99d99658).
+
+2026-11-27 FLASH (T-UR96): planned save flash pinned on every page (8ed5a6f4).
+
+2026-11-27 PLANCSS (T-UR85, T-UR71): plan budget column alignment and year region pinned by e2e (d3d9ca1c).
+
+2026-11-27 YEARCELL (T-UR84): direct override link renders a full page without JS (0134a4e7).
+
+2026-11-27 FXSAVE (T-UR69): EUR account without cached rate is listed and left out of totals (08906bf2).
+
+2026-11-27 GUARD (T-UR72): agent_guard reads redirects, pipes and chains (b196e379).
+
+2026-11-27 CATCASE (T-UR95): category names unique ignoring case (cd83c243).
+
+2026-11-27 OVERCNT (T-UR70): hero N over counts budgeted rows only (c5643be5).
+
 2026-11-27 UI-ACCEPT: operator accepts the ui/sourdough UI state at 3df85e88; ADR-0154 Accepted, T-UR65 unblocked, T-UR50 superseded by T-UR65 (operator-decisions-2026-11-27.md).
 
 2026-11-27 OUTCLICK: outside click or tap closes the year cell editor and its chips; value not saved (T-UR93, R27) (ae8e960f).
