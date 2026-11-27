@@ -89,11 +89,16 @@ def new_override_form(
         confirm = plan_data.remove_confirm_for(
             conn, user_id, target, tier=tier, currency=settings.base_currency
         )
-        return dialog_response(request, override_dialogs.REMOVE_TEMPLATE, {"confirm": confirm})
+        return override_dialogs.in_page(
+            request,
+            dialog_response(request, override_dialogs.REMOVE_TEMPLATE, {"confirm": confirm}),
+        )
     dialog = plan_data.override_dialog_for(
         conn, user_id, target, tier=tier, currency=settings.base_currency
     )
-    return dialog_response(request, override_dialogs.DIALOG_TEMPLATE, {"override": dialog})
+    return override_dialogs.in_page(
+        request, dialog_response(request, override_dialogs.DIALOG_TEMPLATE, {"override": dialog})
+    )
 
 
 @router.post("/rules/{category_id}/overrides")
