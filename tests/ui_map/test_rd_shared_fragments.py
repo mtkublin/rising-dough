@@ -86,7 +86,7 @@ def test_category_picker_searchable_options_carry_id_direction_and_first_active(
     assert _html.resolve_one(html, f.category_search_button).get("aria-expanded") == "true"
 
 
-def test_category_picker_no_match_shows_the_query_and_new_category_link() -> None:
+def test_category_picker_no_match_shows_the_query_and_new_category_button() -> None:
     html = _render(
         "fields/category-picker",
         field_id="catpick-1",
@@ -100,10 +100,10 @@ def test_category_picker_no_match_shows_the_query_and_new_category_link() -> Non
     assert (
         _html.resolve_one(html, f.category_search_input).has_attr("aria-activedescendant") is False
     )
-    link = _html.resolve_one(html, f.category_new_link)
-    assert link.get("href") == "/settings/categories/new?name=zoo"
+    button = _html.resolve_one(html, f.category_new_button)
+    assert button.get("hx-post") == "/settings/categories/new?name=zoo"
     assert "No category matches" in _html.page_text(html)
-    assert _html.text_of(html, f.category_new_link).endswith("“ zoo ”")
+    assert _html.text_of(html, f.category_new_button).endswith("“ zoo ”")
 
 
 def test_category_picker_closed_panel_is_hidden() -> None:

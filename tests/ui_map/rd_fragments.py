@@ -16,7 +16,7 @@ category_panel = role("group", "Pick a category")
 category_search_input = role("combobox", "Search categories")
 category_list = role("listbox", "Categories")
 category_options = role("option").inside(category_list)
-category_new_link = role("link", "new category")
+category_new_button = role("button", "new category")  # inline create in the picker (T-UR68)
 
 
 def category_option(name: str) -> Locator:

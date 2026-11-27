@@ -56,6 +56,7 @@ NO_HANDOFF_TWIN = frozenset(
         "forced_banner",
         "save_and_continue",
         "sign_out_instead",
+        "settings_tab",
     }
 )
 
@@ -126,6 +127,11 @@ forced_banner = _app.forced_banner
 
 def theme_option(value: str) -> Locator:
     return role("button", value, exact=True).inside(theme_group)
+
+
+def settings_tab(label: str) -> Locator:
+    """A settings tab by its accessible name; the handoff strip is plain links (T-UR97)."""
+    return role("link", label, exact=True).inside(nav)
 
 
 def tab(name: str) -> Locator:

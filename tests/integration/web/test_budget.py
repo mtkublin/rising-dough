@@ -165,7 +165,9 @@ def test_plan_budget_override_item_targets_its_own_category(
 
 
 def test_override_dialog_is_a_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
-    r = client.get(f"/budget/rules/{cat_id}/overrides/new?year=2026&month=3")
+    r = client.get(
+        f"/budget/rules/{cat_id}/overrides/new?year=2026&month=3", headers={"HX-Request": "true"}
+    )
     assert r.status_code == 200
     assert _html.is_fragment(r.text)
     form = _html.form_of(r.text, plan.override_amount)

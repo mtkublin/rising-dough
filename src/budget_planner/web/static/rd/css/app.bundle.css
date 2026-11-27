@@ -5803,6 +5803,15 @@ form.htmx-request .rd-btn[type="submit"]::after {
     grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   }
 }
+
+/* Override dialog opened as a plain page (T-UR84): without scripts the dialog shows as a card. */
+.rd-override-page dialog:not([open]) {
+  display: block;
+  position: static;
+  margin: var(--space-6) auto;
+  max-width: 32rem;
+  border-radius: var(--radius-lg);
+}
 }
 
 /* pages/settings.css */
