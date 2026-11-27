@@ -84,13 +84,15 @@ def test_mixed_pln_and_eur_totals_count_only_the_pln_account(
 
 def test_other_users_accounts_are_absent(client: TestClient, db: sqlite3.Connection) -> None:
     db.execute("INSERT INTO users(id, name) VALUES (2, 'other')")
-    for name, ccy in (("Their Euro", "EUR"), ("Their Zloty", "PLN")):
-        accounts_repo.create(db, 2, NewAccount(name=name, currency=ccy, opening_balance=5000))
+    theirs = [
+        accounts_repo.create(db, 2, NewAccount(name=name, currency=ccy, opening_balance=5000)).id
+        for name, ccy in (("Their Euro", "EUR"), ("Their Zloty", "PLN"))
+    ]
     db.commit()
     _post(client, "Mine", "PLN", "10.00")
     page = client.get("/accounts")
     assert page.status_code == 200
-    assert "Their Euro" not in page.text
-    assert "Their Zloty" not in page.text
+    assert [_html.exists(page.text, accounts.row(a)) for a in theirs] == [False, False]
+    assert _html.exists(page.text, accounts.row(_account_id(db, "Mine")))
     assert not _html.exists(page.text, accounts.rate_note)
     assert "assets 10.00" in _html.text_of(page.text, accounts.hero)
