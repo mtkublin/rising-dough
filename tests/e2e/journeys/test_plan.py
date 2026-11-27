@@ -173,6 +173,32 @@ def test_year_cell_editor_preselects_the_cells_tier_and_labels_the_chips(world: 
     expect(world.find(plan_year.cell_scope("this month only"))).not_to_be_checked()
 
 
+def test_year_cell_tab_goes_from_the_amount_to_the_scope_chips_and_back(world: World) -> None:
+    category = _budgeted(world)
+    world.goto("/plan?tab=year")
+    world.find(plan_year.cell("Groceries", "March")).click()
+    editor = world.find(plan_year.cell_editor("Groceries", "March"))
+    default_chip = world.find(plan_year.cell_scope("every month (default)"))
+    expect(editor).to_be_focused()
+
+    world.page.keyboard.press("Tab")
+    expect(default_chip).to_be_focused()
+    world.page.keyboard.press("Shift+Tab")
+    expect(editor).to_be_focused()
+
+    world.page.keyboard.press("Tab")
+    world.page.keyboard.press("ArrowLeft")
+    expect(world.find(plan_year.cell_scope("every march"))).to_be_focused()
+    expect(world.find(plan_year.cell_scope("every march"))).to_be_checked()
+    world.page.keyboard.press("Enter")
+
+    row = world.wait_rows(
+        "SELECT * FROM budget_recurring_overrides WHERE category_id = ? AND deleted_at IS NULL",
+        (category,),
+    )[0]
+    assert (row["month"], row["amount"]) == (MARCH, 50000)
+
+
 _CHIP_GEOMETRY = """() => {
   const box = (el) => { const r = el.getBoundingClientRect();
     return {l: r.left, t: r.top, r: r.right, b: r.bottom}; };

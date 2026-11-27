@@ -9,7 +9,9 @@
  * HTMX) and focus returns to the cell once the grid reloads; a failed save answers 422 with the
  * override dialog in #modal-root, so the error is visible there. Escape cancels and gives the cell
  * back its focus. A modified click (Ctrl, Meta, Shift, Alt) or any other button keeps the link: it
- * opens the override dialog. No amount arithmetic here: the server formats and parses the amounts.
+ * opens the override dialog. Tab order: the chip row sits in a later table row, so Tab from the
+ * amount jumps to the checked chip (the radio group is one tab stop), Tab from the chips goes to
+ * the editor's save button and on to the rest of the row, and Shift+Tab walks back. No amount arithmetic here: the server formats and parses the amounts.
  */
 (() => {
   let pending = null;
@@ -112,6 +114,32 @@
     );
     pending = null;
     if (cell) cell.focus();
+  });
+
+  function checkedChip() {
+    const group = document.querySelector('[data-js="year-cell-scope-row"] [role="radiogroup"]');
+    if (!group) return null;
+    return group.querySelector('input[name="tier"]:checked') || group.querySelector('input[name="tier"]');
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
+    const form = document.querySelector('[data-js="year-cell-editor"]');
+    if (!form) return;
+    const target = event.target;
+    const chip = checkedChip();
+    const save = form.querySelector('button[type="submit"]');
+    let next = null;
+    if (target.matches('input[name="amount"]') && form.contains(target) && !event.shiftKey) {
+      next = chip;
+    } else if (target.matches('input[name="tier"]') && target.getAttribute('form') === form.id) {
+      next = event.shiftKey ? form.querySelector('input[name="amount"]') : save;
+    } else if (target === save && event.shiftKey) {
+      next = chip;
+    }
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
   });
 
   document.addEventListener('keydown', (event) => {
