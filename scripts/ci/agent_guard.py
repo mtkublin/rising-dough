@@ -64,7 +64,8 @@ _VALUE_OPTS = frozenset(
 )  # fmt: skip
 _ENV = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-_SPLIT = re.compile(r"\|\||&&|;|\||\n")
+_SPLIT = re.compile(r"\|\||&&|(?<![<>&])&(?![>&])|;|\||\n")
+_REDIR = re.compile(r"^(?:\d*|&)(?:>>?|<)(?P<target>.*)$")
 _LOOP_WAIT = re.compile(r"\b(until|while)\b.*?\bdo\b.*?\bsleep\b", re.S)
 _SLEEP = re.compile(r"\bsleep\s+(\d+)")
 _GH_WATCH = re.compile(r"\bgh\s+run\s+watch\b")
@@ -150,14 +151,46 @@ def segments(command: str) -> list[str]:
     return [s.strip() for s in _SPLIT.split(command) if s.strip()]
 
 
-def _tokens(segment: str) -> list[str]:
+def _raw_words(segment: str) -> list[str]:
+    """Words with their quotes kept, so a quoted `">x"` stays distinguishable from a redirect."""
+    lexer = shlex.shlex(segment, posix=False)
+    lexer.whitespace_split = True
+    lexer.commenters = ""
     try:
-        tokens = shlex.split(segment)
+        return list(lexer)
     except ValueError:
-        tokens = segment.split()
-    while tokens and _ENV.match(tokens[0]):
-        tokens = tokens[1:]
-    return tokens
+        return segment.split()
+
+
+def _unquote(word: str) -> str:
+    try:
+        parts = shlex.split(word)
+    except ValueError:
+        return word
+    return "".join(parts)
+
+
+def _tokens(segment: str) -> list[str]:
+    words = _raw_words(segment)
+    while words and _ENV.match(words[0]):
+        words = words[1:]
+    return [_unquote(w) for w in _drop_redirects(words)]
+
+
+def _drop_redirects(words: Sequence[str]) -> list[str]:
+    """Remove unquoted `>`, `>>`, `<`, `2>&1`, `&>` and their target words (not arguments)."""
+    kept: list[str] = []
+    skip = False
+    for word in words:
+        if skip:
+            skip = False
+            continue
+        found = _REDIR.match(word)
+        if found is None:
+            kept.append(word)
+        elif not found.group("target"):
+            skip = True  # target is the next word
+    return kept
 
 
 def _pytest_args(tokens: Sequence[str]) -> list[str] | None:
