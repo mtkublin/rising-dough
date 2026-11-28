@@ -54,6 +54,17 @@
   document.addEventListener('toast', (event) => {
     const root = document.getElementById('toast-root');
     if (!root) return;
+    /* One visible message (DUPERR, ADR-0143 amendment 2026-11-28): while a modal dialog is open an error
+       belongs in the dialog (in context), so an error toast is shown through the in-dialog flash instead,
+       and not at all when that flash already carries the same text. Page-level actions keep the toast. */
+    const detail = event.detail || {};
+    if (detail.variant === 'error' && detail.message && document.querySelector('dialog[open]')) {
+      const shown = Array.from(document.querySelectorAll('[data-flash-in-dialog] .rd-flash'));
+      if (!shown.some((box) => box.textContent.includes(detail.message))) {
+        show('flash-region', [flashBox(detail.message)]);
+      }
+      return;
+    }
     const toast = build(event.detail || {});
     root.append(toast);
     if (window.RD && window.RD.toast) window.RD.toast.arm(toast);
