@@ -33,3 +33,7 @@ Per frontend PR: `changes` + `visual` + `visual-gate` (one container job, about 
 - A deliberate visual change needs an operator-dispatched baseline update and a baseline commit in the same PR; reviewers see the image diff.
 - Baselines are Linux-container only; the pin test (`test_visual_image_pin.py`) still applies.
 - Operator patches to `.github/workflows/visual.yml` are needed (agents lack the workflow scope): [q-visual-reference-trigger.md](../plans/ui-redesign/q-visual-reference-trigger.md).
+
+## Amendment 2026-11-28 (T-UR65): the baseline root is not old frontend
+
+The accepted-UI baselines committed under `tests/visual/__snapshots__/` (decision 2) are accepted-UI references, not old frontend. The old 24 snapshots (`<page>.<width>.png`, the ADR-0107 §8 removal ledger rows) are deleted and stay listed as `deleted`. The new files are named `<case>.<width>.<theme>.png`. The ADR-0107 §8 removal guard (`tests/architecture/test_old_frontend_removed.py`) therefore treats `tests/visual/__snapshots__/` as an allowed new root: files under it need no ledger row, and the `deleted` rows still fail if their old file reappears. The root stays in `OLD_ROOTS` so the guard keeps scanning it.
