@@ -1,5 +1,15 @@
 # Changelog
 
+2026-11-27 NOJSCSRF (T-UR84): the no-JS override form carries the CSRF token, so a JS-less save works; 375 scope labels wrap (3ed5d045).
+
+2026-11-27 CIFIX (-): full suite green: override page without inline blocks, mockup twins, POST /categories/picker contract coverage, picker button locator (03f818db).
+
+2026-11-27 A11YHERO (T-UR16): axe landmark-unique fixed on settings (7ac72bea).
+
+2026-11-27 LEDGERPH (T-UR74): ledger filters fit at 375 and mid widths (three columns 48-90rem) (55192fcd).
+
+2026-11-27 SWEEP (T-UR16): pre-release visual sweep record (5b77555a).
+
 2026-11-27 FORMULA (T-UR89): formula preview skips the request while no term is set (e85b245e).
 
 2026-11-27 PICKNEW (T-UR68): picker no-match creates the typed category inline (3b360a20).
