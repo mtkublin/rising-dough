@@ -129,10 +129,17 @@ def test_auth_loaf_clears_the_greeting_at_320(live_server: tuple[str, Path], pag
         guest.goto(f"{base_url}/auth/login")
         greeting = guest.get_by_text("Hello", exact=False).first.bounding_box()
         assert greeting is not None
-        loaf = guest.locator("pre[aria-hidden='true']").first
-        if loaf.is_visible():
-            box = loaf.bounding_box()
-            assert box is not None
+        # The loaf is aria-hidden art with no role or label, so it is read through the DOM.
+        loaf = guest.evaluate(
+            """() => {
+              const el = document.querySelector('[aria-hidden="true"][class*="loaf"]');
+              if (!el || el.getClientRects().length === 0) return null;
+              const r = el.getBoundingClientRect();
+              return { x: r.x, y: r.y, width: r.width, height: r.height };
+            }"""
+        )
+        if loaf is not None:
+            box = loaf
             assert box["x"] + box["width"] <= 320 + TOLERANCE_PX
             overlap_x = (
                 box["x"] < greeting["x"] + greeting["width"]
@@ -180,14 +187,16 @@ def test_recent_chip_strip_stays_inside_the_dialog(
         group.wait_for(state="visible")
         group_box = group.bounding_box()
         assert group_box is not None
-        strip = group.locator("div").first  # the recent-category strip is the group's first box
-        strip_box = strip.bounding_box()
-        assert strip_box is not None
-        assert (
-            strip_box["x"] + strip_box["width"]
-            <= group_box["x"] + group_box["width"] + TOLERANCE_PX
+        # The recent-category strip is the group's first box.
+        strip = group.evaluate(
+            """(el) => {
+              const box = el.querySelector('div');
+              const r = box.getBoundingClientRect();
+              return { right: r.right, overflowX: getComputedStyle(box).overflowX };
+            }"""
         )
-        assert strip_box["x"] + strip_box["width"] <= width + TOLERANCE_PX
-        assert strip.evaluate("(el) => getComputedStyle(el).overflowX") == "auto"
+        assert strip["right"] <= group_box["x"] + group_box["width"] + TOLERANCE_PX
+        assert strip["right"] <= width + TOLERANCE_PX
+        assert strip["overflowX"] == "auto"
     finally:
         context.close()
