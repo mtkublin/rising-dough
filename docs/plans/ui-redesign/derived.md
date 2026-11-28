@@ -205,6 +205,8 @@ Today skip gives no toast, parity with the old page (it refetched the upcoming l
 
 ## Intended differences
 
+Retired 2026-11-28 with the handoff comparison (T-UR65, ADR-0154); kept as history.
+
 Pages that differ from the handoff by operator decision ([ADR-0147](../../adr/0147-handoff-parity-ci-rendered-references-and-data-overlay.md) amendment 2026-11-26). `tests/visual/test_reference.py` marks them `xfail(strict=True)`; not tolerance exceptions.
 
 | Page | Shards | Decision | Reason | Operator sign-off |

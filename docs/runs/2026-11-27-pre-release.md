@@ -113,3 +113,43 @@ Wall times are not in the brief and are recorded as `n/a`. Roles and per-run att
 ## Escalations and deferred questions
 
 - Deferred questions asked at the end: n/a (not recorded) (the operator list above is the question set).
+
+## 2026-11-28 continuation
+
+- Work branch: `ui/sourdough`; base `f8b78ce8` (SWEEPCSS merge); PR: #54 (draft, unchanged)
+- Request: operator continuation of the pre-release run after the overnight pause; finish the release sweep follow-ups and the workflow patches, then the bookkeeping.
+- Items: 4 merged (listed below) plus this scribe item FINDOCS.
+
+## Items merged
+
+| item | task | merge sha |
+|---|---|---|
+| SCRIBE7 | - | 297b9837 |
+| WFPATCH | T-UR65, T-UR22 | 20c2f08a |
+| DUPERR | T-UR16 | 1fe3cc2c |
+| SWEEPCSS | T-UR16 | f8b78ce8 |
+
+## Agent runs
+
+Roles, models, attempts and wall times are not in the brief and are recorded as `n/a (not recorded)`.
+
+| item | role(s) | verdict |
+|---|---|---|
+| SCRIBE7 | n/a (not recorded) | MERGE |
+| WFPATCH | n/a (not recorded) | MERGE (operator-authorised workflow patches; push accepted, no workflow-scope rejection) |
+| DUPERR | n/a (not recorded) | MERGE (audit CLEAN after the implementer could not reproduce; real case is an error toast with an open dialog) |
+| SWEEPCSS | n/a (not recorded) | MERGE (3 audit rounds: 768 overlap and chip; forecast legibility; recurring mid-word and 320 overlaps) |
+
+## Returns and re-work
+
+- DUPERR: the implementer could not reproduce the double message; the audit was CLEAN, and the real case (error toast plus an open dialog) is what the fix covers.
+- SWEEPCSS: 3 audit rounds (768 overlap and chip; forecast legibility; recurring mid-word and 320 overlaps).
+
+## Load and incidents
+
+- Incident: network ENOTFOUND killed two agents at about 13:50. Resumed via SendMessage with no lost work.
+- Stuck or stopped agents, overruns past 1 h, lock waits: the two agents above (resumed).
+
+## Operator decisions
+
+- The operator authorised the workflow patches (WFPATCH); the push was accepted with no workflow-scope rejection.

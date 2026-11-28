@@ -143,7 +143,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - Overlay follow-ups for T-UR00b: afford row 9 (−57.15 per day · 400.07 over), row 12 (N without Reconciliation), row 19 (confirmed), plus forecast delta and category count text rows.
 - Done (2026-11-24): category usage counts live transactions, planned items and all live recurring rules (inactive included) with `view_models.category_usage_text` ("41 entries · 2 planned · 1 rule"), `categories.usage_for`; picker excludes Reconciliation from recent, `searchable` and N (UR36a). Device label "Unknown browser" / "unknown system" parts; spent this period over `account_planned.resolve_window` (whole pay window); forecast NOW = `compute_fortune().net_base`, delta = last projected end minus it, via `plan_data.forecast_summary` / `forecast_context` (UR36b). Archive-dialog wiring of the usage text is left to T-UR13.
 
-### ◻ T-UR00b [S] Pixel parity against the handoff → T-UR00, T-UR36 (blocks T-UR05..T-UR14)
+### ✅ T-UR00b [S] Pixel parity against the handoff → T-UR00, T-UR36 (blocks T-UR05..T-UR14)
 - **Decision**: [ADR-0106 amendment 2026-11-22](../../adr/0106-ui-behaviour-test-harness.md#amendment-2026-11-22-pixel-parity-against-the-handoff) as amended by [ADR-0147](../../adr/0147-handoff-parity-ci-rendered-references-and-data-overlay.md). The handoff screenshots are the visual baselines; the goal of every surface task is pixel parity, test-first.
 - **Deliverables**:
   - **Seed from handoff data**: one base seed built from `value-inventory.md` (T-UR34): the handoff's accounts, categories, transactions, planned and recurring items, budgets and users at the frozen date 2026-10-31, used by the frozen server in the visual suite, replacing the `data/demo.sqlite` stand-in. State variants (`--empty`, `--no-matches`, `--long`, `--over-limit`, error states) are named modifiers of the base seed. No masking of dynamic regions.
@@ -166,6 +166,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - Progress (2026-11-26, B1 handoff-reference run; not green, T-UR00b stays open): all overlays and pages are mapped: `UNMAPPED_OVERLAYS` and `UNMAPPED_PAGES` are empty. Per-surface parity merged on `ui/sourdough` (25-26 Nov): plan (F1, F7, X2), ledger (F2, F6), accounts, auth and errors (F4, F4b), settings (F3), Today, new-entry and shell (F5, H3, F8, F9, I1), recent chips (R1), near-pass fixes (N1, N2), harness and overlay rows (H1, S1, H2, H4, W1, W2, W4a+W4b+W3, E1, O1, V1, Q1, P1, X3, X5, X6, X7, X1). Overlay O2 was returned and dropped: it would have hidden a real difference; R1 replaces it. CI harness: reference shards still failing on run 45738603125 (head `20a1799`, newest completed `visual.yml` run on the branch whose head is an ancestor of `1d48851`; the run on `1d48851` was still in progress): `1024:light` 26 failed / 186 passed, `375:light` 19 / 193, `1440:dark` 25 / 187, `375:dark` 19 / 193, `1440:light` 25 / 187, `1024:dark` 26 / 186 (212 tests per shard; the job is advisory, not in `visual-gate`). Remaining and why: the operator decisions D1-D11 in [operator-options-2026-11-26.md](operator-options-2026-11-26.md) (picker placeholder row, `accounts--empty`, afford states, ADR-0089 overdue rows, force-password, accounts dialog rows, `today--flash`, one-time password, swatch snap), the open decisions in [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md), gating the reference job (a ruleset change, operator), and the tolerance and red-run record. Run log: [docs/runs/2026-11-26-handoff-reference-comparison.md](../../runs/2026-11-26-handoff-reference-comparison.md).
 - Decided (2026-11-26): D1-D11 answered in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). Pages that differ on purpose (D6-B, D7 keep, D8-L keep, `new-account--error` focus ring) go to a signed "Intended differences" table in `derived.md` and are `xfail(strict=True)` in `test_reference.py` (ADR-0147 amendment). The reference job stays advisory; follow-up: once the UI is accepted, the accepted app screenshots become the reference and the job becomes required.
 - Progress (2026-11-26, wave SCR1): merged DOC1, DOC2, D5 (T-UR44), D1B, AMT (T-UR46), CI1 and OVL1; T-UR00b stays open.
+- Done (merged ?): superseded by ADR-0154 (accepted-UI screenshots replace handoff parity, 2026-11-27).
 
 ---
 
@@ -304,9 +305,10 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Operator decision Q28 (2026-11-25): the access log keeps the `/setup` path and never the query string, so the setup token (`/setup?token=...`) never reaches the logs. The existing `strip_access_query` processor (`logging.py`, T-D59) already drops the query of every `uvicorn.access` request line and is wired into the formatter's pre-chain; this task pins the behaviour for `/setup` with a test and records it in ADR-0134 §9. No new code path, no allowlist entry.
 - ADR-0134 §9, ADR-0078 §5.
 
-### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
+### ✅ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
 - Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0134 §9, ADR-0099.
 - Operator 2026-11-26: before the release (T-UR17).
+- Done (merged 20c2f08a): WFPATCH applied the drill workflow patch; repo side earlier.
 
 ### ✅ T-UR23 [P] Account delete rule (blocked dialog) → T-UR08, T-UR33
 - Service rule shipped in Phase P (T-UR33, ADR-0148); this task builds the blocked and confirm dialogs on the returned counts. Original scope: service refuses delete while any transaction, planned or recurring item references the account; dialog links to them; state blocked by recurring only; final confirm otherwise. Tests assert DB state and audit. Requirement F2.8. ADR-0134 §3.
@@ -367,6 +369,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Decided (2026-11-27): CSP style-src: one timeboxed attempt (< 1 h); if unsolved, release keeps 'unsafe-inline' and the hardening becomes a post-release follow-up.
 - 2026-11-27 CSP attempt (timeboxed): Chromium and Firefox show 0 violations with style-src nonce-only; WebKit reports 3 style-src-attr violations on the native <select class=rd-select> in fragments/ledger/filter-bar.html (empty sample, no app source; likely WebKit-internal, unconfirmed). Per operator rule the release keeps 'unsafe-inline'; hardening is a post-release follow-up; branch origin/wi/ui/sourdough/CSP (351d7930).
 - 2026-11-27 release sweep: docs/audits/2026-11-27-release-sweep.md (21 routes x 320/375/768/1024/1440/1920, light+dark): no blocking findings; A11YHERO (7ac72bea) fixed axe landmark-unique on settings. Minor findings left for operator triage: tables at 768 wider than the scroll region; auth loaf overlaps the greeting at 320; failing-save message shown twice (toast + dialog flash); forecast SVG and new-entry chip row exceed their container at 320/375.
+- 2026-11-28 sweep follow-ups merged: DUPERR 1fe3cc2c (one message for a failing save in a dialog, ADR-0143 amendment; base showed 2 only for an error-variant toast with a dialog open), SWEEPCSS f8b78ce8 (tables fit at 768, recurring own tracks, phone 320 overlaps, forecast phone chart scrolls in card at 11px labels, auth loaf hidden <22rem); CSP hardening stays post-release (T-UR99).
 
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
@@ -434,12 +437,13 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Scope: at 1024 px the actions column of the planned and recurring tables is fully visible (no clipping, no horizontal scroll); `frontend-visual-audit` at 1440 / 1024 / 375. Fix before the release (T-UR17).
 - Decision: "Logged bugs" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0027.
 
-### ◻ T-UR50 [S] Intended differences xfail and remaining unexplained reds
+### ✅ T-UR50 [S] Intended differences xfail and remaining unexplained reds
 - Scope: `tests/visual/test_reference.py` marks the intended differences listed in `derived.md` as `xfail(strict=True)` (ADR-0147 amendment, the orchestrator's); fix the harness channel mismatch (RGBA vs RGB, OVL1) and investigate the remaining unexplained reds: errors/422 pages, `edit-recurring--picking`, `new-entry--error`. Source: visual.yml run 45817258129 on bd0f6e20 (newest completed reference run, 2026-11-26): these pages fail on all six shards and are not covered by D1-D11; `new-entry--repeats-fixed` / `--repeats-formula` pass there (no longer red). Operator decision 2026-11-26 "Reds outside D1-D11": investigate and fix. The comparison stays advisory.
 - Decision: "Intended differences and the gate" and "Reds outside D1-D11" in [operator-decisions-2026-11-26.md](operator-decisions-2026-11-26.md). ADR-0147.
 - Progress (2026-11-26, wave SCR1): OVL1 merged (RGBA/RGB channel compare in the harness); the xfail marking and the unexplained reds stay open.
 - Progress (2026-11-26, wave SCR3, INV1 5301de28): still open: two pages red pending designer (`new-entry--error`, `edit-recurring--picking`); plus small corner clusters on category-picker 1024 and reconcile 375 light.
 - Superseded by T-UR65 (2026-11-27): the operator accepted the UI as it renders; the remaining reds are accepted and leave with the handoff comparison ([operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md)). Close together with T-UR65.
+- Done (merged ?): superseded by T-UR65 (operator acceptance 2026-11-27).
 
 ### ✅ T-UR51 [S] Dead-Python sweep
 - Scope: delete the unused template filters `money_whole`, `money_major`, `major_float`, `bps_percent`, `bar_spans`, `year_cell_state` (and their tests); key the `_orphans` macro by field name instead of message text and drop its unused `field_count` argument; delete the unused ui_map locators `any_recurring_row` and `plan_year.disclosure`. No allowlist entry added; entries of deleted code are removed.
@@ -537,11 +541,13 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Scope: after the operator accepts the UI (explore drill): operator dispatches `visual.yml` with `update_baselines=true`; an agent commits the artifact under `tests/visual/__snapshots__/`; operator patch removes the `reference` job from `visual.yml` ([q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 2); overlay rows and "Intended differences" xfails removed from `tests/visual/test_reference.py` and `derived.md`; render script kept as a manual tool.
 - Blocked on: operator workflow patch and baseline dispatch. Operator acceptance given 2026-11-27 on tip `3df85e88` ([operator-decisions-2026-11-27.md](operator-decisions-2026-11-27.md)); ADR-0154 Accepted.
 - Source: operator-decisions-2026-11-26.md "Intended differences and the gate"; ADR-0154.
+- 2026-11-28 WFPATCH (20c2f08a): reference job removed from visual.yml; test_reference.py -> reference_map.py; intended xfails removed. Baselines: pending visual.yml update_baselines dispatch.
 
-### ◻ T-UR66 [P] Advisory reference comparison off the per-PR path until T-UR65
+### ✅ T-UR66 [P] Advisory reference comparison off the per-PR path until T-UR65
 - Scope: operator patch doc [q-visual-reference-trigger.md](q-visual-reference-trigger.md) part 1: `reference` job runs on `schedule` and `workflow_dispatch` only (`if: github.event_name != 'pull_request' && ...`), `needs: changes` kept. No app change. Done when the operator applies it.
 - Source: operator ask 2026-11-26 (b); ADR-0154 §5.
 - 2026-11-27: the UI is accepted, so T-UR65 part 2 (remove the `reference` job) replaces this interim patch; apply part 2 directly.
+- Done (merged 20c2f08a): superseded by T-UR65 part 2 (20c2f08a).
 
 ### ✅ T-UR67 [S] Accounts: duplicate name on create or rename is a 422 on name (F2.1c)
 - Scope: duplicate account name on create or rename is a 422 with a name field error, not a 500 (fix 8f88c7b1, merge 4c97e651).

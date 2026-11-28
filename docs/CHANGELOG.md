@@ -1,5 +1,13 @@
 # Changelog
 
+2026-11-28 WFPATCH (T-UR65, T-UR22): operator patches applied: handoff reference job removed, drill setup token for explore drills (20c2f08a).
+
+2026-11-28 DUPERR (T-UR16): one message for a failing save in a dialog, ADR-0143 amendment (1fe3cc2c).
+
+2026-11-28 SWEEPCSS (T-UR16): tables fit at 768, recurring own tracks, phone 320 overlaps, forecast phone chart scrolls in card, auth loaf hidden below 22rem (f8b78ce8).
+
+2026-11-28 SCRIBE7 (-): pre-release bookkeeping and run log (297b9837).
+
 2026-11-27 NOJSCSRF (T-UR84): the no-JS override form carries the CSRF token, so a JS-less save works; 375 scope labels wrap (3ed5d045).
 
 2026-11-27 CIFIX (-): full suite green: override page without inline blocks, mockup twins, POST /categories/picker contract coverage, picker button locator (03f818db).
