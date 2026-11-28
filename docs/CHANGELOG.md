@@ -1,5 +1,11 @@
 # Changelog
 
+2026-11-28 BASELINES (T-UR65): accepted-UI visual baselines; ADR-0154 amendment: the baseline root is not old frontend (6671480b).
+
+2026-11-28 POLISH (T-UR16): recently-deleted tables fit at 1024, ledger kebabs align at 320, retired visual harness code removed (c1042302).
+
+2026-11-28 FINDOCS (-): release docs (8eb62c86).
+
 2026-11-28 WFPATCH (T-UR65, T-UR22): operator patches applied: handoff reference job removed, drill setup token for explore drills (20c2f08a).
 
 2026-11-28 DUPERR (T-UR16): one message for a failing save in a dialog, ADR-0143 amendment (1fe3cc2c).
