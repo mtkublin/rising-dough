@@ -26,8 +26,6 @@ BAD_CASES: tuple[tuple[str, str, str], ...] = (
     ("/budget/yearly", "year", "abc"),
     ("/budget/rules/1/overrides/new", "month", "13"),
     ("/budget/rules/1/overrides/new", "year", "abc"),
-    ("/forecast", "horizon_months", "abc"),
-    ("/forecast/view", "horizon_months", "abc"),
     ("/ledger", "date_from", "2026-02-30"),
     ("/ledger", "date_to", "tomorrow"),
     ("/ledger", "account_id", "x"),
@@ -74,7 +72,7 @@ def test_bad_value_is_422_page_naming_the_parameter(
     r = client.get(_url(path, name, value))
 
     assert r.status_code == 422
-    assert "Check the form" in _html.text_of(r.text, errors.heading)
+    assert "save that" in _html.text_of(r.text, errors.heading)
     assert name in _html.text_of(r.text, errors.main)
 
 
@@ -85,7 +83,7 @@ def test_bad_value_on_htmx_request_is_422_error_flash(
     r = client.get(_url(path, name, value), headers=HX)
 
     assert r.status_code == 422
-    assert name in _html.text_of(r.text, errors.alert)
+    assert name in _html.all_text(r.text, errors.alert)
 
 
 @pytest.mark.parametrize("path", OK_PATHS)

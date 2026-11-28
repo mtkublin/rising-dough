@@ -95,5 +95,11 @@ def change_password(
         request_ctx=ctx,
     )
     if not outcome.ok:
-        return render_form(request, conn, user, next_path=target, outcome=outcome)
+        return render_form(
+            request,
+            conn,
+            user,
+            next_path=target,
+            outcome=outcome,
+        )
     return success_response(request, settings, outcome, target)

@@ -1,0 +1,19 @@
+{# fragment: forms/error-summary
+   Top of a form that failed validation (422). Inputs: field_count (int), field_errors ((name, label, message) rows
+   from web/field_labels.field_summary). Each row links to the field with id "field-<name>". #}
+<div class="rd-error-summary"
+     id="error-summary"
+     role="alert"
+     tabindex="-1"
+     data-js="error-summary">
+  <p class="rd-error-summary__title">
+    {{ field_count }} field{{ "" if field_count == 1 else "s" }} need{{ "s" if field_count == 1 else "" }} attention
+  </p>
+  <ul role="list">
+    {% for name, label, message in field_errors %}
+      <li>
+        <a href="#field-{{ name }}">{{ label }}</a>: {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+</div>

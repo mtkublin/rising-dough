@@ -1,0 +1,56 @@
+{# Settings · users (T-UR14, ADR-0107, ADR-0073). Handoff: pages/settings/users.html. Admin only (AdminRequiredMiddleware).
+   Context: active_tab, rows (settings_view.UserRowView), toast (one-time password payload | none, the no-script fallback of the dialog),
+   form_summary ((name, label, message) rows of a refused create).
+   invite_rows (settings_view.InviteRowView): pending and expired invites under the users; invite_link + invite + resent: the
+   no-script fallback of the invite link dialog. "+ add user" (T-UR20b) and "+ invite by email" (T-UR20a), derived.md. #}
+{% extends "layouts/base.html" %}
+{% block title %}Settings · users · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Users</h1>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="User settings">
+    <div class="rd-settings">
+      <div class="rd-settings__head">
+        {% include "fragments/nav/settings-tabs.html" %}
+        <span class="rd-settings__actions">
+          <a class="rd-btn"
+             href="/settings/users/new"
+             hx-get="/settings/users/new"
+             hx-target="#modal-root"
+             hx-swap="innerHTML">+ add user</a>
+          <a class="rd-btn"
+             href="/settings/users/invites/new"
+             hx-get="/settings/users/invites/new"
+             hx-target="#modal-root"
+             hx-swap="innerHTML">+ invite by email</a>
+        </span>
+      </div>
+      {% if form_summary %}
+        {% with field_count=form_summary|length, field_errors=form_summary %}
+          {% include "fragments/forms/error-summary.html" %}
+        {% endwith %}
+      {% endif %}
+      {% if toast %}
+        {# No script: the dialog cannot open, so the one-time password is printed in the page. #}
+        <section class="rd-card rd-card--outline" aria-labelledby="otp-title">
+          <h2 class="rd-card__title" id="otp-title">one-time password · {{ toast.email }}</h2>
+          <div class="rd-card__body">{% include "fragments/forms/one-time-password.html" %}</div>
+        </section>
+      {% endif %}
+      {% if invite_link|default("") %}
+        {# No script: the dialog cannot open, so the invite link is printed in the page. #}
+        <section class="rd-card rd-card--outline" aria-labelledby="invite-link-title">
+          <h2 class="rd-card__title" id="invite-link-title">invite link · {{ invite.email_text }}</h2>
+          <div class="rd-card__body">{% include "fragments/forms/invite-link.html" %}</div>
+        </section>
+      {% endif %}
+      <section class="rd-card rd-card--outline" aria-label="User list">
+        <h2 class="rd-card__title" id="users-title">Users</h2>
+        <div class="rd-card__body">{% include "fragments/tables/users-table.html" %}</div>
+      </section>
+    </div>
+  </section>
+{% endblock %}

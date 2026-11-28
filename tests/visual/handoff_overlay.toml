@@ -1,0 +1,3706 @@
+[[row]]
+page = "pages/*.html"
+select = '.rd-mainnav__link[aria-keyshortcuts="g o"]'
+field = "aria-keyshortcuts"
+old = "g o"
+value = "g t"
+optional = true  # auth boards have no main nav
+reason = "ADR-0147 section 5: operator chose g t for Today; the handoff says g o"
+
+[[row]]
+page = "pages/*.html"
+exclude = ["pages/overlays/command-palette.html"]
+select = 'kbd.rd-palette__keys:-soup-contains-own("g o")'
+field = "text"
+old = "g o"
+value = "g t"
+optional = true  # auth boards have no palette
+reason = "ADR-0147 section 5: visible key label of the Today palette entry is g t"
+
+[[row]]
+page = "pages/overlays/command-palette.html"
+select = 'kbd.rd-palette__keys:-soup-contains-own("g o")'
+field = "text"
+old = "g o"
+value = "g t"
+count = 2  # the board shows the palette list twice (unfiltered and filtered rows)
+reason = "ADR-0147 section 5: visible key label of the Today palette entry is g t"
+
+[[row]]
+page = "pages/overlays/shortcuts.html"
+select = '.rd-keys__row:-soup-contains("Go to Today") dt > kbd.rd-key:nth-child(2)'
+field = "text"
+old = "o"
+value = "t"
+count = 2  # desktop and phone copies of the cheatsheet
+reason = "ADR-0147 section 5: cheatsheet key for Go to Today is g t"
+
+# --- row 5: filter inputs disagree with the filter summary (value-inventory section 5 row 5).
+# The inputs are the truth: the board's request is the Oct pay window, so the summary names it
+# (F2, T-UR00b; the category chip needs an id the harness route does not carry).
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = ".rd-empty__sub"
+field = "text"
+old = "Transport · 01/01/2026 – 31/01/2026 · “pizza”"
+value = "07/10/2026 – 31/10/2026 · “pizza”"
+reason = "handoff inconsistent, app right: the summary reads Transport and 01/01/2026 – 31/01/2026 while the inputs and selects read the Oct window and all categories; the request is the inputs' (value-inventory section 5 row 5), so the summary names only the window and the search"
+
+# --- row 7: credit card bar, 12,521.63 of 14,977.37 available is 84%.
+
+[[row]]
+page = "pages/accounts.html"
+select = '[role="img"][aria-label="16 percent spent, 80 percent left"]'
+field = "aria-label"
+old = "16 percent spent, 80 percent left"
+value = "16 percent spent, 84 percent left"
+reason = "value-inventory 5 row 7: 12,521.63 of 14,977.37 is 84% available, not 80%"
+
+# --- row 12 / ADR-0151: Reconciliation is system-only, so N = 25 - 1 = 24.
+# The search input placeholder carries the same count (`placeholder` is an allowed overlay
+# attribute, operator decision Q3, 2026-11-25).
+
+[[row]]
+page = "pages/overlays/*.html"
+exclude = ["pages/overlays/category-picker.html", "pages/overlays/category-picker--no-match.html"]  # D1-c(i): 20, rows below
+select = "input.rd-catpick__input"
+field = "placeholder"
+old = "search all 21 categories"
+value = "search all 24 categories"
+optional = true  # only the overlays with a category picker
+reason = "seed value via categories.picker_summary: total_count, the live categories without the system-only Reconciliation (ADR-0151)"
+
+[[row]]
+page = "pages/overlays/*.html"
+exclude = ["pages/overlays/category-picker.html", "pages/overlays/category-picker--no-match.html"]  # D1-c(i): 20, rows below
+select = "button.rd-catfield__search"
+field = "text"
+old = "search all 21 categories"
+value = "search all 24 categories"
+optional = true  # only the overlays with a category picker
+reason = "seed value via categories.picker_summary: total_count, the live categories without the system-only Reconciliation (ADR-0151)"
+
+# --- row 19 / ADR-0151 section 1: edited entry is left out of "before".
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = "p.rd-credit-line"
+field = "text"
+old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
+value = "Credit Card · 12,557.13 of 14,977.37 left → 12,521.63 after this"
+reason = "value-inventory 5 row 19, ADR-0151: the 35.50 entry is already in 12,521.63 left, so before = 12,521.63 + 35.50 and after = 12,521.63"
+
+[[row]]
+page = "pages/overlays/edit-transaction--error.html"
+select = "p.rd-credit-line"
+field = "text"
+old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
+value = "Credit Card · 12,557.13 of 14,977.37 left → 12,557.13 after this"
+reason = "handoff inconsistent, app right (ADR-0151 section 1, as the row above): the edited 35.50 entry is left out of \"before\" (12,521.63 + 35.50 = 12,557.13) and the typed zero amount changes nothing, so after = before"
+
+# --- Seed-dependent rows (T-UR00b remainder, ADR-0147 section 4): the handoff value is
+# replaced by what the seed + app produce. Generated from the cases of
+# tests/visual/test_overlay_values.py, which asserts every value equals its service
+# value (rows 1, 6, 9, 10, 11, 14, 15, 20 of value-inventory section 5; the former
+# rows 6 and 9 live here with the seed figures).
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__figure--xl"
+field = "text"
+old = "199.99"
+value = "141.13"
+optional = true
+reason = "seed value via budget.month_summary: left per day (overdue Annual insurance is committed)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-stats__value:-soup-contains-own(\"34.60\")"
+field = "text"
+old = "34.60"
+value = "446.60"
+optional = true
+exclude = ["pages/today--empty.html"]  # its own row 4 rows below set these figures
+reason = "seed value via budget.month_summary: committed (overdue Annual insurance 412.00 included)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-stats__value:-soup-contains-own(\"1,399.93\")"
+field = "text"
+old = "1,399.93"
+value = "987.93"
+optional = true
+exclude = ["pages/today--empty.html"]  # its own row 4 rows below set these figures
+reason = "seed value via budget.month_summary: left (budgeted - spent - committed)"
+
+[[row]]
+page = "pages/*.html"
+select = "[role=\"img\"][aria-label=\"78 percent spent, 15 percent left\"]"
+field = "aria-label"
+old = "78 percent spent, 15 percent left"
+value = "77 percent spent, 23 percent left"
+optional = true
+reason = "seed value via view_models.bar_aria_label on budget_view (floored spent percent, left = 100 - spent); value-inventory 5 row 6"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-afford__result:not(.rd-afford__result--over)"
+field = "text"
+old = "→ per day becomes 164.28 "
+value = "→ per day becomes 105.42 "
+optional = true
+reason = "seed value via today.afford(250.00): per day after the entry"
+
+[[row]]
+page = "pages/today--afford-over.html"
+select = "#afford-result .rd-afford__result--over"
+field = "text"
+old = "▲ per day becomes −14.20 · 114.20 over"
+value = "▲ per day becomes −116.01 · 812.07 over"
+reason = "seed value via today.afford(1,800.00) (ADR-0151 semantics unchanged); the handoff is inconsistent (value-inventory 5 row 9)"
+
+# today--empty: no planned or recurring item is left, so the 250.00 check leaves the whole budget
+# to spend: per day 1,184.53 (the board repeats the figures of the full Today).
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-afford__result"
+field = "text"
+old = "→ per day becomes 105.42 "
+value = "→ per day becomes 1,184.53 "
+reason = "seed value via today.afford(250.00) with an empty upcoming list; the handoff repeats the figure of the full Today beside 'Nothing due'"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-afford__result .rd-muted"
+field = "text"
+old = "(↓ 35.71)"
+value = "(↓ 250.00)"
+reason = "seed value via today.afford(250.00) with an empty upcoming list: the delta is the whole amount"
+
+# today--afford-invalid: the handoff keeps a stale answer ("per day becomes ... (down ...)") under
+# an empty field marked invalid with "Enter an amount". An unparsable or empty amount has no
+# answer: the app (GET /today?amount=abc and the htmx 422) shows the message only.
+
+[[row]]
+page = "pages/today--afford-invalid.html"
+select = ".rd-afford__result"
+field = "text"
+old = "→ per day becomes 105.42 "
+value = ""
+reason = "handoff inconsistent, app right: an empty, invalid amount has no per-day answer; the handoff keeps a stale one beside its own error"
+
+[[row]]
+page = "pages/today--afford-invalid.html"
+select = ".rd-afford__result .rd-muted"
+field = "text"
+old = "(↓ 35.71)"
+value = ""
+reason = "handoff inconsistent, app right: the delta belongs to the stale answer removed by the row above"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__figure--plan"
+field = "text"
+old = "1,399.93"
+value = "987.93"
+optional = true
+reason = "seed value via budget.month_summary: budget left"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__note > .u-hide-below-md:-soup-contains-own(\"6,449.08 budgeted\")"
+field = "text"
+old = "6,449.08 budgeted · 5,014.55 spent · 34.60 committed · 6 categories over · 277.94 planned in unbudgeted categories"
+value = "6,449.08 budgeted · 5,014.55 spent · 446.60 committed · 6 categories over · 277.94 planned in unbudgeted categories"
+optional = true
+reason = "seed value via budget.month_summary and view_models.budget_view (committed, categories over)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__note > .u-hide-from-md:-soup-contains-own(\"34.60 committed\")"
+field = "text"
+old = "34.60 committed · 6 over"
+value = "446.60 committed · 6 over"
+optional = true
+reason = "seed value via budget.month_summary and view_models.budget_view"
+
+[[row]]
+page = "pages/*.html"
+select = "td.rd-budget__status:-soup-contains-own(\"left 1,399.93\")"
+field = "text"
+old = "left 1,399.93"
+value = "left 987.93"
+optional = true
+reason = "seed value via budget.month_summary: left"
+
+[[row]]
+page = "pages/ledger/actual.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "19,417.18"
+reason = "handoff inconsistent, app right: the board's hero repeats Today's budgeted-category spend (5,014.55) while the same ledger lists the Fixed costs and Taxes entries; ADR-0151 section 2 defines the figure as every expense in the pay window, which the seed totals to 19,417.18 (the Oct 2026 expense of the analytics flow board)"
+
+[[row]]
+page = "pages/ledger/actual.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "7"
+reason = "digit count of the hero figure above (19,417.18 has seven digits)"
+
+# --- T-UR00b F6: the ledger board behind the transaction dialogs and menu is the actual board.
+
+[[row]]
+page = "pages/overlays/*-transaction*.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "19,417.18"
+optional = true  # edit-transaction, --transit, --error and row-menu--transaction
+reason = "handoff inconsistent, app right: the same figure as the actual board's hero (pages/ledger/actual.html above); the overlay's board lists the same entries, so the hero is the whole pay window's expense (ADR-0151 section 2)"
+
+[[row]]
+page = "pages/overlays/*-transaction*.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "7"
+optional = true
+reason = "digit count of the hero figure above (19,417.18 has seven digits)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-upcoming__cat .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+optional = true  # only the Today board and the overlays over it list this chip
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages (the rule description too); the seed has one such category"
+
+[[row]]
+page = "pages/settings/categories.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
+page = "pages/overlays/*category*.html"
+select = "tr:-soup-contains(\"Reconciliation\") td.rd-catlist__colour"
+field = "text"
+old = "custom colour"
+value = "default colour"
+optional = true  # only the category dialogs sit over the categories board
+reason = "handoff inconsistent, app right: the Reconciliation row paints the default grey dot (no colour set, SYSTEM_CATEGORY_COLORS) yet reads \"custom colour\""
+
+[[row]]
+page = "pages/overlays/archive-category.html"
+select = "p:-soup-contains-own(\"Its 41 entries\")"
+field = "text"
+old = "It disappears from pickers. Its 41 entries and budget history stay, and you can restore it from recently deleted."
+value = "It disappears from pickers. Its 6 entries and budget history stay, and you can restore it from recently deleted."
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 6 live entries in the seed, the board says 41"
+
+[[row]]
+page = "pages/overlays/edit-category.html"
+select = "p:-soup-contains-own(\"locked by 41 entries\")"
+field = "text"
+old = "↓ expense · locked by 41 entries"
+value = "↓ expense · locked by 6 entries"
+reason = "seed value via categories.usage_for / category_usage_text: Takeaway has 6 live entries in the seed, the board says 41"
+
+[[row]]
+page = "pages/overlays/reset-password.html"
+select = "p:-soup-contains-own(\"stops working now\")"
+field = "text"
+old = "Her current password stops working now. You get a one-time password to hand over, and she sets a new one at her next sign-in."
+value = "Their current password stops working now. You get a one-time password to hand over, and they set a new one at their next sign-in."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they (operator decision 2026-11-25, F3 answer a)"
+
+[[row]]
+page = "pages/overlays/one-time-password.html"
+select = "p.rd-dialog__lede"
+field = "text"
+old = "Shown once. Hand it to Ola; she sets her own at her next sign-in."
+value = "Shown once. Hand it to Ola; they set their own at their next sign-in. Their existing sessions have been signed out."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they; the app adds the signed-out note after a reset (F3 answer a)"
+
+[[row]]
+page = "pages/overlays/one-time-password.html"
+select = "tr.rd-row--user:has(td:-soup-contains-own(\"partner@example.test\")) td:nth-of-type(4)"
+field = "text"
+old = "● active"
+value = "◐ new password required at next sign-in"
+reason = "handoff internally inconsistent, app right: the dialog is the state after the reset, which marks the user as owing a new password (the board's own Ewa row reads this), while the board still prints Ola active"
+
+[[row]]
+page = "pages/overlays/delete-user.html"
+select = "p:-soup-contains-own(\"loses access\")"
+field = "text"
+old = "partner@example.test loses access straight away and is signed out everywhere. Entries she made stay in the ledger."
+value = "partner@example.test loses access straight away and is signed out everywhere. Entries they made stay in the ledger."
+reason = "handoff assumes a gender, app right: users have no gender data, so the dialog says they (F3 answer a)"
+
+[[row]]
+page = "pages/*.html"
+exclude = ["pages/ledger/actual--empty.html", "pages/ledger/actual--long.html"]
+select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
+field = "text"
+old = "actual 616"
+value = "actual 55"
+optional = true
+reason = "seed value via ledger_data tab_counts (transactions.count_filtered)"
+
+[[row]]
+page = "pages/*.html"
+exclude = ["pages/ledger/recurring.html", "pages/ledger/recurring--empty.html", "pages/overlays/edit-recurring*.html", "pages/overlays/override--[or]*.html", "pages/overlays/promote--recurring.html", "pages/overlays/row-menu--recurring.html"]
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 24"
+optional = true
+reason = "seed value via ledger_data tab_counts (recurring.list_rules, active)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(1) .rd-account__txns"
+field = "text"
+old = "2"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Investments A txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(2) .rd-account__txns"
+field = "text"
+old = "8"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Savings txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(3) .rd-account__txns"
+field = "text"
+old = "6"
+value = "1"
+optional = true
+reason = "seed value via balance.account_stats_many: Investments C txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(4) .rd-account__txns"
+field = "text"
+old = "84"
+value = "46"
+optional = true
+reason = "seed value via balance.account_stats_many: Checking txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(5) .rd-account__txns"
+field = "text"
+old = "2"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Investments B txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(7) .rd-account__txns"
+field = "text"
+old = "13"
+value = "1"
+optional = true
+reason = "seed value via balance.account_stats_many: Cash Wallet txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(8) .rd-account__txns"
+field = "text"
+old = "24"
+value = "1"
+optional = true
+reason = "seed value via balance.account_stats_many: Checking EUR txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(9) .rd-account__txns"
+field = "text"
+old = "468"
+value = "7"
+optional = true
+reason = "seed value via balance.account_stats_many: Credit Card txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(10) .rd-account__txns"
+field = "text"
+old = "30"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Everyday Spending txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(3) .rd-account__checked"
+field = "text"
+old = "01 JUL"
+value = "29 OCT"
+optional = true
+reason = "seed value via accounts.last_checked: Investments C counts the 29 Oct reconciliation"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(7) .rd-account__checked"
+field = "text"
+old = "01 APR"
+value = "29 OCT"
+optional = true
+reason = "seed value via accounts.last_checked: Cash Wallet counts the 29 Oct reconciliation"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"12 NOV 09:14\")"
+field = "text"
+old = "12 NOV 09:14"
+value = "31 OCT 11:00"
+optional = true
+reason = "seed value via security_settings.security_view: the owner's session start (seed clock)"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"12 DEC\")"
+field = "text"
+old = "12 DEC"
+value = "30 NOV"
+optional = true
+reason = "seed value via security_settings.security_view: absolute expiry (start + 30 days)"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"02 NOV 18:40\")"
+field = "text"
+old = "02 NOV 18:40"
+value = "26 OCT 18:40"
+optional = true
+reason = "seed value via security_settings.security_view: Safari session start (board's is future)"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"11 NOV 22:03\")"
+field = "text"
+old = "11 NOV 22:03"
+value = "30 OCT 22:03"
+optional = true
+reason = "seed value via security_settings.security_view: Safari session last seen (board's is future)"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"02 DEC\")"
+field = "text"
+old = "02 DEC"
+value = "25 NOV"
+optional = true
+reason = "seed value via security_settings.security_view: Safari session expiry (start + 30 days)"
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--user td:-soup-contains-own(\"12 NOV 08:40\")"
+field = "text"
+old = "12 NOV 08:40"
+value = "—"
+optional = true
+reason = "seed value via users.list_live: Ewa never signed in (last_seen_at is empty)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-hero__figure--wide"
+field = "text"
+old = "79,047.79"
+value = "89,403.97"
+reason = "seed value via forecast.projection_summary: end balance of the 12-month projection"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-hero__note"
+field = "text"
+old = "+46,320.57 PLN over 12 months · peak 86,239.67 in aug 2027"
+value = "+54,964.28 PLN over 12 months · peak 89,403.97 in sep 2027"
+reason = "seed value via forecast.projection_summary: delta from net worth (NOW), peak month"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(1) td:nth-of-type(2)"
+field = "text"
+old = "312.54"
+value = "724.54"
+reason = "seed value via forecast.monthly_projection: Oct 2026 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(1) td:nth-of-type(3)"
+field = "text"
+old = "1,399.93"
+value = "987.93"
+reason = "seed value via forecast.monthly_projection: Oct 2026 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(1)"
+field = "text"
+old = "20,707.93"
+value = "44,291.66"
+reason = "seed value via forecast.monthly_projection: Nov 2026 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(2)"
+field = "text"
+old = "13,197.08"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Nov 2026 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(3)"
+field = "text"
+old = "5,558.28"
+value = "5,359.45"
+reason = "seed value via forecast.monthly_projection: Nov 2026 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(4)"
+field = "text"
+old = "1,952.57"
+value = "28,268.98"
+reason = "seed value via forecast.monthly_projection: Nov 2026 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(5)"
+field = "text"
+old = "34,679.79"
+value = "60,996.20"
+reason = "seed value via forecast.monthly_projection: Nov 2026 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(1)"
+field = "text"
+old = "18,204.66"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Dec 2026 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(2)"
+field = "text"
+old = "14,724.56"
+value = "12,491.03"
+reason = "seed value via forecast.monthly_projection: Dec 2026 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(3)"
+field = "text"
+old = "5,204.12"
+value = "6,203.56"
+reason = "seed value via forecast.monthly_projection: Dec 2026 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(4)"
+field = "text"
+old = "▲ −1,724.02"
+value = "597.07"
+reason = "seed value via forecast.monthly_projection: Dec 2026 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(5)"
+field = "text"
+old = "32,955.77"
+value = "61,593.27"
+reason = "seed value via forecast.monthly_projection: Dec 2026 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(1)"
+field = "text"
+old = "18,592.59"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Jan 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(2)"
+field = "text"
+old = "11,415.20"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Jan 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(3)"
+field = "text"
+old = "5,558.28"
+value = "5,332.81"
+reason = "seed value via forecast.monthly_projection: Jan 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(4)"
+field = "text"
+old = "1,619.11"
+value = "3,295.62"
+reason = "seed value via forecast.monthly_projection: Jan 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(5)"
+field = "text"
+old = "34,574.88"
+value = "64,888.89"
+reason = "seed value via forecast.monthly_projection: Jan 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Feb 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(2)"
+field = "text"
+old = "13,459.79"
+value = "10,301.23"
+reason = "seed value via forecast.monthly_projection: Feb 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(3)"
+field = "text"
+old = "190.86"
+value = "5,686.97"
+reason = "seed value via forecast.monthly_projection: Feb 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(4)"
+field = "text"
+old = "7,980.50"
+value = "3,303.46"
+reason = "seed value via forecast.monthly_projection: Feb 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(5)"
+field = "text"
+old = "42,555.38"
+value = "68,192.35"
+reason = "seed value via forecast.monthly_projection: Feb 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(1)"
+field = "text"
+old = "59,190.66"
+value = "22,954.12"
+reason = "seed value via forecast.monthly_projection: Mar 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(2)"
+field = "text"
+old = "29,071.31"
+value = "14,942.82"
+reason = "seed value via forecast.monthly_projection: Mar 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(3)"
+field = "text"
+old = "4,884.94"
+value = "5,332.81"
+reason = "seed value via forecast.monthly_projection: Mar 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(4)"
+field = "text"
+old = "25,234.41"
+value = "2,678.49"
+reason = "seed value via forecast.monthly_projection: Mar 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(5)"
+field = "text"
+old = "67,789.79"
+value = "70,870.84"
+reason = "seed value via forecast.monthly_projection: Mar 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Apr 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Apr 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(3)"
+field = "text"
+old = "5,443.36"
+value = "5,332.81"
+reason = "seed value via forecast.monthly_projection: Apr 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(4)"
+field = "text"
+old = "2,567.03"
+value = "3,295.62"
+reason = "seed value via forecast.monthly_projection: Apr 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(5)"
+field = "text"
+old = "70,356.82"
+value = "74,166.46"
+reason = "seed value via forecast.monthly_projection: Apr 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: May 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: May 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(3)"
+field = "text"
+old = "190.86"
+value = "5,686.97"
+reason = "seed value via forecast.monthly_projection: May 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(4)"
+field = "text"
+old = "7,819.53"
+value = "3,353.46"
+reason = "seed value via forecast.monthly_projection: May 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(5)"
+field = "text"
+old = "78,176.35"
+value = "77,519.92"
+reason = "seed value via forecast.monthly_projection: May 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(1)"
+field = "text"
+old = "21,944.34"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Jun 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(2)"
+field = "text"
+old = "13,709.87"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: Jun 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(3)"
+field = "text"
+old = "5,397.31"
+value = "5,686.97"
+reason = "seed value via forecast.monthly_projection: Jun 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(4)"
+field = "text"
+old = "2,837.16"
+value = "3,353.46"
+reason = "seed value via forecast.monthly_projection: Jun 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(5)"
+field = "text"
+old = "81,013.51"
+value = "80,873.38"
+reason = "seed value via forecast.monthly_projection: Jun 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Jul 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Jul 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(3)"
+field = "text"
+old = "5,397.31"
+value = "6,804.76"
+reason = "seed value via forecast.monthly_projection: Jul 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(4)"
+field = "text"
+old = "2,613.08"
+value = "1,823.67"
+reason = "seed value via forecast.monthly_projection: Jul 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(5)"
+field = "text"
+old = "83,626.59"
+value = "82,697.05"
+reason = "seed value via forecast.monthly_projection: Jul 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Aug 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: Aug 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(3)"
+field = "text"
+old = "5,397.31"
+value = "5,686.97"
+reason = "seed value via forecast.monthly_projection: Aug 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(4)"
+field = "text"
+old = "2,613.08"
+value = "3,353.46"
+reason = "seed value via forecast.monthly_projection: Aug 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(5)"
+field = "text"
+old = "86,239.67"
+value = "86,050.51"
+reason = "seed value via forecast.monthly_projection: Aug 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Sep 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: Sep 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(3)"
+field = "text"
+old = "15,202.27"
+value = "5,686.97"
+reason = "seed value via forecast.monthly_projection: Sep 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(4)"
+field = "text"
+old = "▲ −7,191.88"
+value = "3,353.46"
+reason = "seed value via forecast.monthly_projection: Sep 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(5)"
+field = "text"
+old = "79,047.79"
+value = "89,403.97"
+reason = "seed value via forecast.monthly_projection: Sep 2027 end balance"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "li.rd-largest__item:nth-of-type(2) .rd-largest__name"
+field = "text"
+old = "Fixed Costs "
+value = "Fixed costs "
+reason = "handoff data inconsistency: this board names the category Fixed Costs, every other board and the category list say Fixed costs"
+
+# --- Accounts "planned" figures (F4b): the handoff's accounts page counts only the rules due
+# before the 7 Nov payday (Credit Card 1 Nov, Checking subscriptions 5 Nov: -312.54), yet its
+# own planned page lists the overdue Annual insurance (-412.00, Checking) and the Tax refund due
+# today (+1,120.45, Checking EUR) as unpaid inside that period. ADR-0089 counts every unpaid
+# planned item of the fiscal period, so the app is right: the page shows what the seed yields.
+
+[[row]]
+page = "pages/*.html"
+exclude = ["pages/accounts--empty.html"]  # its own rows below follow the empty list
+select = ".rd-hero__note .u-hide-below-md:-soup-contains-own(\"planned \u2212312.54\")"
+field = "text"
+old = "assets 36,895.43 \u00b7 liabilities \u22122,455.74 \u00b7 planned \u2212312.54"
+value = "assets 36,895.43 \u00b7 liabilities \u22122,455.74 \u00b7 planned +395.91"
+optional = true
+reason = "handoff data inconsistency: its planned page lists two unpaid items (Annual insurance, Tax refund) inside the period the accounts hero totals; ADR-0089 counts them (seed + account_planned: -312.54 - 412.00 + 1,120.45)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(4) .rd-amount__note"
+field = "text"
+old = "\u2192 3,662.52 after planned"
+value = "\u2192 3,250.52 after planned"
+optional = true
+reason = "handoff data inconsistency: the overdue Annual insurance (412.00, Checking) is unpaid inside the period (ADR-0089), so 3,685.81 - 23.29 - 412.00 = 3,250.52"
+
+[[row]]
+page = "pages/overlays/edit-account*.html"
+select = "p.rd-field__hint--ink"
+field = "text"
+old = "\u25b2 2 transactions: this balance will count against net worth."
+value = "\u25b2 0 transactions: this balance will count against net worth."
+reason = "seed value via accounts.account_references: Investments A has no transactions"
+
+# Accounts delete-account--blocked: the counts are the seed's (Checking: 46 transactions after the
+# ledger rows of F1, 3 planned items and 7 recurring rules, 10 planned or recurring items).
+
+[[row]]
+page = "pages/overlays/delete-account--blocked.html"
+select = ".rd-dialog__confirm > p"
+field = "text"
+old = "It still has 84 transactions and 3 planned or recurring items. Move or delete them first."
+value = "It still has 46 transactions and 10 planned or recurring items. Move or delete them first."
+reason = "seed value via accounts.account_references: Checking transactions, planned items and rules"
+
+[[row]]
+page = "pages/overlays/delete-account--blocked.html"
+select = ".rd-dialog__actions > a.rd-btn"
+field = "text"
+old = "view 84 transactions"
+value = "view 46 transactions"
+reason = "seed value via accounts.account_references: Checking transactions"
+
+# --- row 4: Today --empty keeps totals the empty state cannot have (the seed has nothing upcoming).
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "text"
+old = "141.13"
+value = "1,434.53"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "data-digits"
+old = "5"
+value = "6"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__figure--xl"
+field = "data-marks"
+old = "1"
+value = "2"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__note > .u-hide-below-md"
+field = "text"
+old = "7 days until next income (Salary, 7 nov)"
+value = "1 day until next income (1 nov)"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-hero__note > .u-hide-from-md"
+field = "text"
+old = "7 days until salary (7 nov)"
+value = "1 day until next income (1 nov)"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period > p.rd-caption"
+field = "text"
+old = "PERIOD · 7 OCT → 7 NOV · DAY 25 OF 31"
+value = "PERIOD · 7 OCT → 1 NOV · DAY 25 OF 25"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg"
+field = "text"
+old = "████████████████▒"
+value = "████████████████"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg > .rd-bar__left"
+field = "text"
+old = "░░░"
+value = "░░░░"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-today__period .rd-bar--lg"
+field = "aria-label"
+old = "77 percent spent, 23 percent left"
+value = "77 percent spent, 22 percent left"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-stats__value:-soup-contains-own(\"34.60\")"
+field = "text"
+old = "34.60"
+value = "0.00"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-stats__value:-soup-contains-own(\"1,399.93\")"
+field = "text"
+old = "1,399.93"
+value = "1,434.53"
+reason = "value-inventory 5 row 4: the board lists nothing upcoming yet keeps the totals of a month with a Salary rule due in 7 days; the app, seeded with nothing upcoming (no planned items, no rules), has no Salary due, so the figures follow the ledger alone"
+
+# --- generated geometry rows (do not edit; regenerate, see below) ---
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(48)"
+field = "points"
+old = "72.0,262 72.0,222.9 170.0,216.9 268.0,222.2 366.0,217.2 464.0,192.6 562.0,115.0 660.0,107.2 758.0,83.1 856.0,74.4 954.0,66.3 1052.0,58.3 1150.0,80.4 1150.0,262"
+value = "72.000,262 72.000,222.864 170.000,135.937 268.000,134.101 366.000,123.967 464.000,113.809 562.000,105.572 660.000,95.438 758.000,85.126 856.000,74.814 954.000,69.207 1052.000,58.895 1150.000,48.583 1150.000,262"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(49)"
+field = "points"
+old = "72.0,222.9 170.0,216.9 268.0,222.2 366.0,217.2 464.0,192.6 562.0,115.0 660.0,107.2 758.0,83.1 856.0,74.4 954.0,66.3 1052.0,58.3 1150.0,80.4"
+value = "72.000,222.864 170.000,135.937 268.000,134.101 366.000,123.967 464.000,113.809 562.000,105.572 660.000,95.438 758.000,85.126 856.000,74.814 954.000,69.207 1052.000,58.895 1150.000,48.583"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51)"
+field = "aria-label"
+old = "Nov 2026: 34,679.79 PLN, net +1,952.57"
+value = "Nov 2026: 60,996.20 PLN, net +28,268.98"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(2)"
+field = "cy"
+old = "216.9"
+value = "135.937"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(3)"
+field = "cy"
+old = "216.9"
+value = "135.937"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "138.9"
+value = "57.937"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "156.9"
+value = "75.937"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "174.9"
+value = "93.937"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "34,679.79 PLN"
+value = "60,996.20 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "192.9"
+value = "111.937"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(51) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +1,952.57"
+value = "net +28,268.98"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52)"
+field = "aria-label"
+old = "Dec 2026: 32,955.77 PLN, net −1,724.02"
+value = "Dec 2026: 61,593.27 PLN, net +597.07"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(2)"
+field = "cy"
+old = "222.2"
+value = "134.101"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(3)"
+field = "cy"
+old = "222.2"
+value = "134.101"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "144.2"
+value = "56.101"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "162.2"
+value = "74.101"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "180.2"
+value = "92.101"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "32,955.77 PLN"
+value = "61,593.27 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "198.2"
+value = "110.101"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(52) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net −1,724.02"
+value = "net +597.07"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53)"
+field = "aria-label"
+old = "Jan 2027: 34,574.88 PLN, net +1,619.11"
+value = "Jan 2027: 64,888.89 PLN, net +3,295.62"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(2)"
+field = "cy"
+old = "217.2"
+value = "123.967"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(3)"
+field = "cy"
+old = "217.2"
+value = "123.967"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "139.2"
+value = "45.967"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "157.2"
+value = "63.967"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "175.2"
+value = "81.967"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "34,574.88 PLN"
+value = "64,888.89 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "193.2"
+value = "99.967"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(53) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +1,619.11"
+value = "net +3,295.62"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54)"
+field = "aria-label"
+old = "Feb 2027: 42,555.38 PLN, net +7,980.50"
+value = "Feb 2027: 68,192.35 PLN, net +3,303.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(2)"
+field = "cy"
+old = "192.6"
+value = "113.809"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(3)"
+field = "cy"
+old = "192.6"
+value = "113.809"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "114.6"
+value = "35.809"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "132.6"
+value = "53.809"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "150.6"
+value = "71.809"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "42,555.38 PLN"
+value = "68,192.35 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "168.6"
+value = "89.809"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(54) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +7,980.50"
+value = "net +3,303.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55)"
+field = "aria-label"
+old = "Mar 2027: 67,789.79 PLN, net +25,234.41"
+value = "Mar 2027: 70,870.84 PLN, net +2,678.49"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(2)"
+field = "cy"
+old = "115.0"
+value = "105.572"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(3)"
+field = "cy"
+old = "115.0"
+value = "105.572"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "37.0"
+value = "27.572"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "55.0"
+value = "45.572"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "73.0"
+value = "63.572"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "67,789.79 PLN"
+value = "70,870.84 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "91.0"
+value = "81.572"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(55) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +25,234.41"
+value = "net +2,678.49"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56)"
+field = "aria-label"
+old = "Apr 2027: 70,356.82 PLN, net +2,567.03"
+value = "Apr 2027: 74,166.46 PLN, net +3,295.62"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(2)"
+field = "cy"
+old = "107.2"
+value = "95.438"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(3)"
+field = "cy"
+old = "107.2"
+value = "95.438"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "29.2"
+value = "17.438"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "47.2"
+value = "35.438"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "65.2"
+value = "53.438"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "70,356.82 PLN"
+value = "74,166.46 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "83.2"
+value = "71.438"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(56) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,567.03"
+value = "net +3,295.62"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57)"
+field = "aria-label"
+old = "May 2027: 78,176.35 PLN, net +7,819.53"
+value = "May 2027: 77,519.92 PLN, net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(2)"
+field = "cy"
+old = "83.1"
+value = "85.126"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(3)"
+field = "cy"
+old = "83.1"
+value = "85.126"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "5.1"
+value = "7.126"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "23.1"
+value = "25.126"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "41.1"
+value = "43.126"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "78,176.35 PLN"
+value = "77,519.92 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "59.1"
+value = "61.126"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(57) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +7,819.53"
+value = "net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58)"
+field = "aria-label"
+old = "Jun 2027: 81,013.51 PLN, net +2,837.16"
+value = "Jun 2027: 80,873.38 PLN, net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(2)"
+field = "cy"
+old = "74.4"
+value = "74.814"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(3)"
+field = "cy"
+old = "74.4"
+value = "74.814"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "88.4"
+value = "88.814"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "106.4"
+value = "106.814"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "124.4"
+value = "124.814"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "81,013.51 PLN"
+value = "80,873.38 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "142.4"
+value = "142.814"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(58) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,837.16"
+value = "net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59)"
+field = "aria-label"
+old = "Jul 2027: 83,626.59 PLN, net +2,613.08"
+value = "Jul 2027: 82,697.05 PLN, net +1,823.67"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(2)"
+field = "cy"
+old = "66.3"
+value = "69.207"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(3)"
+field = "cy"
+old = "66.3"
+value = "69.207"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "80.3"
+value = "83.207"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "98.3"
+value = "101.207"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "116.3"
+value = "119.207"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "83,626.59 PLN"
+value = "82,697.05 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "134.3"
+value = "137.207"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(59) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,613.08"
+value = "net +1,823.67"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60)"
+field = "aria-label"
+old = "Aug 2027: 86,239.67 PLN, net +2,613.08"
+value = "Aug 2027: 86,050.51 PLN, net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(2)"
+field = "cy"
+old = "58.3"
+value = "58.895"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(3)"
+field = "cy"
+old = "58.3"
+value = "58.895"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "72.3"
+value = "72.895"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "90.3"
+value = "90.895"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "108.3"
+value = "108.895"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "86,239.67 PLN"
+value = "86,050.51 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "126.3"
+value = "126.895"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(60) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net +2,613.08"
+value = "net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61)"
+field = "aria-label"
+old = "Sep 2027: 79,047.79 PLN, net −7,191.88"
+value = "Sep 2027: 89,403.97 PLN, net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(2)"
+field = "cy"
+old = "80.4"
+value = "48.583"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(3)"
+field = "cy"
+old = "80.4"
+value = "48.583"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(1)"
+field = "y"
+old = "2.4"
+value = "62.583"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(2)"
+field = "y"
+old = "20.4"
+value = "80.583"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(3)"
+field = "y"
+old = "38.4"
+value = "98.583"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(3)"
+field = "text"
+old = "79,047.79 PLN"
+value = "89,403.97 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(4)"
+field = "y"
+old = "56.4"
+value = "116.583"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = "figure.rd-chart-card > :nth-child(2) > :nth-child(1) > :nth-child(61) > :nth-child(4) > :nth-child(4)"
+field = "text"
+old = "net −7,191.88"
+value = "net +3,353.46"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12)"
+field = "aria-label"
+old = "Oct 2026: income 22,341.10 PLN, expense 19,417.18 PLN"
+value = "Oct 2026: income 15,820.96 PLN, expense 19,417.18 PLN"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(2)"
+field = "d"
+old = "M424.0,246.0 Q424.0,250.0 428.0,250.0 L454.0,250.0 Q458.0,250.0 458.0,246.0 L458.0,92.7 A17.0,17.0 0 0 0 424.0,92.7 Z"
+value = "M424.000,246.000 Q424.000,250.000 428.000,250.000 L454.000,250.000 Q458.000,250.000 458.000,246.000 L458.000,143.6 A17.000,17.000 0 0 0 424.000,143.6 Z"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(1)"
+field = "y"
+old = "89.7"
+value = "112.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(2)"
+field = "y"
+old = "107.7"
+value = "130.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(3)"
+field = "y"
+old = "125.7"
+value = "148.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(3)"
+field = "text"
+old = "in 22,341.10 · out 19,417.18"
+value = "in 15,820.96 · out 19,417.18"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(4)"
+field = "y"
+old = "143.7"
+value = "166.546"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "section[aria-labelledby='ive-title'] > :nth-child(2) > :nth-child(1) > :nth-child(12) > :nth-child(6) > :nth-child(4)"
+field = "text"
+old = "net +2,923.92"
+value = "net −3,596.22"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(1) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,14.00 10.0,14.00 20.0,14.00 30.0,14.00 40.0,14.00 50.0,14.00 60.0,14.00 70.0,14.00 80.0,14.00 90.0,14.00 100.0,14.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(2) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,14.00 10.0,14.00 20.0,14.00 30.0,14.00 40.0,14.00 50.0,14.00 60.0,14.00 70.0,14.00 80.0,14.00 90.0,14.00 100.0,14.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(3) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,26.00 10.0,26.00 20.0,26.00 30.0,26.00 40.0,26.00 50.0,26.00 60.0,26.00 70.0,26.00 80.0,26.00 90.0,26.00 100.0,2.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(4) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,12.81 10.0,2.00 20.0,14.37 30.0,14.37 40.0,14.37 50.0,16.66 60.0,16.66 70.0,16.66 80.0,22.73 90.0,25.99 100.0,26.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(5) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,14.00 10.0,14.00 20.0,14.00 30.0,14.00 40.0,14.00 50.0,14.00 60.0,14.00 70.0,14.00 80.0,14.00 90.0,14.00 100.0,14.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(6) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,14.00 10.0,14.00 20.0,14.00 30.0,14.00 40.0,14.00 50.0,14.00 60.0,14.00 70.0,14.00 80.0,14.00 90.0,14.00 100.0,14.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(7) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,2.00 10.0,2.00 20.0,2.00 30.0,2.00 40.0,2.00 50.0,2.00 60.0,2.00 70.0,2.00 80.0,2.00 90.0,2.00 100.0,26.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(8) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,26.00 10.0,26.00 20.0,26.00 30.0,26.00 40.0,26.00 50.0,26.00 60.0,26.00 70.0,26.00 80.0,2.00 90.0,2.00 100.0,2.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(9) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,2.00 10.0,2.00 20.0,2.00 30.0,2.00 40.0,2.00 50.0,2.00 60.0,2.00 70.0,2.00 80.0,2.00 90.0,2.00 100.0,26.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--account:nth-of-type(10) td.rd-account__trend > :nth-child(1) > :nth-child(1)"
+field = "points"
+old = "0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"
+value = "0.0,14.00 10.0,14.00 20.0,14.00 30.0,14.00 40.0,14.00 50.0,14.00 60.0,14.00 70.0,14.00 80.0,14.00 90.0,14.00 100.0,14.00"
+reason = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+source = "geometry"
+optional = true
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/edit-recurring--*.html"
+exclude = ["pages/overlays/edit-recurring--fixed.html"]
+select = "#rr-start"
+field = "value"
+old = "2026-11-12"
+value = "2026-10-12"
+reason = "handoff inconsistent, app right: the same board lists an Oct 2026 override of the Taxes rule, which only exists for a rule that started on or before 12 Oct; the seed starts it 2026-10-12 (the handoff dialog prints 2026-11-12, its next due date)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 3
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--incomplete.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 2
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--empty.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 1
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--fixed.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 1
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = "dialog .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 1
+reason = "handoff inconsistent, app right: the dialog lists the same category as the board, \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = "dialog .rd-dialog__amount--static"
+field = "text"
+old = "3,488.75"
+value = "3,002.00"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero over the seed's Taxes rule), checked against the served dialog by test_overlay_values_ledger; the handoff prints its own figure for the Salary and Side Income component"
+
+[[row]]
+page = "pages/overlays/edit-recurring--picking.html"
+select = "dialog .rd-formula__result"
+field = "text"
+old = "\u2192 next amount 3,488.75 PLN"
+value = "\u2192 next amount 3,002.00 PLN"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero), the hero figure above"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = "dialog .rd-dialog__amount--static"
+field = "text"
+old = "1,836.93"
+value = "3,002.00"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero over the seed's Taxes rule), checked against the served dialog by test_overlay_values_ledger"
+
+[[row]]
+page = "pages/overlays/edit-recurring--formula.html"
+select = "dialog .rd-formula__result"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,002.00 PLN"
+reason = "app value via the edit dialog's formula preview (entry_forms.formula_hero), the hero figure above"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−7,894.97"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly out of the twelve rules the board lists"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "6"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): digit count of the monthly out above (7,894.97 has six digits)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,551.34 · 12 rules · next due 01 nov"
+optional = true
+reason = "ledger board value via ledger_totals.recurring_monthly_totals (recurring-board seed): monthly in, rule count, next due"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 12"
+optional = true
+reason = "ledger board value via ledger_data tab_counts (recurring.list_rules, active; recurring-board seed)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,080.65 PLN"
+count = 4
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+3,729.21\")"
+field = "text"
+old = "+3,729.21 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the VAT Refund formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"−1,836.93\")"
+field = "text"
+old = "−1,836.93 "
+value = "−3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Taxes formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"⇄ 12,415.80\")"
+field = "text"
+old = "⇄ 12,415.80 "
+value = "⇄ 3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Transit formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-amount:-soup-contains-own(\"+30,536.19\")"
+field = "text"
+old = "+30,536.19 "
+value = "+3,080.65 "
+optional = true
+reason = "ledger board value via recurring_formula.resolve_rule_amount (recurring-board seed): effective amount of the Salary formula rule (the handoff prints its stored default)"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-ovr__delta:-soup-contains-own(\"196.93\")"
+field = "text"
+old = "−196.93"
+value = "−1,362.00"
+optional = true
+reason = "ledger board value via ledger_totals.override_delta: the Oct 2026 Taxes override against the formula's amount that month"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = ".rd-formula__line .rd-chip:-soup-contains-own(\"Bank fees\")"
+field = "text"
+old = "Bank fees"
+value = "Bank Fees #18"
+count = 4
+optional = true
+reason = "handoff inconsistent, app right: the same board names the category \"Bank Fees #18\" on the budget and settings pages; the seed has one such category"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/recurring.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-recurring*.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/override--[or]*.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--recurring.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--recurring.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/edit-planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/promote--planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--planned.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/overlays/row-menu--planned.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board's filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 DEC, 15 JAN 2027), so the planned and recurring views apply no date window and leave the fields empty"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "−1,531.35"
+value = "0.00"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__figure"
+field = "data-signs"
+old = "1"
+value = "0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = ".rd-hero__note"
+field = "text"
+old = "3 items · 1 overdue · 1 due today"
+value = "0 items · 0 overdue · 0 due today"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/planned--empty.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"planned 3\")"
+field = "text"
+old = "planned 3"
+value = "planned 0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__figure--wide"
+field = "text"
+old = "−13,755.41"
+value = "0.00"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__figure--wide"
+field = "data-digits"
+old = "7"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__figure--wide"
+field = "data-signs"
+old = "1"
+value = "0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = ".rd-hero__note"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in 0.00 · 0 rules"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "0.00"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
+field = "text"
+old = "actual 616"
+value = "actual 0"
+optional = true
+reason = "handoff inconsistent, app right: the empty state repeats the sample board's figures beside an empty list (value-inventory section 5 row 3); the app prints the real totals"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: with no entries there is no income anchor to derive the pay window from, so the date fields stay empty"
+
+[[row]]
+page = "pages/ledger/actual--empty.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: with no entries there is no income anchor to derive the pay window from, so the date fields stay empty"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = "input[name=from]"
+field = "value"
+old = "2026-10-07"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 JAN 2027), so the recurring view applies no date window and leaves the fields empty"
+
+[[row]]
+page = "pages/ledger/recurring--empty.html"
+select = "input[name=to]"
+field = "value"
+old = "2026-10-31"
+value = ""
+optional = true
+reason = "handoff inconsistent, app right: the board filter claims the pay window 7 to 31 Oct (derived.md) but lists rows outside it (15 JAN 2027), so the recurring view applies no date window and leaves the fields empty"
+
+# --- today--empty: the promote-all button beside an empty list (ADR-0147 amendment N1) ---
+
+[[row]]
+page = "pages/today--empty.html"
+select = ".rd-upcoming__promote-all"
+field = "hidden"
+absent = true
+old = ""
+value = "hidden"
+reason = "handoff inconsistent, app right: the board draws 'promote all due' beside 'Nothing due in the next 30 days'; value-inventory section 2 shows it only when due rows exist"
+
+# --- Ledger --long and --no-matches boards (T-UR00b, F2).
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "2,469,135.78"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "9"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-hero__figure"
+field = "data-marks"
+old = "2"
+value = "3"
+optional = true
+reason = "handoff inconsistent, app right: the figure above (2,469,135.78) has three grouping and decimal marks; the board's data-marks counts the two of 5,014.55, and the hero fit reads it"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
+field = "text"
+old = "actual 616"
+value = "actual 3"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-row__net"
+field = "text"
+old = "NET −1,234,567.89"
+value = "NET −2,469,135.78"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-row__sub:-soup-contains-own(\"Konto oszczędnościowe EUR →\")"
+field = "text"
+old = "Konto oszczędnościowe EUR → Investments C"
+value = "Savings → Investments C"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-row__sub:-soup-contains-own(\"Konto oszczędnościowe EUR\"):not(:-soup-contains-own(\"→\"))"
+field = "text"
+old = "Konto oszczędnościowe EUR"
+value = "Savings"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = ".rd-amount:-soup-contains-own(\"+1,234,567.89\")"
+field = "text"
+old = "+1,234,567.89 "
+value = "−1,234,567.89 "
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--long.html"
+select = "input[aria-label^=\"Select Zakupy\"]"
+field = "aria-label"
+old = "Select Zakupy spożywcze · Żabka, +1,234,567.89 PLN"
+value = "Select Zakupy spożywcze · Żabka, −1,234,567.89 PLN"
+optional = true
+reason = "handoff inconsistent, app right: the --long board lists three 1,234,567.89 rows of 31 Oct; the app signs every amount from the category (ADR-0006: Groceries is an expense, the handoff prints +), nets the day from them (two expenses) and takes the figures from the seed (the account the handoff names is not one of the ten accounts)"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "5,014.55"
+value = "19,417.18"
+optional = true
+reason = "handoff inconsistent, app right: the board repeats Today's budgeted-category spend while ADR-0151 section 2 defines the figure as every expense in the pay window (19,417.18, as the actual board's overlay row)"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "6"
+value = "7"
+optional = true
+reason = "handoff inconsistent, app right: the board repeats Today's budgeted-category spend while ADR-0151 section 2 defines the figure as every expense in the pay window (19,417.18, as the actual board's overlay row)"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = "#f-q"
+field = "value"
+absent = true
+old = ""
+value = "pizza"
+reason = "handoff inconsistent, app right: the board's summary names the search 'pizza' but the search input carries no value attribute; the app shows the active q in its box (ADR-0147 amendment: absent text attribute)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(4)"
+field = "class"
+old = "rd-fc__num rd-fc__net--negative"
+value = "rd-fc__num"
+reason = "handoff inconsistent, app right: the Dec 2026 net cell paints a positive figure (597.07 after the value row above, forecast.monthly_projection) in the loss colour with class rd-fc__net--negative; the app paints a positive net plain (ADR-0147 amendment: class token pair)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(4)"
+field = "class"
+old = "rd-fc__num rd-fc__net--negative"
+value = "rd-fc__num"
+reason = "handoff inconsistent, app right: the Sep 2027 net cell paints a positive figure (3,353.46 after the value row, forecast.monthly_projection) in the loss colour with class rd-fc__net--negative; the app paints a positive net plain (ADR-0147 amendment: class token pair)"
+
+# --- generated app-value rows (do not edit; regenerate, see below) ---
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(1) .rd-spend__delta"
+field = "text"
+old = "▲ +1,288.90"
+value = "▲ +7,894.17"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(2) .rd-spend__delta"
+field = "text"
+old = "▲ +295.71"
+value = "▲ +5,308.24"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(3) .rd-spend__delta"
+field = "text"
+old = "▲ +320.12"
+value = "▲ +1,466.84"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(4) .rd-spend__delta"
+field = "text"
+old = "▲ +166.64"
+value = "▲ +611.20"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(5) .rd-spend__delta"
+field = "text"
+old = "▲ +191.50"
+value = "▲ +488.59"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(6) .rd-spend__delta"
+field = "text"
+old = "▼ −277.96"
+value = "▼ −229.79"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(7) .rd-spend__delta"
+field = "text"
+old = "▼ −12.10"
+value = "▼ −241.35"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(8) .rd-spend__delta"
+field = "text"
+old = "▼ −571.48"
+value = "▼ −291.55"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(9) .rd-spend__delta"
+field = "text"
+old = "▼ −294.33"
+value = "▼ −456.61"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(10) .rd-spend__delta"
+field = "text"
+old = "▼ −158.70"
+value = "▼ −475.21"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(11) .rd-spend__delta"
+field = "text"
+old = "▼ −248.70"
+value = "▼ −484.58"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(12) .rd-spend__delta"
+field = "text"
+old = "▼ −33.90"
+value = "▼ −520.96"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(13) .rd-spend__delta"
+field = "text"
+old = "▼ −3,379.18"
+value = "▼ −695.73"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+[[row]]
+page = "pages/plan/analytics.html"
+select = "tr.rd-row--spend:nth-of-type(14) .rd-spend__delta"
+field = "text"
+old = "▼ −591.11"
+value = "▼ −707.21"
+reason = "the handoff board's 12-month averages cannot be reproduced by the fixed 55-entry seed (its own chart implies different totals); the app computes the delta from the seed history"
+source = "app-values"
+
+# --- new-entry dialog (F8, T-UR00b): the formula amount. The handoff's 12 % of Salary is 774.01,
+# which makes Salary 6,450.08, while the handoff's own ledger pays Salary 16,213.97 and 30,536.19;
+# the app evaluates the formula over the seed's Salary (recurring_formula, 12 % of 15,800.00).
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = "output.rd-dialog__amount--static"
+field = "text"
+old = "774.01"
+value = "1,896.00"
+reason = "handoff inconsistent, app right: 12 % of the seed's Salary is 1,896.00; the handoff's 774.01 implies a Salary its own ledger does not show"
+
+[[row]]
+page = "pages/overlays/new-entry--repeats-formula.html"
+select = "output.rd-formula__result"
+field = "text"
+old = "→ next amount 774.01 PLN"
+value = "→ next amount 1,896.00 PLN"
+reason = "handoff inconsistent, app right: same figure as the hero (12 % of the seed's Salary)"
+
+[[row]]
+page = "pages/overlays/new-entry--error.html"
+select = "p.rd-credit-line"
+field = "text"
+old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
+value = "Credit Card · 12,521.63 of 14,977.37 left → 12,521.63 after this"
+reason = "handoff inconsistent, app right: the dialog is answering an amount of 0.00, which leaves the limit as it is (12,486.13 is the 35.50 of the other new-entry pages)"
+
+# --- row 8 (value-inventory section 5): plan/budget row bars. The board's labels do not add up
+# (spent + left = 99..103) and round half up; the app floors the spent share and prints left as
+# 100 - spent (view_models.bar_aria_label). The handoff side is corrected, never the app (ADR-0147
+# section 3). The labels are not painted: this changes the DOM the overlay serves, not a pixel.
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="39 percent spent, 60 percent left"]'
+field = "aria-label"
+old = "39 percent spent, 60 percent left"
+value = "38 percent spent, 62 percent left"
+reason = "handoff inconsistent, app right: 39 + 60 is not 100 (value-inventory section 5 row 8); the seed spends 38.x percent, floored, left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="45 percent spent, 60 percent left"]'
+field = "aria-label"
+old = "45 percent spent, 60 percent left"
+value = "44 percent spent, 56 percent left"
+reason = "handoff inconsistent, app right: 45 + 60 is not 100 (value-inventory section 5 row 8); floored spent, left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="71 percent spent, 30 percent left"]'
+field = "aria-label"
+old = "71 percent spent, 30 percent left"
+value = "71 percent spent, 29 percent left"
+reason = "handoff inconsistent, app right: 71 + 30 is not 100 (value-inventory section 5 row 8); left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="5 percent spent, 90 percent left"]'
+field = "aria-label"
+old = "5 percent spent, 90 percent left"
+value = "5 percent spent, 95 percent left"
+reason = "handoff inconsistent, app right: 5 + 90 is not 100 (value-inventory section 5 row 8); left = 100 - spent"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="90 percent spent, 10 percent left"]'
+field = "aria-label"
+old = "90 percent spent, 10 percent left"
+value = "89 percent spent, 11 percent left"
+reason = "handoff inconsistent, app right: the board rounds half up, the app floors the spent share (value-inventory section 5 row 8)"
+
+[[row]]
+page = "pages/plan/budget.html"
+select = '[role="img"][aria-label="3 percent spent, 100 percent left"]'
+field = "aria-label"
+old = "3 percent spent, 100 percent left"
+value = "2 percent spent, 98 percent left"
+reason = "handoff inconsistent, app right: 3 + 100 is not 100 (value-inventory section 5 row 8); floored spent, left = 100 - spent"
+
+# --- Q5 / accounts--empty: the board keeps the ten-account hero over an empty list. With no
+# accounts the app's net worth is 0.00, so the hero text follows what the (empty) seed yields.
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__label .u-hide-below-md"
+field = "text"
+old = "net worth · 10 accounts"
+value = "net worth · 0 accounts"
+reason = "handoff inconsistent, app right: an empty list has no ten accounts (modifier empty-accounts)"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__figure"
+field = "text"
+old = "34,439.69"
+value = "0.00"
+reason = "handoff inconsistent, app right: net worth of no accounts is zero"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__figure"
+field = "data-digits"
+old = "7"
+value = "3"
+reason = "digit count of the hero figure above (0.00)"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__figure"
+field = "data-marks"
+old = "2"
+value = "1"
+reason = "mark count of the hero figure above (0.00 has one point)"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__note .u-hide-below-md"
+field = "text"
+old = "assets 36,895.43 · liabilities −2,455.74 · planned −312.54"
+value = "assets 0.00 · liabilities 0.00 · planned 0.00"
+reason = "handoff inconsistent, app right: no accounts, no assets, liabilities or planned"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-hero__note .u-hide-from-md"
+field = "text"
+old = "assets 36,895.43 · liabilities −2,455.74"
+value = "assets 0.00 · liabilities 0.00"
+reason = "handoff inconsistent, app right: no accounts, no assets or liabilities"
+
+[[row]]
+page = "pages/accounts--empty.html"
+select = ".rd-accounts__head .rd-caption"
+field = "text"
+old = "10 ACCOUNTS"
+value = "0 ACCOUNTS"
+reason = "handoff inconsistent, app right: the phone caption counts the accounts the list holds (none)"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = "input.rd-catpick__input"
+field = "placeholder"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+[[row]]
+page = "pages/overlays/category-picker.html"
+select = "button.rd-catfield__search"
+field = "text"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = "input.rd-catpick__input"
+field = "placeholder"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+[[row]]
+page = "pages/overlays/category-picker--no-match.html"
+select = "button.rd-catfield__search"
+field = "text"
+old = "search all 21 categories"
+value = "search all 20 categories"
+optional = true  # the picker's own list
+reason = "D1-c(i): the board's picker lists 20; modifier picker-handoff-list archives the four categories it lacks, so picker_summary counts 20"
+
+# --- D8-E / delete-account (ADR-0147 amendment 2026-11-26, insert_row): the handoff dialog names
+# Investments E, an eleventh account its ten-row list does not show. The app seed adds it
+# (modifier unreferenced-account, balance 0, no snapshot, no transactions); the app sorts it
+# after Cash Wallet (balance desc, liabilities last). The row is a copy of Cash Wallet's.
+
+[[row]]
+page = "pages/overlays/delete-account.html"
+select = 'tr.rd-row--account:has(.rd-row__title:-soup-contains-own("Cash Wallet"))'
+field = "insert_row"
+old = ""
+value = "after"
+reason = "D8-E: the app list shows the unreferenced account Investments E (balance 0, never checked, 0 transactions) the dialog names; copy of the Cash Wallet row with the app's values; the source is Cash Wallet as the earlier rows leave it (29 OCT, 1 transaction)"
+
+[[row.edits]]
+select = ".rd-row__title"
+field = "text"
+old = "Cash Wallet"
+value = "Investments E"
+
+[[row.edits]]
+select = ".rd-row__sub"
+field = "text"
+old = "cash"
+value = "investment"
+
+[[row.edits]]
+select = ".rd-account__checked"
+field = "text"
+old = "29 OCT"
+value = "never"
+
+[[row.edits]]
+select = ".rd-account__txns"
+field = "text"
+old = "1"
+value = "0"
+
+[[row.edits]]
+select = ".rd-amount"
+field = "text"
+old = "85.94 "
+value = "0.00 "
+
+[[row.edits]]
+select = ".rd-menu"
+field = "aria-label"
+old = "Cash Wallet actions"
+value = "Investments E actions"
+
+[[row.edits]]
+select = ".rd-menu__title"
+field = "text"
+old = "Cash Wallet"
+value = "Investments E"
+
+[[row.edits]]
+select = ".rd-menu__sub"
+field = "text"
+old = "cash · 85.94 PLN"
+value = "investment · 0.00 PLN"
+
+[[row]]
+page = "pages/overlays/delete-account.html"
+select = ".rd-hero__label .u-hide-below-md"
+field = "text"
+old = "net worth · 10 accounts"
+value = "net worth · 11 accounts"
+reason = "D8-E: the app counts Investments E; net worth, assets and liabilities are unchanged (balance 0)"
+
+[[row]]
+page = "pages/overlays/delete-account.html"
+select = ".rd-accounts__head .rd-caption"
+field = "text"
+old = "10 ACCOUNTS"
+value = "11 ACCOUNTS"
+reason = "D8-E: the phone caption counts the accounts the list holds (eleven with Investments E)"
+
+# --- INV1 / errors/422: the handoff shows a no-JS new-entry POST refused (amount and category).
+# The app answers the full-page 422 only for query/param errors; every form POST answers the
+# dialog. The recipe maps the page to the two-field year+month param error
+# (/plan?tab=budget&year=zz&month=zz), so the summary rows carry those messages.
+
+[[row]]
+page = "pages/errors/422.html"
+select = ".rd-error-summary li:nth-child(1) a"
+field = "text"
+old = "Amount is required"
+value = "year must be between 1 and 9999"
+reason = "INV1: the harness stands the two-field year and month param error in for the new-entry POST refusal (the app answers a form POST with the dialog, never this page); message text only, count and layout are the handoff's"
+
+[[row]]
+page = "pages/errors/422.html"
+select = ".rd-error-summary li:nth-child(2) a"
+field = "text"
+old = "Pick a category"
+value = "month must be between 1 and 12"
+reason = "INV1: second field of the stand-in two-field param error (see the year row)"
+
+# --- INV1 / reconcile: the dialog opens with ?actual_balance=<typed text>; the app echoes the
+# text as typed, the handoff shows it grouped.
+
+[[row]]
+page = "pages/overlays/reconcile.html"
+select = "#rc-bank"
+field = "value"
+old = "3,690.10"
+value = "3690.10"
+reason = "INV1: the app echoes the typed text (3690.10) of the opener query; the handoff groups the thousands"
+
+[[row]]
+page = "pages/overlays/reconcile--liability.html"
+select = "#rc-bank"
+field = "value"
+old = "12,400.00"
+value = "12400.00"
+reason = "INV1: the app echoes the typed text (12400.00) of the opener query; the handoff groups the thousands"

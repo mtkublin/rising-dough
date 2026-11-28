@@ -27,8 +27,8 @@ symbol = "parse_amount_str"
 status = "exists"
 finding = "Q-011"
 epic = "E11"
-search = ["parse_amount", "format_money", "to_minor_units", "currency_decimals"]
-banned = ["_parse_amount*", "parse_amount*", "_parse_money*", "*minor_per_major*"]
+search = ["parse_amount", "format_money", "format_figure","to_minor_units", "currency_decimals", "ascii_minus", "sign_glyph"]
+banned = ["_parse_amount*", "parse_amount*", "_parse_money*", "*minor_per_major*", "figure_text", "minus_sign", "plus_minus_sign"]
 
 [[row]]
 concept = "Periods and month windows"
@@ -261,3 +261,23 @@ finding = "T-UR33"
 epic = "UR"
 search = ["account_references", "count_referencing_account", "in_use"]
 banned = ["_account_references*", "*account_in_use*"]
+
+[[row]]
+concept = "Category colour preset and edge contrast"
+module = "domain/category_colors.py"
+symbol = "category_color"
+status = "exists"
+finding = "T-UR03"
+epic = "UR"
+search = ["category_color", "edge_color", "contrast_ratio", "relative_luminance", "data-color"]
+banned = ["*relative_luminance*", "*contrast_ratio*", "_edge_color*"]
+
+[[row]]
+concept = "Dialog and row HTMX responses (open, saved, removed, 422)"
+module = "web/dialogs.py"
+symbol = "dialog_response"
+status = "exists"
+finding = "T-UR04b"
+epic = "UR"
+search = ["dialog_response", "saved_response", "removed_response", "invalid_dialog_response", "HX-Retarget"]
+banned = ["_dialog_response*", "_saved_response*", "_removed_response*"]

@@ -67,24 +67,9 @@ prod-db-seed *args:
     @echo "################################################################"
     bash scripts/prod_db_seed.sh {{args}}
 
-# Build Tailwind CSS once (purged + minified) → static/tailwind.css. See ADR-0027.
+# Build the rd CSS bundle (static/rd/css/app.bundle.css from main.css imports). No Tailwind, no Node (ADR-0107 section 4).
 css:
-    npm run css
-
-# Rebuild Tailwind on save; run alongside `just dev`.
-css-watch:
-    npm run css:watch
-
-# Run Playwright visual-regression snapshot suite. Opt-in; not part of `just ci`.
-# `just test-visual --reference=handoff [surface]` compares against the handoff references (T-UT10).
-test-visual *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    opts=()
-    for a in {{args}}; do
-      case "$a" in -*) opts+=("$a") ;; *) opts+=("--surface=$a") ;; esac
-    done
-    uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov ${opts[@]+"${opts[@]}"}
+    uv run python scripts/build_css_bundle.py
 
 # Visual regression in the pinned Playwright container (ADR-0027 amendment 2026-11-22, T-Q251).
 # Needs docker (macOS devs: Docker Desktop). Baselines are Linux-only; never generate them on the host.
@@ -98,9 +83,10 @@ visual:
 visual-update:
     docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh update
 
-# Regenerate tests/visual/reference/ from the designer handoff (optionally one surface).
+# Render tests/visual/reference/ from the overlaid designer handoff in the pinned container
+# (ADR-0147 section 1; never on the host, never committed). Optionally one surface.
 visual-reference *surface:
-    uv run python -m tests.visual.handoff {{surface}}
+    docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash -c 'pip install --quiet --break-system-packages "uv==0.11.2" && export UV_PYTHON_PREFERENCE=only-system && uv sync --group dev --frozen && uv run python -m tests.visual.handoff "$@"' _ {{surface}}
 
 # Run the e2e journeys on Chromium (ADR-0106 §4). Extra args pass through
 # (paths, -k, later --target=...). Optional locally: e2e runs on GitHub
@@ -132,7 +118,7 @@ lint:
     uv run xenon --max-absolute C src
     uv run sqlfluff lint migrations
     out=$(uv run djlint src/budget_planner/web/templates --check 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
-    npm run stylelint --silent
+    npx --no-install stylelint --config src/budget_planner/web/static/rd/.stylelintrc.json "src/budget_planner/web/static/rd/css/**/*.css" --ignore-pattern "src/budget_planner/web/static/rd/css/app.bundle.css"
 
 # Auto-fix formatting + simple lint issues.
 format:

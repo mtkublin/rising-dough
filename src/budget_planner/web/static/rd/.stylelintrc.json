@@ -1,0 +1,10 @@
+{
+  "extends": "stylelint-config-standard",
+  "rules": {
+    "declaration-block-single-line-max-declarations": null,
+    "selector-class-pattern": [
+      "^(rd|u)-[a-z0-9]+(-[a-z0-9]+)*(__[a-z0-9]+(-[a-z0-9]+)*)?(--[a-z0-9]+(-[a-z0-9]+)*)?$|^htmx-request$",
+      { "message": "Use BEM with the rd- prefix (rd-block__element--modifier) or a u- utility" }
+    ]
+  }
+}

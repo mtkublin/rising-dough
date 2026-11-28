@@ -360,6 +360,7 @@ def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id
 
 
 __all__ = [
+    "account_last_used",
     "category_usage",
     "count_filtered",
     "count_referencing_account",
@@ -392,19 +393,45 @@ def latest_operation_date_by_account(
     return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows if row["d"] is not None}
 
 
-def category_usage(conn: sqlite3.Connection, user_id: int) -> list[tuple[int, int, date]]:
+def category_usage(
+    conn: sqlite3.Connection, user_id: int, *, since: date | None = None, until: date | None = None
+) -> list[tuple[int, int, date]]:
     """Return ``(category_id, live entry count, latest operation_date)`` per used category.
 
     One grouped read over live transactions (T-UR34g); categories with no live
-    transaction are absent.
+    transaction are absent. ``since`` / ``until`` keep only entries dated inside that
+    inclusive window (R1: the picker's recent-chips window).
     """
+    since_iso = since.isoformat() if since is not None else None
+    until_iso = until.isoformat() if until is not None else None
     rows = conn.execute(
         """
         SELECT category_id, COUNT(*) AS n, MAX(operation_date) AS d
         FROM transactions
         WHERE user_id = ? AND deleted_at IS NULL
+          AND (? IS NULL OR operation_date >= ?)
+          AND (? IS NULL OR operation_date <= ?)
         GROUP BY category_id
         """,
-        (user_id,),
+        (user_id, since_iso, since_iso, until_iso, until_iso),
     ).fetchall()
     return [(row["category_id"], row["n"], date.fromisoformat(row["d"])) for row in rows]
+
+
+def account_last_used(conn: sqlite3.Connection, user_id: int) -> dict[int, date]:
+    """Return ``{account_id: latest operation_date}`` of live, non-adjustment transactions.
+
+    Reconciliation entries (direction ``adjustment``) are no use of the account: they are left
+    out. Accounts with no such transaction are absent (T-UR00b, the new-entry account order).
+    """
+    rows = conn.execute(
+        """
+        SELECT t.account_id AS account_id, MAX(t.operation_date) AS d
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id AND c.user_id = ?
+        WHERE t.user_id = ? AND t.deleted_at IS NULL AND c.direction != 'adjustment'
+        GROUP BY t.account_id
+        """,
+        (user_id, user_id),
+    ).fetchall()
+    return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows}

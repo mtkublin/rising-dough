@@ -1,0 +1,57 @@
+{# fragment: popovers/period-picker
+   Inputs: picker with id (popover id, matches the trigger's popovertarget), is_year (bool: year list instead of month grid), cells (label, url, current), note (text, month kind), year, prev_year_url and
+   next_year_url (month kind), open (bool). A native popover (row-menu.js places it); every cell is
+   a plain link, so the picker works without script. #}
+{% if picker.is_year %}
+  <div class="rd-period-pick rd-period-pick--year"
+       id="{{ picker.id }}"
+       popover
+       role="dialog"
+       aria-label="Pick period"
+       {% if picker.open|default(none) %} data-open{% endif %}>
+    <div class="rd-period-pick__years">
+      {% for cell in picker.cells %}
+        <a class="rd-period-pick__cell"
+           href="{{ cell.url }}"
+           {% if cell.current|default(none) %} aria-current="true"{% endif %}>{{ cell.label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+{% else %}
+  <div class="rd-period-pick"
+       id="{{ picker.id }}"
+       popover
+       role="dialog"
+       aria-label="Pick period"
+       {% if picker.open|default(none) %} data-open{% endif %}>
+    <div class="rd-period-pick__head" data-testid="period-pick-head">
+      <a class="rd-btn rd-btn--icon"
+         id="{{ picker.id }}-prev-year"
+         href="{{ picker.prev_year_url }}"
+         hx-get="{{ picker.prev_year_url }}"
+         hx-target="#{{ picker.id }}"
+         hx-select="#{{ picker.id }} > *"
+         hx-swap="innerHTML"
+         hx-push-url="false"
+         aria-label="Previous year">←</a>
+      <span class="rd-period-pick__year">{{ picker.year }}</span>
+      <a class="rd-btn rd-btn--icon"
+         id="{{ picker.id }}-next-year"
+         href="{{ picker.next_year_url }}"
+         hx-get="{{ picker.next_year_url }}"
+         hx-target="#{{ picker.id }}"
+         hx-select="#{{ picker.id }} > *"
+         hx-swap="innerHTML"
+         hx-push-url="false"
+         aria-label="Next year">→</a>
+    </div>
+    <div class="rd-period-pick__grid">
+      {% for cell in picker.cells %}
+        <a class="rd-period-pick__cell"
+           href="{{ cell.url }}"
+           {% if cell.current|default(none) %} aria-current="true"{% endif %}>{{ cell.label }}</a>
+      {% endfor %}
+    </div>
+    {% if picker.note|default(none) %}<p class="rd-period-pick__note">{{ picker.note }}</p>{% endif %}
+  </div>
+{% endif %}

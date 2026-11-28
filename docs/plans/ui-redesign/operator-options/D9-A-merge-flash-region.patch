@@ -1,0 +1,139 @@
+diff --git a/src/budget_planner/web/errors.py b/src/budget_planner/web/errors.py
+index 5efccd4..8a361f4 100644
+--- a/src/budget_planner/web/errors.py
++++ b/src/budget_planner/web/errors.py
+@@ -109,7 +109,7 @@ def _flash_fragment(
+     The fragment carries `hx-swap-oob="true"` + the live-region target, so the body is
+     otherwise empty and HTMX will not clobber the originating target.
+     """
+-    region = "flash-region-assertive" if kind == "error" else "flash-region"
++    region = "flash-region"
+     return _render(
+         request,
+         "fragments/flash/error.html",
+diff --git a/src/budget_planner/web/static/rd/js/app-toast.js b/src/budget_planner/web/static/rd/js/app-toast.js
+index f1f2406..77b60f4 100644
+--- a/src/budget_planner/web/static/rd/js/app-toast.js
++++ b/src/budget_planner/web/static/rd/js/app-toast.js
+@@ -66,7 +66,7 @@
+     if (open) open.close('cancel');
+   });
+ 
+-  const FLASH_OOB = /id="flash-region(-assertive)?"[^>]*hx-swap-oob/;
++  const FLASH_OOB = /id="flash-region"[^>]*hx-swap-oob/;
+   /* Same copy as the old shell (static/js/app-init.js) for error bodies that carry no flash. */
+   const STATUS_TEXT = {
+     400: 'The request was not accepted. Check the form and try again.',
+@@ -135,7 +135,14 @@
+     const dialog = open.length ? open[open.length - 1] : null;
+     const page = document.getElementById(id);
+     if (!dialog) {
+-      if (page) page.replaceChildren(...nodes);
++      if (page) {
++        /* One region holds a saved flash and an error flash side by side (handoff today--flash): a new
++           flash replaces only the previous one of its own kind. */
++        const kind = (node) => (node.classList && node.classList.contains('rd-flash--error') ? 'error' : 'ok');
++        const incoming = new Set(nodes.map(kind));
++        Array.from(page.children).filter((el) => incoming.has(kind(el))).forEach((el) => el.remove());
++        page.append(...nodes);
++      }
+       return;
+     }
+     let region = dialog.querySelector('[data-flash-in-dialog="' + id + '"]');
+@@ -147,8 +154,8 @@
+     region.className = 'rd-flash-region';
+     region.dataset.flashInDialog = id;
+     region.dataset.testid = 'flash-in-dialog';
+-    region.setAttribute('role', id === 'flash-region-assertive' ? 'alert' : 'status');
+-    region.setAttribute('aria-live', id === 'flash-region-assertive' ? 'assertive' : 'polite');
++    region.setAttribute('role', 'status');
++    region.setAttribute('aria-live', 'polite');
+     dialog.prepend(region);
+     setTimeout(() => region.replaceChildren(...nodes), 0);
+   }
+@@ -201,14 +208,14 @@
+     const body = xhr.responseText || '';
+     if (FLASH_OOB.test(body)) {
+       const incoming = new DOMParser().parseFromString(body, 'text/html');
+-      ['flash-region', 'flash-region-assertive'].forEach((id) => {
++      ['flash-region'].forEach((id) => {
+         const from = incoming.getElementById(id);
+         const region = document.getElementById(id);
+         if (from && region) show(id, Array.from(from.childNodes));
+       });
+     } else if (!FORM_RERENDER.includes(xhr.status)) {
+-      const region = document.getElementById('flash-region-assertive');
+-      if (region) show('flash-region-assertive', [flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT)]);
++      const region = document.getElementById('flash-region');
++      if (region) show('flash-region', [flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT)]);
+     } else {
+       /* A throttled form (429, T-D18a) re-renders like a 422: the page's own error slot shows the message.
+          htmx-csrf.js already lets the 422 through; htmx skips every other 4xx body. */
+@@ -307,7 +314,7 @@
+        shows alone, so the assertive flash is raised only if no banner appeared (Q29, T-UR02e). */
+     window.setTimeout(() => {
+       if (document.querySelector('#main [data-js="offline-state"]')) return;
+-      show('flash-region-assertive', [flashBox('Could not reach the server. Check your connection and try again.')]);
++      show('flash-region', [flashBox('Could not reach the server. Check your connection and try again.')]);
+     }, 0);
+   });
+ })();
+diff --git a/src/budget_planner/web/templates/fragments/flash/error.html b/src/budget_planner/web/templates/fragments/flash/error.html
+index 82a38e8..bfc8435 100644
+--- a/src/budget_planner/web/templates/fragments/flash/error.html
++++ b/src/budget_planner/web/templates/fragments/flash/error.html
+@@ -1,10 +1,10 @@
+ {# fragment: flash/error
+    Rendered into #flash-region when a save fails. Inputs: message (text), retry (optional: re-issue the failed request, flash-retry in app-toast.js), reference (optional tooltip), retry_url (optional, POST),
+-   region (optional: "flash-region" | "flash-region-assertive"; wraps the flash as an out-of-band
++   region (optional: "flash-region"; wraps the flash as an out-of-band
+    swap of that live region, used by web/errors.py for new-shell HTMX errors). #}
+ {% if region | default("") %}<div id="{{ region }}"
+-     role="{{ 'alert' if region == 'flash-region-assertive' else 'status' }}"
+-     aria-live="{{ 'assertive' if region == 'flash-region-assertive' else 'polite' }}"
++     role="status"
++     aria-live="polite"
+      hx-swap-oob="true">{% endif %}<div class="rd-flash rd-flash--error" role="alert"><span{% if reference | default("") %} title="{{ reference }}"{% endif %}>▲ {{ message }}{% if reference | default("") %}<span class="u-visually-hidden"> ({{ reference }})</span>{% endif %}</span>{% if retry | default(false) %}<button type="button" class="rd-flash__action" data-js="flash-retry">retry</button>{% elif retry_url | default("") %}<button type="button"
+         class="rd-flash__action"
+         hx-post="{{ retry_url }}"
+diff --git a/src/budget_planner/web/templates/layouts/base.html b/src/budget_planner/web/templates/layouts/base.html
+index 7258b70..71d00d1 100644
+--- a/src/budget_planner/web/templates/layouts/base.html
++++ b/src/budget_planner/web/templates/layouts/base.html
+@@ -83,10 +83,6 @@
+            class="rd-flash-region"
+            role="status"
+            aria-live="polite"></div>
+-      <div id="flash-region-assertive"
+-           class="rd-flash-region"
+-           role="alert"
+-           aria-live="assertive"></div>
+       <main id="main" class="rd-main" tabindex="-1">
+         {% block main %}{% endblock %}
+       </main>
+diff --git a/src/budget_planner/web/users_admin.py b/src/budget_planner/web/users_admin.py
+index 902f8e3..bb7ef26 100644
+--- a/src/budget_planner/web/users_admin.py
++++ b/src/budget_planner/web/users_admin.py
+@@ -43,7 +43,7 @@ DELETE_DIALOG: Final = "fragments/dialogs/delete-user.html"
+ RESET_DIALOG: Final = "fragments/dialogs/reset-password.html"
+ SUMMARY_TEMPLATE: Final = "fragments/forms/error-summary.html"
+ FLASH_TEMPLATE: Final = "fragments/flash/error.html"
+-FLASH_REGION: Final = "flash-region-assertive"
++FLASH_REGION: Final = "flash-region"
+ NOT_FOUND_TEMPLATE: Final = "pages/errors/404.html"
+ CONFLICT_TEMPLATE: Final = "pages/errors/409.html"
+ RESET_NOTE: Final = "Their existing sessions have been signed out."
+diff --git a/tests/visual/handoff_states.py b/tests/visual/handoff_states.py
+index 3caa143..d839d30 100644
+--- a/tests/visual/handoff_states.py
++++ b/tests/visual/handoff_states.py
+@@ -94,7 +94,7 @@ def _flash(page: Page) -> None:
+     _afford_250(page)
+     for path, region in (
+         ("/dev/shell/dialog/confirm", "#flash-region .rd-flash--success"),
+-        ("/dev/shell/fail/500", "#flash-region-assertive .rd-flash--error"),
++        ("/dev/shell/fail/500", "#flash-region .rd-flash--error"),
+         ("/dev/shell/toast", "#toast-root [data-js='toast']"),
+     ):
+         page.evaluate(

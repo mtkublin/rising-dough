@@ -78,8 +78,8 @@ before each merge check `MERGE_HEAD` and the branch tip (`just merge-item` refus
 6. **Hotspots, one owner per wave:** `tasks.md`, `CHANGELOG.md`, `docs/adr/README.md` (scribe);
    each `tests/architecture/allowlists/*.toml` and `canonical_modules.toml` (burn-downs of one file
    go in different waves or one item: the ratchet fails on stale entries); `migrations/`,
-   `pyproject.toml`, `uv.lock`, `justfile`, `.pre-commit-config.yaml`; `base.html`, shared
-   macros/partials, Tailwind input CSS; `tests/conftest.py`.
+   `pyproject.toml`, `uv.lock`, `justfile`, `.pre-commit-config.yaml`; `layouts/base.html`, shared
+   fragments, `static/rd/css/main.css`; `tests/conftest.py`.
 7. **Steps.** Write each item's brief as numbered steps with a check command each, and acceptance
    criteria as commands. The brief must pass the Definition of Ready in brief-common.md.
 8. **Model per item (ADR-0150 §3).** `implementer` on Haiku only if: at most 2 source files plus
@@ -161,6 +161,11 @@ an agent commits it). Mutation: weekly `mutation.yml`.
    `just check-item <ID> <owned globs>` (executable DoD: branch ahead, owned files, hotspots,
    commit subjects, allowlist totals, audit record; WARN lists suppressions and new definitions)
    and checks reuse, guard-gaming, brief compliance and the `e2e.yml` run on the item's sha.
+   From inside an item worktree the work branch is derived from `wi/<work>/<ID>` (or pass
+   `--work`). Extra flags (run the script directly: `uv run python scripts/ci/check_item.py
+   --item <ID> --owned ... --hotspots <globs> --allow-framework-rows`): `--hotspots` lists scribe
+   files the item may touch; `--allow-framework-rows` makes growth of permanent `[[framework]]`
+   allowlist rows a WARN (other growth still FAILs).
    Template/CSS/HTMX item: dispatch a `visual-auditor` into the item worktree **in the same
    message**; audit and review run in parallel. `FINDINGS` or `RETURN` -> all findings go to the
    implementer in one `SendMessage` (or a handover implementer), then audit and review again.
@@ -208,3 +213,14 @@ an agent commits it). Mutation: weekly `mutation.yml`.
   questions.
 - Push and open a PR only with the operator's approval; once approved, open it as a draft early.
 - Agent quirk: agents commit with plain commands (the worktree guard refuses a chained `git commit`).
+
+## 10. Remote-session and CI lessons
+
+Full text and reasons: [ADR-0150 amendment 2026-11-26](../../../docs/adr/0150-orchestrator-role-agents-executable-dod-and-wave-testing.md).
+
+- **Merge in bursts, then read CI on the tip** (`gh run list --branch <MAIN>`) before the next merge. A cancelled run (a newer push cancels it) is no verdict on its commit.
+- **Pre-push checklist in every implementer brief** ([brief-common.md](brief-common.md)); reviewer briefs name the CI run and the e2e job to read. Reviewers cannot run tests here.
+- **One final report per subagent.** A later report in the same run is refused and lost. If an agent reports while it waits on its own background work, `SendMessage` it for the final status. `merge-item` prunes the worktree: a fix after the merge needs a new item.
+- **Lock hygiene.** A waiter for a lock the agent gave up on is stopped by that agent. A second heavy slot only while the 5-min load is under 2x `nproc`.
+- **Token limits.** No `workflow` scope: a push touching `.github/workflows/*` is rejected, so write the exact edit into a doc for the operator. No remote branch deletion: a 403 after `merge-item` does not mean the merge failed (check `git status -sb` and `git log origin/<MAIN>`). `just` may be missing (`uv tool install rust-just`).
+- **Deferred operator list.** Workflow edits, branch pruning, GitHub settings and prod steps go into one operator list in the run log, not into the run's agent work.

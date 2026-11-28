@@ -1,0 +1,68 @@
+{% extends "layouts/auth.html" %}
+{% block title %}Sign in · Rising Dough{% endblock %}
+{% block bake %}
+  <pre class="rd-auth__loaf" aria-hidden="true">          .:+*###%%%%###*+:.
+       .:*#%@@@@@@@@@@@@@@@%#*:.
+     .+#%@@@@@@@@@@@@@@@@@@@@@%#+.
+   .:*%@@@@@@@@@@@@@@@@@@@@@@@@@%*:.
+  :*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%*:
+ :#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#:
+  :+*##%%%%%%%%%%%%%%%%%%%%%%%%##*+:  </pre>
+  <a class="rd-auth__brand" href="/auth/login">Rising Dough</a>
+  <p class="rd-auth__headline">Hello <i>again</i>.</p>
+  <span class="rd-auth__spacer"></span>
+{% endblock %}
+{% block form %}
+  <h1 class="u-visually-hidden">Sign in</h1>
+  {# T-D09: a throttled attempt reuses the alert slot with a generic message (ADR-0072). #}
+  {% if error %}
+    <div class="rd-alert"
+         role="alert"
+         id="form-alert"
+         {% if throttled %}data-throttled{% endif %}>▲ {{ error }}</div>
+  {% endif %}
+  <form class="rd-form" method="post" action="/auth/login">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next_path }}">
+    <div class="rd-field">
+      <label class="rd-field__label" for="email">email</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="email"
+               name="email"
+               type="email"
+               value="{{ email }}"
+               autocomplete="username webauthn"
+               required
+               {% if error and not throttled %}aria-describedby="form-alert"{% endif %}>
+      </span>
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label" for="password">password</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="password"
+               name="password"
+               type="password"
+               autocomplete="current-password"
+               required
+               {% if error and not throttled %}aria-describedby="form-alert"{% endif %}>
+      </span>
+    </div>
+    <button type="submit" class="rd-btn rd-btn--primary rd-btn--block">[ sign in ]</button>
+  </form>
+  <p class="rd-or" aria-hidden="true">
+    <span></span>OR<span></span>
+  </p>
+  <button type="button"
+          class="rd-btn rd-btn--block"
+          data-js="passkey"
+          data-passkey-login
+          data-next="{{ next_path }}">sign in with a passkey</button>
+  <a class="rd-auth__link" href="#forgot" data-forgot-password>forgot password</a>
+  <p class="rd-caption"
+     data-passkey-status
+     hidden
+     role="status"
+     aria-live="polite"></p>
+{% endblock %}

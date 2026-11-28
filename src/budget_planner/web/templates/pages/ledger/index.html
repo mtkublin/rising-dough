@@ -1,0 +1,40 @@
+{# pages/ledger/index.html: Ledger on the new shell (T-UR09, handoff pages/ledger/actual*.html).
+   Context: view, title, hero (LedgerHero | none), tabs (LedgerTab list), bar (FilterBar), export
+   (ExportLinks | none), and the region keys of the view: fragments/ledger/actual-table.html (days, links),
+   planned-table.html (planned_rows) or recurring-table.html (groups). hero carries label unit and note.
+   The "+ new entry" action is the shell's top bar button. #}
+{% extends "layouts/base.html" %}
+{% block title %}Ledger · Rising Dough{% endblock %}
+{% block header_actions %}
+  {# the shell's [ new entry ] asks the dialog route in place, so a save lands back on the ledger #}
+  <a class="rd-btn rd-btn--primary rd-topbar__new"
+     href="/add?when=happened&dialog=1"
+     hx-get="/add?when=happened&dialog=1"
+     hx-target="#modal-root"
+     hx-swap="innerHTML"
+     data-js="new-entry"
+     aria-keyshortcuts="n">[ new entry ]</a>
+{% endblock %}
+{% block scripts %}
+  <script type="module"
+          src="{{ url_for('static', path='rd/js/app-ledger.js') }}"></script>
+{% endblock %}
+{% block main %}
+  {% include "fragments/ledger/hero.html" %}
+  <section class="rd-panel rd-ledger-panel" aria-label="Transactions">
+    <div class="rd-ledger-head">
+      {% include "fragments/ledger/tabs.html" %}
+      {% if export %}
+        {% include "fragments/ledger/export-menu.html" %}
+      {% endif %}
+    </div>
+    {% include "fragments/ledger/filter-bar.html" %}
+    {% if view == "actual" %}
+      {% include "fragments/ledger/actual-table.html" %}
+    {% elif view == "planned" %}
+      {% include "fragments/ledger/planned-table.html" %}
+    {% else %}
+      {% include "fragments/ledger/recurring-table.html" %}
+    {% endif %}
+  </section>
+{% endblock %}

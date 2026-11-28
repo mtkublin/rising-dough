@@ -1,0 +1,162 @@
+{#
+  layouts/base.html: the Rising Dough page shell (T-UR02, ADR-0107 section 3).
+
+  Blocks: title, head_extra, header_actions, main, scripts.
+  Context: nav_current (optional: "today" | "ledger" | "plan" | "accounts"),
+  csrf_token and csp_nonce (injected by render()).
+  Pages that are not yet migrated keep extending the old base.html.
+#}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="htmx-config"
+          content='{"includeIndicatorStyles": false, "allowEval": false}'>
+    <meta name="csrf-token"
+          content="{{ csrf_token if csrf_token is string else '' }}">
+    <title>{% block title %}Rising Dough{% endblock %}</title>
+    <link rel="icon"
+          type="image/svg+xml"
+          href="{{ url_for('static', path='rd/img/favicon.svg') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='rd/css/app.bundle.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='rd/app/overrides.css') }}">
+    <script src="{{ url_for('static', path='rd/js/theme.js') }}"></script>
+    <script src="{{ url_for('static', path='vendor/htmx-2.0.11.min.js') }}"></script>
+    <script src="{{ url_for('static', path='rd/js/csrf.js') }}" defer></script>
+    <script src="{{ url_for('static', path='rd/js/htmx-csrf.js') }}" defer></script>
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body class="rd-app" hx-ext="csrf" data-today-local="{{ today_local() }}">
+    <a class="rd-skip" href="#main">skip to content</a>
+    <div class="rd-frame">
+      <header class="rd-topbar">
+        <div class="rd-topbar__start">
+          <a class="rd-brand" href="/today">Rising Dough</a>
+          <nav class="rd-mainnav" aria-label="Main">
+            <a class="rd-mainnav__link"
+               href="/today"
+               aria-keyshortcuts="g t"
+               {% if nav_current | default("") == "today" %}aria-current="page"{% endif %}>today</a>
+            <a class="rd-mainnav__link"
+               href="/ledger"
+               aria-keyshortcuts="g l"
+               {% if nav_current | default("") == "ledger" %}aria-current="page"{% endif %}>ledger</a>
+            <a class="rd-mainnav__link"
+               href="/plan"
+               aria-keyshortcuts="g p"
+               {% if nav_current | default("") == "plan" %}aria-current="page"{% endif %}>plan</a>
+            <a class="rd-mainnav__link"
+               href="/accounts"
+               aria-keyshortcuts="g a"
+               {% if nav_current | default("") == "accounts" %}aria-current="page"{% endif %}>accounts</a>
+          </nav>
+        </div>
+        <div class="rd-topbar__actions">
+          {% block header_actions %}
+            <a class="rd-btn rd-btn--primary rd-topbar__new"
+               href="/add?when=happened&dialog=1"
+               hx-get="/add?when=happened&dialog=1"
+               hx-target="#modal-root"
+               hx-swap="innerHTML"
+               data-js="new-entry"
+               aria-keyshortcuts="n">[ new entry ]</a>
+          {% endblock %}
+          <button type="button"
+                  class="rd-btn rd-btn--icon rd-topbar__help"
+                  aria-label="Keyboard shortcuts"
+                  aria-keyshortcuts="?"
+                  data-js="shortcuts-open">?</button>
+          <a class="rd-topbar__link rd-topbar__link--muted"
+             href="/settings"
+             aria-keyshortcuts="g s"
+             {% if nav_current | default("") == "settings" %}aria-current="page"{% endif %}>settings</a>
+          <form class="rd-topbar__form" method="post" action="/auth/logout">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit"
+                    class="rd-topbar__link rd-topbar__link--outline"
+                    name="sign_out"
+                    value="1">sign out</button>
+          </form>
+        </div>
+      </header>
+      <div id="flash-region"
+           class="rd-flash-region"
+           role="status"
+           aria-live="polite"></div>
+      <main id="main" class="rd-main" tabindex="-1">
+        {% block main %}{% endblock %}
+      </main>
+    </div>
+    <nav class="rd-tabbar" aria-label="Main, phone">
+      <a class="rd-tabbar__link"
+         href="/today"
+         {% if nav_current | default("") == "today" %}aria-current="page"{% endif %}>today</a>
+      <a class="rd-tabbar__link"
+         href="/ledger"
+         {% if nav_current | default("") == "ledger" %}aria-current="page"{% endif %}>ledger</a>
+      <a class="rd-tabbar__new"
+         href="/add?when=happened&dialog=1"
+         hx-get="/add?when=happened&dialog=1"
+         hx-target="#modal-root"
+         hx-swap="innerHTML"
+         aria-label="New entry">+</a>
+      <a class="rd-tabbar__link"
+         href="/plan"
+         {% if nav_current | default("") == "plan" %}aria-current="page"{% endif %}>plan</a>
+      <a class="rd-tabbar__link"
+         href="/accounts"
+         {% if nav_current | default("") == "accounts" %}aria-current="page"{% endif %}>accounts</a>
+    </nav>
+    <div id="modal-root"></div>
+    <div id="drawer-root"></div>
+    <div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+    <template id="rd-offline-template">
+      {% include "fragments/states/offline.html" %}
+    </template>
+    <template id="rd-skeleton-template">
+      {% include "fragments/states/loading.html" %}
+    </template>
+    <template id="rd-offline-page-template">
+      {% include "fragments/states/offline-page.html" %}
+    </template>
+    {% include "layouts/_palette.html" %}
+    {% include "layouts/_shortcuts.html" %}
+    <script type="module" src="{{ url_for('static', path='rd/js/reveal.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/expand.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/filters.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/formula.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/dialog.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/row-menu.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/palette.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/shortcuts.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/combobox.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/amount-input.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/bulk-select.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/segmented.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/toast.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/app-toast.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/app-account-dialog.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/theme-switch.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/offline.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/category-preview.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/recurring-day.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/copy-secret.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/skeleton.js') }}"></script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

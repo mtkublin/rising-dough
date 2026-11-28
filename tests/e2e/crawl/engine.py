@@ -38,7 +38,11 @@ SKIP_TARGETS: tuple[tuple[str, str], ...] = (
 )
 
 
-SKIP_NAMES: tuple[tuple[str, str], ...] = (("Add passkey", "needs a WebAuthn authenticator"),)
+SKIP_NAMES: tuple[tuple[str, str], ...] = (
+    ("Add passkey", "needs a WebAuthn authenticator"),
+    # The server clears the browser's session cookie; a DB restore cannot bring it back (T-UR14).
+    ("Sign out this device", "ends the crawler's own session"),
+)
 
 
 def skip_reason(control: Control) -> str | None:  # noqa: PLR0911
@@ -51,7 +55,7 @@ def skip_reason(control: Control) -> str | None:  # noqa: PLR0911
     # Before the disabled check: passkeys.js disables the button where the engine has no
     # WebAuthn (Playwright WebKit on Linux, T-Q316), so the reason must not depend on the browser.
     for name, why in SKIP_NAMES:
-        if control.name == name:
+        if control.name.lower() == name.lower():  # the new shell prints lower-case names
             return why
     if control.disabled:
         return "disabled"
@@ -67,12 +71,15 @@ class Recorder:
     def __init__(self, page: Page, base_url: str) -> None:
         self._base = base_url
         self.problems: list[str] = []
+        self._downloads: set[str] = set()  # URLs that ended in a browser download
+        self._interrupted: list[tuple[str, str]] = []  # (url, problem): WebKit download candidates
         page.on("console", self._on_console)
         page.on("pageerror", lambda e: self.problems.append(f"pageerror: {e}"))
         page.on("response", self._on_response)
         page.add_init_script(HTMX_COUNTER_JS)
         page.on("dialog", lambda d: d.accept())  # hx-confirm prompts
         page.on("requestfailed", self._on_failed)
+        page.on("download", lambda d: self._downloads.add(d.url))
 
     def _on_console(self, msg: Any) -> None:
         message = str(msg.text)
@@ -80,6 +87,8 @@ class Recorder:
             self.problems.append(f"console.error: {message}")
 
     def _on_response(self, resp: Any) -> None:
+        if "attachment" in resp.headers.get("content-disposition", "").lower():
+            self._downloads.add(resp.url)
         if resp.status in (409, 422) and resp.request.method == "POST":
             # 422: server-side form validation; 409: a domain refusal (delete of an account
             # with a balance or references, F2.2a / F2.8). htmx swaps the message in.
@@ -91,10 +100,17 @@ class Recorder:
         reason = req.failure or ""
         if "ERR_ABORTED" in str(reason):  # navigation cancelled an in-flight request
             return
+        if "Frame load interrupted" in str(reason):
+            # WebKit reports a download navigation as an interrupted frame load; settled in drain(),
+            # once the download event or the attachment response is known.
+            self._interrupted.append((req.url, f"requestfailed: {req.method} {req.url} {reason}"))
+            return
         self.problems.append(f"requestfailed: {req.method} {req.url} {reason}")
 
     def drain(self) -> list[str]:
         out, self.problems = self.problems, []
+        out += [p for url, p in self._interrupted if url not in self._downloads]
+        self._interrupted = []
         return out
 
 

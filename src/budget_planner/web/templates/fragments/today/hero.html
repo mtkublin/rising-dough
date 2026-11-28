@@ -1,0 +1,35 @@
+{# fragment: today/hero
+   Inputs: view (view_models.TodayView: figure, fit, status_text, status_over, note_long, note_short).
+   Refetches itself on today-stale and ledger-stale (a promote, skip or edit moved the budget). #}
+<section class="rd-hero rd-hero--tall"
+         id="today-hero"
+         aria-labelledby="hero-label"
+         hx-get="/today"
+         hx-trigger="today-stale from:body, ledger-stale from:body"
+         hx-select="#today-hero"
+         hx-swap="outerHTML">
+  <pre class="rd-hero__loaf" aria-hidden="true">          .:+*###%%%%###*+:.
+       .:*#%@@@@@@@@@@@@@@@%#*:.
+     .+#%@@@@@@@@@@@@@@@@@@@@@%#+.
+   .:*%@@@@@@@@@@@@@@@@@@@@@@@@@%*:.
+  :*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%*:
+ :#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#:
+  :+*##%%%%%%%%%%%%%%%%%%%%%%%%##*+:  </pre>
+  <div class="rd-hero__body">
+    <div class="rd-hero__head">
+      <h1 class="rd-hero__label" id="hero-label">left to spend per day</h1>
+      <span class="rd-status{% if view.status_over %} rd-status--over{% endif %}">{{ view.status_text }}</span>
+    </div>
+    <p class="rd-hero__figure-row">
+      <span class="rd-hero__figure rd-hero__figure--xl"
+            id="hero-per-day"
+            data-digits="{{ view.fit.digits }}"
+            data-marks="{{ view.fit.marks }}"
+            data-signs="{{ view.fit.signs }}">{{ view.figure }}</span>
+      <span class="rd-hero__unit">{{ base_ccy }} / day</span>
+    </p>
+    <p class="rd-hero__note">
+      <span class="u-hide-below-md">{{ view.note_long }}</span><span class="u-hide-from-md">{{ view.note_short }}</span>
+    </p>
+  </div>
+</section>

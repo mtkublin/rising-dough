@@ -1,0 +1,18 @@
+{# fragment: plan/budget-hero
+   Inputs: budget (view_models.BudgetView), base_ccy. "budget left" hero: remaining figure with the
+   glyph-count attributes the handoff sizes the figure by, and the one-line note (full on desktop,
+   committed and over count on phone). #}
+<section class="rd-hero" aria-labelledby="hero-label">
+  <div class="rd-hero__body">
+    <h1 class="rd-hero__label" id="hero-label">budget left</h1>
+    <p class="rd-hero__figure-row">
+      <span class="rd-hero__figure rd-hero__figure--plan"
+            data-digits="{{ (budget.summary.totals.remaining_minor|hero_fit(base_ccy)).digits }}"
+            data-marks="{{ (budget.summary.totals.remaining_minor|hero_fit(base_ccy)).marks }}"
+            data-signs="{{ (budget.summary.totals.remaining_minor|hero_fit(base_ccy)).signs }}">{{ budget.left_text }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
+    </p>
+    <p class="rd-hero__note">
+      <span class="u-hide-below-md">{{ budget.summary.totals.budgeted_minor|money_num(base_ccy) }} budgeted · {{ budget.summary.totals.spent_minor|money_num(base_ccy) }} spent · {{ budget.summary.totals.committed_minor|money_num(base_ccy) }} committed{% if budget.over_count %} · {{ budget.over_count }} {{ "category" if budget.over_count == 1 else "categories" }} over{% endif %}{% if budget.summary.totals.unbudgeted_committed_minor > 0 %} · {{ budget.summary.totals.unbudgeted_committed_minor|money_num(base_ccy) }} planned in unbudgeted categories{% endif %}</span><span class="u-hide-from-md">{{ budget.summary.totals.committed_minor|money_num(base_ccy) }} committed{% if budget.over_count %} · {{ budget.over_count }} over{% endif %}</span>
+    </p>
+  </div>
+</section>

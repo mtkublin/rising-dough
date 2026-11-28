@@ -1,0 +1,196 @@
+/*
+ * Category picker (combobox): 4 recent categories as radios + a search that opens the full list
+ * already in the DOM under the field. Type to filter, ↑/↓ move, Enter picks, Esc closes.
+ * Picking sets a hidden input name="category" (and unchecks the recent radios).
+ */
+(() => {
+  function parts(field) {
+    return {
+      field,
+      opener: field.querySelector('[data-js="combobox-open"]'),
+      panel: field.querySelector('.rd-catpick'),
+      input: field.querySelector('[data-js="combobox-input"]'),
+      list: field.querySelector('[role="listbox"]'),
+      empty: field.querySelector('[data-js="combobox-empty"]'),
+      slot: field.querySelector('[data-js="combobox-create-slot"]'),
+    };
+  }
+
+  const visible = (p) => [...p.list.querySelectorAll('[role="option"]')].filter((o) => !o.hidden);
+
+  function setActive(p, option) {
+    p.list.querySelectorAll('[role="option"]').forEach((o) => o.setAttribute('aria-selected', String(o === option)));
+    if (option) {
+      p.input.setAttribute('aria-activedescendant', option.id);
+      option.scrollIntoView({ block: 'nearest' });
+    } else {
+      p.input.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  function open(p) {
+    p.panel.hidden = false;
+    p.opener.setAttribute('aria-expanded', 'true');
+    p.input.focus();
+    filter(p);
+  }
+
+  function close(p, focusOpener = true) {
+    p.panel.hidden = true;
+    p.opener.setAttribute('aria-expanded', 'false');
+    if (focusOpener) p.opener.focus();
+  }
+
+  /* The slot keeps one invisible line so an error line appearing does not move the dialog. */
+  function resetSlot(slot) {
+    const line = document.createElement('p');
+    line.className = 'rd-field__error';
+    line.setAttribute('aria-hidden', 'true');
+    line.textContent = '\u00a0';
+    slot.replaceChildren(line);
+  }
+
+  function filter(p) {
+    if (p.slot) resetSlot(p.slot);
+    const q = p.input.value.trim().toLowerCase();
+    p.list.querySelectorAll('[role="option"]').forEach((o) => {
+      o.hidden = q !== '' && !o.textContent.toLowerCase().includes(q);
+    });
+    const any = visible(p).length > 0;
+    p.list.hidden = !any;
+    if (p.empty) {
+      p.empty.hidden = any;
+      p.empty.querySelectorAll('[data-js="combobox-query"]').forEach((el) => { el.textContent = p.input.value; });
+    }
+    setActive(p, visible(p)[0] || null);
+  }
+
+  function pick(p, option) {
+    const value = option.dataset.value;
+    p.field.querySelectorAll('input[type="radio"][name="category"]').forEach((r) => { r.checked = r.value === value; });
+    let hidden = p.field.querySelector('input[type="hidden"][name="category"]');
+    const matchedRecent = [...p.field.querySelectorAll('input[type="radio"][name="category"]')].some((r) => r.checked);
+    if (!matchedRecent) {
+      if (!hidden) {
+        hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'category';
+        p.field.append(hidden);
+      }
+      hidden.value = value;
+      p.opener.lastChild.textContent = option.textContent.replace(/[↓↑⇄±].*$/, '').trim();
+    } else {
+      if (hidden) hidden.remove();
+      leadRow(p.field.querySelector('input[type="radio"][name="category"]:checked'));
+    }
+    // Let dependent fields (reveal.js) react, e.g. Transit shows the destination account.
+    p.field.dispatchEvent(new Event('change', { bubbles: true }));
+    close(p);
+  }
+
+  /* A mouse press on a list row must not pull focus off the search field: the focusout handler
+     below would close the panel before the button is released and the click would hit nothing
+     (T-UR54). Touch has no such blur, which is why only the mouse failed. */
+  document.addEventListener('mousedown', (event) => {
+    if (event.target.closest('[data-js="combobox"] [role="option"], [data-js="combobox-create"]')) event.preventDefault();
+  });
+
+  document.addEventListener('click', (event) => {
+    const opener = event.target.closest('[data-js="combobox-open"]');
+    if (opener) {
+      const p = parts(opener.closest('[data-js="combobox"]'));
+      if (p.panel.hidden) open(p); else close(p);
+      return;
+    }
+    const option = event.target.closest('[data-js="combobox"] [role="option"]');
+    if (option) pick(parts(option.closest('[data-js="combobox"]')), option);
+  });
+
+  /* "+ new category" (T-UR68): the button POSTs the typed name (hx-params none, so the dialog's own
+     fields are not sent); a 200 answers one list option that is inserted and picked here, a 422
+     swaps the error line into the slot next to the button. The dialog is never replaced. */
+  document.addEventListener('htmx:configRequest', (event) => {
+    const button = event.detail.elt;
+    if (!button.matches || !button.matches('[data-js="combobox-create"]')) return;
+    event.detail.parameters.name = parts(button.closest('[data-js="combobox"]')).input.value.trim();
+  });
+
+  document.addEventListener('htmx:beforeSwap', (event) => {
+    const detail = event.detail;
+    /* htmx fires beforeSwap on the swap target (the slot); the button is the request's element. */
+    const button = detail.requestConfig && detail.requestConfig.elt;
+    if (!button || !button.matches('[data-js="combobox-create"]') || detail.xhr.status !== 200) return;
+    detail.shouldSwap = false;
+    const p = parts(button.closest('[data-js="combobox"]'));
+    const holder = document.createElement('template');
+    holder.innerHTML = detail.xhr.responseText.trim();
+    const option = holder.content.firstElementChild;
+    if (!option) return;
+    option.id = `${p.list.id}-o${p.list.children.length}`;
+    p.list.append(option);
+    p.input.value = '';
+    pick(p, option);
+    filter(p);
+  });
+
+  /* The picked recent chip leads the row (the server renders it first on a re-render,
+     categories.lead_with_selected; ADR-0151 amendment 2026-11-25). Nothing is dropped. */
+  function leadRow(radio) {
+    const label = radio && radio.closest('.rd-chip-option');
+    const row = label && label.parentElement;
+    if (!row || !row.classList.contains('rd-catfield__recent')) return;
+    const first = row.querySelector('.rd-chip-option');
+    if (!first || first === label) return;
+    const focused = document.activeElement === radio;
+    first.before(label);
+    if (focused) radio.focus({ preventScroll: true });
+  }
+
+  /* Only a pointer pick leads. Arrow/Space on the group fire a click with detail 0: the row stays
+     put, focus stays on the active radio and the group stays walkable. A click on the chip label
+     reaches the radio as a synthetic click whose detail is 0 in WebKit, so the pointer press on the
+     chip is remembered instead of trusting detail alone. */
+  let pressedChip = null;
+  document.addEventListener('pointerdown', (event) => {
+    pressedChip = event.target.closest('.rd-catfield__recent .rd-chip-option');
+  });
+  document.addEventListener('keydown', () => { pressedChip = null; });
+  document.addEventListener('click', (event) => {
+    if (!event.target.matches('.rd-catfield__recent input[type="radio"]') || !event.target.checked) return;
+    const byPointer = event.detail > 0 || pressedChip === event.target.closest('.rd-chip-option');
+    pressedChip = null;
+    if (byPointer) leadRow(event.target);
+  });
+
+  document.addEventListener('input', (event) => {
+    if (event.target.matches('[data-js="combobox-input"]')) filter(parts(event.target.closest('[data-js="combobox"]')));
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!event.target.matches('[data-js="combobox-input"]')) return;
+    const p = parts(event.target.closest('[data-js="combobox"]'));
+    const list = visible(p);
+    const i = list.findIndex((o) => o.getAttribute('aria-selected') === 'true');
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setActive(p, list[(i + step + list.length) % list.length] || null);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (list[i]) pick(p, list[i]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close(p);
+    }
+  });
+
+  document.addEventListener('focusout', (event) => {
+    const field = event.target.closest && event.target.closest('[data-js="combobox"]');
+    if (!field) return;
+    window.setTimeout(() => {
+      const p = parts(field);
+      if (!field.contains(document.activeElement) && !p.panel.hidden) close(p, false);
+    }, 0);
+  });
+})();

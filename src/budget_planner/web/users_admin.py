@@ -1,39 +1,63 @@
-"""Response helpers for the admin user roster (T-Q267; T-D17, ADR-0061 section 4, ADR-0073).
+"""Response helpers for the admin user roster (T-Q267, T-UR14; ADR-0061, ADR-0073, ADR-0152).
 
-Renderers for the roster page, the one-shot password toast, the edit slide-over and the
-404/409 flashes, moved out of ``web/routers/settings_users.py``.
+Renderers for the roster page, the one-time password dialog, the edit, reset and delete dialogs and
+the 404/409 flashes, moved out of ``web/routers/settings_users.py``. Dialogs go through
+``web.dialogs`` (they land in ``#modal-root``).
 """
 
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from http import HTTPStatus
 from typing import Final
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from budget_planner.services import users as users_service
+from budget_planner.services import invites as invites_service, users as users_service
 from budget_planner.services.users import AuthUser, UserConflict
+from budget_planner.web.deps import reauth_now
+from budget_planner.web.dialogs import MODAL_ROOT, dialog_response
+from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HX_RESWAP, HX_RETARGET
 from budget_planner.web.middleware.auth import CurrentUser
-from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, is_hx_request, render, render_context
+from budget_planner.web.rendering import is_hx_request, render, render_context
+from budget_planner.web.settings_view import (
+    UserDialogView,
+    invite_rows,
+    live_admin_count,
+    user_dialog_view,
+    user_row_view,
+    user_rows,
+)
 
 LIST_PATH: Final = "/settings/users"
-LIST_TEMPLATE: Final = "settings/users/list.html"
-TABLE_TEMPLATE: Final = "settings/users/_table.html"
-TOAST_TEMPLATE: Final = "settings/users/_password-toast.html"
-ADD_ERRORS_TEMPLATE: Final = "settings/users/_add-errors.html"
-EDIT_TEMPLATE: Final = "settings/users/edit.html"
-FLASH_TEMPLATE: Final = "partials/_flash.html"
-NOT_FOUND_TEMPLATE: Final = "errors/404.html"
-CONFLICT_TEMPLATE: Final = "errors/409.html"
+LIST_TEMPLATE: Final = "pages/settings/users.html"
+TABLE_TEMPLATE: Final = "fragments/tables/users-table.html"
+ROW_TEMPLATE: Final = "fragments/rows/user-row.html"
+ONE_TIME_DIALOG: Final = "fragments/dialogs/one-time-password.html"
+ADD_DIALOG: Final = "fragments/dialogs/add-user.html"
+EDIT_DIALOG: Final = "fragments/dialogs/edit-user.html"
+DELETE_DIALOG: Final = "fragments/dialogs/delete-user.html"
+RESET_DIALOG: Final = "fragments/dialogs/reset-password.html"
+SUMMARY_TEMPLATE: Final = "fragments/forms/error-summary.html"
+FLASH_TEMPLATE: Final = "fragments/flash/error.html"
+FLASH_REGION: Final = "flash-region"
+NOT_FOUND_TEMPLATE: Final = "pages/errors/404.html"
+CONFLICT_TEMPLATE: Final = "pages/errors/409.html"
+RESET_NOTE: Final = "Their existing sessions have been signed out."
 _CHECKBOX_TRUE: Final = frozenset({"on", "1", "true", "yes"})
 
 
 def checkbox(value: str | None) -> bool:
     """HTML checkbox text to a bool (absent means unchecked)."""
     return value is not None and value.lower() in _CHECKBOX_TRUE
+
+
+def add_context(*, email: str = "", name: str = "", is_admin: bool = False) -> dict[str, object]:
+    """Values of the add user dialog (submitted values come back on a 422)."""
+    return {"email": email, "name": name, "is_admin": is_admin, "errors": {}}
 
 
 def not_found(request: Request) -> HTMLResponse:
@@ -43,7 +67,7 @@ def not_found(request: Request) -> HTMLResponse:
             request,
             FLASH_TEMPLATE,
             HTTPStatus.NOT_FOUND,
-            level="error",
+            region=FLASH_REGION,
             message="User not found",
         )
     return render(request, NOT_FOUND_TEMPLATE, HTTPStatus.NOT_FOUND, entity="user", entity_id=0)
@@ -54,91 +78,103 @@ def see_other() -> RedirectResponse:
     return RedirectResponse(LIST_PATH, status_code=HTTPStatus.SEE_OTHER)
 
 
-def page_context(conn: sqlite3.Connection, admin: CurrentUser) -> dict[str, object]:
-    """Template context of the roster page."""
+def page_context(
+    request: Request,
+    conn: sqlite3.Connection,
+    admin: CurrentUser,
+    *,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Template context of the roster page (users, then pending and expired invites)."""
+    tz = request.app.state.settings.display_timezone
+    at = reauth_now(request) if now is None else now
     return {
+        "nav_current": "settings",
         "active_tab": "users",
-        "users": users_service.list_live_users(conn),
-        "me_id": admin.id,
-        "form_errors": {},
-        "form_values": {},
+        "rows": user_rows(users_service.list_live_users(conn), me_id=admin.id, tz=tz),
+        "invite_rows": invite_rows(invites_service.list_invites(conn), now=at, tz=tz),
         "toast": None,
+        "form_summary": (),
     }
 
 
 def password_toast(user: AuthUser, password: str, *, kind: str) -> dict[str, object]:
-    """One-shot password toast payload."""
-    return {"kind": kind, "email": user.email or user.name, "password": password}
+    """One-shot password payload for the one-time password dialog."""
+    return {
+        "kind": kind,
+        "email": user.email or user.name,
+        "name": user.name,
+        "password": password,
+        "note": RESET_NOTE if kind == "reset" else "",
+    }
 
 
 def render_toast(
     request: Request, conn: sqlite3.Connection, admin: CurrentUser, toast: dict[str, object]
 ) -> HTMLResponse:
-    """Toast in ``#user-feedback`` (HTMX) or the full page with it inline."""
-    context = {**page_context(conn, admin), "toast": toast}
-    hx = is_hx_request(request)
-    template = TOAST_TEMPLATE if hx else LIST_TEMPLATE
-    response = render_context(request, template, {**context, "oob_table": hx})
+    """One-time password dialog plus the refreshed table (HTMX) or the page with it inline."""
+    context = {**page_context(request, conn, admin), "toast": toast}
+    if not is_hx_request(request):
+        response = render_context(request, LIST_TEMPLATE, context)
+    else:
+        dialog = dialog_response(request, ONE_TIME_DIALOG, context)
+        table = render_context(request, TABLE_TEMPLATE, {**context, "oob_table": True})
+        response = HTMLResponse(bytes(dialog.body).decode() + bytes(table.body).decode())
+        response.headers[HX_RETARGET] = MODAL_ROOT
+        response.headers[HX_RESWAP] = "innerHTML"
     response.headers["Cache-Control"] = "no-store"  # carries a one-shot password
     return response
 
 
 def conflict(request: Request, exc: UserConflict) -> HTMLResponse:
     """409: error flash with ``HX-Reswap: none`` (HTMX) or the 409 page."""
+    return conflict_message(request, exc.message)
+
+
+def conflict_message(request: Request, message: str) -> HTMLResponse:
+    """409 with ``message`` (a user or an invite refusal): flash (HTMX) or the 409 page."""
     if not is_hx_request(request):
-        return render(request, CONFLICT_TEMPLATE, HTTPStatus.CONFLICT, message=exc.message)
+        return render(request, CONFLICT_TEMPLATE, HTTPStatus.CONFLICT, message=message)
     response = render(
-        request, FLASH_TEMPLATE, HTTPStatus.CONFLICT, level="error", message=exc.message
+        request, FLASH_TEMPLATE, HTTPStatus.CONFLICT, region=FLASH_REGION, message=message
     )
     response.headers[HX_RESWAP] = "none"
+    trigger(response, Event.DIALOG_CLOSE)  # an open dialog would hide the flash behind it
     return response
 
 
-def table_with_flash(
-    request: Request, conn: sqlite3.Connection, admin: CurrentUser, message: str
-) -> HTMLResponse:
-    """Re-rendered roster table with a success flash."""
-    return render(
-        request,
-        TABLE_TEMPLATE,
-        users=users_service.list_live_users(conn),
-        me_id=admin.id,
-        flash_message=message,
-    )
-
-
-def edit_response(
-    request: Request,
-    user: AuthUser,
+def dialog_view(
+    conn: sqlite3.Connection,
+    admin: CurrentUser,
+    target: AuthUser,
     *,
-    me_id: int,
-    errors: dict[str, str],
-    values: dict[str, object] | None = None,
-    status: int = HTTPStatus.OK,
-) -> HTMLResponse:
-    """Edit slide-over; on HTMX validation errors the form is retargeted and swapped."""
-    form_values = values or {
-        "email": user.email or "",
-        "name": user.name,
-        "is_admin": user.is_admin,
-    }
-    context: dict[str, object] = {
-        "target": user,
-        "me_id": me_id,
-        "errors": errors,
-        "form_values": form_values,
-        "hx_enabled": is_hx_request(request),
-    }
-    if is_hx_request(request) and errors:
-        response = render(request, EDIT_TEMPLATE, status, **context)
-        response.headers[HX_RETARGET] = "#user-edit-form"
-        response.headers[HX_RESWAP] = "outerHTML"
-        return response
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        status,
-        slide_over_title=f"Edit {user.email or user.name}",
-        form_include=EDIT_TEMPLATE,
-        **context,
+    name: str | None = None,
+    is_admin: bool | None = None,
+) -> UserDialogView:
+    """Values of the edit, reset and delete dialogs for ``target`` (live admin count included)."""
+    live_admins = live_admin_count(users_service.list_live_users(conn))
+    return user_dialog_view(
+        target, me_id=admin.id, live_admins=live_admins, name=name, is_admin=is_admin
     )
+
+
+def user_dialog(
+    request: Request,
+    conn: sqlite3.Connection,
+    admin: CurrentUser,
+    template: str,
+    target: AuthUser,
+) -> HTMLResponse:
+    """Open the edit, reset or delete dialog for ``target`` in ``#modal-root``."""
+    return dialog_response(
+        request, template, {"view": dialog_view(conn, admin, target), "errors": {}}
+    )
+
+
+def row_context(
+    request: Request, conn: sqlite3.Connection, admin: CurrentUser, user_id: int
+) -> dict[str, object]:
+    """Context of one roster row (``fragments/rows/user-row``) after a save."""
+    listed = next(u for u in users_service.list_live_users(conn) if u.id == user_id)
+    tz = request.app.state.settings.display_timezone
+    return {"row": user_row_view(listed, me_id=admin.id, tz=tz)}

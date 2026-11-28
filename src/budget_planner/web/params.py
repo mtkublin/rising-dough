@@ -16,7 +16,12 @@ from datetime import date
 from typing import Final
 
 from budget_planner.domain.limits import ID_MAX
-from budget_planner.domain.money import parse_amount_minor, parse_amount_str, to_minor_units
+from budget_planner.domain.money import (
+    format_figure,
+    parse_amount_minor,
+    parse_amount_str,
+    to_minor_units,
+)
 
 logger = logging.getLogger(__name__)
 MIN_YEAR: Final = date.min.year
@@ -138,10 +143,8 @@ def parse_year_month(
 def positive_amount(raw: str, currency: str) -> tuple[int | None, str | None]:
     """Strictly positive amount text to ``(minor_units, None)`` or ``(None, error message)``."""
     dec = parse_amount_str(raw, currency)
-    if dec is None:
-        return None, "amount must be a decimal number within range"
-    if dec <= 0:
-        return None, "amount must be positive"
+    if dec is None or dec <= 0:
+        return None, f"Enter an amount above {format_figure(0, currency)}"
     return to_minor_units(dec, currency), None
 
 

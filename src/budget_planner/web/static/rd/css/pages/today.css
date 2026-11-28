@@ -1,0 +1,108 @@
+/* Today */
+.rd-today {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8) var(--space-12);
+}
+
+.rd-today__period {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rd-today__networth {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rd-today__nw-note {
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-today__links {
+  display: flex;
+  gap: var(--space-6);
+  padding-top: var(--space-2);
+  font-size: var(--font-size-data);
+}
+
+/* Legend glyphs: spent and committed cells are ink in the bar; "left" reuses .rd-bar__left. */
+.rd-stats__glyph {
+  color: var(--color-ink);
+}
+
+.rd-afford {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-rule);
+}
+
+.rd-afford__label {
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-afford__output {
+  flex-basis: 100%;
+  font-size: var(--font-size-body);
+}
+
+.rd-afford__output.htmx-request {
+  color: var(--color-ink-muted);
+  cursor: progress;
+}
+
+.rd-afford__result--over {
+  color: var(--color-over);
+}
+
+.rd-afford .rd-field__error {
+  flex-basis: 100%;
+  padding: 0;
+}
+
+@media (width >= 48rem) {
+  .rd-afford {
+    justify-content: flex-start;
+    gap: var(--space-3) var(--space-4);
+    padding-top: var(--space-5);
+  }
+
+  .rd-afford .rd-input--afford {
+    padding: 0 var(--space-4);
+  }
+
+  .rd-afford .rd-input--afford .rd-input__control {
+    width: var(--size-input-afford);
+  }
+
+  .rd-afford__output {
+    flex-basis: auto;
+  }
+
+  .rd-today__period {
+    gap: var(--space-5);
+  }
+
+  .rd-today__networth {
+    display: flex;
+  }
+}
+
+@media (width >= 64rem) {
+  .rd-today {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+}
+
+/* Over budget the whole bar is --color-over (bar.css): the ink legend glyphs follow it. */
+.rd-stats[data-bar="rd-bar--over"] .rd-stats__glyph {
+  color: var(--color-over);
+}

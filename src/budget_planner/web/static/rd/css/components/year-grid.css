@@ -1,0 +1,181 @@
+/* Yearly budget grid. Each cell carries a glyph: ↻ recurring override, • one-off override, – unset. */
+.rd-year__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-year__swatch {
+  display: inline-block;
+  width: var(--size-swatch);
+  height: var(--space-4);
+  vertical-align: middle;
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-raised);
+}
+
+.rd-year__scroll {
+  margin-top: var(--space-5);
+}
+
+.rd-year {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: var(--table-min-year);
+}
+
+.rd-year thead,
+.rd-year tbody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rd-year__row {
+  display: grid;
+  grid-template-columns: var(--track-category) repeat(12, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.rd-year__row > th,
+.rd-year__row > td {
+  display: block;
+  padding: 0;
+  text-align: start;
+  font-weight: var(--font-weight-regular);
+}
+
+.rd-year__row--head {
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-year__month {
+  text-align: center !important;
+}
+
+.rd-year__month[aria-current="date"] {
+  color: var(--color-ink);
+}
+
+.rd-year__cat {
+  justify-self: start;
+}
+
+.rd-year-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-cell);
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-cell);
+  background: var(--color-raised);
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rd-year-cell:hover {
+  border-color: var(--color-ink-muted);
+}
+
+.rd-year-cell[data-state="recurring"] {
+  border-color: color-mix(in srgb, var(--color-ink-muted) 60%, transparent);
+  background: color-mix(in srgb, var(--color-ink-muted) 12%, transparent);
+}
+
+.rd-year-cell[data-state="one-off"] {
+  border-color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.rd-year-cell[data-state="unset"] {
+  border: var(--border-width) dashed var(--color-ink-muted);
+  background: none;
+}
+
+.rd-year-cell[data-state="editing"] {
+  padding: 0;
+  border-color: var(--color-ink);
+  background: var(--color-panel);
+}
+
+.rd-year-cell.htmx-request {
+  color: var(--color-ink-muted);
+  cursor: progress;
+}
+
+.rd-year-cell--lg {
+  min-height: var(--size-control);
+  font-size: var(--font-size-data);
+}
+
+/* Inline year-grid cell editor */
+.rd-year-editor {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--size-cell);
+  border: var(--border-width-strong) solid var(--color-ink);
+  border-radius: var(--radius-cell);
+  background: var(--color-panel);
+}
+
+.rd-year-editor__input {
+  width: 100%;
+  min-width: 0;
+  height: var(--size-cell);
+  padding: 0 var(--space-1-5);
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* Disclosure (unbudgeted categories, recurring details) */
+.rd-disclosure {
+  margin-top: var(--space-4);
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-menu);
+}
+
+.rd-disclosure__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: var(--size-control);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  list-style: none;
+}
+
+.rd-disclosure__summary::-webkit-details-marker {
+  display: none;
+}
+
+.rd-disclosure__summary::before {
+  content: "▸";
+}
+
+.rd-disclosure[open] > .rd-disclosure__summary::before {
+  content: "▾";
+}
+
+.rd-disclosure__body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) 0 var(--space-4);
+}

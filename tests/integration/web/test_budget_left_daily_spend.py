@@ -14,6 +14,7 @@ from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.periods import next_month_start
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
 from budget_planner.repositories import (
@@ -23,7 +24,9 @@ from budget_planner.repositories import (
     planned as planned_repo,
     preferences as preferences_repo,
 )
-from tests.ui_map import _html, plan
+from budget_planner.web.view_models import day_month
+from tests.ui_map import _html, plan, today
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
@@ -73,8 +76,17 @@ def _seed_anchor_and_income(
         conn.close()
 
 
+def _end_of_month_caption(settings: Settings) -> str:
+    """The fallback caption for the frozen clock: days to the 1st of next month, as ``d mon``."""
+    today_ = clock.today_local(settings)
+    first_next = next_month_start(today_.year, today_.month)
+    days = max((first_next - today_).days, 1)
+    noun = "day" if days == 1 else "days"
+    return f"{days} {noun} until next income ({day_month(first_next)})"
+
+
 def _hero(html: str) -> str:
-    return _html.text_of(html, plan.budget_hero)
+    return _html.text_of(html, by_id("today-hero"))
 
 
 def test_left_daily_spend_card_renders_number_and_caption(
@@ -84,12 +96,12 @@ def test_left_daily_spend_card_renders_number_and_caption(
     # the frozen clock so the test holds on any date (ADR-0140).
     income_date = clock.today_local(_migrated) + timedelta(days=30)
     _seed_anchor_and_income(_migrated, world["salary"], world["checking"], income_date)
-    r = client.get("/budget")
+    r = client.get("/today")
     assert r.status_code == 200
-    assert _html.exists(r.text, plan.budget_hero_heading)
+    assert _html.exists(r.text, today.heading)
     hero = _hero(r.text)
     assert "Salary" in hero
-    assert "next income" in hero
+    assert "until next income (Salary," in hero
 
 
 def test_left_daily_spend_card_renders_dash_when_zero_budget(
@@ -100,13 +112,13 @@ def test_left_daily_spend_card_renders_dash_when_zero_budget(
         categories_repo.create(conn, USER_ID, NewCategory(name="Any", direction=Direction.EXPENSE))
     finally:
         conn.close()
-    assert "No budgets set" in _hero(client.get("/budget").text)
+    assert _html.text_of(client.get("/today").text, today.hero_per_day) == "0.00"
 
 
 def test_left_daily_spend_card_shows_end_of_month_fallback_when_anchor_unset(
-    client: TestClient, world: dict[str, int]
+    client: TestClient, _migrated: Settings, world: dict[str, int]
 ) -> None:
-    assert "end of month" in _hero(client.get("/budget").text)
+    assert _end_of_month_caption(_migrated) in _hero(client.get("/today").text)
 
 
 def test_settings_prefs_lists_income_categories_in_select(
@@ -119,13 +131,6 @@ def test_settings_prefs_lists_income_categories_in_select(
     assert "Salary" in [o.get_text(strip=True) for o in options]
 
 
-def test_budget_page_links_to_settings_anchor(client: TestClient, world: dict[str, int]) -> None:
-    """ADR-0031 §1 — the hero caption carries a `Change anchor →` link."""
-    r = client.get("/budget")
-    link = _html.resolve_one(r.text, plan.change_anchor_link)
-    assert link.get("href") == "/settings?tab=prefs#income-anchor"
-
-
 def test_stale_anchor_renders_fallback_without_500(
     client: TestClient, _migrated: Settings, world: dict[str, int]
 ) -> None:
@@ -136,6 +141,6 @@ def test_stale_anchor_renders_fallback_without_500(
         categories_repo.soft_delete(conn, USER_ID, world["salary"])
     finally:
         conn.close()
-    r = client.get("/budget")
+    r = client.get("/today")
     assert r.status_code == 200
-    assert "end of month" in _hero(r.text)
+    assert _end_of_month_caption(_migrated) in _hero(r.text)

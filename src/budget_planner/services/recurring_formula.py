@@ -22,125 +22,33 @@ from dataclasses import dataclass
 from typing import Literal
 
 from budget_planner.domain.errors import require_present
-from budget_planner.domain.money import (
-    bps_to_percent,
-    format_bps_percent,
-    parse_percent_str,
-    percent_to_bps,
-    round_div,
-)
+from budget_planner.domain.money import round_div
 from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
-    FORMULA_SCHEMA_VERSION,
     AmountFormula,
     FormulaTerm,
     Occurrence,
     RecurringOverride,
     RecurringRule,
-    TermSign,
 )
 from budget_planner.domain.recurring_schedule import generate_occurrences
 from budget_planner.repositories import categories as categories_repo, recurring as recurring_repo
 from budget_planner.services import fx as fx_service
 from budget_planner.services.fx import FxConverter
+from budget_planner.services.recurring_formula_terms import (
+    FORMULA_CYCLE_MARK,
+    FormulaCycleError,
+    FormulaError,
+    build_formula,
+    build_term,
+    parse_percent_to_bps,
+    term_input_rows,
+)
 from budget_planner.services.recurring_overrides import apply_overrides
 
 logger = logging.getLogger(__name__)
 
-# Basis-point ceiling: 10 000% — formula sanity guard, not a product
-# limit. Anything above this is almost certainly a data-entry mistake
-# (coefficient_bps=120 ≠ 1200 confusion). Floor is 1 bps (0.01%).
-_BPS_MIN = 1
 _FULL_BPS = 10_000  # 100% in basis points.
-_BPS_MAX = 1_000_000
-
-
-class FormulaError(ValueError):
-    """Raised when a formula fails validation at the save boundary."""
-
-
-class FormulaCycleError(FormulaError):
-    """Raised when a formula would create a dependency cycle (ADR-0047)."""
-
-
-# ---------------------------------------------------------------------------
-# Parsing + building (used by routers + tests)
-# ---------------------------------------------------------------------------
-def parse_percent_to_bps(percent_str: str) -> int:
-    """Convert a decimal percent string ("12", "12.5", "0.075") to int bps.
-
-    Rounds half-up to the nearest basis point. Raises :class:`FormulaError`
-    on non-decimal input or out-of-range values. Accepts "," as a decimal
-    separator (same policy as ``domain.money.parse_amount_str``).
-    """
-    normalised = (percent_str or "").strip().replace(",", ".")
-    if not normalised:
-        raise FormulaError("coefficient is required for formula rules")
-    dec = parse_percent_str(normalised)
-    if dec is None:
-        raise FormulaError("coefficient must be a decimal number")
-    bps = percent_to_bps(dec)
-    if bps < _BPS_MIN or bps > _BPS_MAX:
-        raise FormulaError(
-            f"coefficient must be between {format_bps_percent(_BPS_MIN)}% "
-            f"and {format_bps_percent(_BPS_MAX)}%"
-        )
-    return bps
-
-
-def term_input_rows(formula: AmountFormula) -> list[dict[str, object]]:
-    """Persisted formula terms as form-shaped rows (percent string, sign, category ids)."""
-    return [
-        {
-            "sign": term.sign,
-            "coefficient_percent": format(bps_to_percent(term.coefficient_bps).normalize(), "f"),
-            "source_category_ids": tuple(term.source_category_ids),
-        }
-        for term in formula.terms
-    ]
-
-
-def _parse_sign(raw: str) -> TermSign:
-    cleaned = (raw or "+").strip()
-    if cleaned not in {"+", "-"}:
-        raise FormulaError("term sign must be '+' or '-'")
-    return "+" if cleaned == "+" else "-"
-
-
-def build_term(
-    *,
-    sign: str,
-    coefficient_percent: str,
-    source_category_ids: Iterable[int],
-) -> FormulaTerm:
-    """Validate + build a single :class:`FormulaTerm` from form inputs."""
-    parsed_sign = _parse_sign(sign)
-    bps = parse_percent_to_bps(coefficient_percent)
-    seen: set[int] = set()
-    cleaned: list[int] = []
-    for raw in source_category_ids:
-        cid = int(raw)
-        if cid in seen:
-            continue
-        seen.add(cid)
-        cleaned.append(cid)
-    if not cleaned:
-        raise FormulaError("each term needs at least one source category")
-    return FormulaTerm(
-        sign=parsed_sign,
-        coefficient_bps=bps,
-        source_category_ids=tuple(cleaned),
-    )
-
-
-def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
-    """Wrap a validated terms list into an :class:`AmountFormula`.
-
-    Non-empty terms list required. Each term must already pass :func:`build_term`.
-    """
-    if not terms:
-        raise FormulaError("formula needs at least one term")
-    return AmountFormula(terms=tuple(terms), schema_version=FORMULA_SCHEMA_VERSION)
 
 
 # ---------------------------------------------------------------------------
@@ -411,8 +319,38 @@ def rt_expand(
     """
     occs = generate_occurrences(rule, range_start, range_end)
     if rule.amount_formula is not None:
-        occs = tuple(_with_formula_amount(conn, user_id, rule, occs, fx))
+        try:
+            occs = tuple(_with_formula_amount(conn, user_id, rule, occs, fx))
+        except FormulaCycleError:
+            # A rule saved before create-time cycle checks: keep its dates, drop its amount,
+            # mark it, and keep the page that lists it alive.
+            logger.warning("formula cycle in recurring rule %s: amount skipped", rule.id)
+            occs = tuple(
+                dataclasses.replace(occ, amount=0, description=cycle_label(occ.description))
+                for occ in occs
+            )
     return apply_overrides(occs, overrides)
+
+
+def live_rule_amount(
+    conn: sqlite3.Connection, user_id: int, rule: RecurringRule, on: dt.date, fx: FormulaFx
+) -> tuple[int, bool]:
+    """What the rule posts on ``on`` and whether it is a stored formula cycle (Q25, ADR-0047).
+
+    A cyclic stored formula posts 0 and is flagged, exactly like :func:`rt_expand`; the saved
+    snapshot is never shown for it.
+    """
+    try:
+        return resolve_rule_amount(conn, user_id, rule, on, fx=fx), False
+    except FormulaCycleError:
+        return 0, True
+
+
+def cycle_label(description: str) -> str:
+    """The occurrence's description with the "formula cycle" marker (Today shows it)."""
+    if not description:
+        return FORMULA_CYCLE_MARK
+    return f"{description} \N{MIDDLE DOT} {FORMULA_CYCLE_MARK}"
 
 
 def _with_formula_amount(
@@ -465,8 +403,14 @@ def validate_formula_sources(
     formula: AmountFormula,
     *,
     exclude_rule_id: int | None = None,
+    posting_category_id: int | None = None,
 ) -> None:
-    """Topological reachability check — reject cycles (ADR-0047)."""
+    """Topological reachability check — reject cycles (ADR-0047).
+
+    ``posting_category_id`` is the category the drafted rule posts to. A new rule has no id
+    yet, so its cycles are found through that category: a source that is the rule's own
+    category, or a source rule whose formula (directly or through more rules) reads it.
+    """
     # Sentinel for brand-new rules (not yet persisted) so the walk still
     # catches a cycle the new rule would introduce once persisted.
     target_id = -1 if exclude_rule_id is None else exclude_rule_id
@@ -476,18 +420,22 @@ def validate_formula_sources(
     for rule in all_rules:
         by_category.setdefault(rule.category_id, []).append(rule)
 
-    stack = _seed_cycle_stack(formula, by_category, exclude_rule_id)
-    _walk_for_cycle(stack, all_rules, by_category, target_id)
+    stack = _seed_cycle_stack(formula, by_category, exclude_rule_id, posting_category_id)
+    _walk_for_cycle(stack, all_rules, by_category, target_id, posting_category_id)
 
 
 def _seed_cycle_stack(
     formula: AmountFormula,
     by_category: Mapping[int, Sequence[RecurringRule]],
     exclude_rule_id: int | None,
+    posting_category_id: int | None,
 ) -> list[int]:
     """Every rule id reachable from the proposed formula (stack seed)."""
+    referenced = _collect_referenced_category_ids(formula)
+    if posting_category_id is not None and posting_category_id in referenced:
+        raise FormulaCycleError("a formula cannot reference its own category")
     stack: list[int] = []
-    for cat_id in _collect_referenced_category_ids(formula):
+    for cat_id in referenced:
         for rule in by_category.get(cat_id, []):
             if rule.id == exclude_rule_id:
                 # The rule being saved cannot source itself.
@@ -501,22 +449,29 @@ def _walk_for_cycle(
     all_rules: Sequence[RecurringRule],
     by_category: Mapping[int, Sequence[RecurringRule]],
     target_id: int,
+    own_category_id: int | None = None,
 ) -> None:
-    """Depth-first walk from ``seeds``; raise when ``target_id`` is reachable."""
+    """Depth-first walk from ``seeds``; raise when ``target_id`` or ``own_category_id`` is read."""
+    by_id = {r.id: r for r in all_rules}
     visited: set[int] = set()
     pending = list(seeds)
     while pending:
         rid = pending.pop()
-        if rid == target_id:
+        referenced = _sources_of(by_id.get(rid))
+        if rid == target_id or own_category_id in referenced:
             raise FormulaCycleError(f"formula would create a cycle via rule {rid}")
         if rid in visited:
             continue
         visited.add(rid)
-        found: RecurringRule | None = next((r for r in all_rules if r.id == rid), None)
-        if found is None or found.amount_formula is None:
-            continue
-        for cat_id in _collect_referenced_category_ids(found.amount_formula):
+        for cat_id in referenced:
             pending.extend(c.id for c in by_category.get(cat_id, []) if c.id not in visited)
+
+
+def _sources_of(rule: RecurringRule | None) -> set[int]:
+    """Category ids a rule's formula reads (none for a fixed or unknown rule)."""
+    if rule is None or rule.amount_formula is None:
+        return set()
+    return _collect_referenced_category_ids(rule.amount_formula)
 
 
 # ---------------------------------------------------------------------------
@@ -542,6 +497,53 @@ def invalid_source_ids(
     return None
 
 
+def evaluation_month(start: dt.date | None, today: dt.date) -> dt.date:
+    """The day whose month a new rule's snapshot and preview are computed for.
+
+    A rule that starts in a later month first posts then, so its sources are read in that month;
+    a started (or undated) rule reads the current month.
+    """
+    return start if start is not None and start > today else today
+
+
+NO_SOURCE_AMOUNTS = (
+    "the picked categories have no recurring amounts in {month}: a formula reads recurring rules"
+)
+
+
+def _no_sources_message(
+    conn: sqlite3.Connection,
+    user_id: int,
+    formula: AmountFormula,
+    when: dt.date,
+    *,
+    fx: FormulaFx,
+    target_ccy: str,
+    exclude_rule_id: int | None,
+) -> str:
+    """Why ``formula`` is not positive in ``when``'s month: empty sources, or terms that cancel."""
+    in_progress: frozenset[int] = (
+        frozenset({exclude_rule_id}) if exclude_rule_id is not None else frozenset()
+    )
+    cache: _Memo = {}
+    for term in formula.terms:
+        total, cache = _sum_category_in_month(
+            conn,
+            user_id,
+            term.source_category_ids,
+            when.year,
+            when.month,
+            exclude_rule_id=exclude_rule_id,
+            in_progress=in_progress,
+            cache=cache,
+            fx=fx,
+            target_ccy=target_ccy,
+        )
+        if total != 0:
+            return "formula resolved to a non-positive amount"
+    return NO_SOURCE_AMOUNTS.format(month=when.strftime("%B %Y"))
+
+
 def compute_savable_amount(
     conn: sqlite3.Connection,
     user_id: int,
@@ -552,6 +554,7 @@ def compute_savable_amount(
     fx: FormulaFx,
     target_ccy: str,
     exclude_rule_id: int | None = None,
+    posting_category_id: int | None = None,
 ) -> int:
     """Validate a formula for saving and return its snapshot amount (minor units).
 
@@ -561,7 +564,13 @@ def compute_savable_amount(
     bad = invalid_source_ids(conn, user_id, [t.source_category_ids for t in formula.terms])
     if bad is not None:
         raise FormulaError(f"unknown or archived source category: {bad[1]}")
-    validate_formula_sources(conn, user_id, formula, exclude_rule_id=exclude_rule_id)
+    validate_formula_sources(
+        conn,
+        user_id,
+        formula,
+        exclude_rule_id=exclude_rule_id,
+        posting_category_id=posting_category_id,
+    )
     amount = compute_formula_amount(
         conn,
         user_id,
@@ -573,7 +582,17 @@ def compute_savable_amount(
         exclude_rule_id=exclude_rule_id,
     )
     if amount <= 0:
-        raise FormulaError("formula resolved to a non-positive amount")
+        raise FormulaError(
+            _no_sources_message(
+                conn,
+                user_id,
+                formula,
+                dt.date(year, month, 1),
+                fx=fx,
+                target_ccy=target_ccy,
+                exclude_rule_id=exclude_rule_id,
+            )
+        )
     return amount
 
 
@@ -606,6 +625,19 @@ class PreviewError:
 PreviewResult = PreviewOk | PreviewError
 
 
+def preview_is_quiet(result: PreviewResult) -> bool:
+    """True when ``result`` is an empty or incomplete draft (no percent or category yet).
+
+    A quiet result has no line of its own in the formula body; the hero note says why. Every
+    other failure (a stale source, a cycle, nothing to read) shows once, in the formula body.
+    """
+    if isinstance(result, PreviewOk):
+        return False
+    if result.code == "empty":
+        return True
+    return result.code == "invalid_source" and not result.message.startswith("unknown or archived")
+
+
 def preview(
     conn: sqlite3.Connection,
     user_id: int,
@@ -615,6 +647,7 @@ def preview(
     *,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None = None,
 ) -> PreviewResult:
     """Return the computed value for a draft term list, or an inline error.
 
@@ -640,7 +673,14 @@ def preview(
     if isinstance(formula, PreviewError):
         return formula
     return _evaluate_draft(
-        conn, user_id, formula, when, draft_rule_id, fx=fx, target_ccy=target_ccy
+        conn,
+        user_id,
+        formula,
+        when,
+        draft_rule_id,
+        fx=fx,
+        target_ccy=target_ccy,
+        posting_category_id=posting_category_id,
     )
 
 
@@ -659,10 +699,17 @@ def _evaluate_draft(
     *,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None,
 ) -> PreviewResult:
     """Cycle-check the draft, compute it for ``when`` and require a positive value."""
     try:
-        validate_formula_sources(conn, user_id, formula, exclude_rule_id=draft_rule_id)
+        validate_formula_sources(
+            conn,
+            user_id,
+            formula,
+            exclude_rule_id=draft_rule_id,
+            posting_category_id=posting_category_id,
+        )
         amount_minor = compute_formula_amount(
             conn,
             user_id,
@@ -676,7 +723,18 @@ def _evaluate_draft(
     except FormulaCycleError as exc:
         return _preview_error("cycle", str(exc))
     if amount_minor <= 0:
-        return _preview_error("non_positive", "formula resolved to a non-positive amount")
+        return _preview_error(
+            "non_positive",
+            _no_sources_message(
+                conn,
+                user_id,
+                formula,
+                when,
+                fx=fx,
+                target_ccy=target_ccy,
+                exclude_rule_id=draft_rule_id,
+            ),
+        )
     return PreviewOk(amount_minor=amount_minor)
 
 
@@ -702,6 +760,7 @@ def _build_draft_formula(terms: Sequence[DraftTerm]) -> AmountFormula | PreviewE
 
 __all__ = [
     "DATES_ONLY",
+    "FORMULA_CYCLE_MARK",
     "DatesOnly",
     "DraftTerm",
     "FormulaCycleError",
@@ -715,12 +774,17 @@ __all__ = [
     "build_term",
     "compute_formula_amount",
     "compute_savable_amount",
+    "cycle_label",
+    "evaluation_month",
     "formula_fx",
     "formula_fx_for",
     "invalid_source_ids",
+    "live_rule_amount",
     "parse_percent_to_bps",
     "preview",
+    "preview_is_quiet",
     "resolve_rule_amount",
     "rt_expand",
+    "term_input_rows",
     "validate_formula_sources",
 ]

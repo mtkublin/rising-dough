@@ -50,8 +50,10 @@ _CHROME_IOS = (
         ("curl/8.4.0", UNKNOWN_DEVICE),
         ("", UNKNOWN_DEVICE),
         (None, UNKNOWN_DEVICE),
-        ("Mozilla/5.0 (Windows NT 10.0) Gecko", UNKNOWN_DEVICE),
-        ("Firefox/132.0", "Firefox"),
+        ("Mozilla/5.0 (Windows NT 10.0) Gecko", "Unknown browser · Windows"),
+        ("Firefox/132.0", "Firefox · unknown system"),
+        ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15) Gecko", "Unknown browser · macOS"),
+        ("Mozilla/5.0 Gecko", UNKNOWN_DEVICE),
     ],
 )
 def test_device_label(user_agent: str | None, expected: str) -> None:

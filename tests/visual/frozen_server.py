@@ -25,11 +25,12 @@ from contextlib import nullcontext
 
 from budget_planner import clock
 
-# Handoff fixture (T-UT10): the designer's sample data (period 7 Oct -> 7 Nov,
-# "day 25 of 31", tax refund due 31 Oct, 10 accounts, net worth 34,439.69 PLN)
-# was drawn from data/demo.sqlite on this day, so the frozen demo DB at this
-# date IS the matching fixture. ``HANDOFF_FIXTURE_DATE`` is the single source
-# for conftest.FROZEN_DATE and handoff.HANDOFF_FIXED_TIME.
+# Handoff fixture (T-UT10, T-UR00b): the designer's sample data (period 7 Oct -> 7 Nov,
+# "day 25 of 31", tax refund due 31 Oct, 10 accounts) is shown at this day. The
+# handoff-reference comparison serves the base seed of ``tests/visual/handoff_seed.py``
+# at this date (ADR-0147 §3); the old-UI route snapshots still use the demo.sqlite copy.
+# ``HANDOFF_FIXTURE_DATE`` is the single source for conftest.FROZEN_DATE and
+# handoff.HANDOFF_FIXED_TIME.
 HANDOFF_FIXTURE_DATE = "2026-10-31"
 FROZEN_TIME = dt.time(10, 0)  # 10:00 UTC: same calendar day in Europe/Warsaw
 
@@ -38,9 +39,27 @@ def frozen_instant(day: dt.date) -> dt.datetime:
     return dt.datetime.combine(day, FROZEN_TIME, tzinfo=dt.UTC)
 
 
+HANDOFF_ONE_TIME_PASSWORD = "kT4p-9wrx-Lomb"  # noqa: S105 - the board's sample, not a credential  # pragma: allowlist secret
+
+
+class _HandoffTokens:
+    """Token port of the visual server: the generated one-time password is the board's sample.
+
+    Every other token (invites, sessions, CSRF) keeps the CSPRNG. Only the 16-byte request of
+    ``services.users.generate_password`` is replaced, so the dialog shows what the handoff shows.
+    """
+
+    def new_token(self, nbytes: int) -> str:
+        tokens = importlib.import_module("budget_planner.adapters.entropy").SecretsTokenSource()
+        return HANDOFF_ONE_TIME_PASSWORD if nbytes == 16 else str(tokens.new_token(nbytes))
+
+
 def main() -> None:
     raw = os.environ.get("BUDGET_VISUAL_FROZEN_DATE")
     uvicorn = importlib.import_module("uvicorn")  # not in the pre-commit mypy env
+    web_app = importlib.import_module("budget_planner.web.app").app
+    deps = importlib.import_module("budget_planner.web.deps")
+    web_app.dependency_overrides[deps.get_token_source] = _HandoffTokens
 
     port = int(sys.argv[1])
     with clock.frozen(frozen_instant(dt.date.fromisoformat(raw))) if raw else nullcontext():

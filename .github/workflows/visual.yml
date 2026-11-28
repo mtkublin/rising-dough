@@ -8,7 +8,8 @@ name: Visual
 # (tag + digest; the tag equals the `playwright` version in uv.lock, checked by
 # tests/architecture/test_visual_image_pin.py). Baselines are Linux-only and
 # regenerated only here or via `just visual-update`; `update_baselines` uploads
-# them as an artifact and never commits. No secrets, no environments.
+# them as an artifact and never commits. Baselines are the accepted-UI screenshots
+# (ADR-0154); the handoff reference comparison job is gone. No secrets, no environments.
 on:
   pull_request:
     branches: [main]
@@ -55,7 +56,7 @@ jobs:
             exit 0
           fi
           files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
-          if printf '%s\n' "$files" | grep -Eq '^(src/budget_planner/web/templates/|src/budget_planner/web/static/|tests/visual/|scripts/ci/visual_in_container\.sh$|\.github/workflows/visual\.yml$|package(-lock)?\.json$)'; then
+          if printf '%s\n' "$files" | grep -Eq '^(src/budget_planner/web/templates/|src/budget_planner/web/static/|tests/visual/|docs/design/rising-dough-frontend/|scripts/ci/visual_in_container\.sh$|\.github/workflows/visual\.yml$|package(-lock)?\.json$)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

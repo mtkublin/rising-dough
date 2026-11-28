@@ -1,0 +1,6 @@
+{# fragment: rows/reconcile-snapshot (one line of the reconcile dialog's SNAPSHOTS list)
+   Inputs: snapshot (accounts_view.SnapshotLine: taken, amount_minor), currency. #}
+<li class="rd-snapshots__item">
+  <span class="rd-muted">{{ snapshot.taken }}</span>
+  <span class="rd-num">{{ snapshot.amount_minor|money(currency) }}</span>
+</li>

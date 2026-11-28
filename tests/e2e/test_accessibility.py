@@ -17,7 +17,7 @@ from playwright.sync_api import Page
 
 pytestmark = pytest.mark.e2e
 
-_ROUTES = ("/today", "/ledger", "/accounts", "/budget")
+_ROUTES = ("/today", "/ledger", "/accounts", "/plan")
 
 
 def test_skip_link_focuses_first(page: Page, live_server: tuple[str, object]) -> None:

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 from http import HTTPStatus
+from types import MappingProxyType
 from typing import Final
 
 from fastapi import Request
@@ -21,9 +22,17 @@ from budget_planner.web.middleware.must_change_password import PASSWORD_PATH
 from budget_planner.web.rendering import is_hx_request, render
 from budget_planner.web.security_context import SECURITY_PATH, security_context
 
-PAGE: Final = "settings/password.html"
-FORM: Final = "settings/_password_form.html"
-SECURITY_PAGE: Final = "settings/security.html"
+PAGE: Final = "pages/auth/force-password.html"
+FORM: Final = "fragments/forms/password-form.html"
+SECURITY_PAGE: Final = "pages/settings/security.html"
+#: Field -> (input id, label the form prints): the summary links to the field it names.
+INPUTS: Final = MappingProxyType(
+    {
+        "current_password": ("current-password", "current password"),
+        "new_password": ("new-password", "new password"),
+        "confirm_password": ("confirm-password", "confirm new password"),
+    }
+)
 THROTTLED_FORM_ERROR: Final = "Too many attempts. Please wait a few minutes and try again."
 
 
@@ -58,6 +67,7 @@ def render_form(
         "forced": user.must_change_password,
         "next_path": next_path,
         "outcome": outcome,
+        "errors": {e.field: e.message for e in outcome.errors} if outcome else {},
         "min_length": password_service.MIN_PASSWORD_LENGTH,
         "throttle_error": THROTTLED_FORM_ERROR if throttled else None,
     }

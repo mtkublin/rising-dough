@@ -60,6 +60,27 @@ def test_bar_cells(
     assert (bar.filled, bar.empty, bar.left_pct) == expected
 
 
+@pytest.mark.parametrize(
+    ("spent", "budget", "expected"),
+    [
+        (
+            501_455,
+            644_908,
+            (16, 4, 23),
+        ),  # 77.76 % of 20 cells: 16 (handoff Today bar), not 15; left_pct = 100 - floored 77
+        (0, 100, (0, 20, 100)),
+        (1, 1_000, (1, 19, 100)),  # min_one
+        (644_908, 644_908, (20, 0, 0)),
+        (650_000, 644_908, (20, 0, 0)),  # clamped
+    ],
+)
+def test_bar_cells_exact_rounds_the_share_not_the_floored_percent(
+    spent: int, budget: int, expected: tuple[int, int, int]
+) -> None:
+    bar = view_models.bar_cells_exact(spent, budget, 20, min_one=True)
+    assert (bar.filled, bar.empty, bar.left_pct) == expected
+
+
 def _line(cid: int, budgeted: int, spent: int) -> CategoryBudgetLine:
     return CategoryBudgetLine(
         category_id=cid,
@@ -135,3 +156,36 @@ def test_upcoming_group_counts() -> None:
     view = view_models.upcoming_view(rows, TODAY, {}, {})
     assert (view.overdue_count, view.due_today_count) == (1, 1)
     assert (view.next_7_count, view.later_count) == (3, 2)
+
+
+def test_budget_view_over_count_excludes_unbudgeted_spend() -> None:
+    """Hero "N over" counts budgeted rows only; unbudgeted spend is not counted (T-UR70)."""
+    unbudgeted = CategoryBudgetLine(
+        category_id=9,
+        category_name="c9",
+        category_direction=Direction.EXPENSE,
+        category_color=None,
+        budgeted_minor=None,
+        spent_minor=700,
+        remaining_minor=-700,
+        avg_monthly_overall_minor=0,
+        avg_this_year_minor=0,
+        delta_vs_prev_month_minor=0,
+    )
+    summary = budget_service.MonthSummary(
+        year=2026,
+        month=10,
+        lines=(_line(1, 1000, 1500), unbudgeted),
+        totals=budget_service.MonthTotals(
+            budgeted_minor=1000, spent_minor=1500, committed_minor=0, remaining_minor=-500
+        ),
+        left_daily_spend_minor=None,
+        next_income_date=date(2026, 11, 7),
+        days_until_next_income=7,
+        anchor_category_name=None,
+        period_start=date(2026, 10, 7),
+    )
+    view = view_models.budget_view(summary, TODAY)
+    assert [v.line.category_id for v in view.lines] == [1]
+    assert [v.line.category_id for v in view.unbudgeted_lines] == [9]
+    assert view.over_count == 1

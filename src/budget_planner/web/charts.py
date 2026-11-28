@@ -27,7 +27,6 @@ from typing import cast
 
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import format_axis_number, major_float
-from budget_planner.services.analytics import AnalyticsBundle
 
 # ---------------------------------------------------------------------------
 # Shared primitives
@@ -35,6 +34,7 @@ from budget_planner.services.analytics import AnalyticsBundle
 
 _BAR_KINDS = frozenset({Direction.INCOME.value, Direction.EXPENSE.value})
 _NUM_FMT = "{:.3f}"
+_TENTH_FMT = "{:.1f}"
 _NICE_FRACTIONS: tuple[float, ...] = (1.0, 2.0, 2.5, 5.0, 10.0)
 _DEFAULT_TARGET_TICKS = 5
 
@@ -655,7 +655,10 @@ __all__ = [
     "grouped_bars",
     "horizontal_bars",
     "line_area",
+    "nice_scale",
     "sparkline",
+    "svg_number",
+    "svg_tenth",
 ]
 
 
@@ -667,22 +670,17 @@ def line_area_minor(
     return line_area(points, x_labels=labels)
 
 
-def analytics_charts(
-    bundle: AnalyticsBundle, currency: str
-) -> tuple[HorizontalBarsChart, GroupedBarsChart]:
-    """Spend-by-category bars and income/expense grouped bars for the Analytics tab."""
-    spend_items = tuple(
-        (row.category_name, major_float(row.amount_minor, currency))
-        for row in bundle.spend_by_category
-    )
-    flow_groups = tuple(
-        {
-            "label": point.label[-5:],  # YYYY-MM -> MM-?; keep tail for density
-            "bars": [
-                (Direction.INCOME.value, major_float(point.income_minor, currency)),
-                (Direction.EXPENSE.value, major_float(point.expense_minor, currency)),
-            ],
-        }
-        for point in bundle.income_vs_expense_monthly
-    )
-    return horizontal_bars(spend_items), grouped_bars(flow_groups)
+def svg_number(value: float) -> str:
+    """SVG attribute text of ``value`` (fixed three decimals, never scientific notation)."""
+    return _fmt(value)
+
+
+def svg_tenth(value: float) -> str:
+    """SVG attribute text with one decimal (the handoff prints a loaf cap height that way)."""
+    return _TENTH_FMT.format(value)
+
+
+def nice_scale(data_min: float, data_max: float) -> tuple[float, float, tuple[float, ...]]:
+    """Nice axis ``(min, max, ticks)`` for ``[data_min, data_max]`` (1-2-5 steps)."""
+    nice_min, nice_max, step = _nice_axis(data_min, data_max)
+    return nice_min, nice_max, _axis_ticks(nice_min, nice_max, step)

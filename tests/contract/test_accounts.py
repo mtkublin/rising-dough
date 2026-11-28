@@ -31,7 +31,8 @@ from tests.contract.web_helpers_t_ut04b import (
     field,
     seed_other_user,
 )
-from tests.ui_map import _html, accounts
+from tests.ui_map import _html, accounts, errors, rd_shell
+from tests.ui_map.locator import by_id
 
 pytest_plugins = ["tests.contract.web_support_t_ut04b"]  # client, anon_client, raw_client
 
@@ -160,12 +161,13 @@ def test_new_form_requires_login(anon_client: TestClient) -> None:
 
 
 @covers("POST /accounts")
-def test_create_persists_audits_and_reloads_page(client: TestClient, _migrated: Settings) -> None:
+def test_create_persists_audits_and_flashes(client: TestClient, _migrated: Settings) -> None:
     r = client.post("/accounts", data=NEW_ACCOUNT, headers={"HX-Request": "true"})
     assert r.status_code == 200
     assert json.loads(r.headers["HX-Trigger"]) == {"balance-stale": True}
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Travel created" in _html.text_of(r.text, rd_shell.flash_saved)
     rows = _account_rows(_migrated)
     assert len(rows) == 1
     assert (rows[0]["name"], rows[0]["currency"], rows[0]["user_id"]) == ("Travel", "EUR", USER_ID)
@@ -198,27 +200,33 @@ def test_create_credit_card_stores_limit_and_shows_it(
 
 @covers("POST /accounts")
 @pytest.mark.parametrize(
-    ("data", "field"),
+    ("data", "field", "message"),
     [
-        ({"name": "X", "currency": "EURO"}, "currency"),
-        ({"name": "   ", "currency": "PLN"}, "name"),
-        ({"name": "A", "currency": "PLN", "opening_balance": "nan!"}, "opening_balance"),
+        ({"name": "X", "currency": "EURO"}, "currency", "ISO 4217 code required"),
+        ({"name": "   ", "currency": "PLN"}, "name", "Name is required"),
+        (
+            {"name": "A", "currency": "PLN", "opening_balance": "nan!"},
+            "opening_balance",
+            "invalid number",
+        ),
         (
             {"name": "V", "currency": "PLN", "is_liability": "on", "credit_limit": ""},
             "credit_limit",
+            "positive credit limit required",
         ),
         (
             {"name": "V", "currency": "PLN", "is_liability": "on", "credit_limit": "0"},
             "credit_limit",
+            "positive credit limit required",
         ),
     ],
 )
 def test_create_validation_errors_are_422_and_write_nothing(
-    client: TestClient, _migrated: Settings, data: dict[str, str], field: str
+    client: TestClient, _migrated: Settings, data: dict[str, str], field: str, message: str
 ) -> None:
     r = client.post("/accounts", data=data)
     assert r.status_code == 422
-    assert field in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {f"field-{field}-error": f"▲ {message}"}
     assert _account_rows(_migrated) == []
     assert audit_ops(_migrated, "account") == []
     assert "HX-Refresh" not in r.headers
@@ -276,6 +284,24 @@ def test_edit_form_missing_or_foreign_is_404(client: TestClient, foreign_id: int
 
 
 @covers("GET /accounts/{account_id}/edit")
+def test_edit_form_unknown_or_foreign_is_the_404_page_or_flash_not_plain_text(
+    client: TestClient, foreign_id: int
+) -> None:
+    """Browser: the HTML 404 page; HTMX: the error flash. A foreign id answers the same."""
+    browser = {"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"}
+    for acc in (9999, foreign_id):
+        page = client.get(f"/accounts/{acc}/edit", headers=browser)
+        assert page.status_code == 404
+        assert page.headers["content-type"].startswith("text/html")
+        assert _html.text_of(page.text, errors.heading) == "Not found"
+        assert "Theirs" not in page.text
+        flash = client.get(f"/accounts/{acc}/edit", headers={"HX-Request": "true"})
+        assert flash.status_code == 404
+        assert "Account not found" in _html.text_of(flash.text, by_id("flash-region"))
+        assert "Theirs" not in flash.text
+
+
+@covers("GET /accounts/{account_id}/edit")
 def test_edit_form_requires_login(anon_client: TestClient, acc_id: int) -> None:
     r = anon_client.get(f"/accounts/{acc_id}/edit", follow_redirects=False)
     assert r.status_code == 302
@@ -297,7 +323,7 @@ def test_update_renames_and_audits(client: TestClient, acc_id: int, _migrated: S
 
 
 @covers("POST /accounts/{account_id}")
-def test_update_asset_to_credit_card_sets_limit(
+def test_update_asset_to_liability_is_422_and_changes_nothing(
     client: TestClient, acc_id: int, _migrated: Settings
 ) -> None:
     r = client.post(
@@ -309,34 +335,47 @@ def test_update_asset_to_credit_card_sets_limit(
             "credit_limit": "5000.00",
         },
     )
-    assert r.status_code == 200
-    assert "5,000.00" in _html.text_of(r.text, accounts.row(acc_id))
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
     row = _account_rows(_migrated)[0]
-    assert (row["is_liability"], row["credit_limit_minor"]) == (1, 500_000)
+    assert (row["name"], row["is_liability"], row["credit_limit_minor"]) == ("Main", 0, None)
+    assert audit_ops(_migrated, "account") == [("create", acc_id)]
 
 
 @covers("POST /accounts/{account_id}")
-def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated: Settings) -> None:
+def test_update_liability_to_asset_is_422_and_keeps_limit(
+    client: TestClient, _migrated: Settings
+) -> None:
     visa = _make_account(_migrated, liability=True, limit=1_000_000, name="Visa")
     r = client.post(f"/accounts/{visa}", data={"name": "Visa", "type": "", "credit_limit": ""})
-    assert r.status_code == 200
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
     row = _account_rows(_migrated)[0]
-    assert (row["is_liability"], row["credit_limit_minor"]) == (0, None)
+    assert (row["is_liability"], row["credit_limit_minor"]) == (1, 1_000_000)
+    assert audit_ops(_migrated, "account") == [("create", visa)]
 
 
 @covers("POST /accounts/{account_id}")
 def test_update_validation_errors_are_422_and_change_nothing(
-    client: TestClient, acc_id: int, _migrated: Settings
+    client: TestClient, _migrated: Settings
 ) -> None:
-    blank = client.post(f"/accounts/{acc_id}", data={"name": "   "})
+    visa = _make_account(_migrated, liability=True, limit=1_000_000, name="Visa")
+    blank = client.post(f"/accounts/{visa}", data={"name": "   ", "is_liability": "on"})
     assert blank.status_code == 422
     no_limit = client.post(
-        f"/accounts/{acc_id}", data={"name": "V", "is_liability": "on", "credit_limit": ""}
+        f"/accounts/{visa}", data={"name": "V", "is_liability": "on", "credit_limit": ""}
     )
     assert no_limit.status_code == 422
-    assert "credit_limit" in _html.text_of(no_limit.text, accounts.form_errors)
-    assert _account_rows(_migrated)[0]["name"] == "Main"
-    assert audit_ops(_migrated, "account") == [("create", acc_id)]
+    assert _html.error_lines(no_limit.text) == {
+        "field-credit_limit-error": "▲ positive credit limit required",
+    }
+    row = _account_rows(_migrated)[0]
+    assert (row["name"], row["credit_limit_minor"]) == ("Visa", 1_000_000)
+    assert audit_ops(_migrated, "account") == [("create", visa)]
 
 
 @covers("POST /accounts/{account_id}")
@@ -381,13 +420,22 @@ def test_delete_soft_deletes_with_toast_and_audit(
 
 
 @covers("POST /accounts/{account_id}/delete")
-def test_delete_unknown_or_foreign_is_a_noop(
-    client: TestClient, foreign_id: int, _migrated: Settings
+def test_delete_unknown_or_foreign_is_404(
+    client: TestClient, acc_id: int, foreign_id: int, _migrated: Settings
 ) -> None:
+    """Operator decision Q15: 404, no toast, identical for unknown and foreign ids."""
     before = audit_ops(_migrated, "account")
-    assert client.post("/accounts/9999/delete").status_code == 200
-    assert client.post(f"/accounts/{foreign_id}/delete").status_code == 200
-    assert _account_rows(_migrated)[0]["deleted_at"] is None
+    unknown = client.post("/accounts/9999/delete")
+    foreign = client.post(f"/accounts/{foreign_id}/delete")
+    for r in (unknown, foreign):
+        assert r.status_code == 404
+        assert "HX-Trigger" not in r.headers
+    assert unknown.text == foreign.text
+    rows = {row["id"]: row for row in _account_rows(_migrated)}
+    assert rows[foreign_id]["name"] == "Theirs"
+    assert rows[foreign_id]["user_id"] == OTHER_USER_ID
+    assert rows[foreign_id]["deleted_at"] is None
+    assert rows[acc_id]["deleted_at"] is None
     assert audit_ops(_migrated, "account") == before
 
 
@@ -476,8 +524,7 @@ def test_reconcile_form_liability_with_limit_asks_available(
     assert r.status_code == 200
     assert field(r.text, accounts.reconcile_available)["value"] == "3765.44"
     help_text = _html.text_of(r.text, accounts.reconcile_available_help)
-    assert "Limit 5,000.00" in help_text
-    assert "1,234.56" in help_text
+    assert help_text == "enter what you can still spend (limit \N{MINUS SIGN} spent)"
 
 
 @covers("GET /accounts/{account_id}/reconcile")
@@ -488,6 +535,17 @@ def test_reconcile_form_liability_without_limit_asks_balance(
     r = client.get(f"/accounts/{card}/reconcile")
     assert not _html.exists(r.text, accounts.reconcile_available)
     assert _html.exists(r.text, accounts.reconcile_actual)
+
+
+@covers("GET /accounts/{account_id}/reconcile")
+def test_reconcile_hero_refresh_shows_the_typed_difference_and_books_nothing(
+    client: TestClient, acc_id: int, _migrated: Settings
+) -> None:
+    r = client.get(f"/accounts/{acc_id}/reconcile?hero=1&actual_balance=3,690.10")
+    assert r.status_code == 200
+    assert _html.text_of(r.text, accounts.reconcile_difference) == "+3,690.10"
+    assert _adjustments(_migrated, acc_id) == []
+    assert fetch_all(_migrated, "SELECT id FROM account_snapshots") == []
 
 
 @covers("GET /accounts/{account_id}/reconcile")
@@ -538,16 +596,15 @@ def test_reconcile_zero_delta_writes_nothing(
 
 
 @covers("POST /accounts/{account_id}/reconcile")
-def test_reconcile_can_also_save_snapshot(
+def test_reconcile_always_saves_a_snapshot_even_for_a_zero_delta(
     client: TestClient, acc_id: int, _migrated: Settings
 ) -> None:
-    r = client.post(
-        f"/accounts/{acc_id}/reconcile",
-        data={"actual_balance": "10.00", "save_snapshot": "1"},
-    )
+    r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "10.00"})
     assert r.status_code == 200
     snaps = fetch_all(_migrated, "SELECT balance, note FROM account_snapshots")
     assert snaps == [{"balance": 1_000, "note": "reconcile snapshot"}]
+    client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "10.00"})
+    assert len(fetch_all(_migrated, "SELECT id FROM account_snapshots")) == 2
 
 
 @covers("POST /accounts/{account_id}/reconcile")
@@ -555,19 +612,26 @@ def test_reconcile_liability_by_available_credit(client: TestClient, _migrated: 
     card = _make_account(_migrated, liability=True, limit=500_000, opening=-123_456, name="Visa")
     r = client.post(f"/accounts/{card}/reconcile", data={"actual_balance": "4000.00"})
     assert r.status_code == 200
-    assert "Available 4,000.00 ·" in _html.text_of(r.text, accounts.row(card))
+    assert "available 4,000.00 of 5,000.00" in _html.text_of(r.text, accounts.row(card))
     assert _adjustments(_migrated, card) == [23_456]
 
 
 @covers("POST /accounts/{account_id}/reconcile")
-@pytest.mark.parametrize("value", ["-1", "5000.01", "abc"])
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("-1", "available credit cannot be negative"),
+        ("5000.01", "available credit cannot exceed the credit limit"),
+        ("abc", "invalid number"),
+    ],
+)
 def test_reconcile_rejects_bad_available(
-    client: TestClient, _migrated: Settings, value: str
+    client: TestClient, _migrated: Settings, value: str, message: str
 ) -> None:
     card = _make_account(_migrated, liability=True, limit=500_000, opening=-123_456, name="Visa")
     r = client.post(f"/accounts/{card}/reconcile", data={"actual_balance": value})
     assert r.status_code == 422
-    assert _html.exists(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {"field-actual_balance-error": f"▲ {message}"}
     assert _adjustments(_migrated, card) == []
 
 

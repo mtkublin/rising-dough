@@ -1,0 +1,15 @@
+{# Dev-only dialog on the new base (T-UR25): exercises the offline save-failure state; built on the shared shell (T-UR04e). #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog("dev-dialog", "dev note", action="/dev/shell/dialog", hx_post="/dev/shell/dialog", actions=[{"tone": "cancel"}, {"tone": "secondary", "id": "dev-dialog-fail", "label": "fail with 500", "hx_post": "/dev/shell/fail/500", "hx_swap": "none"}, {"tone": "primary", "label": "[ save note ]"}]) %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="dev-note">note</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="dev-note"
+             name="note"
+             type="text"
+             autocomplete="off"
+             required>
+    </span>
+  </div>
+{% endcall %}

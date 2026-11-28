@@ -1,0 +1,270 @@
+/* App-owned overrides of the vendored Rising Dough CSS (ADR-0107 amendment). Unlayered, so it
+   wins over every @layer rule in app.bundle.css. The vendored rd/css stays byte-identical. */
+
+.rd-dialog__error {
+  color: var(--color-over);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+}
+
+/* While the category picker is open focus sits in its search field; the amount keeps its focused
+   underline so the dialog does not jump by the difference in border width */
+.rd-dialog:has(.rd-catpick:not([hidden])) .rd-dialog__amount {
+  border-bottom-width: var(--border-width-focus-strong);
+}
+
+/* T-UR49: the handoff's planned and recurring tables need 960px (tracks ~1010px), but the content
+   box is 928px wide at 1024px (app and panel padding), so the actions column was clipped by the
+   sideways scroll. The handoff table fits from about 1106px (app padding 2 x 24px, panel padding
+   2 x 16px, tracks ~1010px), so the override stops at 70rem and 1440px keeps the handoff layout.
+   Slimmer flexible and amount tracks fit 900px; the actions tracks keep 150px. Below 64rem the
+   tablet band in css/pages/ledger.css (SWEEPCSS) fits every table to the 672px panel. */
+@media (64rem <= width < 70rem) {
+  .rd-ledger--sched {
+    --ledger-cols: var(--track-due) minmax(150px, 2fr) minmax(110px, 1.2fr) 150px var(--track-actions) var(--track-actions);
+
+    min-width: 900px;
+  }
+}
+
+/* F4.8a, T-UR77 (R16, R17): the year grid inline editor's two scope chips hover right beneath the
+edited cell (app-year-cell.js sets top and left from the cell and clamps them into the viewport).
+Fixed, so no table row shifts and the scroller does not clip them; no outer box, only the chips.
+Their colours are the rd theme tokens (ink, panel, rule, raised), which switch with the theme. */
+.rd-year-editor__scope {
+  position: fixed;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  width: max-content;
+  margin-top: var(--space-1);
+}
+
+/* The open editor is exactly as tall as the cell it replaces (the rd input is a full cell height
+inside a 2px frame), so the row does not grow and nothing below shifts. */
+.rd-year__cell-wrap .rd-year-editor {
+  height: var(--size-cell);
+}
+
+.rd-year__cell-wrap .rd-year-editor__input {
+  height: 100%;
+}
+
+.rd-year-editor__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-cell);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  background: var(--color-panel);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-menu);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-caption);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rd-year-editor__chip:has(input:checked) {
+  border-color: var(--color-ink);
+  background: var(--color-raised);
+}
+
+.rd-year-editor__chip:has(input:checked)::before {
+  content: "✓";
+}
+
+.rd-year-editor__chip:has(input:focus-visible) {
+  outline: var(--border-width-focus) solid var(--color-ink);
+  outline-offset: var(--focus-offset);
+}
+
+/* T-UR61 (R10): mobile browsers zoom the page when a focused field renders under 16px. On touch
+   widths every text field, select and textarea is at least 1rem (a coarse pointer on a wide
+   tablet counts too). Pinch zoom stays enabled; the viewport meta is untouched. Unlayered, so
+   this beats the component sizes (13px .rd-text/.rd-select, 14px .rd-input__control, the
+   filter bar's own .rd-filters .rd-text rule). The hero amount stays larger. */
+@media (width < 48rem), (pointer: coarse) {
+  select,
+  textarea,
+  [contenteditable]:not([contenteditable="false"]),
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="submit"], [type="button"], [type="image"], [type="reset"], .rd-dialog__amount),
+  .rd-text,
+  .rd-select,
+  .rd-input__control,
+  .rd-filters .rd-text,
+  .rd-filters .rd-select,
+  .rd-catpick__input,
+  .rd-year-editor__input,
+  .rd-msel__filter-input,
+  .rd-palette__input {
+    font-size: max(1rem, 16px);
+  }
+
+  /* T-UR81 (R21): the dialog hero amount is 56px, far over the minimum, and keeps its size; the
+     year cell editor and picker search fields were 11px to 14px and zoomed the page on focus. */
+
+  /* At 16px the year cell editor holds "12345.00" only with the side padding trimmed, and the
+     Today afford field (64px) clips 8 digits. */
+  .rd-year-editor__input {
+    padding-inline: 0;
+    letter-spacing: -0.07em;
+  }
+
+  /* T-UR87: 14ch holds "12,345,678.00" (13 characters) at 16px. */
+  .rd-input--afford .rd-input__control {
+    width: 14ch;
+  }
+}
+
+/* T-UR63 (R12): the native date input has an intrinsic minimum width wider than its half column
+   at 375px, so from and to overlapped and ran off the left edge. Let the control shrink to the
+   column. */
+@media (width < 48rem) {
+  .rd-filters .rd-field {
+    min-width: 0;
+  }
+
+  /* T-UR63: at 16px a filled date no longer fits a half column next to the picker icon, so from
+     and to stack at full width. */
+  .rd-filters__extra {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Same for the half-width pairs in a dialog (account and start date, currency and name): a
+     value such as "Credit Card" or "26/11/2026" must show whole at 16px. */
+  .rd-dialog .rd-fields-row > .rd-field {
+    flex-basis: 100%;
+  }
+
+  .rd-filters .rd-text {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* T-UR62 (R11): formula component on a phone. The handoff drops "of" and wedges the category
+     control into a strip next to the remove button. Two deliberate rows instead: sign, percentage
+     and remove on the first; "of" and the full-width category control on the second. */
+  .rd-comp {
+    grid-template-columns: auto minmax(0, 1fr) var(--size-control);
+    row-gap: var(--space-2);
+  }
+
+  .rd-comp > .rd-segmented--sign {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .rd-comp > .rd-input--pct {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rd-comp > .rd-comp__remove {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .rd-comp > .rd-comp__of {
+    display: block;
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .rd-comp > .rd-msel__trigger {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  /* T-UR62 (R11): a segmented choice inside a dialog (budget override scope) takes the full row
+     in equal columns instead of wrapping into a ragged pill. */
+  .rd-dialog .rd-field--seg > .rd-segmented {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    align-self: stretch;
+  }
+
+  .rd-dialog .rd-field--seg > .rd-segmented .rd-segmented__option {
+    padding-inline: var(--space-2);
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+/* R14, R20: the collapsed "without a budget" list on Plan/budget holds a full table, not chips */
+.rd-disclosure__body--table {
+  display: block;
+  padding-inline: 0;
+}
+
+/* R24 (T-UR90): the collapsed "without a budget" list has no outer box: no border, radius or inline
+   padding; summary and list/table flow as part of the page. */
+.rd-disclosure {
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* Phones: the status cell of an unbudgeted row holds the set-budget button, too wide for the card's
+   top row (it squashed the chip). It takes its own row under the bar. */
+.rd-row--unbudgeted {
+  grid-template-columns: minmax(0, 1fr) var(--track-icon);
+  grid-template-areas:
+    "cat actions"
+    "bar spent"
+    "status status";
+}
+
+.rd-row--unbudgeted .rd-budget__spent {
+  white-space: nowrap;
+}
+
+.rd-row--unbudgeted .rd-budget__status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  justify-self: stretch;
+}
+
+@media (width >= 48rem) {
+  .rd-row--unbudgeted {
+    grid-template-columns: var(--ledger-cols);
+    grid-template-areas: none;
+  }
+
+  .rd-row--unbudgeted .rd-budget__status {
+    display: block;
+    justify-self: end;
+  }
+}
+
+/* T-UR76 (R15): the budget override scope ("this month only / every <month> / every month
+   (default)") wrapped onto two rows in the 520px dialog at desktop widths (the pill's 16px option
+   padding plus nowrap labels exceed the dialog body). Keep one row: the control spans the field,
+   never wraps, and the options share the width with slimmer padding. Phones keep the equal-column
+   grid above. */
+@media (width >= 48rem) {
+  .rd-field--seg[aria-labelledby="override-budget-scope"] > .rd-segmented {
+    display: flex;
+    flex-wrap: nowrap;
+    align-self: stretch;
+  }
+
+  .rd-field--seg[aria-labelledby="override-budget-scope"] > .rd-segmented .rd-segmented__option {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
+}

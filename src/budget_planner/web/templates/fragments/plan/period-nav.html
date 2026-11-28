@@ -1,0 +1,21 @@
+{# fragment: plan/period-nav
+   Inputs: label (current period text, e.g. "October 2026" or "2026"), prev_url, next_url,
+   prev_label / next_label (default "Previous period" / "Next period"; the year view passes
+   "Previous year" / "Next year"), picker (see popovers/period-picker; its id is the trigger's
+   popovertarget). ArrowLeft / ArrowRight are announced as the shortcuts. #}
+<div class="rd-period" role="group" aria-label="Period">
+  <a class="rd-btn rd-btn--icon rd-btn--icon-outline"
+     href="{{ prev_url }}"
+     aria-label="{{ prev_label|default('Previous period') }}"
+     aria-keyshortcuts="ArrowLeft">←</a>
+  <button type="button"
+          class="rd-btn rd-btn--secondary-rule rd-period__label"
+          popovertarget="{{ picker.id }}"
+          aria-haspopup="dialog"
+          data-js="period-trigger">{{ label }} <span aria-hidden="true">▾</span></button>
+  <a class="rd-btn rd-btn--icon rd-btn--icon-outline"
+     href="{{ next_url }}"
+     aria-label="{{ next_label|default('Next period') }}"
+     aria-keyshortcuts="ArrowRight">→</a>
+  {% include "fragments/popovers/period-picker.html" %}
+</div>

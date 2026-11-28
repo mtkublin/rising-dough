@@ -1,0 +1,184 @@
+{# fragment: dialogs/dialog (T-UR04e, ADR-0107 section 2, ADR-0143)
+   Shared shell of every new-shell dialog. Derived from the handoff overlays (markup source, ADR-0107):
+     pages/overlays/new-account.html, new-account--error.html   standard: band (title, close, hero amount), body, actions
+     pages/overlays/new-entry--phone-sheet.html                  standard + signed hero; the phone sheet is CSS only
+     pages/overlays/override--budget-month.html                  standard with a hero note ("default 604.35")
+     pages/overlays/delete-account.html, archive-category.html   confirm: role=alertdialog, rd-dialog--confirm, destructive submit
+     pages/overlays/delete-account--blocked.html                 blocked: no form, link + [ ok ] only
+     pages/overlays/edit-account--liability.html                 standard (same shell as new-account)
+   Common structure:
+     <dialog class="rd-dialog" id aria-labelledby="<id>-title" data-js="modal">      (vendored dialog.js opens it in #modal-root)
+       <form class="rd-dialog__form" method="post" action>                           (no form when blocked)
+         <header class="rd-dialog__band"> .band-head: h2.rd-dialog__title#<id>-title + button.rd-dialog__close[data-js=dialog-close]
+            .hero: .hero-row (sign, amount input, currency) + .hero-note | .hero-error[role=alert]
+         <div class="rd-dialog__body"> error summary, body, <div class="rd-dialog__actions"> cancel | primary | danger | link | ok
+       confirm/blocked replace band and body with <div class="rd-dialog__confirm"> h2.rd-dialog__confirm-title + text + actions.
+   The phone sheet needs no variant: below md the same markup is a bottom sheet (rd-dialog CSS). Do not wrap the dialog:
+   dialog_response (web/dialogs.py) already puts one bare <div> around the template so dialog.js finds the <dialog> on htmx:load.
+
+   API  {% call dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root",
+                       hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=(), form_id="") %}body{% endcall %}
+     variant: "standard" | "confirm" | "blocked".  size: "" | "sm" | "md" (confirm and blocked default to "sm"; "plain" on a confirm adds no size class, as handoff overlays/archive-category).
+     hero (standard): dict with currency, amount_value, note, sign, amount_label, amount_id (hero-amount), amount_name (amount),
+                      error (message; sets aria-invalid + aria-describedby),
+                      output (true: a static <output class="rd-dialog__amount rd-dialog__amount--static" for=amount_id> showing
+                      amount_value instead of the editable input; no label, no name, never submitted; currency holds the unit
+                      text, e.g. "PLN difference"; amount_id names the body field the figure is derived from; sign and note
+                      still render. Handoff: overlays/reconcile.html, reconcile--liability.html).
+     hero.placeholder: the amount input placeholder, default "0.00" (callers pass domain.money format_major(0, currency)).
+     actions: list of dicts {tone, label, id, name, value, href, hx_get, hx_post, hx_target, hx_swap, hx_include, hx_vals, formaction};
+                      tone: cancel | primary (name/value) | secondary (type=button, does not close) | danger (name/value) | link | ok.
+                      Any action may carry an id; secondary takes the hx_* and formaction keys; primary takes hx_include and hx_vals.
+     form_id (standard, optional): id of the <form> itself (e.g. a self-targeting hx-target); empty adds no attribute.
+     field_count / field_errors: the context invalid_dialog_response passes; field_errors rows with no per-field element render as a dialog-level error line (Q18, no summary box).
+   The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic. #}
+{% macro dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root", hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=(), form_id="") %}
+  {% if variant == "standard" %}
+    <dialog class="rd-dialog{% if size %} rd-dialog--{{ size }}{% endif %}"
+            id="{{ dialog_id }}"
+            aria-labelledby="{{ dialog_id }}-title"
+            {% if describedby %}aria-describedby="{{ describedby }}"{% endif %}
+            data-js="modal">
+      <form class="rd-dialog__form"
+            {% if form_id %}id="{{ form_id }}"{% endif %}
+            method="post"
+            action="{{ action }}"
+            {% if hx_post %}hx-post="{{ hx_post }}" hx-target="{{ hx_target }}" hx-swap="{{ hx_swap }}"{% endif %}>
+        <header class="rd-dialog__band{% if not hero %} rd-dialog__band--slim{% endif %}">
+          <div class="rd-dialog__band-head">
+            <h2 class="rd-dialog__title" id="{{ dialog_id }}-title">{{ title }}</h2>
+            {{ _close() }}
+          </div>
+          {% if hero %}
+            <div class="rd-dialog__hero">
+              <div class="rd-dialog__hero-row">
+                {% if hero.sign|default(none) %}<span class="rd-dialog__sign"
+      aria-hidden="true">{{ hero.sign }}</span>{% endif %}
+                {% if hero.output|default(false) %}
+                  <output class="rd-dialog__amount rd-dialog__amount--static"
+                          for="{{ hero.amount_id|default('hero-amount') }}">{{ hero.amount_value|default("") }}</output>
+                {% else %}
+                  <label class="u-visually-hidden"
+                         for="{{ hero.amount_id|default('hero-amount') }}">{{ hero.amount_label|default("Amount") }}</label>
+                  <input class="rd-dialog__amount"
+                         id="{{ hero.amount_id|default('hero-amount') }}"
+                         name="{{ hero.amount_name|default('amount') }}"
+                         inputmode="decimal"
+                         autocomplete="off"
+                         value="{{ hero.amount_value|default('') }}"
+                         placeholder="{{ hero.placeholder|default('0.00') }}"
+                         {% if hero.error|default(none) %}aria-invalid="true" aria-describedby="{{ hero.amount_id|default('hero-amount') }}-error"{% endif %}
+                         data-js="amount-input"
+                         required>
+                {% endif %}
+                <span class="rd-dialog__cur">{{ hero.currency }}</span>
+              </div>
+              {% if hero.error|default(none) %}
+                <p class="rd-dialog__hero-error"
+                   id="{{ hero.amount_id|default('hero-amount') }}-error"
+                   role="alert">▲ {{ hero.error }}</p>
+              {% elif hero.note|default(none) %}
+                <p class="rd-dialog__hero-note">{{ hero.note }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+        </header>
+        <div class="rd-dialog__body">
+          {{ _orphans(field_errors, caller(), hero) }}
+          {{ caller() }}
+          {{ _actions(actions) }}
+        </div>
+      </form>
+    </dialog>
+  {% else %}
+    <dialog class="rd-dialog{% if size != 'plain' %} rd-dialog--{{ size or 'sm' }}{% endif %} rd-dialog--confirm"
+            id="{{ dialog_id }}"
+            role="alertdialog"
+            aria-labelledby="{{ dialog_id }}-title"
+            {% if describedby %}aria-describedby="{{ describedby }}"{% endif %}
+            data-js="modal">
+      {% if variant == "blocked" %}
+        {{ _confirm(dialog_id, title, actions, field_errors, caller()) }}
+      {% else %}
+        <form class="rd-dialog__form"
+              method="post"
+              action="{{ action }}"
+              {% if hx_post %}hx-post="{{ hx_post }}" hx-target="{{ hx_target }}" hx-swap="{{ hx_swap }}"{% endif %}>
+          {{ _confirm(dialog_id, title, actions, field_errors, caller()) }}
+        </form>
+      {% endif %}
+    </dialog>
+  {% endif %}
+{% endmacro %}
+{% macro _close() %}
+  <button type="button"
+          class="rd-dialog__close"
+          aria-label="Close"
+          data-js="dialog-close">
+    <svg class="rd-icon" aria-hidden="true" focusable="false">
+      <use href="/static/rd/icons/sprite.svg#icon-close"></use>
+    </svg>
+  </button>
+{% endmacro %}
+{# Q18: no summary box. Every field error shows next to its field (a "▲ message" paragraph) or as the hero error
+   line; an error with no such element in the rendered body (service-level message, unknown field name) shows here
+   as a dialog-level error line, so a failed save is never silent. #}
+{% macro _orphans(field_errors, body, hero) %}
+  {% for name, label, message in field_errors %}
+    {% if ("▲ " ~ (message|e)) not in body and not (hero and hero.error|default(none) and name == hero.amount_name|default("amount")) %}
+      <p class="rd-dialog__error" id="dialog-error-{{ name }}" role="alert">▲ {{ label }}: {{ message }}</p>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+{% macro _confirm(dialog_id, title, actions, field_errors, text) %}
+  <div class="rd-dialog__confirm">
+    <h2 class="rd-dialog__confirm-title" id="{{ dialog_id }}-title">{{ title }}</h2>
+    {{ _orphans(field_errors, text, none) }}
+    {{ text }}
+    {{ _actions(actions) }}
+  </div>
+{% endmacro %}
+{% macro _actions(actions) %}
+  <div class="rd-dialog__actions">
+    {% for a in actions %}
+      {% if a.tone == "cancel" %}
+        <button type="button"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+                class="rd-btn rd-btn--lg rd-btn--quiet"
+                data-js="dialog-close">{{ a.label|default("cancel") }}</button>
+      {% elif a.tone == "ok" %}
+        <button type="button"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+                class="rd-btn rd-btn--lg rd-btn--primary"
+                data-js="dialog-close">{{ a.label|default("[ ok ]") }}</button>
+      {% elif a.tone == "link" %}
+        <a {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+           class="rd-btn rd-btn--lg"
+           href="{{ a.href }}">{{ a.label }}</a>
+      {% elif a.tone == "secondary" %}
+        <button type="button"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+                class="rd-btn rd-btn--lg"
+                {% if a.hx_get|default(none) %}hx-get="{{ a.hx_get }}"{% endif %}
+                {% if a.hx_post|default(none) %}hx-post="{{ a.hx_post }}"{% endif %}
+                {% if a.hx_target|default(none) %}hx-target="{{ a.hx_target }}"{% endif %}
+                {% if a.hx_swap|default(none) %}hx-swap="{{ a.hx_swap }}"{% endif %}
+                {% if a.hx_include|default(none) %}hx-include="{{ a.hx_include }}"{% endif %}
+                {% if a.hx_vals|default(none) %}hx-vals="{{ a.hx_vals }}"{% endif %}
+                {% if a.formaction|default(none) %}formaction="{{ a.formaction }}"{% endif %}>{{ a.label }}</button>
+      {% elif a.tone == "danger" %}
+        <button type="submit"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+                class="rd-btn rd-btn--lg rd-btn--danger"
+                {% if a.name|default(none) %}name="{{ a.name }}" value="{{ a.value }}"{% endif %}>{{ a.label }}</button>
+      {% else %}
+        <button type="submit"
+                {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
+                class="rd-btn rd-btn--lg rd-btn--primary"
+                {% if a.name|default(none) %}name="{{ a.name }}" value="{{ a.value }}"{% endif %}
+                {% if a.hx_include|default(none) %}hx-include="{{ a.hx_include }}"{% endif %}
+                {% if a.hx_vals|default(none) %}hx-vals="{{ a.hx_vals }}"{% endif %}>{{ a.label }}</button>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endmacro %}

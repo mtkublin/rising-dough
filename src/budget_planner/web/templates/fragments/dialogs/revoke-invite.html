@@ -1,0 +1,15 @@
+{# Settings · revoke invite confirm (T-UR20a, ADR-0107). Handoff: overlays/revoke-invite.html. Context: invite (repositories Invite). #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog(
+  "dlg-revoke-invite",
+  "Revoke the invite?",
+  variant="confirm",
+  size="md",
+  action="/settings/users/invites/" ~ invite.id ~ "/revoke",
+  hx_post="/settings/users/invites/" ~ invite.id ~ "/revoke",
+  hx_target="#invite-row-" ~ invite.id,
+  hx_swap="outerHTML",
+  actions=[{"tone": "cancel"}, {"tone": "danger", "label": "revoke", "name": "revoke", "value": "1"}]
+) %}
+  <p>The link sent to {{ invite.email }} stops working. You can invite them again later.</p>
+{% endcall %}

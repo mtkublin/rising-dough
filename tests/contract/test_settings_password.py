@@ -125,6 +125,11 @@ def test_get_forced_page_is_standalone_with_banner(forced: TestClient) -> None:
 
 
 @covers("GET /settings/password")
+def test_get_forced_page_is_no_store(forced: TestClient) -> None:
+    assert forced.get("/settings/password").headers["cache-control"] == "no-store"
+
+
+@covers("GET /settings/password")
 def test_get_forced_carries_only_safe_next(forced: TestClient) -> None:
     ok = forced.get("/settings/password?next=/ledger").text
     assert _next_value(ok) == "/ledger"
@@ -227,7 +232,7 @@ def test_post_policy_errors_render_security_page_inline(
     before = _user(db)["password_hash"]
     r = client.post("/settings/password", data=form)
     assert r.status_code == 422
-    assert _html.exists(r.text, ui.password_summary)
+    assert not _html.exists(r.text, ui.password_summary)  # no summary box (Q18)
     assert _html.exists(r.text, ui.tabs)  # unflagged users stay inside Settings
     control = ui.confirm_password if bad_field == "confirm" else ui.new_password
     assert _html.resolve_one(r.text, control)["aria-invalid"] == "true"
@@ -240,7 +245,8 @@ def test_post_error_htmx_returns_form_fragment(client: TestClient) -> None:
     assert r.status_code == 422
     assert "<html" not in r.text
     assert _html.exists(r.text, ui.password_form)
-    assert _html.exists(r.text, ui.password_summary)
+    assert not _html.exists(r.text, ui.password_summary)  # no summary box (Q18)
+    assert _html.exists(r.text, ui.password_error("new_password"))
 
 
 @covers("POST /settings/password")

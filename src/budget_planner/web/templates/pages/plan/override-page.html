@@ -1,0 +1,16 @@
+{# pages/plan/override-page.html: the override dialog route opened as a plain page (link without HTMX, T-UR84).
+   The shell's #modal-root only exists for HTMX swaps, so the dialog markup is placed in the page body.
+   app-override-page.js opens it as a modal when scripts run; without scripts the plan page CSS shows it as a card.
+   Context: dialog_html (rendered dialog, markup-safe), nav_current. #}
+{% extends "layouts/base.html" %}
+{% block title %}Budget · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-override-page" aria-label="Budget override">
+    {{ dialog_html|safe }}
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script type="module"
+          id="override-page-script"
+          src="{{ url_for('static', path='rd/js/app-override-page.js') }}"></script>
+{% endblock %}

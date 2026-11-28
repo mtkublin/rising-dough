@@ -1,0 +1,420 @@
+/*
+ * Ledger tables: actual, planned and recurring share one column grammar
+ * (date or day group · description + account · category · amount · status · actions).
+ * Real <table> markup; rows lay out with grid so phone and desktop share one markup.
+ */
+.rd-table-scroll {
+  position: relative; /* contains absolutely positioned descendants (visually hidden labels) */
+  overflow-x: auto;
+  margin-top: var(--space-4);
+}
+
+.rd-ledger {
+  display: block;
+  width: 100%;
+  font-size: var(--font-size-heading);
+}
+
+.rd-ledger thead,
+.rd-ledger tbody {
+  display: block;
+}
+
+.rd-ledger thead {
+  display: none;
+}
+
+.rd-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto var(--track-icon);
+  grid-template-areas:
+    "title title amount actions"
+    "cat sub sub actions";
+  align-items: center;
+  gap: var(--space-1-5) var(--space-2);
+  padding: var(--space-2-5) 0;
+  border-top: var(--border-width) solid var(--color-rule);
+}
+
+.rd-row > td,
+.rd-row > th {
+  display: block;
+  padding: 0;
+  min-width: 0;
+  text-align: start;
+  font-weight: inherit;
+}
+
+.rd-row:hover {
+  background: var(--color-raised);
+}
+
+.rd-row.htmx-request {
+  color: var(--color-ink-muted);
+  cursor: progress;
+}
+
+.rd-row__desc {
+  display: contents !important;
+}
+
+.rd-row__title {
+  grid-area: title;
+  min-width: 0;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: break-word;
+}
+
+.rd-row__sub {
+  grid-area: sub;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-ink-muted);
+}
+
+.rd-row__cat {
+  grid-area: cat;
+  justify-self: start;
+}
+
+.rd-row__amount {
+  grid-area: amount;
+  place-self: baseline end;
+  text-align: end !important;
+}
+
+.rd-row > .rd-row__actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* Bulk selection: the checkbox column is hidden until a row is selected (or the box gets keyboard focus) */
+.rd-row__select {
+  position: absolute;
+  width: var(--size-px);
+  height: var(--size-px);
+  overflow: hidden;
+  clip-path: inset(50%);
+  grid-area: select;
+}
+
+.rd-row__select:focus-within,
+[data-state="selecting"] .rd-row__select {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+}
+
+[data-state="selecting"] .rd-row {
+  grid-template-columns: var(--track-icon) auto minmax(0, 1fr) auto var(--track-icon);
+  grid-template-areas:
+    "select title title amount actions"
+    "select cat sub sub actions";
+}
+
+.rd-row:has(.rd-check:checked) {
+  background: var(--color-raised);
+}
+
+.rd-check {
+  width: var(--space-4-5);
+  height: var(--space-4-5);
+  margin: var(--space-3);
+  accent-color: var(--color-ink);
+  cursor: pointer;
+}
+
+/* Day group header */
+.rd-row--day {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "day net";
+  margin-top: var(--space-4);
+  padding: var(--space-2-5) 0;
+  border-top-color: var(--color-ink);
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
+}
+
+.rd-row--day:hover {
+  background: none;
+}
+
+.rd-row__day {
+  grid-area: day;
+}
+
+.rd-row__net {
+  grid-area: net;
+}
+
+[data-state="selecting"] .rd-row--day {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "day net";
+}
+
+/* Pagination */
+.rd-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-rule);
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rd-pagination .rd-btn {
+  color: var(--color-ink);
+}
+
+.rd-pagination__aside {
+  color: var(--color-ink);
+}
+
+/* Bulk action bar */
+.rd-bulk {
+  position: sticky;
+  inset-block-start: var(--space-2);
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-1-5) var(--space-1-5) var(--space-1-5) var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-ground);
+}
+
+.rd-bulk[hidden] {
+  display: none;
+}
+
+.rd-bulk__count {
+  margin-inline-end: auto;
+  font-size: var(--font-size-body);
+}
+
+.rd-bulk .rd-btn {
+  height: var(--size-control-sm);
+  border-color: var(--color-ground);
+  color: var(--color-ground);
+}
+
+.rd-bulk .rd-btn:hover {
+  background: color-mix(in srgb, var(--color-ground) 15%, transparent);
+}
+
+/* Filter bar */
+.rd-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "search"
+    "toggle"
+    "extra";
+  align-items: end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.rd-filters__search {
+  grid-area: search;
+}
+
+.rd-filters__toggle {
+  grid-area: toggle;
+  justify-self: start;
+}
+
+.rd-filters__toggle[aria-expanded="true"] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-ground);
+}
+
+.rd-filters__extra {
+  grid-area: extra;
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.rd-filters[data-state="expanded"] .rd-filters__extra {
+  display: grid;
+}
+
+.rd-filters .rd-field {
+  gap: var(--space-1);
+}
+
+.rd-filters__extra .rd-field:nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.rd-filters .rd-text,
+.rd-filters .rd-select {
+  font-size: var(--font-size-body);
+}
+
+/*
+ * Phone grids: the category chip and the amount keep their own width (a td has min-width 0, so an
+ * auto track could shrink below its content and the chip or the figure ran over the neighbour);
+ * the one-fr description column absorbs the squeeze.
+ */
+@media (width < 48rem) {
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat,
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__amount {
+    min-width: max-content;
+  }
+
+  /*
+   * A long chip ("Reconciliation") would widen its row past the list region and push that row's
+   * kebab right of the others. The chip column is capped at 6.25rem (100px, wider than the usual
+   * chips) and a longer label is cut with an ellipsis, so every kebab shares one x.
+   */
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat {
+    min-width: 0;
+    max-width: 6.25rem;
+  }
+
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat .rd-chip {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (width >= 48rem) {
+  .rd-table-scroll {
+    margin-top: var(--space-6);
+  }
+
+  .rd-ledger {
+    min-width: var(--table-min);
+  }
+
+  .rd-ledger thead {
+    display: block;
+  }
+
+  .rd-row {
+    grid-template-columns: var(--ledger-cols, minmax(var(--track-min-lg), 2fr) minmax(var(--track-min-sm), 1.2fr) var(--track-amount-lg) var(--track-icon));
+    grid-template-areas: none;
+    gap: var(--space-4);
+    min-height: var(--size-row);
+    padding: 0;
+  }
+
+  .rd-row > * {
+    grid-area: auto !important;
+  }
+
+  .rd-row__desc {
+    display: block !important;
+  }
+
+  .rd-row__title {
+    display: block;
+  }
+
+  .rd-row__sub {
+    display: block;
+  }
+
+  .rd-row__amount {
+    align-self: center;
+  }
+
+  .rd-row--head {
+    padding: var(--space-2) 0;
+    min-height: 0;
+    border-top: 0;
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--letter-spacing-caption);
+    color: var(--color-ink-muted);
+  }
+
+  .rd-row--head:hover {
+    background: none;
+  }
+
+  .rd-row--head > th {
+    font-size: var(--font-size-caption) !important;
+    font-weight: var(--font-weight-regular) !important;
+  }
+
+  .rd-row--day {
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-top: var(--space-2);
+    padding: var(--space-2-5) 0;
+    min-height: 0;
+  }
+
+  [data-state="selecting"] .rd-row {
+    grid-template-columns: var(--track-icon) var(--ledger-cols, minmax(var(--track-min-lg), 2fr) minmax(var(--track-min-sm), 1.2fr) var(--track-amount-lg) var(--track-icon));
+    grid-template-areas: none;
+  }
+
+  [data-state="selecting"] .rd-row--day {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* Between 48rem and 90rem the six fields wrap: the search takes the first full row, then
+     from / to / category, then account / direction. In one row at 1024 to 1152 the placeholder
+     and the selects clipped (LEDGERPH). */
+  .rd-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas: none;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+  }
+
+  .rd-filters__extra,
+  .rd-filters[data-state] .rd-filters__extra {
+    display: contents;
+  }
+
+  .rd-filters__extra .rd-field:nth-child(n + 3) {
+    grid-column: auto;
+  }
+
+  .rd-filters__search {
+    grid-area: auto;
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .rd-filters__toggle {
+    display: none;
+  }
+}
+
+/* One row of six fields only from 90rem: the selects and the search placeholder fit their tracks. */
+@media (width >= 90rem) {
+  .rd-filters {
+    grid-template-columns: var(--track-filter-date) var(--track-filter-date) 1fr 1fr 1fr 1.3fr;
+  }
+
+  .rd-filters__search {
+    grid-column: auto;
+    order: 0;
+  }
+}

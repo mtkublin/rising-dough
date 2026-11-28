@@ -1,0 +1,54 @@
+{% extends "layouts/auth.html" %}
+{% block title %}Re-authenticate · Rising Dough{% endblock %}
+{% block bake %}
+  <a class="rd-auth__brand" href="/auth/login">Rising Dough</a>
+  <span class="rd-auth__spacer"></span>
+  <span class="rd-auth__spacer"></span>
+{% endblock %}
+{% block form %}
+  <p class="rd-caption rd-caption--upper">signed in as {{ current_user.email or current_user.name }}</p>
+  <h1 class="rd-auth__title">Confirm it’s you</h1>
+  {# A throttled attempt has no field to blame: generic alert instead of the field error. #}
+  {% if error and throttled %}
+    <div class="rd-alert" role="alert" id="form-alert" data-throttled>▲ {{ error }}</div>
+  {% endif %}
+  {% if has_passkeys %}
+    <button type="button"
+            class="rd-btn rd-btn--primary rd-btn--block"
+            data-js="passkey"
+            data-passkey-reauth
+            data-next="{{ next_path }}">confirm with a passkey</button>
+    <p class="rd-caption"
+       data-passkey-status
+       role="status"
+       aria-live="polite"></p>
+    <p class="rd-or" aria-hidden="true">
+      <span></span>OR<span></span>
+    </p>
+  {% endif %}
+  <form class="rd-form" method="post" action="/auth/reauth">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next_path }}">
+    <div class="rd-field">
+      <label class="rd-field__label" for="current-password">current password</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="current-password"
+               name="password"
+               type="password"
+               autocomplete="current-password"
+               required
+               {% if error and not throttled %}aria-describedby="current-password-error" aria-invalid="true"{% endif %}>
+      </span>
+      {% if error and not throttled %}
+        <p class="rd-field__error" id="current-password-error" role="alert">
+          ▲ {{ error }}
+          {% if attempts_left is not none %}{{ attempts_left }} attempts left.{% endif %}
+        </p>
+      {% endif %}
+    </div>
+    <button type="submit"
+            class="rd-btn {% if not has_passkeys %}rd-btn--primary{% endif %} rd-btn--block">[ confirm ]</button>
+  </form>
+  <a class="rd-auth__link rd-auth__link--plain" href="{{ next_path }}">cancel</a>
+{% endblock %}

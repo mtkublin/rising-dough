@@ -1,0 +1,96 @@
+{# Settings · new and edit category dialog (T-UR13, ADR-0107). Handoff: overlays/new-category, new-category--error,
+   new-category--filled, edit-category. One template, two modes: category is none for "new".
+   Context: category (domain Category or none), form (view_models.CategoryFormView), action (POST url), target (row to swap),
+   errors (field -> message), field_count / field_errors (invalid_dialog_response). #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% from "fragments/fields/field-error.html" import field_error %}
+{% call dialog(
+  "dlg-category",
+  form.title,
+  size="",
+  action=action,
+  hx_post=action,
+  hx_target=target,
+  hx_swap="outerHTML" if category else "innerHTML",
+  field_count=field_count|default(0),
+  field_errors=field_errors|default(()),
+  actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]" if category else "[ create category ]"}]
+) %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="field-name">name</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="field-name"
+             name="name"
+             type="text"
+             value="{{ form.name }}"
+             {% if not category %}placeholder="e.g. Pets" required {% endif %}
+             {% if "name" in errors %}aria-invalid="true" aria-describedby="field-name-error"{% endif %}>
+    </span>
+    {{ field_error("name", errors) }}
+  </div>
+  {% if category %}
+    <div class="rd-field">
+      <span class="rd-field__label rd-field__label--tight">direction</span>
+      <p class="rd-locked">
+        {{ form.direction_text }} ·
+        {% if form.usage_text %}locked by {{ form.usage_text }}{% else %}fixed once created{% endif %}
+      </p>
+    </div>
+  {% else %}
+    <div class="rd-field">
+      <div class="rd-field rd-field--seg"
+           id="field-direction"
+           role="radiogroup"
+           aria-labelledby="field-direction-label">
+        <span class="rd-field__label" id="field-direction-label">direction</span>
+        <div class="rd-segmented">
+          <label class="rd-segmented__option">
+          <input type="radio"
+                 name="direction"
+                 value="expense"
+                 {% if form.expense_checked %}checked{% endif %}>↓ expense</label>
+          <label class="rd-segmented__option">
+          <input type="radio"
+                 name="direction"
+                 value="income"
+                 {% if form.income_checked %}checked{% endif %}>↑ income</label>
+        </div>
+      </div>
+      {% if "direction" in errors %}
+        {{ field_error("direction", errors) }}
+      {% else %}
+        <p class="rd-field__hint">direction is fixed after creation</p>
+      {% endif %}
+    </div>
+  {% endif %}
+  <div class="rd-field rd-field--colour"
+       id="field-color"
+       role="radiogroup"
+       aria-labelledby="colour-label">
+    <span class="rd-field__label" id="colour-label">colour</span>
+    <label class="rd-colour-default">
+      <input type="radio"
+             name="color"
+             value="default"
+             {% if form.default_checked %}checked{% endif %}>
+      <span>default colour</span>
+    </label>
+    <div class="rd-swatches">
+      {% for swatch in form.swatches %}
+        <label class="rd-swatch" data-color="{{ swatch.name }}">
+          <input type="radio"
+                 name="color"
+                 value="{{ swatch.hex }}"
+                 {% if swatch.checked %}checked{% endif %}
+                 aria-label="Colour {{ swatch.hex }}">
+        </label>
+      {% endfor %}
+    </div>
+    {{ field_error("color", errors) }}
+  </div>
+  <div class="rd-preview" aria-live="polite">
+    <span class="rd-caption">PREVIEW</span><span class="rd-chip"
+      {% if form.preview_color %} data-color="{{ form.preview_color }}"{% endif %}>{{ form.name or "name" }}</span>
+  </div>
+{% endcall %}

@@ -22,6 +22,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
+from tests.auth_support import seed_login_user
 from tests.ui_map import _html, today
 
 USER_ID = 1
@@ -85,6 +86,41 @@ def test_today_upcoming_row_tint_overdue_due_future(
     assert "rd-upcoming__row--due" not in classes["future"]
 
 
+def test_today_upcoming_row_prints_the_account_currency(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """A planned item on an EUR account is printed in EUR, one on a PLN account in PLN."""
+    conn = get_connection(_migrated)
+    try:
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
+        due = clock.today_local(_migrated) + timedelta(days=1)
+        rows = {}
+        for name, ccy, minor in (("Euro bill", "EUR", 2550), ("Zloty bill", "PLN", 4000)):
+            acc = accounts_repo.create(conn, USER_ID, NewAccount(name=name, currency=ccy))
+            rows[name] = planned_repo.create(
+                conn,
+                USER_ID,
+                NewPlannedTransaction(
+                    operation_date=due,
+                    category_id=cat.id,
+                    account_id=acc.id,
+                    amount=minor,
+                    description=name,
+                ),
+            ).id
+    finally:
+        conn.close()
+
+    r = client.get("/today/upcoming")
+    euro = _html.text_of(r.text, today.upcoming_planned(rows["Euro bill"]))
+    zloty = _html.text_of(r.text, today.upcoming_planned(rows["Zloty bill"]))
+    assert "\N{MINUS SIGN}25.50 EUR" in euro
+    assert "PLN" not in euro
+    assert "\N{MINUS SIGN}40.00 PLN" in zloty
+
+
 def test_afford_endpoint_zero_and_blank_are_invalid(client: TestClient) -> None:
     for amount in ("0", ""):
         r = client.get("/today/afford", params={"amount": amount})
@@ -119,7 +155,55 @@ def test_afford_endpoint_no_db_write(client: TestClient) -> None:
 
 
 def test_afford_delta_is_signed_per_day(client: TestClient) -> None:
-    # Spending can only lower the per-day budget, so the delta is negative or zero.
-    delta = _html.text_of(client.get("/today/afford?amount=100.00").text, today.afford_delta)
-    assert delta.endswith("/ day")
-    assert delta.startswith(("-", "+"))
+    # Nothing is budgeted, so 100.00 exceeds what is left: the over line carries the ▲ glyph
+    # and the over amount is the delta element.
+    html = client.get("/today/afford?amount=100.00").text
+    result = _html.text_of(html, today.afford_delta)
+    assert result.startswith("▲ per day becomes")
+    assert result.endswith("· 100.00 over")
+
+
+def test_today_upcoming_chip_names_an_archived_category(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """A planned item whose category was archived keeps the category name, not a dash;
+    a second user's category never appears (INV1)."""
+    conn = get_connection(_migrated)
+    try:
+        seed_login_user(conn, user_id=2, email="mallory@example.test")
+        categories_repo.create(
+            conn, 2, NewCategory(name="Mallory Secret", direction=Direction.EXPENSE)
+        )
+        acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Main", currency="PLN"))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Bank Fees", direction=Direction.EXPENSE)
+        )
+        planned_id = planned_repo.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=clock.today_local(_migrated) + timedelta(days=1),
+                category_id=cat.id,
+                account_id=acc.id,
+                amount=1556,
+                description="Fee",
+            ),
+        ).id
+        categories_repo.soft_delete(conn, USER_ID, cat.id)
+        conn.commit()
+    finally:
+        conn.close()
+
+    for url in ("/today", "/today/upcoming"):
+        html = client.get(url).text
+        row = _html.text_of(html, today.upcoming_planned(planned_id))
+        assert "Bank Fees" in row
+        assert "\u2014" not in row
+        assert "Mallory Secret" not in html
+
+
+def test_today_stat_labels_carry_their_bar_glyph(client: TestClient) -> None:
+    stats_text = _html.text_of(client.get("/today").text, today.stats)
+    assert "spent █" in stats_text
+    assert "committed ▒" in stats_text
+    assert "left ░" in stats_text

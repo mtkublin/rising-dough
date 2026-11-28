@@ -7,9 +7,10 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
+        # operator-options/*.patch are generated diffs: trailing whitespace and EOLs are content (P1)
+        exclude: ^(package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*|docs/plans/ui-redesign/operator-options/.*\.patch)$
       - id: end-of-file-fixer
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
+        exclude: ^(package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*|docs/plans/ui-redesign/operator-options/.*\.patch)$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
@@ -18,7 +19,7 @@ repos:
       - id: check-merge-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
+        exclude: ^(tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
 
   # ADR-0120 amendment (2026-11-21, T-Q240): Python tool hooks run the versions
   # locked in uv.lock (`uv run <tool>`), so local, CI and `just` agree.
@@ -110,16 +111,16 @@ repos:
         pass_filenames: false
         files: ^(src/.*\.py|pyproject\.toml)$
 
-      - id: stylelint
-        name: stylelint (hand-authored CSS)
-        entry: npx --no-install stylelint
+      - id: stylelint-rd
+        name: stylelint (rising dough CSS, handoff config)
+        entry: npx --no-install stylelint --config src/budget_planner/web/static/rd/.stylelintrc.json
         language: system
-        files: ^src/budget_planner/web/static/[^/]+\.css$
-        exclude: ^src/budget_planner/web/static/tailwind\.css$
+        files: ^src/budget_planner/web/static/rd/(css|app)/.*\.css$
+        exclude: ^src/budget_planner/web/static/rd/css/app\.bundle\.css$
 
-      - id: tailwind-check
-        name: tailwind-check (regenerated CSS matches source)
-        entry: scripts/pre-commit/tailwind_check.sh
+      - id: css-bundle-check
+        name: css-bundle-check (rd app.bundle.css matches main.css imports)
+        entry: uv run python scripts/build_css_bundle.py --check
         language: system
         pass_filenames: false
-        files: ^(src/budget_planner/web/templates/.*\.html|src/budget_planner/web/static/js/.*\.js|src/budget_planner/web/static/tailwind\.(src\.)?css|tailwind\.config\.js|package(-lock)?\.json)$
+        files: ^(src/budget_planner/web/static/rd/css/.*\.css|scripts/build_css_bundle\.py)$

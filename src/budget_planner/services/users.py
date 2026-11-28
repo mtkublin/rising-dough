@@ -314,8 +314,8 @@ LAST_ADMIN_DEMOTE_MESSAGE: Final = (
 SELF_DEMOTE_MESSAGE: Final = "You can't remove your own admin rights. Ask another admin."
 EMAIL_LOCKED_MESSAGE: Final = "The email address can't be changed."
 SELF_DELETE_MESSAGE: Final = "You can't remove your own account. Ask another admin."
-DUPLICATE_EMAIL_MESSAGE: Final = "Another user already has this email."
-INVALID_EMAIL_MESSAGE: Final = "Enter a valid email address."
+DUPLICATE_EMAIL_MESSAGE: Final = "A user with this email already exists"
+INVALID_EMAIL_MESSAGE: Final = "Enter a full email address"
 NAME_TOO_LONG_MESSAGE: Final = f"Name must be at most {NAME_MAX_LENGTH} characters."
 CREDENTIAL_REQUIRED_MESSAGE: Final = "Enter a value for this field."
 

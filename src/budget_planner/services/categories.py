@@ -13,7 +13,7 @@ import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from budget_planner.domain.categories import (
@@ -27,6 +27,7 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import ValidationError, require_present
 from budget_planner.repositories import (
     categories as categories_repo,
+    planned as planned_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
@@ -35,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 RECENT_CATEGORY_LIMIT = 4
 """Handoff category picker shows four recent categories (T-UR34g, value-inventory G6)."""
+
+RECENT_WINDOW_DAYS = 90
+"""The recent chips rank entry counts over this many days up to today (R1, ADR-0151 amendment)."""
 
 
 class CategoryNotFoundError(LookupError):
@@ -134,51 +138,98 @@ def budgeted_expense_category_ids(
 
 @dataclass(frozen=True)
 class CategoryUsage:
-    """Live transactions booked to one category: how many, and the latest date."""
+    """Live references to one category: transactions, planned items and recurring rules.
+
+    ``last_used`` is the latest live transaction date, ``None`` when there is none.
+    """
 
     entry_count: int
-    last_used: date
+    planned_count: int
+    rule_count: int
+    last_used: date | None
 
 
 @dataclass(frozen=True)
 class CategoryPicker:
-    """Picker header values: recently used categories and the total shown in "search all N"."""
+    """Picker values: recent categories, the searchable list and "search all N" (= its size)."""
 
     recent: tuple[Category, ...]
+    searchable: tuple[Category, ...]
     total_count: int
 
 
 def usage_by_category(conn: sqlite3.Connection, user_id: int) -> dict[int, CategoryUsage]:
-    """Usage of every category with at least one live transaction, in one query.
+    """Usage of every category with at least one live transaction, planned item or rule.
 
-    Counts live (not soft-deleted) transactions only; planned items and recurring rules
-    do not count (the handoff says "entries", i.e. ledger rows; designer question).
+    Soft-deleted rows do not count (ADR-0151 §2, F2.8).
     """
-    return {
-        category_id: CategoryUsage(entry_count=count, last_used=last)
+    entries = {
+        category_id: (count, last)
         for category_id, count, last in transactions_repo.category_usage(conn, user_id)
     }
+    planned = planned_repo.count_by_category(conn, user_id)
+    rules = recurring_repo.count_by_category(conn, user_id)
+    return {
+        category_id: CategoryUsage(
+            entry_count=entries[category_id][0] if category_id in entries else 0,
+            planned_count=planned.get(category_id, 0),
+            rule_count=rules.get(category_id, 0),
+            last_used=entries[category_id][1] if category_id in entries else None,
+        )
+        for category_id in sorted({*entries, *planned, *rules})
+    }
+
+
+def usage_for(conn: sqlite3.Connection, user_id: int, category_id: int) -> CategoryUsage:
+    """Live references to one category (all zero when unused)."""
+    return usage_by_category(conn, user_id).get(
+        category_id, CategoryUsage(entry_count=0, planned_count=0, rule_count=0, last_used=None)
+    )
 
 
 def entry_count(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
     """Live transactions in the category ("locked by N entries", "Its N entries stay")."""
-    usage = usage_by_category(conn, user_id).get(category_id)
-    return usage.entry_count if usage is not None else 0
+    return usage_for(conn, user_id, category_id).entry_count
 
 
 def picker_summary(
-    conn: sqlite3.Connection, user_id: int, *, limit: int = RECENT_CATEGORY_LIMIT
+    conn: sqlite3.Connection, user_id: int, *, today: date, limit: int = RECENT_CATEGORY_LIMIT
 ) -> CategoryPicker:
-    """Recent categories (latest live transaction date desc, id asc on ties) and picker size.
+    """Recent categories (most entries in the last 90 days, ties by latest use, then id).
 
-    The picker lists live categories (:func:`list_all`), so archived ones are neither
-    recent nor counted. The system Reconciliation (adjustment) category is never "recent".
+    The window is ``[today - RECENT_WINDOW_DAYS, today]`` over live transactions; a category
+    with no entry in it is not recent (R1, ADR-0151 amendment 2026-11-25). The picker lists
+    live categories (:func:`list_all`), so archived ones are neither recent nor counted. The
+    system Reconciliation (``Direction.ADJUSTMENT``) category is not in recent, not in the
+    search list and not in N; Transit stays (ADR-0151 §2).
     """
-    live = list_all(conn, user_id)
-    usage = usage_by_category(conn, user_id)
-    used = [c for c in live if c.id in usage and c.direction is not Direction.ADJUSTMENT]
-    used.sort(key=lambda c: (-usage[c.id].last_used.toordinal(), c.id))
-    return CategoryPicker(recent=tuple(used[:limit]), total_count=len(live))
+    searchable = [c for c in list_all(conn, user_id) if c.direction is not Direction.ADJUSTMENT]
+    window = {
+        category_id: (count, last)
+        for category_id, count, last in transactions_repo.category_usage(
+            conn, user_id, since=today - timedelta(days=RECENT_WINDOW_DAYS), until=today
+        )
+    }
+    used = [c for c in searchable if c.id in window]
+    used.sort(key=lambda c: (-window[c.id][0], -window[c.id][1].toordinal(), c.id))
+    return CategoryPicker(
+        recent=tuple(used[:limit]), searchable=tuple(searchable), total_count=len(searchable)
+    )
+
+
+def lead_with_selected(picker: CategoryPicker, selected: Category | None) -> CategoryPicker:
+    """The picker whose recent chips lead with the selected category (handoff edit dialogs).
+
+    The chosen category is the first chip, checked, followed by the other recent ones; the row
+    keeps :data:`RECENT_CATEGORY_LIMIT` chips. Nothing selected: the picker as it is.
+    """
+    if selected is None:
+        return picker
+    others = [c for c in picker.recent if c.id != selected.id]
+    recent = (selected, *others[: RECENT_CATEGORY_LIMIT - 1])
+    return CategoryPicker(
+        recent=recent, searchable=picker.searchable, total_count=picker.total_count
+    )
 
 
 def _live_rule_refs(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
@@ -266,10 +317,28 @@ def list_recently_deleted(
     return categories_repo.list_recently_deleted(conn, user_id, days=days, limit=limit)
 
 
+DUPLICATE_NAME_MESSAGE = "A category with this name already exists"
+
+
+def _reject_duplicate_name(
+    conn: sqlite3.Connection, user_id: int, name: str | None, *, own_id: int | None
+) -> None:
+    """:class:`ValidationError` when another live category of the user already has ``name``."""
+    if name is None:
+        return
+    wanted = name.casefold()
+    if any(
+        c.id != own_id and c.name.casefold() == wanted
+        for c in categories_repo.list_all(conn, user_id)
+    ):
+        raise ValidationError(fields={"name": DUPLICATE_NAME_MESSAGE})
+
+
 def create(conn: sqlite3.Connection, user_id: int, data: NewCategory) -> Category:
     """Create a category; :class:`ValidationError` (nothing written) for a bad field."""
     if errors := new_category_errors(data):
         raise ValidationError(fields=errors)
+    _reject_duplicate_name(conn, user_id, data.name, own_id=None)
     return categories_repo.create(conn, user_id, data)
 
 
@@ -279,6 +348,7 @@ def update(
     """Patch a category; :class:`ValidationError` (nothing written) for a bad field."""
     if errors := patch_category_errors(data):
         raise ValidationError(fields=errors)
+    _reject_duplicate_name(conn, user_id, data.name, own_id=category_id)
     return categories_repo.update(conn, user_id, category_id, data)
 
 
@@ -288,6 +358,7 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, category_id: int) -> Non
 
 
 __all__ = [
+    "DUPLICATE_NAME_MESSAGE",
     "RECENT_CATEGORY_LIMIT",
     "CategoryHasLiveRulesError",
     "CategoryNotFoundError",
@@ -304,6 +375,7 @@ __all__ = [
     "expense_category_ids",
     "find_by_id",
     "find_by_name",
+    "lead_with_selected",
     "list_all",
     "list_recently_deleted",
     "picker_summary",
@@ -312,4 +384,5 @@ __all__ = [
     "soft_delete",
     "update",
     "usage_by_category",
+    "usage_for",
 ]

@@ -1,0 +1,260 @@
+/* T-UR04: moved to rd/js (ADR-0107 section 2); the data-passkey-* hooks are unchanged.
+ * T-D02b — passkey (WebAuthn) ceremonies for /auth/login and /auth/register.
+ *
+ * No inline script (CSP, ADR-0036 §3): this file binds to
+ *   [data-passkey-login]     button on the login page
+ *   form[data-passkey-register] on the add-a-passkey page
+ *   [data-passkey-status]    live region for progress / errors
+ *
+ * Flow (ADR-0067 §1, ADR-0070 §3): POST .../begin → server returns the
+ * WebAuthn options JSON and sets a signed, 5-minute challenge cookie →
+ * navigator.credentials.{get,create} → POST .../finish with the credential
+ * serialised as base64url JSON → server answers {redirect} or {error}.
+ * Every POST carries the CSRF token from <meta name="csrf-token">
+ * (ADR-0065).
+ */
+(function () {
+  "use strict";
+
+  var CSRF_HEADER = "X-CSRF-Token";
+  var GENERIC_LOGIN_ERROR = "Passkey sign-in didn't work. Try again or use your password.";
+
+  function toBytes(b64url) {
+    var b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    var bin = atob(b64);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out.buffer;
+  }
+
+  function toB64url(buffer) {
+    if (!buffer) return null;
+    var bytes = new Uint8Array(buffer);
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  /* Error class only (e.g. NotAllowedError for a cancelled prompt): never the
+   * message, which can carry device or account detail. */
+  function logFailure(err) {
+    console.debug("passkey ceremony failed:", (err && err.name) || "Error");
+  }
+
+  function setStatus(el, message, isError) {
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = !message; /* an empty status takes no room (the handoff pages have none) */
+    el.classList.toggle("rd-auth__status--error", Boolean(isError));
+  }
+
+  function postJson(url, body) {
+    var headers = { Accept: "application/json" };
+    headers[CSRF_HEADER] = window.budgetCsrf.token();
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    return fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }).then(function (resp) {
+      return resp.json().then(
+        function (data) { return { ok: resp.ok, data: data || {} }; },
+        function () { return { ok: resp.ok, data: {} }; }
+      );
+    }).then(function (res) {
+      /* ADR-0076 §2: a stale login needs a fresh credential first. */
+      if (isReauthRequired(res) && res.data.redirect) window.location.assign(res.data.redirect);
+      return res;
+    });
+  }
+
+  function isReauthRequired(res) {
+    return !res.ok && res.data && res.data.error === "reauth_required";
+  }
+
+  function descriptors(list) {
+    return (list || []).map(function (d) {
+      return { type: d.type, id: toBytes(d.id), transports: d.transports };
+    });
+  }
+
+  function serialise(cred, response) {
+    return {
+      id: cred.id,
+      rawId: toB64url(cred.rawId),
+      type: cred.type,
+      authenticatorAttachment: cred.authenticatorAttachment || undefined,
+      clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {},
+      response: response,
+    };
+  }
+
+  /* Same-page redirects only change the hash, which would not reload the
+   * passkey list; force a reload so the new credential shows up. */
+  function goTo(url) {
+    var target = new URL(url, window.location.href);
+    var samePage = target.pathname === window.location.pathname;
+    window.location.assign(target.href);
+    if (samePage) window.location.reload();
+  }
+
+  function supported() {
+    return Boolean(window.PublicKeyCredential && navigator.credentials);
+  }
+
+  function markUnsupported(el, status) {
+    el.setAttribute("disabled", "");
+    el.setAttribute("aria-disabled", "true");
+    setStatus(status, "This browser doesn't support passkeys.", true);
+  }
+
+  /* Shared assertion ceremony for login and step-up re-auth (ADR-0076 §2):
+   * POST beginUrl, navigator.credentials.get, POST finishUrl, redirect. */
+  function runAssertion(button, beginUrl, finishUrl, errorMessage) {
+    var status = document.querySelector("[data-passkey-status]");
+    var next = button.getAttribute("data-next") || "/";
+    button.setAttribute("aria-busy", "true");
+    setStatus(status, "Waiting for your passkey…", false);
+    postJson(beginUrl)
+      .then(function (res) {
+        if (!res.ok) throw new Error("begin");
+        var opts = res.data;
+        opts.challenge = toBytes(opts.challenge);
+        opts.allowCredentials = descriptors(opts.allowCredentials);
+        return navigator.credentials.get({ publicKey: opts });
+      })
+      .then(function (cred) {
+        var r = cred.response;
+        return postJson(
+          finishUrl + "?next=" + encodeURIComponent(next),
+          serialise(cred, {
+            clientDataJSON: toB64url(r.clientDataJSON),
+            authenticatorData: toB64url(r.authenticatorData),
+            signature: toB64url(r.signature),
+            userHandle: toB64url(r.userHandle),
+          })
+        );
+      })
+      .then(function (res) {
+        if (!res.ok || !res.data.redirect) throw new Error("finish");
+        window.location.assign(res.data.redirect);
+      })
+      .catch(function (err) {
+        logFailure(err);
+        setStatus(status, errorMessage, true);
+      })
+      .finally(function () {
+        button.removeAttribute("aria-busy");
+      });
+  }
+
+  function bindAssertion(button, beginUrl, finishUrl, errorMessage) {
+    var status = document.querySelector("[data-passkey-status]");
+    if (!supported()) return markUnsupported(button, status);
+    button.addEventListener("click", function () {
+      runAssertion(button, beginUrl, finishUrl, errorMessage);
+    });
+  }
+
+  /* ── Login ─────────────────────────────────────────────────────── */
+  function bindLogin(button) {
+    bindAssertion(button, "/auth/login/begin", "/auth/login/finish", GENERIC_LOGIN_ERROR);
+  }
+
+  /* ── Step-up re-authentication (ADR-0076 §2) ─────────────────── */
+  var REAUTH_ERROR = "Passkey confirmation didn't work. Try again or use your password.";
+
+  function bindReauth(button) {
+    bindAssertion(button, "/auth/reauth/begin", "/auth/reauth/finish", REAUTH_ERROR);
+  }
+
+  /* ── Registration ──────────────────────────────────────────────── */
+  var REGISTER_ERRORS = {
+    reauth_required: "Confirm it's you first. Redirecting…",
+    challenge_expired: "That took too long. Please try again.",
+    duplicate_credential: "This passkey is already registered.",
+    invalid_response: "Your device's response couldn't be verified.",
+    passkey_host_unsupported:
+      "Passkeys need a hostname. Open the app as http://localhost:<port> instead of an IP address.",
+  };
+
+  function bindRegister(form) {
+    var status = form.querySelector("[data-passkey-status]");
+    var submit = form.querySelector('button[type="submit"]');
+    if (!supported()) return markUnsupported(submit, status);
+    form.addEventListener("submit", function (evt) {
+      evt.preventDefault();
+      var label = (form.elements.namedItem("label") || {}).value || "";
+      submit.setAttribute("aria-busy", "true");
+      submit.setAttribute("disabled", "");
+      setStatus(status, "Follow the prompt on your device…", false);
+      postJson("/auth/register/begin")
+        .then(function (res) {
+          if (!res.ok) throw new Error(res.data.error || "begin");
+          var opts = res.data;
+          opts.challenge = toBytes(opts.challenge);
+          opts.user.id = toBytes(opts.user.id);
+          opts.excludeCredentials = descriptors(opts.excludeCredentials);
+          return navigator.credentials.create({ publicKey: opts });
+        })
+        .then(function (cred) {
+          var r = cred.response;
+          return postJson("/auth/register/finish", {
+            label: label,
+            credential: serialise(cred, {
+              clientDataJSON: toB64url(r.clientDataJSON),
+              attestationObject: toB64url(r.attestationObject),
+              transports: r.getTransports ? r.getTransports() : [],
+            }),
+          });
+        })
+        .then(function (res) {
+          if (!res.ok || !res.data.redirect) {
+            throw new Error(res.data.error || "finish");
+          }
+          goTo(res.data.redirect);
+        })
+        .catch(function (err) {
+          logFailure(err);
+          var msg = REGISTER_ERRORS[err && err.message] ||
+            "The passkey wasn't added. You can try again.";
+          setStatus(status, msg, true);
+        })
+        .finally(function () {
+          submit.removeAttribute("aria-busy");
+          submit.removeAttribute("disabled");
+        });
+    });
+  }
+
+  function init() {
+    var login = document.querySelector("[data-passkey-login]");
+    if (login) bindLogin(login);
+    var reauth = document.querySelector("[data-passkey-reauth]");
+    if (reauth) bindReauth(reauth);
+    var register = document.querySelector("form[data-passkey-register]");
+    if (register) bindRegister(register);
+    var forgot = document.querySelector("[data-forgot-password]");
+    if (forgot) bindForgot(forgot);
+  }
+
+  /* ── Forgot password: no email loop (ADR-0061); the admin resets it ─── */
+  function bindForgot(link) {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
+      setStatus(
+        document.querySelector("[data-passkey-status]"),
+        "Ask the admin to reset your password.",
+        false
+      );
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

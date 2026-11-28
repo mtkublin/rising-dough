@@ -39,6 +39,7 @@ from tests.unit.services import (  # noqa: F401 - importing registers the cases
     _isolation_read_cases,
     _isolation_t266_cases,
     _isolation_t267_cases,
+    _isolation_ur11b_cases,
     _isolation_write_cases,
 )
 from tests.unit.services._isolation_registry import COVERED, covers
@@ -112,6 +113,15 @@ def _case_fortune(conn: sqlite3.Connection, world: World) -> None:
 def _case_last_checked(conn: sqlite3.Connection, world: World) -> None:
     assert world.other.account_id not in _checked_accounts(conn, OWNER_ID)
     assert world.owner.account_id not in _checked_accounts(conn, OTHER_ID)
+
+
+@covers("accounts.list_by_last_use")
+def _case_list_by_last_use(conn: sqlite3.Connection, world: World) -> None:
+    own = {a.id for a in accounts.list_by_last_use(conn, OWNER_ID)}
+    other = {a.id for a in accounts.list_by_last_use(conn, OTHER_ID)}
+    assert world.owner.account_id in own
+    assert world.other.account_id in other
+    assert not own & other
 
 
 @covers("accounts.archive_account")
@@ -219,12 +229,22 @@ def _case_entry_count(conn: sqlite3.Connection, world: World) -> None:
     assert categories.entry_count(conn, OTHER_ID, world.owner.category_id) == 0
 
 
+@covers("categories.usage_for")
+def _case_usage_for(conn: sqlite3.Connection, world: World) -> None:
+    mine = categories.usage_for(conn, OWNER_ID, world.owner.category_id)
+    assert mine.entry_count == 1
+    assert categories.usage_for(conn, OWNER_ID, world.other.category_id).entry_count == 0
+    assert categories.usage_for(conn, OTHER_ID, world.owner.category_id).entry_count == 0
+
+
 @covers("categories.picker_summary")
 def _case_picker_summary(conn: sqlite3.Connection, world: World) -> None:
-    recent = {c.id for c in categories.picker_summary(conn, OWNER_ID).recent}
+    recent = {c.id for c in categories.picker_summary(conn, OWNER_ID, today=TODAY).recent}
     assert world.owner.category_id in recent
     assert world.other.category_id not in recent
-    assert all(c.user_id == OWNER_ID for c in categories.picker_summary(conn, OWNER_ID).recent)
+    assert all(
+        c.user_id == OWNER_ID for c in categories.picker_summary(conn, OWNER_ID, today=TODAY).recent
+    )
 
 
 def collect() -> list[Violation]:

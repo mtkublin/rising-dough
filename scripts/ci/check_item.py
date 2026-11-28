@@ -9,7 +9,12 @@ added suppressions and new top-level definitions (canonical-concept names flagge
 Output: one ``PASS|FAIL|WARN <check>: <detail>`` line per finding. Exit 1 on any FAIL.
 
 Usage: check_item.py --item <ID> [--work <branch>] [--owned <glob> ...]
-       (--work defaults to the current branch)
+                     [--hotspots <glob> ...] [--allow-framework-rows]
+       --work defaults to the current branch; when that is already ``wi/<work>/<ID>``
+       the work branch is taken from it (never ``wi/wi/...``).
+       --hotspots: scribe-owned files this item may touch (merged into the allowed set,
+       reported separately). --allow-framework-rows: growth of ``[[framework]]``
+       allowlist rows (permanent, ADR-0130 list) is WARN instead of FAIL.
 """
 
 from __future__ import annotations
@@ -67,13 +72,20 @@ def check_owned(changed: Sequence[str], owned: Sequence[str]) -> Finding:
     return Finding("PASS", "owned")
 
 
-def check_hotspots(changed: Sequence[str], owned: Sequence[str]) -> Finding:
-    """Scribe hotspots may change only when the brief lists the exact path as owned."""
-    touched = [p for p in changed if _matches(p, HOTSPOTS) and p not in owned]
+def check_hotspots(
+    changed: Sequence[str], owned: Sequence[str], hotspots: Sequence[str] = ()
+) -> Finding:
+    """Scribe hotspots change only when listed literally in owned or matched by --hotspots."""
+    touched = [
+        p for p in changed if _matches(p, HOTSPOTS) and p not in owned and not _matches(p, hotspots)
+    ]
     if touched:
         detail = "scribe-owned, not listed literally in --owned: " + ", ".join(touched)
         return Finding("FAIL", "hotspots", detail)
-    return Finding("PASS", "hotspots")
+    allowed = [p for p in changed if _matches(p, HOTSPOTS) and _matches(p, hotspots)]
+    return Finding(
+        "PASS", "hotspots", ("allowed via --hotspots: " + ", ".join(allowed)) if allowed else ""
+    )
 
 
 def check_subjects(subjects: Sequence[str], item: str) -> Finding:
@@ -84,19 +96,35 @@ def check_subjects(subjects: Sequence[str], item: str) -> Finding:
     return Finding("PASS", "subjects")
 
 
-def allowlist_total(text: str) -> int:
-    """Sum of ``count`` (1 when absent) over every table array of an allowlist file."""
+def allowlist_total(text: str, skip: str = "") -> int:
+    """Sum of ``count`` (1 when absent) over every table array, except the ``skip`` one."""
     if not text.strip():
         return 0
     total = 0
-    for value in tomllib.loads(text).values():
-        if isinstance(value, list):
+    for key, value in tomllib.loads(text).items():
+        if key != skip and isinstance(value, list):
             total += sum(int(row.get("count", 1)) for row in value if isinstance(row, dict))
     return total
 
 
-def check_allowlists(totals: dict[str, tuple[int, int]]) -> Finding:
-    """``totals`` maps an allowlist path to (work branch total, item branch total)."""
+def check_allowlists(
+    totals: dict[str, tuple[int, int]],
+    framework: dict[str, tuple[int, int]] | None = None,
+    allow_framework: bool = False,
+) -> Finding:
+    """``totals`` maps an allowlist path to (work branch total, item branch total).
+
+    ``framework`` holds the same for the ``[[framework]]`` rows alone; with
+    ``allow_framework`` their growth is excluded from ``totals`` and reported as WARN.
+    """
+    if allow_framework and framework:
+        grown = [f"{p} {b}->{h}" for p, (b, h) in sorted(framework.items()) if h > b]
+        totals = {
+            p: (b - framework.get(p, (0, 0))[0], h - framework.get(p, (0, 0))[1])
+            for p, (b, h) in totals.items()
+        }
+        if grown and not any(h > b for b, h in totals.values()):
+            return Finding("WARN", "allowlists", "framework rows added: " + ", ".join(grown))
     risen = [f"{p} {base}->{head}" for p, (base, head) in sorted(totals.items()) if head > base]
     if risen:
         return Finding("FAIL", "allowlists", "rose: " + ", ".join(risen))
@@ -161,7 +189,21 @@ def _show(ref: str, path: str) -> str:
         return ""  # the file does not exist on that side
 
 
-def run(item: str, work: str, owned: Sequence[str]) -> list[Finding]:
+def resolve_work(current: str, item: str, work: str = "") -> str:
+    """Work branch: ``--work`` if given, else the current branch minus ``wi/`` and ``/<ID>``."""
+    name = work or current
+    if name.startswith("wi/") and name.endswith(f"/{item}"):
+        return name[len("wi/") : -len(f"/{item}")]
+    return name
+
+
+def run(
+    item: str,
+    work: str,
+    owned: Sequence[str],
+    hotspots: Sequence[str] = (),
+    allow_framework: bool = False,
+) -> list[Finding]:
     branch = f"wi/{work}/{item}"
     base = _git("merge-base", work, branch).strip()
     rng = f"{base}..{branch}"
@@ -169,18 +211,24 @@ def run(item: str, work: str, owned: Sequence[str]) -> list[Finding]:
     added = _git("diff", "--name-only", "--diff-filter=A", base, branch).split()
     subjects = _git("log", "--no-merges", "--format=%s", rng).splitlines()
     ahead = int(_git("rev-list", "--count", f"{work}..{branch}").strip())
+    lists = [p for p in changed if p.startswith(ALLOWLISTS) and p.endswith(".toml")]
     totals = {
-        p: (allowlist_total(_show(work, p)), allowlist_total(_show(branch, p)))
-        for p in changed
-        if p.startswith(ALLOWLISTS) and p.endswith(".toml")
+        p: (allowlist_total(_show(work, p)), allowlist_total(_show(branch, p))) for p in lists
+    }
+    framework = {
+        p: (
+            allowlist_total(_show(work, p)) - allowlist_total(_show(work, p), skip="framework"),
+            allowlist_total(_show(branch, p)) - allowlist_total(_show(branch, p), skip="framework"),
+        )
+        for p in lists
     }
     lines = added_lines(_git("diff", "-U0", base, branch, "--", "*.py"))
     return [
         check_ahead(ahead),
-        check_owned(changed, owned),
-        check_hotspots(changed, owned),
+        check_owned(changed, [*owned, *hotspots]),
+        check_hotspots(changed, owned, hotspots),
         check_subjects(subjects, item),
-        check_allowlists(totals),
+        check_allowlists(totals, framework, allow_framework),
         check_audit(changed, added),
         *suppression_findings(lines),
         *definition_findings(lines),
@@ -192,10 +240,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--item", required=True)
     parser.add_argument("--work", default="")
     parser.add_argument("--owned", nargs="*", default=[])
+    parser.add_argument("--hotspots", nargs="*", default=[])
+    parser.add_argument("--allow-framework-rows", action="store_true")
     args = parser.parse_args(argv)
-    work = args.work or _git("rev-parse", "--abbrev-ref", "HEAD").strip()
     try:
-        findings = run(args.item, work, args.owned)
+        current = args.work or _git("rev-parse", "--abbrev-ref", "HEAD").strip()
+        work = resolve_work(current, args.item)
+        findings = run(args.item, work, args.owned, args.hotspots, args.allow_framework_rows)
     except RuntimeError as exc:
         print(f"FAIL git: {exc}")
         return 1

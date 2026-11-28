@@ -9,7 +9,6 @@ from starlette.datastructures import FormData
 
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
 from budget_planner.domain.budgets import (
-    NewBudgetDefault,
     NewBudgetOneOffOverride,
     NewBudgetRecurringOverride,
 )
@@ -19,10 +18,8 @@ from budget_planner.repositories import accounts
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
 from budget_planner.web.account_forms import (
     parse_account_patch,
-    parse_category_id,
     parse_liability,
     parse_new_account,
-    parse_save_snapshot,
 )
 from budget_planner.web.budget_forms import parse_override
 from budget_planner.web.recurring_forms import (
@@ -124,8 +121,6 @@ def test_checkbox_and_id_parsers() -> None:
         False,
         False,
     ]
-    assert [parse_save_snapshot(v) for v in ("yes", "on", "0", "")] == [True, True, False, False]
-    assert [parse_category_id(v) for v in ("12", " 7 ", "", "x")] == [12, 7, None, None]
 
 
 def test_account_patch_clears_limit_for_non_liability(conn: sqlite3.Connection) -> None:
@@ -146,13 +141,29 @@ def test_account_patch_clears_limit_for_non_liability(conn: sqlite3.Connection) 
 
 
 def _override(**kw: str) -> tuple[object, str | None]:
-    base = {"tier": "default", "month": "", "year": "", "amount": "10", "currency": "PLN"}
-    parsed = parse_override(5, **{**base, **kw})
+    base: dict[str, str] = {
+        "tier": "default",
+        "month": "",
+        "year": "",
+        "amount": "10",
+        "currency": "PLN",
+    }
+    f = {**base, **kw}
+    parsed = parse_override(
+        5,
+        tier=f["tier"],
+        month=f["month"],
+        year=f["year"],
+        amount=f["amount"],
+        currency=f["currency"],
+    )
     return parsed.command, parsed.error
 
 
-def test_override_default_blank_amount_is_zero() -> None:
-    assert _override(amount="") == (NewBudgetDefault(category_id=5, amount=0), None)
+def test_override_default_blank_amount_is_invalid_not_zero() -> None:
+    # T-UR47: an empty override must not be saved as 0; the dialog maps this to
+    # "enter an amount of 0 or more" (web/override_forms.py).
+    assert _override(amount="") == (None, "invalid amount")
 
 
 def test_override_recurring_and_one_off_commands() -> None:
@@ -232,5 +243,5 @@ def test_fixed_amount_needs_an_account_currency_and_a_positive_amount(
     assert _amounts(conn, source="fixed", amount="-3", currency="PLN") == (
         None,
         None,
-        {"default_amount": "amount must be positive"},
+        {"default_amount": "Enter an amount above 0.00"},
     )

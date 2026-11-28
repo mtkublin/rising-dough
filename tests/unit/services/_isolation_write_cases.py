@@ -562,6 +562,21 @@ def _case_resolve_rule_amount(conn: sqlite3.Connection, world: World) -> None:
     )
 
 
+@covers("recurring_formula.live_rule_amount")
+def _case_live_rule_amount(conn: sqlite3.Connection, world: World) -> None:
+    fixed = _rule(conn, OWNER_ID, world.owner.rule_id)
+    with_formula = dataclasses.replace(
+        fixed, amount_formula=_income_formula(world.owner.income_category_id)
+    )
+    owner = formula_svc.live_rule_amount(
+        conn, OWNER_ID, with_formula, _DEC, formula_fx_of(conn, OWNER_ID)
+    )
+    other = formula_svc.live_rule_amount(
+        conn, OTHER_ID, with_formula, _DEC, formula_fx_of(conn, OTHER_ID)
+    )
+    assert (owner, other) == ((5_000, False), (0, False))
+
+
 @covers("recurring_formula.rt_expand")
 def _case_rt_expand(conn: sqlite3.Connection, world: World) -> None:
     fixed = _rule(conn, OWNER_ID, world.owner.rule_id)

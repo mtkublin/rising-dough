@@ -16,6 +16,7 @@ from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
 from tests.e2e.forms import PANEL, wait_for_htmx
+from tests.e2e.ui_actions import fill_stable, submit_ok
 from tests.ui_map import ledger
 from tests.ui_map.locator import to_playwright
 
@@ -80,20 +81,20 @@ def test_recurring_rule_and_planned_promote_cycle(
         f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
     )
     expect(to_playwright(page, ledger.planned_row(planned_id))).to_be_visible()
-    persisted_el = to_playwright(page, ledger.planned_row(planned_id))
 
-    # Promote through the row's slide-over form with an edited amount.
+    # Promote through the row's promote dialog (link opens #modal-root, T-UR24), edited amount.
     wait_for_htmx(page)
-    persisted_el.get_by_role("button", name="Promote").click()
+    to_playwright(page, ledger.planned_promote(planned_id)).click()
     expect(to_playwright(page, PANEL)).to_be_visible()
-    to_playwright(page, ledger.overlay_field(ledger.field_date)).fill("2026-01-22")
-    to_playwright(page, ledger.overlay_field(ledger.field_amount)).fill("27.50")
-    to_playwright(page, ledger.overlay_field(ledger.field_description)).fill("promoted one-off")
-    with page.expect_response(
-        lambda r: r.url.endswith("/promote") and r.request.method == "POST"
-    ) as resp:
-        to_playwright(page, ledger.overlay_promote).click()
-    assert resp.value.ok, resp.value.text()
+    fill_stable(to_playwright(page, ledger.overlay_field(ledger.field_date)), "2026-01-22")
+    fill_stable(to_playwright(page, ledger.overlay_field(ledger.field_amount)), "27.50")
+    fill_stable(to_playwright(page, ledger.overlay_field(ledger.field_note)), "promoted one-off")
+    # The typed values must still be in the form when it posts (a re-render would reset them).
+    expect(to_playwright(page, ledger.overlay_field(ledger.field_amount))).to_have_value("27.50")
+    expect(to_playwright(page, ledger.overlay_field(ledger.field_note))).to_have_value(
+        "promoted one-off"
+    )
+    submit_ok(page, ledger.overlay_promote, path=f"/planned/{planned_id}/promote")
 
     # DB: the planned row points at the new transaction, with the edited amount.
     assert db_probe.txn_amounts(db_path, "promoted one-off") == [2750]

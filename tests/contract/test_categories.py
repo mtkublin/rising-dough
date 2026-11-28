@@ -21,7 +21,7 @@ from tests.contract.web_helpers_t_ut04e import (
     make_category,
     system_category_id,
 )
-from tests.ui_map import _html, settings as ui
+from tests.ui_map import _html, rd_shell, settings as ui
 
 pytest_plugins = ["tests.contract.web_support_t_ut04e"]  # client, anon_client, raw_client
 
@@ -48,13 +48,18 @@ def _category(settings: Settings, name: str) -> dict[str, object]:
 
 
 @covers("GET /categories/new")
-def test_new_form_targets_itself_and_resets(client: TestClient) -> None:
+def test_new_form_opens_the_dialog_shell(client: TestClient) -> None:
+    # ADR-0152: transport changed from a self-targeting inline form to the dialog shell.
     r = client.get("/categories/new", headers=HX)
     assert r.status_code == 200
-    form = _html.resolve_one(r.text, ui.category_form)
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert r.headers["HX-Reswap"] == "innerHTML"
+    dialog = _html.resolve_one(r.text, ui.category_form)
+    assert dialog["aria-labelledby"] == f"{dialog['id']}-title"
+    form = dialog.find("form")
+    assert form is not None
     assert form["hx-post"] == "/categories"
-    assert form["hx-target"] == "#category-form"
-    assert form.has_attr("data-reset-on-submit")
+    assert form["hx-target"] == "#modal-root"
     assert _html.exists(r.text, ui.category_name)
     assert _html.exists(r.text, ui.category_expense)
     assert _html.exists(r.text, ui.category_income)
@@ -72,12 +77,16 @@ def test_new_form_requires_login(anon_client: TestClient) -> None:
 
 
 @covers("POST /categories")
-def test_create_persists_audits_and_reloads(client: TestClient, _migrated: Settings) -> None:
+def test_create_persists_audits_and_flashes(client: TestClient, _migrated: Settings) -> None:
     r = client.post("/categories", data=NEW, headers=HX)
     assert r.status_code == 200
-    assert "budget-stale" in json.loads(r.headers["HX-Trigger"])
+    assert json.loads(r.headers["HX-Trigger"]) == {
+        "budget-stale": True,
+        "settings-categories-stale": True,
+    }
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Category created" in _html.text_of(r.text, rd_shell.flash_saved)
     row = _category(_migrated, "Rent")
     assert (row["direction"], row["user_id"], row["color"]) == ("expense", USER_ID, None)
     assert ("create", row["id"]) in audit_ops(_migrated, "category")
@@ -209,6 +218,31 @@ def test_delete_missing_system_and_csrf(
 
 
 # --- POST /categories/{id}/archive and /restore --------------------------------
+
+
+@covers("GET /categories/{category_id}/archive")
+def test_archive_form_is_a_confirm_dialog_with_usage(client: TestClient, cat_id: int) -> None:
+    # New route (T-UR13): the confirm dialog the archive link opens; the POST below is unchanged.
+    r = client.get(f"/categories/{cat_id}/archive", headers=HX)
+    assert r.status_code == 200
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    dialog = _html.resolve_one(r.text, ui.archive_dialog)
+    assert dialog["aria-labelledby"] == f"{dialog['id']}-title"
+    assert "Archive Groceries?" in _html.text_of(r.text, ui.archive_dialog)
+    form = dialog.find("form")
+    assert form is not None
+    assert form["hx-post"] == f"/categories/{cat_id}/archive"
+    assert _html.exists(r.text, ui.archive_confirm)
+
+
+@covers("GET /categories/{category_id}/archive")
+def test_archive_form_missing_is_404_and_needs_login(
+    client: TestClient, anon_client: TestClient, cat_id: int
+) -> None:
+    assert client.get("/categories/9999/archive").status_code == 404
+    anon = anon_client.get(f"/categories/{cat_id}/archive", follow_redirects=False)
+    assert anon.status_code == 302
+    assert anon.headers["location"].startswith("/auth/login")
 
 
 @covers("POST /categories/{category_id}/archive")

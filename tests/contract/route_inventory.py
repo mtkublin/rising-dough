@@ -17,9 +17,17 @@ from typing import Any, Final
 from budget_planner.web.middleware.auth import EXEMPT_PATHS, STATIC_PREFIX
 
 KEY_PATTERN: Final = re.compile(r"^(GET|POST|PUT|PATCH|DELETE|MOUNT) /\S*$")
+_CONVERTOR: Final = re.compile(r"\{(\w+):\w+\}")  # `{id:int}` -> `{id}`: keys ignore convertors
 _ROUTER_PREFIX: Final = "budget_planner.web.routers."
 _FRAGMENT_NAMES: Final = frozenset(
-    {"limit_preview", "last_checked", "promote_inline", "drawer", "close", "add_entry_overlay"}
+    {
+        "limit_preview",
+        "recently_deleted_panel",
+        "last_checked",
+        "drawer",
+        "close",
+        "add_entry_overlay",
+    }
 )
 
 
@@ -72,7 +80,7 @@ def collect_routes(app: Any) -> tuple[RouteInfo, ...]:
     """Every (method, path) on ``app``; HEAD aliases skipped, mounts as MOUNT."""
     rows: list[RouteInfo] = []
     for route in _walk(app.routes):
-        path = str(route.path)
+        path = _CONVERTOR.sub(r"{\1}", str(route.path))
         endpoint = getattr(route, "endpoint", None)
         methods = getattr(route, "methods", None)
         if endpoint is None or not methods:

@@ -1,0 +1,114 @@
+{# Plan · year (T-UR11, ADR-0107, ADR-0136). Handoff: pages/plan/year.html.
+   Context: year_page (plan_year_view.YearPage), tab, base_ccy. Rendered by GET /plan?tab=year.
+   Each cell edits in place (handoff overlay override--year-cell: the rd-year-editor form below,
+   cloned by app-year-cell.js; its two scope chips (the tier_labels texts: this month only, preselected, and
+   every <month>; a popover under the edited cell, never the default tier) pick the tier the override
+   route stores, F4.8a, R16, R17); a modified
+   click or no script opens the override dialog (fragments/dialogs/override-budget.html). A saved
+   or removed override sends budget-stale and the hidden listener reloads #main. #}
+{% extends "layouts/base.html" %}
+{% block title %}Plan · year · Rising Dough{% endblock %}
+{% block scripts %}
+  <script type="module"
+          src="{{ url_for('static', path='rd/js/app-year-cell.js') }}"></script>
+{% endblock %}
+{% block main %}
+  <span hidden
+        hx-get="{{ year_page.reload_url }}"
+        hx-trigger="budget-stale from:body"
+        hx-target="#main"
+        hx-select="#main"
+        hx-swap="outerHTML"></span>
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Yearly budget</h1>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Yearly budget grid">
+    <div class="rd-plan-head">
+      {% include "pages/plan/_tabs.html" %}
+      {% with label=year_page.period.label, prev_url=year_page.period.prev_url, next_url=year_page.period.next_url, prev_label="Previous year", next_label="Next year", picker=year_page.period.picker %}
+        {% include "fragments/plan/period-nav.html" %}
+      {% endwith %}
+    </div>
+    <ul class="rd-year__legend">
+      <li>
+        <span class="rd-year__swatch" aria-hidden="true"></span> default
+      </li>
+      <li>↻ recurring override</li>
+      <li>• one-off override</li>
+      <li>– unset</li>
+    </ul>
+    <div class="rd-table-scroll rd-year__scroll"
+         tabindex="0"
+         role="region"
+         aria-label="Budget per category and month, {{ year_page.year }}. Each cell opens its override. (scrolls sideways)">
+      <table class="rd-year">
+        <caption class="u-visually-hidden">Budget per category and month, {{ year_page.year }}. Each cell opens its override.</caption>
+        <thead>
+          <tr class="rd-year__row rd-year__row--head">
+            <th scope="col" class="rd-year__cat">CATEGORY</th>
+            {% for month in year_page.months %}
+              <th scope="col"
+                  {% if month.current %}aria-current="date"{% endif %}
+                  class="rd-year__month">{{ month.text }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in year_page.rows %}
+            {% include "fragments/rows/year-grid-row.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <template data-js="year-cell-form">
+      <form class="rd-year-editor"
+            method="post"
+            hx-target="#modal-root"
+            hx-swap="innerHTML"
+            data-js="year-cell-editor">
+        <label class="u-visually-hidden" data-js="year-cell-label"></label>
+        <input class="rd-year-editor__input"
+               name="amount"
+               inputmode="decimal"
+               autocomplete="off"
+               data-js="amount-input">
+        <input type="hidden" name="year">
+        <input type="hidden" name="month">
+        <input type="hidden" name="origin" value="year">
+        <div class="rd-year-editor__scope"
+             role="radiogroup"
+             aria-label="budget scope">
+          <label class="rd-year-editor__chip">
+            <input type="radio"
+                   class="u-visually-hidden"
+                   name="tier"
+                   value="one-off"
+                   checked>{{ year_page.scope_labels["one-off"] }}
+          </label>
+          <label class="rd-year-editor__chip">
+            <input type="radio" class="u-visually-hidden" name="tier" value="recurring">
+            <span data-js="year-cell-recurring"></span>
+          </label>
+        </div>
+        <button type="submit" class="u-visually-hidden">save</button>
+      </form>
+    </template>
+    {% if year_page.unbudgeted %}
+      <details class="rd-disclosure">
+        <summary class="rd-disclosure__summary">{{ year_page.unbudgeted_heading }}</summary>
+        <div class="rd-disclosure__body">
+          {% for item in year_page.unbudgeted %}
+            <a class="rd-chip"
+               {% if (item.category_color|category_color).name %}data-color="{{ (item.category_color|category_color).name }}"{% endif %}
+               href="{{ item.url }}"
+               hx-get="{{ item.url }}"
+               hx-target="#modal-root"
+               hx-swap="innerHTML">{{ item.category_name }}</a>
+          {% endfor %}
+        </div>
+      </details>
+    {% endif %}
+  </section>
+{% endblock %}

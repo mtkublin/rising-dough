@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
@@ -12,7 +13,8 @@ from budget_planner.db.connection import get_connection
 from budget_planner.repositories._unaudited import set_next_due
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import audit_ops, hx_events, query, rule_form, scalar
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, ledger, rd_shell as shell
+from tests.ui_map.locator import by_id, role
 
 Ids = dict[str, int]
 HTMX = {"HX-Request": "true"}
@@ -38,22 +40,17 @@ def _make_due(settings: Settings, rule_id: int) -> None:
         conn.close()
 
 
-@covers("GET /recurring/new")
-def test_new_form_is_a_slideover(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/recurring/new", headers=HTMX)
-    assert r.status_code == 200
-    assert "<html" not in r.text
-
-
 @covers("POST /recurring")
 def test_create_persists_audits_and_signals(
     client: TestClient, seeded: Ids, _migrated: Settings
 ) -> None:
     r = client.post("/recurring", data=rule_form(seeded))
     assert r.status_code == 200
-    assert hx_events(r) == FORECAST_LEDGER
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert hx_events(r) == {**FORECAST_LEDGER, "today-stale": True, "budget-stale": True}
+    assert "HX-Reswap" not in r.headers
+    assert "HX-Refresh" not in r.headers
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Recurring rule saved"
     new_id = scalar(_migrated, "SELECT MAX(id) FROM recurring_rules")
     assert new_id != seeded["rule"]
     assert (
@@ -126,6 +123,8 @@ def test_create_validation_errors(client: TestClient, seeded: Ids, _migrated: Se
 def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     ok = client.get(f"/recurring/{seeded['rule']}/edit", headers=HTMX)
     assert ok.status_code == 200
+    assert ok.headers["HX-Retarget"] == "#modal-root"  # a dialog now, not a slide-over
+    assert _html.exists(ok.text, role("dialog", re.compile(r"^edit recurring rule")))
     assert "<html" not in ok.text
     assert client.get("/recurring/99999/edit").status_code == 404
 
@@ -140,7 +139,9 @@ def test_update_persists_audits_and_signals(
     )
     assert r.status_code == 200
     assert hx_events(r) == FORECAST_LEDGER
-    assert r.headers["HX-Reswap"] == "none"
+    # the dialog closes: #modal-root is emptied out of band (was HX-Reswap none + reload)
+    assert "HX-Reswap" not in r.headers
+    assert _html.resolve_one(r.text, by_id("modal-root")).get("hx-swap-oob") == "innerHTML"
     row = query(
         _migrated,
         "SELECT default_amount, cadence FROM recurring_rules WHERE id = ?",
@@ -172,7 +173,8 @@ def test_deactivate_soft_deletes_the_rule(
 ) -> None:
     r = client.post(f"/recurring/{seeded['rule']}/deactivate")
     assert r.status_code == 200
-    assert r.text == ""
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Recurring rule deactivated")
+    assert not _html.exists(r.text, ledger.recurring_row(seeded["rule"]))
     assert hx_events(r) == FORECAST_LEDGER
     assert (
         scalar(_migrated, "SELECT active FROM recurring_rules WHERE id = ?", (seeded["rule"],)) == 0
@@ -192,6 +194,8 @@ def test_override_add_and_delete_round_trip(
     rid = seeded["rule"]
     form = client.get(f"/recurring/{rid}/overrides/new", headers=HTMX)
     assert form.status_code == 200
+    assert form.headers["HX-Retarget"] == "#modal-root"  # a dialog now, not a slide-over
+    assert _html.exists(form.text, role("dialog", re.compile(r"^override occurrence")))
     assert "<html" not in form.text
     assert client.get("/recurring/99999/overrides/new").status_code == 404
 
@@ -202,7 +206,8 @@ def test_override_add_and_delete_round_trip(
     )
     assert added.status_code == 200
     assert hx_events(added) == FORECAST_LEDGER
-    assert added.headers["HX-Reswap"] == "none"
+    assert "HX-Reswap" not in added.headers  # the dialog closes out of band instead
+    assert _html.resolve_one(added.text, by_id("modal-root")).get("hx-swap-oob") == "innerHTML"
     occ = scalar(
         _migrated,
         "SELECT occurrence_date FROM recurring_rule_overrides WHERE rule_id = ?",
@@ -276,17 +281,20 @@ def test_formula_preview_statuses(client: TestClient, seeded: Ids, _migrated: Se
     assert scalar(_migrated, "SELECT COUNT(*) FROM recurring_rules") == 2
 
 
-@covers("GET /recurring/{rule_id}/promote", "GET /recurring/{rule_id}/promote/inline")
-def test_promote_forms_and_unknown_id(client: TestClient, seeded: Ids) -> None:
+@covers("GET /recurring/{rule_id}/promote")
+def test_promote_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     rid = seeded["rule"]
     assert client.get(f"/recurring/{rid}/promote", headers=HTMX).status_code == 200
+    assert client.get("/recurring/99999/promote").status_code == 404
+
+
+def test_inline_promote_route_is_gone(client: TestClient, seeded: Ids) -> None:
+    """T-UR24: the inline promote form route no longer exists."""
+    rid = seeded["rule"]
     inline = client.get(
         f"/recurring/{rid}/promote/inline", params={"date": "2026-05-01"}, headers=HTMX
     )
-    assert inline.status_code == 200
-    assert "<html" not in inline.text
-    assert client.get("/recurring/99999/promote").status_code == 404
-    assert client.get("/recurring/99999/promote/inline").status_code == 404
+    assert inline.status_code == 404
 
 
 @covers("POST /recurring/{rule_id}/promote")
@@ -301,8 +309,8 @@ def test_promote_creates_transaction_and_advances_rule(
         data={"operation_date": "2026-11-02", "amount": "33", "description": "promoted rule"},
     )
     assert r.status_code == 200
-    assert hx_events(r) == PROMOTE_EVENTS
-    assert r.headers["HX-Reswap"] == "none"
+    assert hx_events(r) == {**PROMOTE_EVENTS, "today-stale": True, "budget-stale": True}
+    assert "HX-Reswap" not in r.headers
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before + 1
     assert _next_due(_migrated, rid) > due_before
     assert audit_ops(_migrated, "recurring_rule", rid)[-1] == "update"
@@ -331,7 +339,7 @@ def test_skip_next_advances_without_a_transaction(
     r = client.post(f"/recurring/{rid}/skip-next")
     assert r.status_code == 200
     assert hx_events(r) == PROMOTE_EVENTS
-    assert _html.exists(r.text, ledger.recurring_row(rid))
+    assert _html.text_of(r.text, by_id("flash-region")).endswith("Next occurrence skipped")
     assert _next_due(_migrated, rid) > due_before
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before
     assert client.post("/recurring/99999/skip-next").status_code == 404

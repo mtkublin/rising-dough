@@ -284,7 +284,7 @@ def _hydrate_listing(row: sqlite3.Row) -> UserListing:
 
 
 def list_live(conn: sqlite3.Connection) -> list[UserListing]:
-    """Return every live user, ordered by email (then id), for the admin roster.
+    """Return every live user, ordered by id (sign-up order), for the admin roster.
 
     ``last_seen_at`` is the most recent ``sessions.last_seen_at`` of the user
     (any session, revoked or not), or ``None`` if they never signed in.
@@ -294,7 +294,7 @@ def list_live(conn: sqlite3.Connection) -> list[UserListing]:
         "(SELECT max(s.last_seen_at) FROM sessions AS s WHERE s.user_id = u.id) "
         "AS last_seen_at "
         "FROM users AS u WHERE u.deleted_at IS NULL "
-        "ORDER BY lower(coalesce(u.email, u.name)), u.id"
+        "ORDER BY u.id"
     ).fetchall()
     return [_hydrate_listing(r) for r in rows]
 

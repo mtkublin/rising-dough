@@ -1,0 +1,33 @@
+{# fragment: dialogs/edit-planned (T-UR10, ADR-0107, ADR-0152; handoff overlays/edit-planned.html)
+   Context (web.form_responses.edit_planned_context, a new_entry_context for the planned tab): title, action,
+   hero_url, hero (signed amount in the account's currency), picker, selected_category_id, picked_name,
+   accounts, selected_account_id, selected_dest_id, transit_when, values (posted text), errors,
+   field_count / field_errors (422).
+   The category posts as "category" (combobox.js owns the name); the route reads it with category_id.
+   The hero follows the account (currency) and category (sign): the server re-renders it (GET hero_url with the
+   form's values) and only .rd-dialog__hero is swapped. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% from "fragments/fields/field.html" import text_field, select_field %}
+{% call dialog("edit-planned-dialog", title, action=action, hx_post=action, hero=hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  <div hidden
+       hx-get="{{ hero_url }}"
+       hx-trigger="change from:#field-account_id, change from:#field-category_id"
+       hx-include="closest form"
+       hx-target="#modal-root .rd-dialog__hero"
+       hx-select=".rd-dialog__hero"
+       hx-swap="outerHTML"></div>
+  {% with field_id="catpick-edit-planned", selected_id=selected_category_id, picked_name=picked_name, error=errors.category_id|default(none), anchor_id="field-category_id" %}
+    {% include "fragments/fields/category-picker.html" %}
+  {% endwith %}
+  {{ select_field("account_id", "account", accounts, selected_account_id, error=errors.account_id|default("")) }}
+  {% if transit_when %}
+    <div data-show-when="{{ transit_when }}"
+         {% if not errors.dest_account_id|default(none) %}hidden{% endif %}>
+      {{ select_field("dest_account_id", "destination account", accounts, selected_dest_id, error=errors.dest_account_id|default(""), empty_label="choose an account") }}
+    </div>
+  {% endif %}
+  <div class="rd-fields-row">
+    {{ text_field("operation_date", "due date", values.operation_date|default(""), type="date", error=errors.operation_date|default("")) }}
+    {{ text_field("description", "note", values.description|default(""), error=errors.description|default("")) }}
+  </div>
+{% endcall %}

@@ -1,0 +1,194 @@
+/* Auth: sign in, re-authenticate, first-run registration, invite */
+.rd-app--auth {
+  padding: 0;
+}
+
+.rd-app--auth .rd-frame {
+  max-width: none;
+}
+
+.rd-auth {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.rd-auth__bake {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-5) var(--space-8);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--color-bake);
+  color: var(--color-ink-deep);
+}
+
+.rd-auth__bake :focus-visible {
+  outline-color: var(--color-ink-deep);
+}
+
+.rd-auth__loaf {
+  position: absolute;
+  inset-inline-end: calc(var(--space-8) * -1);
+  inset-block-end: var(--space-2);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-ascii-sm);
+  line-height: var(--line-height-ascii);
+  color: var(--color-crumb);
+  pointer-events: none;
+}
+
+/* Narrow phones: the art would run under the headline and past the edge. */
+@media (width < 22rem) {
+  .rd-auth__loaf {
+    display: none;
+  }
+}
+
+.rd-auth__brand {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-brand-sm);
+  letter-spacing: var(--letter-spacing-title);
+}
+
+.rd-auth__headline {
+  position: relative;
+  max-width: var(--size-dialog);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-auth-headline-sm);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-mega);
+}
+
+/* Phone boards show the headline only on sign in */
+.rd-auth__headline--wide {
+  display: none;
+}
+
+.rd-auth__spacer {
+  display: none;
+}
+
+.rd-auth__side {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.rd-auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--size-auth-form);
+}
+
+.rd-auth__title {
+  font-size: var(--font-size-auth-title);
+  line-height: var(--line-height-title);
+  letter-spacing: var(--letter-spacing-display);
+}
+
+.rd-caption--upper {
+  text-transform: uppercase;
+}
+
+.rd-auth__link {
+  align-self: flex-start;
+  padding: var(--space-3) 0;
+  font-size: var(--font-size-body);
+  color: var(--color-ink-muted);
+  text-decoration: underline;
+  text-underline-offset: var(--underline-offset);
+}
+
+.rd-auth__link--plain {
+  text-decoration: none;
+}
+
+.rd-auth__link--ink {
+  color: var(--color-ink);
+}
+
+.rd-auth__link--button {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-size-body);
+  cursor: pointer;
+}
+
+.rd-auth__lede {
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-ink-muted);
+}
+
+.rd-alert {
+  padding: var(--space-3-5) var(--space-4);
+  border: var(--border-width) solid var(--color-over);
+  border-radius: var(--radius-menu);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.rd-or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-or span {
+  flex: 1;
+  height: var(--border-width);
+  background: var(--color-rule);
+}
+
+@media (width >= 48rem) {
+  .rd-auth {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: none;
+  }
+
+  .rd-auth__bake {
+    justify-content: space-between;
+    gap: var(--space-8);
+    padding: var(--space-14) var(--space-14) var(--space-10);
+    border-radius: 0;
+  }
+
+  .rd-auth__spacer {
+    display: block;
+  }
+
+  .rd-auth__headline--wide {
+    display: block;
+  }
+
+  .rd-auth__loaf {
+    inset-inline-end: var(--space-10);
+    inset-block-end: var(--space-auth-loaf);
+    font-size: var(--font-size-body);
+  }
+
+  .rd-auth__headline {
+    font-size: var(--font-size-dialog-hero);
+  }
+
+  .rd-auth__side {
+    align-items: center;
+    padding: var(--space-14);
+  }
+}

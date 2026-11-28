@@ -1,0 +1,45 @@
+/*
+ * Block-cell bars (one component).
+ * Budget: █ spent (ink) · ▒ committed (ink) · ░ left (now). Over budget: the whole bar is --color-over.
+ * Share:  █ part (ink) · ░ rest (ink-muted). 20 cells wide; 10 in table rows and on phone.
+ * The server renders the characters; CSS only colours the runs.
+ */
+.rd-bar {
+  display: inline-block;
+  font-size: var(--font-size-bar-xs);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-bar);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.rd-bar__left {
+  color: var(--color-now);
+}
+
+.rd-bar__rest {
+  color: var(--color-ink-muted);
+}
+
+.rd-bar--over {
+  color: var(--color-over);
+}
+
+.rd-bar--none {
+  color: var(--color-ink-muted);
+}
+
+.rd-bar--sm {
+  font-size: var(--font-size-caption);
+}
+
+.rd-bar--md {
+  font-size: var(--font-size-bar-sm);
+}
+
+@media (width >= 48rem) {
+  .rd-bar--lg {
+    font-size: var(--font-size-bar);
+  }
+}

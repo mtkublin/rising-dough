@@ -1,0 +1,8 @@
+{# fragment: fields/category-picker-created
+   Inputs: category (domain Category just created from the picker, T-UR68). One list option;
+   combobox.js inserts it into the listbox and picks it (id is set there). #}
+<li class="rd-catpick__option"
+    role="option"
+    aria-selected="false"
+    data-value="{{ category.id }}"><span class="rd-chip"
+      {% if (category.color|category_color).name %} data-color="{{ (category.color|category_color).name }}"{% endif %}>{{ category.name }}</span><span class="rd-catpick__dir">{{ category.direction | direction_label }}</span></li>

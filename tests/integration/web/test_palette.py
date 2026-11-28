@@ -11,10 +11,7 @@ from __future__ import annotations
 from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
-from tests.ui_map import _html, shell
-from tests.ui_map.locator import label
-
-_PALETTE_SEARCH = label("Command palette search").inside(shell.palette)
+from tests.ui_map import _html, rd_shell
 
 
 def _soup(client: TestClient, path: str = "/today") -> BeautifulSoup:
@@ -25,17 +22,19 @@ def _soup(client: TestClient, path: str = "/today") -> BeautifulSoup:
 
 def test_palette_partial_in_base(client: TestClient) -> None:
     soup = _soup(client)
-    dialog = _html.resolve_one(soup, shell.palette)
+    dialog = _html.resolve_one(soup, rd_shell.palette)
     assert dialog.name == "dialog"
-    assert dialog.get("aria-modal") == "true"
-    assert _html.exists(soup, _PALETTE_SEARCH)
+    assert dialog.get("aria-label") == "Command palette"
+    assert _html.exists(soup, rd_shell.palette_input)
+    assert _html.count(soup, rd_shell.palette_options) == 7  # the handoff's 7 entries
 
 
 def test_shortcuts_partial_in_base(client: TestClient) -> None:
     soup = _soup(client)
-    dialog = _html.resolve_one(soup, shell.shortcuts_dialog)
+    dialog = _html.resolve_one(soup, rd_shell.shortcuts)
     assert dialog.name == "dialog"
-    assert dialog.get("aria-modal") == "true"
+    assert dialog.get("aria-labelledby") == "shortcuts-title"
+    assert _html.exists(soup, rd_shell.shortcuts_dialog)
 
 
 def test_palette_js_loaded(client: TestClient) -> None:
@@ -52,25 +51,16 @@ def test_palette_js_loaded(client: TestClient) -> None:
 
 
 def test_palette_nav_items_match_nav_partial(client: TestClient) -> None:
-    """ADR-0023: the keymap lives in the nav partial. Any palette NAVIGATE row
-    must point at a `data-shortcut` the primary nav already exposes. Action
-    keys (`n`, `?`) are palette-only and allowed."""
+    """ADR-0023: the palette's Go-to rows point at the primary nav's destinations."""
     soup = _soup(client)
-    nav_shortcuts = {
-        str(el["data-shortcut"])
-        for el in _html.resolve(soup, shell.nav_links)
-        if el.get("data-shortcut")
+    nav_hrefs = {str(a["href"]) for a in _html.resolve(soup, rd_shell.nav_links)}
+    assert nav_hrefs == {"/today", "/ledger", "/plan", "/accounts"}
+    options = {
+        str(el.get("data-href")): next(el.stripped_strings)
+        for el in _html.resolve(soup, rd_shell.palette_options)
     }
-    palette_shortcuts = {
-        str(el["data-shortcut"])
-        for el in _html.resolve(soup, shell.palette_options)
-        if el.get("data-shortcut")
-    }
-    assert palette_shortcuts, "palette has no shortcut items"
-    # Rising Dough v2 collapses Budget + Forecast + Analytics into /plan.
-    # Palette may still expose their legacy chords ('g b', 'g f', 'g a' for
-    # analytics) during the transition — accept them as action chords.
-    v1_action_chords = {"g b", "g f", "g a"}
-    allowed = nav_shortcuts | {"n", "?"} | v1_action_chords
-    extra = palette_shortcuts - allowed
-    assert not extra, f"palette shortcuts not in nav + actions: {extra}"
+    assert options["/today"] == "Go to Today"
+    assert options["/ledger"] == "Go to Ledger"
+    assert options["/plan"] == "Go to Plan"
+    assert options["/accounts"] == "Go to Accounts"
+    assert options["/settings"] == "Open Settings"

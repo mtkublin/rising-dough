@@ -14,17 +14,17 @@ import pytest
 
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.money import format_figure
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.repositories import accounts as accounts_repo, planned as planned_repo
 from budget_planner.services import (
     account_planned as account_planned_svc,
     budget as budget_svc,
     forecast_events,
-    ledger_totals,
     recurring as recurring_svc,
 )
 from budget_planner.services.recurring_formula import DATES_ONLY, FormulaFx, formula_fx_for
-from budget_planner.web import ledger_data
+from budget_planner.web import ledger_data, ledger_view
 from budget_planner.web.ledger_types import LedgerFilters
 from tests.unit.services.conftest import OTHER_ID, OWNER_ID, WORLD_TODAY, World
 
@@ -102,10 +102,10 @@ def _ledger(conn: sqlite3.Connection) -> dict[str, object]:
     )
 
 
-def _strip(ctx: dict[str, object]) -> tuple[int, int]:
-    summary = ctx["planned_summary"]
-    assert isinstance(summary, ledger_totals.PlannedTotals)
-    return summary.count, summary.net_minor
+def _strip(ctx: dict[str, object]) -> tuple[str, str]:
+    hero = ctx["hero"]
+    assert isinstance(hero, ledger_view.LedgerHero)
+    return hero.note.split(" · ")[0], hero.figure
 
 
 def _fx(conn: sqlite3.Connection) -> FormulaFx:
@@ -170,15 +170,21 @@ def test_accounts_tab_planned_net_excludes_deleted_account(
 def test_ledger_strip_total_excludes_deleted_account_but_list_keeps_row(
     conn: sqlite3.Connection, scene: Scene
 ) -> None:
-    assert _strip(_ledger(conn)) == (2, -(LIVE_PLANNED + DEAD_PLANNED))
+    assert _strip(_ledger(conn)) == (
+        "2 items",
+        format_figure(-(LIVE_PLANNED + DEAD_PLANNED), "PLN"),
+    )
     _delete(conn, scene)
     ctx = _ledger(conn)
-    assert _strip(ctx) == (1, -LIVE_PLANNED)
+    assert _strip(ctx) == ("1 items", format_figure(-LIVE_PLANNED, "PLN"))
     rows = ctx["rows"]
     assert isinstance(rows, list)
     assert sorted(int(r["amount_minor"]) for r in rows) == [LIVE_PLANNED, DEAD_PLANNED]
     _undo(conn, scene)
-    assert _strip(_ledger(conn)) == (2, -(LIVE_PLANNED + DEAD_PLANNED))
+    assert _strip(_ledger(conn)) == (
+        "2 items",
+        format_figure(-(LIVE_PLANNED + DEAD_PLANNED), "PLN"),
+    )
 
 
 def test_forecast_planned_events_exclude_deleted_account(
@@ -207,4 +213,4 @@ def test_second_users_deleted_account_rows_are_absent_and_do_not_leak(
         include_overdue=False,
     )
     assert other == ()
-    assert _strip(_ledger(conn)) == (1, -LIVE_PLANNED)
+    assert _strip(_ledger(conn)) == ("1 items", format_figure(-LIVE_PLANNED, "PLN"))

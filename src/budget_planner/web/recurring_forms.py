@@ -13,16 +13,18 @@ from datetime import date
 from types import MappingProxyType
 from typing import Any
 
-from starlette.datastructures import FormData
+from starlette.datastructures import FormData, QueryParams
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.money import ascii_minus
 from budget_planner.domain.recurring import (
     AmountFormula,
     NewRecurringRule,
     PatchRecurringRule,
     RecurringRule,
+    day_of_month_error,
     end_date_error,
 )
 from budget_planner.services import (
@@ -32,6 +34,7 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.budget_forms import OVERRIDE_YEARS
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 
 TermInput = dict[str, object]
@@ -44,7 +47,26 @@ EMPTY_TERM_INPUT: Mapping[str, object] = MappingProxyType(
     }
 )
 
+# The old shell's form posts terms[i][sign|coefficient_percent|source_category_ids]. The dialog's
+# formula fragment posts the handoff names (the vendored formula.js re-indexes only those):
+# components[i][sign|percent|categories], U+2212 for a subtracted component.
 _TERM_FIELD_RE = re.compile(r"^terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]$")
+_COMPONENT_FIELD_RE = re.compile(r"^components\[(\d+)\]\[(sign|percent|categories)\]$")
+_COMPONENT_FIELDS = MappingProxyType(
+    {"sign": "sign", "percent": "coefficient_percent", "categories": "source_category_ids"}
+)
+_COMPONENTS_PREFIX = "components["
+
+
+def category_alias(category_id: str, category: str) -> str:
+    """The posted category: ``category_id`` wins over the picker's ``category`` when both come.
+
+    The one place the two spellings meet (the dialog's picker posts ``category``, the old form
+    ``category_id``); the transaction, planned and recurring creates all read it through here.
+    """
+    return category_id or category
+
+
 _CADENCES: Mapping[str, Cadence] = MappingProxyType({c.value: c for c in Cadence})
 _DEST = "dest_account_id"
 
@@ -58,7 +80,7 @@ def formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[Ca
     ]
 
 
-def parse_terms_from_form(form: FormData) -> list[TermInput]:
+def parse_terms_from_form(form: FormData | QueryParams) -> list[TermInput]:
     """Group `terms[i][field]` form entries into a dense indexed list.
 
     Returns a list of ``{"sign", "coefficient_percent", "source_category_ids"}``
@@ -70,17 +92,21 @@ def parse_terms_from_form(form: FormData) -> list[TermInput]:
     signs: dict[int, str] = {}
     percents: dict[int, str] = {}
     ids: dict[int, list[str]] = {}
-    for key, raw in form.multi_items():
-        m = _TERM_FIELD_RE.match(key)
+    items = list(form.multi_items())
+    # Never merge the two spellings: any ``components[`` key makes the post a dialog post.
+    dialog = any(key.startswith(_COMPONENTS_PREFIX) for key, _ in items)
+    pattern = _COMPONENT_FIELD_RE if dialog else _TERM_FIELD_RE
+    for key, raw in items:
+        m = pattern.match(key)
         if m is None:
             continue
         idx = int(m.group(1))
-        field = m.group(2)
+        field = _COMPONENT_FIELDS[m.group(2)] if dialog else m.group(2)
         ids.setdefault(idx, [])
         if field == "source_category_ids":
             ids[idx].append(str(raw))
         elif field == "sign":
-            signs[idx] = str(raw)
+            signs[idx] = ascii_minus(str(raw))
         else:
             percents[idx] = str(raw)
     return [
@@ -93,7 +119,15 @@ def parse_terms_from_form(form: FormData) -> list[TermInput]:
     ]
 
 
-def parse_draft_terms(form: FormData) -> list[formula_svc.DraftTerm] | None:
+def evaluation_day(form: FormData | QueryParams, today: date) -> date:
+    """The day whose month the formula reads: the posted start when it is later, else ``today``.
+
+    One owner for the hero and the live preview (``formula_svc.evaluation_month``, ADR-0047).
+    """
+    return formula_svc.evaluation_month(parse_date(str(form.get("start_date", ""))), today)
+
+
+def parse_draft_terms(form: FormData | QueryParams) -> list[formula_svc.DraftTerm] | None:
     """Posted terms as preview drafts; ``None`` when a source category id is not an integer."""
     drafts: list[formula_svc.DraftTerm] = []
     for row in parse_terms_from_form(form):
@@ -162,6 +196,37 @@ def _category_ids(value: object) -> list[int]:
     return [int(str(v)) for v in value] if isinstance(value, list | tuple) else []
 
 
+PERCENT_REQUIRED = "Enter a percentage, e.g. 19 or 12.5"
+CATEGORY_REQUIRED = "Pick at least one category"
+
+
+def component_error_key(index: int, field: str) -> str:
+    """Error key of one formula component field (``percent`` or ``categories``), as posted."""
+    return f"components[{index}][{field}]"
+
+
+def component_errors(term_inputs: list[TermInput]) -> dict[str, str]:
+    """Per-component messages of the dialog's formula (handoff: under the failing component).
+
+    A missing percentage and a missing category are reported on their own component, so the
+    dialog marks the field and prints the line beneath it; a bad sign or a formula-level failure
+    stays the single ``formula`` error.
+    """
+    errors: dict[str, str] = {}
+    for index, term in enumerate(term_inputs):
+        percent = _text(term.get("coefficient_percent"), "").strip()
+        if not percent:
+            errors[component_error_key(index, "percent")] = PERCENT_REQUIRED
+        else:
+            try:
+                formula_svc.parse_percent_to_bps(percent)
+            except formula_svc.FormulaError as exc:
+                errors[component_error_key(index, "percent")] = str(exc)
+        if not _category_ids(term.get("source_category_ids")):
+            errors[component_error_key(index, "categories")] = CATEGORY_REQUIRED
+    return errors
+
+
 def _resolve_formula(
     conn: sqlite3.Connection,
     user_id: int,
@@ -171,7 +236,11 @@ def _resolve_formula(
     today: date,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None,
+    start: date | None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
+    if component_failures := component_errors(term_inputs):
+        return None, None, component_failures
     try:
         terms = [
             formula_svc.build_term(
@@ -186,11 +255,12 @@ def _resolve_formula(
             conn,
             user_id,
             formula,
-            today.year,
-            today.month,
+            (month := formula_svc.evaluation_month(start, today)).year,
+            month.month,
             fx=fx,
             target_ccy=target_ccy,
             exclude_rule_id=exclude_rule_id,
+            posting_category_id=posting_category_id,
         )
     except formula_svc.FormulaError as exc:
         return None, None, {"formula": str(exc)}
@@ -208,6 +278,8 @@ def resolve_amount_inputs(
     exclude_rule_id: int | None,
     today: date,
     fx: FormulaFx,
+    posting_category_id: int | None = None,
+    start: date | None = None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
     is_formula = amount_source == "formula"
@@ -223,6 +295,8 @@ def resolve_amount_inputs(
             today=today,
             fx=fx,
             target_ccy=account_currency,
+            posting_category_id=posting_category_id,
+            start=start,
         )
     minor, amount_err = positive_amount(default_amount, account_currency)
     return minor, None, ({} if amount_err is None else {"default_amount": amount_err})
@@ -258,7 +332,7 @@ def read_rule_fields(form: FormData) -> RuleFields:
         cadence=text("cadence"),
         start_date=text("start_date"),
         end_date=text("end_date"),
-        category_id=text("category_id"),
+        category_id=category_alias(text("category_id"), text("category")),
         account_id=text("account_id"),
         dest_account_id=text("dest_account_id"),
         default_amount=text("default_amount"),
@@ -345,6 +419,28 @@ def _lookup_refs(
     return acc, cat, dest_id, {**errors, **dest_errors}
 
 
+def parse_day_of_month(raw: str) -> tuple[int | None, dict[str, str]]:
+    """Anchor day text to ``(day, {})``; blank is ``(None, {})``, bad is a field error."""
+    text = raw.strip()
+    if not text:
+        return None, {}
+    day = parse_int(text, minimum=0)
+    bad = day_of_month_error(day if day is not None else 0)
+    if day is None or bad is not None:
+        return None, {"day_of_month": bad or day_of_month_error(0) or ""}
+    return day, {}
+
+
+def _missing_id_errors(fields: RuleFields) -> dict[str, str]:
+    """Per-field messages for a category or account that is blank or not a number."""
+    errors: dict[str, str] = {}
+    if parse_int(fields.category_id) is None:
+        errors["category_id"] = "Pick a category" if not fields.category_id else "unknown category"
+    if parse_int(fields.account_id) is None:
+        errors["account_id"] = "unknown account"
+    return errors
+
+
 def validate_rule_draft(
     conn: sqlite3.Connection,
     user_id: int,
@@ -359,8 +455,9 @@ def validate_rule_draft(
     cadence = validate_cadence(fields.cadence)
     start = parse_date(fields.start_date)
     end, errors = _date_errors(fields, cadence, start, cadence_error)
+    errors = {**errors, **parse_day_of_month(fields.day_of_month)[1]}
     if ids is None:
-        return RuleDraft(None, {**errors, "account_id": "invalid account/category"})
+        return RuleDraft(None, {**errors, **_missing_id_errors(fields)})
     category_id, account_id = ids
     acc, cat, dest_id, ref_errors = _lookup_refs(conn, user_id, fields, ids)
     errors = {**errors, **ref_errors}
@@ -374,6 +471,8 @@ def validate_rule_draft(
         account_currency=acc.currency if acc else None,
         exclude_rule_id=exclude_rule_id,
         today=today,
+        posting_category_id=category_id,
+        start=start,
     )
     errors = {**errors, **amount_errors}
     if errors:
@@ -401,7 +500,7 @@ def new_rule_from(fields: RuleFields, valid: ValidRule, today: date) -> NewRecur
             dest_account_id=valid.dest_id,
             default_amount=valid.amount_minor,
             default_description=fields.default_description,
-            day_of_month=parse_int(fields.day_of_month),
+            day_of_month=parse_day_of_month(fields.day_of_month)[0],
             amount_formula=valid.formula,
             active=initial_active,
         )
@@ -428,15 +527,17 @@ def rule_patch_from(
     # in the same patch, so Upcoming and Forecast stop surfacing it before the next promotion.
     if valid.end is not None and rule.next_due > valid.end:
         patch["active"] = False
+    # A blank day keeps the stored one (None in a patch means "unchanged").
+    if (day := parse_day_of_month(fields.day_of_month)[0]) is not None:
+        patch["day_of_month"] = day
     return PatchRecurringRule(**patch)
 
 
-_OVERRIDE_YEARS = range(1900, 10000)
 _OVERRIDE_MONTHS = range(1, 13)
 
 
 def year_or(year: int, fallback: int) -> int:
-    return year if year in _OVERRIDE_YEARS else fallback
+    return year if year in OVERRIDE_YEARS else fallback
 
 
 def month_or(month: int, fallback: int) -> int:
@@ -458,7 +559,7 @@ class OverrideError:
 def check_override(
     rule: RecurringRule, account: Account | None, year: int, month: int, amount: str
 ) -> ValidOverride | OverrideError:
-    if not (year in _OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
+    if not (year in OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
         return OverrideError("month", "invalid year or month")
     occ = recurring_svc.occurrence_in_month(rule, year, month)
     if occ is None:

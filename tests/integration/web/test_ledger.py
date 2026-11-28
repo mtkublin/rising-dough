@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 import pytest
@@ -28,8 +29,8 @@ from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
-_SEG_COUNT = 3
-_VIEW_TABS = ("Actual", "Planned", "Recurring")
+_VIEW_TABS = ("actual", "planned", "recurring")
+_MINUS = "\N{MINUS SIGN}"
 
 
 @pytest.fixture
@@ -88,16 +89,17 @@ def seeded(_migrated: Settings) -> dict[str, int]:
 
 
 def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> None:
-    """Rising Dough v2 renders the segmented tabs via the shared rd-segmented macro
-    (anchor-based full-page nav). The view keys appear in the href query string."""
+    """The view tabs are links carrying the counts; the open one is aria-current."""
     r = client.get("/ledger")
     assert r.status_code == 200
     items = [_html.resolve_one(r.text, ledger.view_tab(n)) for n in _VIEW_TABS]
-    assert len(items) == _SEG_COUNT
-    hrefs = [a.get("href") for a in items]
-    assert hrefs == ["/ledger?view=actual", "/ledger?view=planned", "/ledger?view=recurring"]
-    actual_a = items[0]
-    assert actual_a.get("aria-selected") == "true"
+    assert [a.get_text(strip=True) for a in items] == ["actual 1", "planned 1", "recurring 1"]
+    assert [a.get("href") for a in items] == [
+        "/ledger",
+        "/ledger?view=planned",
+        "/ledger?view=recurring",
+    ]
+    assert [a.get("aria-current") for a in items] == ["page", None, None]
 
 
 def test_ledger_view_actual(client: TestClient, seeded: dict[str, int]) -> None:
@@ -112,9 +114,9 @@ def test_ledger_view_planned(client: TestClient, seeded: dict[str, int]) -> None
     assert r.status_code == 200
     assert _html.resolve_one(r.text, ledger.view_table("planned")).get("data-view") == "planned"
     # Status column header present (manual-audit #25 renamed Promoted? → Status).
-    assert _html.exists(r.text, ledger.column_header("Status"))
+    assert _html.exists(r.text, ledger.column_header("STATUS"))
     # Promote button targets the modal root.
-    btn = _html.resolve(r.text, ledger.promote)[0]
+    btn = _html.resolve_one(r.text, ledger.planned_promote(seeded["pl"]))
     assert btn.get("hx-target") == "#modal-root"
 
 
@@ -123,9 +125,9 @@ def test_ledger_view_recurring(client: TestClient, seeded: dict[str, int]) -> No
     assert r.status_code == 200
     assert _html.resolve_one(r.text, ledger.view_table("recurring")).get("data-view") == "recurring"
     # Manual-audit #25 — Cadence folded into group header, Next due stays.
-    assert _html.exists(r.text, ledger.column_header("Next due"))
+    assert _html.exists(r.text, ledger.column_header("NEXT DUE"))
     # V.33 — the Overrides column still surfaces the per-rule override count.
-    assert _html.exists(r.text, ledger.column_header("Overrides"))
+    assert _html.exists(r.text, ledger.column_header("OVERRIDES"))
 
 
 def test_ledger_recurring_lists_each_override_with_remove_button(
@@ -150,11 +152,22 @@ def test_ledger_recurring_lists_each_override_with_remove_button(
     # V.33 — the expand reveal is a (collapsed) sibling row holding the Remove
     # buttons; it is hidden until toggled, so navigate from its mapped row.
     expand = _html.resolve_one(r.text, ledger.recurring_expand(seeded["rule"]))
-    remove_btns = expand.find_all("button", string="Remove")
-    assert len(remove_btns) >= 2
-    endpoints = {btn.get("hx-post") for btn in remove_btns}
-    assert f"/recurring/{seeded['rule']}/overrides/2026-02-01/delete" in endpoints
-    assert f"/recurring/{seeded['rule']}/overrides/2026-03-01/delete" in endpoints
+    remove_btns = expand.find_all("a", attrs={"aria-label": re.compile("^Remove override")})
+    assert [(b.get("aria-label"), b.get("hx-get")) for b in remove_btns] == [
+        (
+            "Remove override Feb 2026",
+            f"/recurring/{seeded['rule']}/overrides/new?occurrence_date=2026-02-01&remove=1",
+        ),
+        (
+            "Remove override Mar 2026",
+            f"/recurring/{seeded['rule']}/overrides/new?occurrence_date=2026-03-01&remove=1",
+        ),
+    ]
+    # Each row of the panel shows the override amount and its delta against the rule amount.
+    amounts = [li.get_text(" ", strip=True) for li in expand.find_all("li")]
+    assert amounts[0].startswith("Feb 2026 100.00 PLN") and amounts[1].startswith(
+        "Mar 2026 200.00 PLN"
+    )
 
     # Clicking Remove on the second override calls the delete endpoint and
     # the row re-rendered via the ledger-stale trigger drops that override.
@@ -181,7 +194,9 @@ def test_ledger_fragment_is_not_full_page(client: TestClient, seeded: dict[str, 
     r = client.get("/ledger/table?view=actual")
     assert r.status_code == 200
     assert _html.exists(r.text, ledger.table_container)
-    assert not _html.exists(r.text, ledger.heading)  # no page chrome
+    # no page chrome: the only heading is the hero that refreshes out of band with the rows
+    assert _html.count(r.text, ledger.heading) == 1
+    assert _html.exists(r.text, ledger.heading.inside(ledger.schedule_hero))
 
 
 def _headers(html: str) -> list[str]:
@@ -359,7 +374,7 @@ def test_actual_day_net_with_negative_reconciliation(
         conn.close()
     r = client.get("/ledger?view=actual")
     assert r.status_code == 200
-    assert _day_net_text(r.text, "02 Nov") == "net -850.00"
+    assert _day_net_text(r.text, "MON 02 NOV") == f"NET {_MINUS}850.00"
 
 
 def _seed_eur_day(settings: Settings, *, with_rate: bool) -> None:
@@ -405,7 +420,7 @@ def test_actual_day_net_converts_foreign_currency_to_base(
     """T-D48 — EUR -100 reconciliation, -25 expense at 4.0 -> net -500.00 PLN."""
     _seed_eur_day(_migrated, with_rate=True)
     r = client.get("/ledger?view=actual")
-    assert _day_net_text(r.text, "02 Nov") == "net -500.00"
+    assert _day_net_text(r.text, "MON 02 NOV") == f"NET {_MINUS}500.00"
 
 
 def test_actual_render_never_fetches_fx_and_hides_net_on_cache_miss(
@@ -422,4 +437,4 @@ def test_actual_render_never_fetches_fx_and_hides_net_on_cache_miss(
     _seed_eur_day(_migrated, with_rate=False)
     r = client.get("/ledger?view=actual")
     assert r.status_code == 200
-    assert _day_net_text(r.text, "02 Nov") == ""
+    assert _day_net_text(r.text, "MON 02 NOV") == ""

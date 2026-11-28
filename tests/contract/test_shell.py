@@ -23,7 +23,8 @@ from budget_planner.web.app import create_app
 from budget_planner.web.deps import get_settings_dep
 from tests.contract._audit import audit_count
 from tests.contract.conftest import covers
-from tests.ui_map import _html, errors
+from tests.ui_map import _html, rd_shell
+from tests.ui_map.locator import by_id
 
 pytest_plugins = ["tests.contract._support"]
 
@@ -185,7 +186,7 @@ def test_add_overlay_renders_for_each_tab_without_writing(
 def test_add_overlay_unknown_tab_is_422_naming_the_param(client: TestClient) -> None:
     r = client.get("/add?when=unknown-tab", headers=HX)
     assert r.status_code == 422
-    assert "when" in _html.text_of(r.text, errors.alert)
+    assert "when" in _html.text_of(r.text, by_id("flash-region"))
 
 
 @covers("GET /add")
@@ -223,6 +224,148 @@ def test_dev_components_is_404_in_production(client: TestClient, settings: Setti
 def test_dev_components_requires_a_session(anon_client: TestClient) -> None:
     r = anon_client.get("/dev/components", follow_redirects=False)
     assert (r.status_code, _location(r)) == (302, "/auth/login?next=%2Fdev%2Fcomponents")
+
+
+# ---------------------------------------------------------------------------
+# GET /dev/shell
+# ---------------------------------------------------------------------------
+
+
+@covers("GET /dev/shell")
+def test_dev_shell_renders_the_new_base_shell(client: TestClient) -> None:
+    r = client.get("/dev/shell")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    page = r.text
+    assert _html.exists(page, rd_shell.skip_link)
+    assert _html.exists(page, rd_shell.palette)
+    assert _html.exists(page, rd_shell.shortcuts)
+    for root in (rd_shell.modal_root, rd_shell.drawer_root, rd_shell.toast_root):
+        assert _html.count(page, root) == 1
+    assert _html.resolve_one(page, rd_shell.nav_link("today")).get("aria-current") == "page"
+
+
+@covers("GET /dev/shell")
+def test_dev_shell_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.get("/dev/shell").status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("GET /dev/shell")
+def test_dev_shell_requires_a_session(anon_client: TestClient) -> None:
+    r = anon_client.get("/dev/shell", follow_redirects=False)
+    assert (r.status_code, _location(r)) == (302, "/auth/login?next=%2Fdev%2Fshell")
+
+
+# ---------------------------------------------------------------------------
+# GET / POST /dev/shell/dialog (T-UR25: dev dialog for the offline state)
+# ---------------------------------------------------------------------------
+
+
+@covers("GET /dev/shell/dialog")
+def test_dev_dialog_opens_into_the_modal_root(client: TestClient) -> None:
+    r = client.get("/dev/shell/dialog", headers=HX)
+    assert r.status_code == 200
+    assert r.headers["hx-retarget"] == "#modal-root"
+    assert _html.exists(r.text, rd_shell.dev_dialog_note)
+    assert _html.exists(r.text, rd_shell.dev_dialog_save)
+
+
+@covers("GET /dev/shell/dialog")
+def test_dev_dialog_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.get("/dev/shell/dialog", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("GET /dev/shell/dialog")
+def test_dev_dialog_requires_a_session(anon_client: TestClient) -> None:
+    r = anon_client.get("/dev/shell/dialog", follow_redirects=False)
+    assert (r.status_code, _location(r)) == (302, "/auth/login?next=%2Fdev%2Fshell%2Fdialog")
+
+
+@covers("POST /dev/shell/dialog")
+def test_dev_dialog_save_closes_the_dialog_and_flashes_the_note(client: TestClient) -> None:
+    r = client.post("/dev/shell/dialog", data={"note": "rent split"}, headers=HX)
+    assert r.status_code == 200
+    assert "Saved note: rent split" in r.text
+    assert 'id="modal-root" hx-swap-oob="innerHTML"></div>' in r.text
+
+
+@covers("POST /dev/shell/dialog")
+def test_dev_dialog_save_without_note_is_422(client: TestClient) -> None:
+    r = client.post("/dev/shell/dialog", data={}, headers=HX)
+    assert r.status_code == 422
+
+
+@covers("POST /dev/shell/dialog")
+def test_dev_dialog_save_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.post("/dev/shell/dialog", data={"note": "x"}, headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# GET / POST /dev/shell/dialog/{variant} (T-UR04e: shared dialog shell gallery)
+# ---------------------------------------------------------------------------
+
+
+@covers("GET /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_opens_into_the_modal_root_and_invalid_is_422(
+    client: TestClient,
+) -> None:
+    ok = client.get("/dev/shell/dialog/confirm", headers=HX)
+    assert (ok.status_code, ok.headers["hx-retarget"]) == (200, "#modal-root")
+    bad = client.get("/dev/shell/dialog/invalid", headers=HX)
+    assert (bad.status_code, bad.headers["hx-retarget"]) == (422, "#modal-root")
+
+
+@covers("GET /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.get("/dev/shell/dialog/standard", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("GET /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_requires_a_session(anon_client: TestClient) -> None:
+    r = anon_client.get("/dev/shell/dialog/standard", follow_redirects=False)
+    assert r.status_code == 302
+
+
+@covers("POST /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_save_fails_with_two_field_errors(client: TestClient) -> None:
+    r = client.post("/dev/shell/dialog/standard", headers=HX)
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+        "field-name-error": "▲ Name is required",
+    }
+
+
+@covers("POST /dev/shell/dialog/{variant}")
+def test_dev_dialog_variant_save_is_404_in_production(
+    client: TestClient, settings: Settings
+) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.post("/dev/shell/dialog/confirm", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
 
 
 # ---------------------------------------------------------------------------
@@ -291,3 +434,42 @@ def test_authenticated_pages_are_no_store_and_set_the_csrf_cookie(client: TestCl
         r = client.get(path, headers=headers)
         assert r.headers["cache-control"] == "no-store", path
     assert client.cookies.get("__Host-csrf")
+
+
+# ---------------------------------------------------------------------------
+# POST /dev/shell/toast (T-UR02: dev trigger for the toast renderer, ADR-0143)
+# ---------------------------------------------------------------------------
+
+
+@covers("POST /dev/shell/toast")
+def test_dev_toast_answers_with_an_hx_trigger_toast(client: TestClient) -> None:
+    r = client.post("/dev/shell/toast", headers=HX)
+    assert r.status_code == 204
+    assert json.loads(r.headers["hx-trigger"]) == {
+        "toast": {
+            "variant": "success",
+            "message": "Takeaway \N{MIDDLE DOT} \N{MINUS SIGN}35.50 PLN deleted",
+            "undo_url": "/dev/shell/toast/undo",
+        }
+    }
+
+
+@covers("POST /dev/shell/toast")
+def test_dev_toast_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.post("/dev/shell/toast", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("POST /dev/shell/fail/{status}")
+def test_dev_fail_409_goes_through_the_conflict_handler(client: TestClient) -> None:
+    r = client.post("/dev/shell/fail/409", headers=HX)
+    assert r.status_code == 409
+    flash = _html.resolve_one(r.text, rd_shell.flash_region)
+    assert flash.get("hx-swap-oob") == "true"
+    assert flash.get_text(" ", strip=True) == (
+        "\N{BLACK UP-POINTING TRIANGLE} Dev conflict: that row is protected"
+    )

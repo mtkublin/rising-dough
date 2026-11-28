@@ -224,7 +224,7 @@ Ad-hoc Playwright scripts do not replace the skill run; the record must come fro
 - **`overflow-x: hidden` on a tall ancestor breaks vertical scroll.** Use `overflow-x: clip` instead — `clip` doesn't establish a scroll container, so Y scroll propagates normally.
 - **`height: 100dvh` falls back to `auto` in older Safari.** Add `height: 100vh;` before `height: 100dvh;` for a safe fallback.
 - **Sticky elements inside a flex row** need `align-self: flex-start` (or the parent needs `align-items: flex-start`), otherwise the flex item stretches to the row height and `top: 0` has no effect.
-- **Stale Tailwind output**: `static/tailwind.css` is a local build. If a new utility class has no effect, run `just css` (the `tailwind-check` hook fails on a stale file). Hard-reload to bypass the browser cache.
+- **Stale CSS bundle**: `static/rd/css/app.bundle.css` is built from `rd/css/main.css` imports. If a CSS edit has no effect, run `just css` (the `css-bundle-check` hook fails on a stale bundle). Hard-reload to bypass the browser cache.
 - **Server-rendered SVG charts and any canvas/iframe widget** can have a fixed intrinsic size and overflow narrow containers. Give the SVG a `viewBox` with `width: 100%` or wrap in `overflow-x: auto`.
 - **Never use `networkidle`** (unreliable with HTMX polling and SSE); the script waits for `domcontentloaded` plus a known-rendered element.
 - **Headless Chromium default viewport is 1280×720** — always set an explicit viewport before `goto`, or responsive bugs hide.

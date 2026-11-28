@@ -96,7 +96,7 @@ def test_login_failure_is_generic(
 ) -> None:
     r = _login(anon_client, email, password)
     assert r.status_code == 401
-    assert _html.text_of(r.text, auth.login_error) == GENERIC_LOGIN_ERROR
+    assert _html.text_of(r.text, auth.login_error) == f"▲ {GENERIC_LOGIN_ERROR}"
     assert not any(h.startswith(f"{SESSION_COOKIE_NAME}=") for h in _set_cookie_headers(r))
 
 

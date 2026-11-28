@@ -1,0 +1,19 @@
+{# fragment: states/offline-page (handoff pages/errors/offline.html, ADR-0134 section 4).
+   The full-page offline card: shown in <main> when a request outside a form gets no response
+   (the page content is hidden meanwhile and comes back on retry or a successful request).
+   The title is a paragraph here (a second h1 in the page source breaks page outlines); offline.js
+   turns it into the h1 when it shows the card.
+   Cloned by rd/js/offline.js from <template id="rd-offline-page-template"> in layouts/base.html.
+   Inputs: none. #}
+<section class="rd-error"
+         aria-labelledby="offline-title"
+         role="alert"
+         tabindex="-1"
+         data-js="offline-state">
+  <p class="rd-caption">OFFLINE</p>
+  <p class="rd-error__title" id="offline-title" data-js="offline-title">You’re offline</p>
+  <p class="rd-error__msg">Changes can’t be saved right now. We’ll retry when you’re back online.</p>
+  <div class="rd-error__actions">
+    <button type="button" class="rd-btn" data-js="offline-retry">retry now</button>
+  </div>
+</section>

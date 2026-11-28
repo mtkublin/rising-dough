@@ -1,0 +1,90 @@
+{# fragment: overlays/shortcuts-help (global dialog, rendered once by layouts/base.html).
+   Today is "g t" here (ADR-0147 section 5); the handoff board shows "g o". #}
+<dialog class="rd-dialog"
+        id="shortcuts"
+        aria-labelledby="shortcuts-title"
+        data-js="shortcuts">
+  <header class="rd-dialog__band rd-dialog__band--slim">
+    <div class="rd-dialog__band-head">
+      <h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2>
+      <button type="button"
+              class="rd-dialog__close"
+              aria-label="Close"
+              data-js="dialog-close">
+        <svg class="rd-icon" aria-hidden="true" focusable="false">
+          <use href="/static/rd/icons/sprite.svg#icon-close"></use>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <div class="rd-dialog__body">
+    <dl class="rd-keys">
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">g</kbd><kbd class="rd-key">t</kbd></dt>
+        <dd>
+          Go to Today
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt>
+        <dd>
+          Go to Ledger
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt>
+        <dd>
+          Go to Plan
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt>
+        <dd>
+          Go to Accounts
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt>
+        <dd>
+          Open Settings
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">n</kbd></dt>
+        <dd>
+          New entry
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">/</kbd></dt>
+        <dd>
+          Focus the page’s search or filter
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt>
+        <dd>
+          Cycle ledger tabs
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">?</kbd></dt>
+        <dd>
+          Open this cheatsheet
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt>
+        <dd>
+          Open command palette
+        </dd>
+      </div>
+      <div class="rd-keys__row">
+        <dt><kbd class="rd-key">Esc</kbd></dt>
+        <dd>
+          Close the topmost overlay
+        </dd>
+      </div>
+    </dl>
+  </div>
+</dialog>

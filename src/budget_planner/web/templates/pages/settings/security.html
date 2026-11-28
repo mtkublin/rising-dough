@@ -1,0 +1,116 @@
+{# Settings · security (T-UR14, ADR-0107, ADR-0075). Handoff: pages/settings/security.html and security--error.html.
+   Context: active_tab, current_user, session_rows (SessionRow), passkeys (WebAuthnCredential), label_max_length,
+   and the password form inputs (forms/password-form: outcome, throttle_error, min_length, next_path).
+   The add-passkey form keeps the hooks of rd/js/passkeys.js: form[data-passkey-register], input name=label,
+   button[type=submit], [data-passkey-status]. #}
+{% extends "layouts/base.html" %}
+{% block title %}Settings · security · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Security</h1>
+      <p class="rd-hero__note rd-hero__note--band">{{ current_user.email or current_user.name }}</p>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Security settings">
+    <div class="rd-settings">
+      <div class="rd-settings__head">{% include "fragments/nav/settings-tabs.html" %}</div>
+      <section class="rd-card rd-card--outline"
+               id="password"
+               aria-labelledby="pw-title">
+        <h2 class="rd-card__title" id="pw-title">Password</h2>
+        <div class="rd-card__body">{% include "fragments/forms/password-form.html" %}</div>
+      </section>
+      <section class="rd-card rd-card--outline"
+               id="passkeys"
+               aria-labelledby="pk-title">
+        <h2 class="rd-card__title" id="pk-title">Passkeys</h2>
+        <div class="rd-card__body">
+          {% if passkeys %}
+            <div class="rd-table-scroll rd-table-scroll--flush"
+                 tabindex="0"
+                 role="region"
+                 aria-label="Passkeys (scrolls sideways)">
+              <table class="rd-ledger rd-ledger--sessions">
+                <caption class="u-visually-hidden">Passkeys</caption>
+                <thead>
+                  <tr class="rd-row rd-row--head rd-row--session">
+                    <th scope="col">LABEL</th>
+                    <th scope="col">ADDED</th>
+                    <th scope="col">LAST USED</th>
+                    <th scope="col">
+                      <span class="u-visually-hidden">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for pk in passkeys %}
+                    {% include "fragments/rows/passkey-row.html" %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="rd-empty-inline rd-empty-inline--center">No passkeys yet.</p>
+          {% endif %}
+          <form class="rd-form" data-passkey-register>
+            <div class="rd-field">
+              <label class="rd-field__label" for="passkey-label">label</label>
+              <span class="rd-input">
+                <input class="rd-input__control"
+                       id="passkey-label"
+                       name="label"
+                       type="text"
+                       maxlength="{{ label_max_length }}"
+                       placeholder="e.g. MacBook Air"
+                       autocomplete="off">
+              </span>
+            </div>
+            <div>
+              <button type="submit" class="rd-btn">add passkey</button>
+            </div>
+            <p class="rd-caption"
+               data-passkey-status
+               role="status"
+               aria-live="polite"
+               hidden></p>
+          </form>
+        </div>
+      </section>
+      <section class="rd-card rd-card--outline"
+               id="sessions"
+               aria-labelledby="sess-title">
+        <h2 class="rd-card__title" id="sess-title">Active sessions</h2>
+        <div class="rd-card__body">
+          <div class="rd-table-scroll rd-table-scroll--flush"
+               tabindex="0"
+               role="region"
+               aria-label="Active sessions (scrolls sideways)">
+            <table class="rd-ledger rd-ledger--sessions">
+              <caption class="u-visually-hidden">Active sessions</caption>
+              <thead>
+                <tr class="rd-row rd-row--head rd-row--session">
+                  <th scope="col">DEVICE</th>
+                  <th scope="col">SIGNED IN</th>
+                  <th scope="col">LAST SEEN</th>
+                  <th scope="col">EXPIRES</th>
+                  <th scope="col">
+                    <span class="u-visually-hidden">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in session_rows %}
+                  {% include "fragments/rows/session-row.html" %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', path='rd/js/passkeys.js') }}" defer></script>
+{% endblock %}

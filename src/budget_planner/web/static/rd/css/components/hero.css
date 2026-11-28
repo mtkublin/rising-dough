@@ -1,0 +1,219 @@
+/* The bake field: full-bleed hero, one per screen. Slim variant = title band. */
+.rd-hero {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-6) var(--space-5) var(--space-14);
+  border-radius: var(--radius-lg);
+  background: var(--color-bake);
+  color: var(--color-ink-deep);
+}
+
+.rd-hero :focus-visible {
+  outline-color: var(--color-ink-deep);
+}
+
+.rd-hero__loaf {
+  position: absolute;
+  inset-inline-end: calc(var(--space-10) * -1);
+  inset-block-end: var(--space-1-5);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-ascii);
+  color: var(--color-crumb);
+  pointer-events: none;
+  user-select: none;
+}
+
+.rd-hero__body {
+  position: relative;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+}
+
+.rd-hero__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.rd-hero__label {
+  font-family: var(--font-mono);
+  letter-spacing: normal;
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-hero__figure-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2-5);
+}
+
+.rd-hero__figure {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+
+  --fig-size: var(--font-size-hero-md);
+  --fig-digits: 6;
+  --fig-marks: 2;
+  --fig-signs: 0;
+
+  font-size: min(var(--fig-size), calc(100cqi / (var(--fig-digits) * var(--fig-digit-em) + var(--fig-marks) * var(--fig-mark-em) + var(--fig-signs) * var(--fig-sign-em) + var(--fig-slack-em))));
+  line-height: var(--line-height-mega);
+  letter-spacing: var(--letter-spacing-mega);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rd-hero__figure--xl {
+  --fig-size: var(--font-size-mega);
+}
+
+.rd-hero__figure--wide,
+.rd-hero__figure--plan {
+  --fig-size: var(--font-size-hero-sm);
+}
+
+.rd-hero__figure[data-digits="1"] {
+  --fig-digits: 1;
+}
+
+.rd-hero__figure[data-digits="2"] {
+  --fig-digits: 2;
+}
+
+.rd-hero__figure[data-digits="3"] {
+  --fig-digits: 3;
+}
+
+.rd-hero__figure[data-digits="4"] {
+  --fig-digits: 4;
+}
+
+.rd-hero__figure[data-digits="5"] {
+  --fig-digits: 5;
+}
+
+.rd-hero__figure[data-digits="6"] {
+  --fig-digits: 6;
+}
+
+.rd-hero__figure[data-digits="7"] {
+  --fig-digits: 7;
+}
+
+.rd-hero__figure[data-digits="8"] {
+  --fig-digits: 8;
+}
+
+.rd-hero__figure[data-digits="9"] {
+  --fig-digits: 9;
+}
+
+.rd-hero__figure[data-digits="10"] {
+  --fig-digits: 10;
+}
+
+.rd-hero__figure[data-marks="0"] {
+  --fig-marks: 0;
+}
+
+.rd-hero__figure[data-marks="1"] {
+  --fig-marks: 1;
+}
+
+.rd-hero__figure[data-marks="2"] {
+  --fig-marks: 2;
+}
+
+.rd-hero__figure[data-marks="3"] {
+  --fig-marks: 3;
+}
+
+.rd-hero__figure[data-signs="0"] {
+  --fig-signs: 0;
+}
+
+.rd-hero__figure[data-signs="1"] {
+  --fig-signs: 1;
+}
+
+.rd-hero__unit {
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-hero__note {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+/* Slim title band (pages without a headline figure) */
+.rd-hero--band {
+  padding-bottom: var(--space-12);
+}
+
+.rd-hero__title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-display-sm);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-display);
+}
+
+@media (width >= 48rem) {
+  .rd-hero {
+    padding: var(--space-6) var(--space-6) var(--space-16);
+  }
+
+  .rd-hero--tall {
+    min-height: var(--size-hero-min);
+  }
+
+  .rd-hero--band {
+    padding-bottom: var(--space-14);
+  }
+
+  .rd-hero__loaf {
+    inset-inline-end: var(--space-6);
+    inset-block-end: var(--space-9);
+  }
+
+  .rd-hero__body {
+    gap: var(--space-3);
+  }
+
+  .rd-hero__head {
+    gap: var(--space-3);
+  }
+
+  .rd-hero__figure-row {
+    gap: var(--space-1) var(--space-4);
+  }
+
+  .rd-hero__figure {
+    font-size: var(--font-size-hero-lg);
+  }
+
+  .rd-hero__figure--xl {
+    font-size: var(--font-size-hero-xl);
+  }
+
+  .rd-hero__figure--wide {
+    font-size: var(--font-size-hero-lg);
+  }
+
+  .rd-hero__figure--plan {
+    font-size: var(--font-size-hero-plan);
+  }
+
+  .rd-hero__title {
+    font-size: var(--font-size-display);
+  }
+}

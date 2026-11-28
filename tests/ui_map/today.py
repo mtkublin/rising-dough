@@ -1,11 +1,18 @@
-"""Today surface."""
+"""Today surface on the handoff markup (``pages/today.html``, T-UR07).
+
+The app renders the handoff's Today markup; ``tests.ui_map.mockup.today`` exposes
+the same names against the static handoff (fixed sample rows, no row ids), so one
+journey runs on both targets. Row ids (``upcoming-planned-<id>``) and the figure
+ids below exist only in the app: the handoff has fixed rows.
+"""
 
 from __future__ import annotations
 
-from tests.ui_map.locator import Locator, by_id, by_testid, role
+from tests.ui_map.locator import Locator, by_id, label, role
 
-heading = role("heading", "Today", level=1)
-upcoming = by_id("upcoming-root")
+# The hero heading is the "left to spend per day" label; there is no "Today" h1.
+heading = role("heading", "left to spend per day", level=1)
+upcoming = by_id("upcoming-list")
 
 
 def upcoming_planned(planned_id: int) -> Locator:
@@ -16,18 +23,29 @@ def upcoming_recurring(rule_id: int) -> Locator:
     return by_id(f"upcoming-recurring-{rule_id}")
 
 
-promote = role("button", "Promote")
+# Promote is a link into the promote dialog (a page link without script).
+promote = role("link", "promote", exact=True)
 
-afford_per_day = by_testid("afford-per-day")
-afford_delta = by_testid("afford-delta")
+# The afford result is one ``<output>`` holding one text run (as the handoff draws it, so the
+# glyphs sit at the same sub-pixel positions): per-day and delta share it.
+afford_per_day = by_id("afford-result")
+afford_delta = by_id("afford-result")
 
-# Every upcoming row in an ``/today/upcoming`` fragment (planned and recurring).
-upcoming_rows = by_id("upcoming-", prefix=True)
+# Every upcoming row in a ``/today/upcoming`` fragment (planned and recurring).
+upcoming_rows = role("listitem").inside(upcoming)
+promote_all_due = role("button", "promote all due")
 
-add_planned = role("button", "+ Planned")
-add_recurring = role("button", "+ Recurring")
-promote_all_due = role("button", "Promote all due")
-confirm_promote = role("button", "Confirm")
+afford_amount = label("can i afford it?", exact=True)  # the afford input (T-UR81)
+hero_per_day = by_id("hero-per-day")  # the hero "left per day" figure
+spent_bar = role("img", "percent spent")  # the hero bar: "N percent spent, M percent left"
+stats = by_id(
+    "today-stats"
+)  # period stats: each label carries its bar glyph (spent █, committed ▒, left ░)
 
-hero_per_day = by_testid("hero-per-day")  # T-Q278: the hero "left per day" figure
-spent_bar = role("progressbar", "Spent")
+
+# Legend glyph of one period stat (spent, committed, left) and the bar's remainder run (T-UR94).
+def legend_glyph(kind: str) -> Locator:
+    return by_id(f"today-legend-{kind}")
+
+
+bar_remainder = by_id("today-bar-remainder")

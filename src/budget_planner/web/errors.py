@@ -12,10 +12,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from typing import Any
+from http import HTTPStatus
+from typing import Any, Final
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from budget_planner.domain.errors import (
     ConflictError,
@@ -26,11 +31,21 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.services.fx import FxUnavailableError
 from budget_planner.web.deps import ReauthRequired
-from budget_planner.web.field_labels import field_summary
-from budget_planner.web.http_headers import HX_REQUEST
+from budget_planner.web.field_labels import field_label, field_summary
+from budget_planner.web.http_headers import HX_REQUEST, HX_RESWAP
 from budget_planner.web.params import ParamError
 
 logger = logging.getLogger("budget_planner.web")
+
+SAVE_FAILED_MESSAGE: Final = "Couldn\u2019t save. Your changes are still in the form."
+
+# Handoff copy of the full-page 409 and 500 (pages/errors/409.html, 500.html); the HTMX flash
+# keeps the specific message (a toast has room for the reason, the page states the outcome).
+CONFLICT_PAGE_COPY = (
+    "Someone saved this while you were editing. "
+    "Nothing of yours was saved; reload to see the latest version."
+)
+SERVER_ERROR_PAGE_COPY = "Nothing was saved. Try again."
 
 
 def _is_htmx(request: Request) -> bool:
@@ -58,48 +73,99 @@ def _render(request: Request, template: str, status: int, **context: Any) -> HTM
     return HTMLResponse(html, status_code=status, headers=headers)
 
 
-def _flash_fragment(request: Request, kind: str, message: str, status: int) -> HTMLResponse:
-    """Render the flash partial as an OOB swap, suitable for HTMX responses.
+def _back_url(request: Request) -> str:
+    """Where "back to the form" goes: the same-origin Referer path, else Today.
 
-    The partial carries `hx-swap-oob="true"` + the live-region target, so the
-    body is otherwise empty and HTMX will not clobber the originating target.
+    A browser reads ``/\\evil`` as ``//evil``, so a backslash (raw or ``%5C``) in the
+    path is refused as well as ``//``; a control character anywhere in the Referer is
+    refused too (``isprintable`` is False for those).
+    """
+    raw = request.headers.get("referer", "")
+    referer = urlsplit(raw)
+    path = referer.path
+    same_origin = referer.netloc == request.url.netloc
+    safe_path = (
+        path.startswith("/")
+        and not path.startswith("//")
+        and "\\" not in path
+        and "%5c" not in path.lower()
+    )
+    if same_origin and safe_path and raw.isprintable():
+        return f"{path}?{referer.query}" if referer.query else path
+    return "/today"
+
+
+def _flash_fragment(
+    request: Request,
+    message: str,
+    status: int,
+    *,
+    retry: bool = False,
+    reference: str = "",
+) -> HTMLResponse:
+    """Render ``fragments/flash/error.html`` as an OOB swap into the live flash region.
+
+    The fragment carries `hx-swap-oob="true"` + the live-region target, so the body is
+    otherwise empty and HTMX will not clobber the originating target.
     """
     return _render(
         request,
-        "partials/_flash.html",
+        "fragments/flash/error.html",
         status,
-        level=kind,
         message=message,
+        region="flash-region",
+        retry=retry,
+        reference=reference,
     )
+
+
+def not_found_response(request: Request, entity: str, entity_id: int | str) -> HTMLResponse:
+    """The 404 for an unknown or foreign id: the 404 page for browsers, the error flash for HTMX.
+
+    A router returns this (never raises ``NotFoundError`` through ``get_db``: the frozen
+    exception cannot cross the connection context manager). Foreign ids answer the same.
+    """
+    if _is_htmx(request):
+        return _flash_fragment(request, f"{entity.capitalize()} not found", status=404)
+    return _render(request, "pages/errors/404.html", status=404, entity=entity, entity_id=entity_id)
 
 
 async def handle_not_found(request: Request, exc: Exception) -> HTMLResponse:
     nf = exc if isinstance(exc, NotFoundError) else NotFoundError(entity="page", entity_id=0)
-    if _is_htmx(request):
-        return _flash_fragment(
-            request,
-            "error",
-            f"{nf.entity.capitalize()} not found",
-            status=404,
-        )
-    return _render(
-        request,
-        "errors/404.html",
-        status=404,
-        entity=nf.entity,
-        entity_id=nf.entity_id,
-    )
+    return not_found_response(request, nf.entity, nf.entity_id)
+
+
+def _wants_html(request: Request) -> bool:
+    return "text/html" in request.headers.get("accept", "")
+
+
+async def handle_http_exception(request: Request, exc: Exception) -> Response:
+    """Q12 (ADR-0106 amendment): an unknown route is an HTML 404 page for browsers.
+
+    Only the router's own "Not Found" qualifies; HTMX callers and every explicit
+    ``detail`` (``not_found`` on the revoke routes) keep the JSON body.
+    """
+    if not isinstance(exc, StarletteHTTPException):  # registered for HTTP errors only
+        raise InvariantError(f"unexpected exception type {type(exc).__name__}")
+    if (
+        exc.status_code == HTTPStatus.NOT_FOUND
+        and exc.detail == "Not Found"
+        and _wants_html(request)
+        and not _is_htmx(request)
+    ):
+        return _render(request, "pages/errors/404.html", status=404, entity="page", entity_id=0)
+    return await http_exception_handler(request, exc)
 
 
 async def handle_conflict(request: Request, exc: Exception) -> HTMLResponse:
     cf = exc if isinstance(exc, ConflictError) else ConflictError(message="conflict")
     if _is_htmx(request):
-        return _flash_fragment(request, "warning", cf.message, status=409)
+        return _flash_fragment(request, cf.message, status=409)
     return _render(
         request,
-        "errors/409.html",
+        "pages/errors/409.html",
         status=409,
-        message=cf.message,
+        message=CONFLICT_PAGE_COPY,
     )
 
 
@@ -117,16 +183,40 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     # routers short-circuit with a fully populated form partial before raising.
     message = next(iter(v.fields.values()), "validation failed")
     if _is_htmx(request):
-        return _flash_fragment(request, "error", message, status=422)
+        # Keep the open dialog and its typed values: the flash is the whole answer.
+        response = _flash_fragment(request, message, status=422)
+        response.headers[HX_RESWAP] = "none"
+        return response
     field_count, field_errors = validation_summary(v.fields)
     return _render(
         request,
-        "errors/422.html",
+        "pages/errors/422.html",
         status=422,
         fields=v.fields,
         field_count=field_count,
         field_errors=field_errors,
+        back_url=_back_url(request),
     )
+
+
+async def handle_request_validation(request: Request, exc: Exception) -> Response:
+    """A missing or malformed form value: never a silent failure for an HTMX dialog (Q18).
+
+    FastAPI rejects a missing ``Form(...)`` value before the handler runs. For an HTMX
+    caller whose errors are all in the body, answer a 422 flash in the live region with
+    ``HX-Reswap: none``: the dialog stays open with the typed values and no event closes it.
+    Every other caller (path or query errors, plain requests) keeps FastAPI's JSON ``detail``.
+    """
+    if not isinstance(exc, RequestValidationError):  # registered for it only
+        raise InvariantError(f"unexpected exception type {type(exc).__name__}")
+    errors = exc.errors()
+    if not _is_htmx(request) or not errors or any(e["loc"][0] != "body" for e in errors):
+        return await request_validation_exception_handler(request, exc)
+    names = dict.fromkeys(str(e["loc"][-1]) for e in errors)
+    labels = ", ".join(field_label(name) for name in names)
+    response = _flash_fragment(request, f"Some fields need fixing: {labels}", status=422)
+    response.headers[HX_RESWAP] = "none"
+    return response
 
 
 async def handle_param_error(request: Request, exc: Exception) -> HTMLResponse:
@@ -145,14 +235,25 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
         exc_info=exc,
     )
     message = exc.message if isinstance(exc, ServiceError) else "Something went wrong on our side."
+    if _is_htmx(request) and request.method != "GET" and not isinstance(exc, ServiceError):
+        # A failed write (handoff pages/today--flash): the form keeps its input, the flash offers
+        # a retry; the support reference moves to the tooltip.
+        return _flash_fragment(
+            request,
+            SAVE_FAILED_MESSAGE,
+            status=500,
+            retry=True,
+            reference=f"Reference: {rid}" if rid else "",
+        )
     if _is_htmx(request):
         reference = f"{message} Reference: {rid}" if rid else message
-        return _flash_fragment(request, "error", reference, status=500)
+        return _flash_fragment(request, reference, status=500)
     return _render(
         request,
-        "errors/500.html",
+        "pages/errors/500.html",
         status=500,
-        message=message,
+        status_code=500,
+        message=exc.message if isinstance(exc, ServiceError) else SERVER_ERROR_PAGE_COPY,
     )
 
 
@@ -161,8 +262,8 @@ async def handle_missing_quote(request: Request, exc: Exception) -> HTMLResponse
     logger.warning("fx rate unavailable on %s %s: %s", request.method, request.url.path, exc)
     message = f"Exchange rate unavailable: {exc}"
     if _is_htmx(request):
-        return _flash_fragment(request, "error", message, status=503)
-    return _render(request, "errors/500.html", status=503, message=message)
+        return _flash_fragment(request, message, status=503)
+    return _render(request, "pages/errors/500.html", status=503, status_code=503, message=message)
 
 
 def handle_reauth_required(_request: Request, exc: Exception) -> Response:
@@ -179,6 +280,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     unhandled errors inside sync endpoints, so we don't need a try/except in
     every router.
     """
+    app.add_exception_handler(StarletteHTTPException, handle_http_exception)
+    app.add_exception_handler(RequestValidationError, handle_request_validation)
     app.add_exception_handler(ReauthRequired, handle_reauth_required)
     app.add_exception_handler(NotFoundError, handle_not_found)
     app.add_exception_handler(ConflictError, handle_conflict)

@@ -2,7 +2,7 @@
 # See terraform/README.md for the full secret flow.
 
 env                      = "drill"
-admin_email              = "operator@example.com"
+admin_email              = "" # T-UR22: drills have no bootstrap admin; /setup with the per-deploy token
 # rising-dough-drill (f2facf0d-...); ADR-0092: each env lives in its own project.
 scaleway_project_id      = "00000000-0000-0000-0000-000000000000"
 scaleway_organization_id = "00000000-0000-0000-0000-000000000000"

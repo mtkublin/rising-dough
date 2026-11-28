@@ -1,0 +1,28 @@
+{# fragment: dialogs/override-occurrence (T-UR10, ADR-0107, ADR-0152; handoff overlays/override--occurrence.html)
+   Context (web.recurring_views.occurrence_context): title, action, hero (signed amount in the rule's account
+   currency), year, month, month_label, prev_url, next_url, errors, field_count / field_errors (422).
+   The month stepper links reopen the dialog on the neighbouring month (GET .../overrides/new?occurrence_date=);
+   the form posts year, month and amount to POST /recurring/{id}/overrides, which keys the override on the
+   rule's occurrence in that month. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog("override-occurrence-dialog", title, action=action, hx_post=action, hero=hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  <div class="rd-field rd-field--stepper"
+       id="field-month"
+       role="group"
+       aria-labelledby="ov-month-label">
+    <span class="rd-field__label" id="ov-month-label">month</span>
+    <span class="rd-stepper"><a class="rd-stepper__btn"
+   href="{{ prev_url }}"
+   hx-get="{{ prev_url }}"
+   hx-target="#modal-root"
+   hx-swap="innerHTML"
+   aria-label="Previous month">←</a><output class="rd-stepper__value" for="field-month">{{ month_label }}</output><input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="month" value="{{ month }}"><a class="rd-stepper__btn"
+   href="{{ next_url }}"
+   hx-get="{{ next_url }}"
+   hx-target="#modal-root"
+   hx-swap="innerHTML"
+   aria-label="Next month">→</a></span>
+    {% if errors.month|default(none) %}<p class="rd-field__error"
+   id="field-month-error">▲ {{ errors.month }}</p>{% endif %}
+  </div>
+{% endcall %}

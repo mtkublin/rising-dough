@@ -34,6 +34,11 @@ v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3]
 5. **Verify.** Pixel parity: visual diff against the handoff references at 1440 / 1024 / 375, light and dark, at the strict default tolerance (0.1% of pixels and the cluster cap `MAX_DIFF_CLUSTER_PX`, ADR-0147 §2). A looser tolerance needs a `derived.md` "Tolerance exceptions" row with the reason and operator sign-off; `frontend-visual-audit` on the surface's routes; axe at 375 and 1440 in both themes.
 6. **Record** any deviation or derived screen in `derived.md`.
 
+Overlay references (T-UR00b, ADR-0147 amendment 2026-11-25): each handoff overlay page is its surface's full board with one dialog open, so the app side loads the overlay's own base route (derived from the nav and tab `aria-current` in the handoff file, with that page's seed modifiers) and fetches the dialog into `#modal-root`; it never defaults to `/today`. The client-side states with no dialog route (command palette and its filtered and no-match states, shortcuts, period pickers, the six row menus, the category picker) are opened by the real click or key recipe in `tests/visual/handoff_clicks.py`; `override--year-cell` stays unmapped (the app has no inline year-cell editor).
+
+Overlay row kinds (T-UR00b, O1, ADR-0147 amendment 2026-11-25): besides text and value attributes, a row may set an absent `value`/`placeholder` and swap one allow-listed class token pair (`rd-fc__net--negative` -> none); both need a reason and a stale row fails.
+Page routing (T-UR00b, ADR-0147 amendment 2026-11-25): signed-out auth pages render without the session cookie, POST error states are produced by submitting the form, settings/ledger/empty states have their own route and seed modifier, and pages not yet reachable are listed with a reason in `UNMAPPED_PAGES` (`tests/visual/test_reference.py`).
+
 ## Per-surface definition of done
 
 - UI-map module points only at new markup; no old-markup names left for the surface.
@@ -48,7 +53,7 @@ v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3]
 ## Guardrails
 
 - **Presentation from the handoff only** (ADR-0107 §1–§2). Old templates and CSS may be read to understand behaviour, never copied.
-- **Behaviour is pinned by the harness.** If a contract test needs to change, stop: that is a behaviour change and needs a requirement or ADR first.
+- **Behaviour is pinned by the harness.** If a contract test needs to change, stop: that is a behaviour change and needs a requirement or ADR first; transport-markup assertions follow ADR-0152.
 - **Parity, not features.** Handoff-only screens are wired only after a requirement exists (`derived.md` records the decision).
 - **No mixed chrome in prod.** Release once, after T-UR15 (ADR-0107 §8). Prod only via GitHub Actions from `main` (ADR-0099).
 - **Reuse check** (ADR-0130, CLAUDE.md "Canonical modules"): search before writing a helper, reuse the canonical module, report `Searched / Reused / New helper` in every surface handoff; new templates start at zero on the template-logic guards (no allowlist entries).

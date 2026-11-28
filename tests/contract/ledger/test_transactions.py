@@ -10,7 +10,8 @@ from fastapi.testclient import TestClient
 from budget_planner.config import Settings
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import audit_ops, hx_events, scalar, txn_form
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, entries, errors, ledger
+from tests.ui_map.locator import by_id
 
 Ids = dict[str, int]
 HTMX = {"HX-Request": "true"}
@@ -31,15 +32,6 @@ def test_table_alias_matches_ledger_fragment(client: TestClient, seeded: Ids) ->
     assert "<html" not in r.text
     assert _html.exists(r.text, ledger.table)
     assert _html.exists(r.text, ledger.row(seeded["txn"]))
-
-
-@covers("GET /transactions/new")
-def test_new_form_is_a_slideover(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/transactions/new", headers=HTMX)
-    assert r.status_code == 200
-    assert "<html" not in r.text
-    assert _html.exists(r.text, ledger.form)
-    assert _html.exists(r.text, ledger.add_entry)
 
 
 @covers("GET /transactions/_limit_preview")
@@ -69,9 +61,9 @@ def test_create_persists_audits_and_signals(
 ) -> None:
     r = client.post("/transactions", data=txn_form(seeded))
     assert r.status_code == 200
-    assert hx_events(r) == STALE
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"  # no HX-Current-URL => not on /ledger
+    assert hx_events(r) == {**STALE, "today-stale": True, "budget-stale": True}
+    assert "HX-Reswap" not in r.headers
+    assert "HX-Refresh" not in r.headers  # off the ledger: events refetch, the flash stays
     new_id = scalar(_migrated, "SELECT MAX(id) FROM transactions")
     assert new_id != seeded["txn"]
     assert scalar(_migrated, "SELECT amount FROM transactions WHERE id = ?", (new_id,)) == 1234
@@ -132,9 +124,14 @@ def test_create_transit_with_destination(
 def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     ok = client.get(f"/transactions/{seeded['txn']}/edit", headers=HTMX)
     assert ok.status_code == 200
-    assert _html.exists(ok.text, ledger.form)
+    assert _html.count(ok.text, entries.edit_dialog) == 1
+    assert ok.headers["HX-Retarget"] == "#modal-root"
     missing = client.get("/transactions/99999/edit")
     assert missing.status_code == 404
+    assert _html.text_of(missing.text, errors.heading) == "Not found"
+    flash = client.get("/transactions/99999/edit", headers=HTMX)
+    assert flash.status_code == 404
+    assert "Transaction not found" in _html.text_of(flash.text, by_id("flash-region"))
 
 
 @covers("POST /transactions/{txn_id}")
@@ -162,6 +159,7 @@ def test_update_errors(client: TestClient, seeded: Ids, _migrated: Settings) -> 
     )
     missing = client.post("/transactions/99999", data=txn_form(seeded))
     assert missing.status_code == 404
+    assert _html.text_of(missing.text, errors.heading) == "Not found"
 
 
 @covers("POST /transactions/{txn_id}/delete", "POST /transactions/{txn_id}/restore")
@@ -170,7 +168,8 @@ def test_delete_then_restore_round_trip(
 ) -> None:
     deleted = client.post(f"/transactions/{seeded['txn']}/delete")
     assert deleted.status_code == 200
-    assert deleted.text == ""
+    assert deleted.headers["HX-Reswap"] == "delete"
+    assert _html.count(deleted.text, entries.toast_undo) == 1
     assert hx_events(deleted) == STALE
     assert (
         scalar(
@@ -182,7 +181,10 @@ def test_delete_then_restore_round_trip(
     )
     restored = client.post(f"/transactions/{seeded['txn']}/restore")
     assert restored.status_code == 200
-    assert hx_events(restored) == STALE
+    assert hx_events(restored) == {
+        **STALE,
+        "toast": {"variant": "success", "message": "Transaction restored"},
+    }
     assert (
         scalar(
             _migrated, "SELECT deleted_at IS NULL FROM transactions WHERE id = ?", (seeded["txn"],)
@@ -198,6 +200,7 @@ def test_delete_then_restore_round_trip(
 def test_restore_unknown_id_is_404(client: TestClient, seeded: Ids) -> None:
     r = client.post("/transactions/99999/restore")
     assert r.status_code == 404
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 @covers("GET /transactions/export")

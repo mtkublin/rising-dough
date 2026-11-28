@@ -1,0 +1,19 @@
+{# pages/accounts/dialog-delete (T-UR08b, handoff overlays delete-account, --blocked, --blocked-planned; ADR-0107)
+   Context: dlg (accounts_view.DeleteDialog). The confirm posts to the existing delete route; the
+   blocked variants have no form and link to the rows that block the delete. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% if dlg.blocked %}
+  {% if dlg.link_href %}
+    {% call dialog("delete-account", dlg.title, variant="blocked", actions=[{"tone": "link", "label": dlg.link_label, "href": dlg.link_href}, {"tone": "ok"}]) %}
+      <p>{{ dlg.text }}</p>
+    {% endcall %}
+  {% else %}
+    {% call dialog("delete-account", dlg.title, variant="blocked", actions=[{"tone": "ok"}]) %}
+      <p>{{ dlg.text }}</p>
+    {% endcall %}
+  {% endif %}
+{% else %}
+  {% call dialog("delete-account", dlg.title, variant="confirm", action=dlg.action, hx_post=dlg.action, actions=[{"tone": "cancel"}, {"tone": "danger", "label": "delete account", "name": "delete", "value": "1"}]) %}
+    <p>{{ dlg.text }}</p>
+  {% endcall %}
+{% endif %}

@@ -15,7 +15,6 @@ from budget_planner.domain.money import (
     format_bps_percent,
     format_major,
     format_money,
-    format_whole,
     major_float,
     minor_to_major,
     percent_of,
@@ -61,10 +60,7 @@ def test_money_num_filter_pln_equal_jpy_whole() -> None:
     assert format_money(123456, "JPY") == "123,456 JPY"
 
 
-def test_format_whole_and_major() -> None:
-    assert format_whole(123456, "PLN") == "1,235"
-    assert format_whole(-250, "PLN") == "-2"  # tie -> even (T-Q281)
-    assert format_whole(123456, "JPY", grouped=False) == "123456"
+def test_format_major() -> None:
     assert format_major(1550, "PLN") == "15.50"
     assert format_major(1550, "JPY") == "1550"
 
@@ -80,5 +76,8 @@ def test_percent_of_and_axis_and_float() -> None:
     assert percent_of(5, 0) == 0
     assert format_axis_number(1200.0) == "1,200"
     assert format_axis_number(1.5) == "1.50"
+    assert format_axis_number(-20000.0) == "\N{MINUS SIGN}20,000"
+    assert format_axis_number(-1.5) == "\N{MINUS SIGN}1.50"
+    assert format_axis_number(0.0) == "0"
     assert major_float(250, "PLN") == 2.5
     assert major_float(250, "JPY") == 250.0

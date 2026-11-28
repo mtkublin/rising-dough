@@ -67,12 +67,25 @@ variable "drill_expires_at" {
 }
 
 variable "admin_email" {
-  description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine."
+  description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine. Required on prod; a drill may leave it empty (T-UR22, ADR-0134 §9): the app then starts without a bootstrap admin and /setup opens once setup_token_hash is set."
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.admin_email))
-    error_message = "admin_email must be a valid email address."
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.admin_email)) || (var.env == "drill" && var.admin_email == "")
+    error_message = "admin_email must be a valid email address (empty only for env 'drill')."
+  }
+}
+
+variable "setup_token_hash" {
+  description = "sha256 hex of the one-time first-run setup token (ADR-0134 section 9, T-UR21a). Empty = unset, /setup stays closed. Never the token itself."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.setup_token_hash == "" || can(regex("^[0-9a-f]{64}$", var.setup_token_hash))
+    error_message = "setup_token_hash must be empty or a lowercase sha256 hex digest."
   }
 }
 

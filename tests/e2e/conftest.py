@@ -30,6 +30,7 @@ from budget_planner.web.middleware.csrf import (
     CSRF_HEADER_NAME,
 )
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.e2e import ui_actions
 from tests.e2e.mockup_target import journey, mockup_base_url, target  # noqa: F401
 
 # Loaded machines can take well over 15s to boot uvicorn. Override with
@@ -74,6 +75,11 @@ BROWSER_XFAILS: dict[tuple[str, str], str] = {
         "test_stale_session_reauths_with_passkey",
     )
 }
+# The setup server must run outside env=dev (dev seeds an admin and closes setup), so its
+# ``__Host-`` CSRF cookie is Secure; WebKit stores no Secure cookie over plain http://127.0.0.1.
+BROWSER_XFAILS[
+    ("webkit", "test_setup_page.py::test_mismatch_shows_an_error_then_setup_signs_in_and_closes")
+] = "Secure __Host- CSRF cookie is not stored by WebKit over plain http"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -228,7 +234,24 @@ document.addEventListener('htmx:targetError', (e) => {
     ` at ${location.pathname}`
   );
 });
+document.addEventListener('htmx:oobErrorNoTarget', (e) => {
+  const d = e.detail || {};
+  const content = d.content && d.content.id ? `#${d.content.id}` : 'unknown';
+  window.__reportHtmxTargetError(
+    `htmx:oobErrorNoTarget: out-of-band element ${content} matches nothing at ${location.pathname}`
+  );
+});
 """
+
+
+def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
+    """QFIX13: say how often ``fill_stable`` needed a retry (a swap beat the fill)."""
+    retries = ui_actions.FILL_RETRIES
+    if retries:
+        detail = "; ".join(f"{what} x{n}" for what, n in retries)
+        terminalreporter.write_line(f"e2e fill_stable retries: {len(retries)} ({detail})")
+    else:
+        terminalreporter.write_line("e2e fill_stable retries: 0")
 
 
 @pytest.fixture
@@ -300,6 +323,7 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
 
     context.expose_function("__reportCspViolation", _record)
     context.add_init_script(_CSP_LISTENER_JS)
+    context.add_init_script(ui_actions.HTMX_PENDING_JS)
     target_errors: list[str] = []
 
     def _record_target_error(message: str) -> None:

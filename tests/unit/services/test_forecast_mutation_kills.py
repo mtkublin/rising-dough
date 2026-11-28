@@ -705,7 +705,7 @@ def test_forecast_monthly_without_accounts_uses_budget_only(conn: sqlite3.Connec
 
 
 def test_projection_summary_and_normalize_horizon() -> None:
-    assert fc.projection_summary(()) is None
+    assert fc.projection_summary((), now_value=0) is None
 
     def mk(i: int, v: float) -> fc.MonthlyProjectionPoint:
         return fc.MonthlyProjectionPoint(
@@ -713,7 +713,7 @@ def test_projection_summary_and_normalize_horizon() -> None:
         )
 
     pts = (mk(1, 10.0), mk(2, 30.0), mk(3, 20.0))
-    summ = fc.projection_summary(pts)
+    summ = fc.projection_summary(pts, now_value=1_000)
     assert summ is not None
     assert (summ.now_value, summ.end_point, summ.peak_point) == (1_000, pts[2], pts[1])
     assert fc.normalize_horizon("6", (3, 6, 12)) == 6

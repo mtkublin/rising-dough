@@ -1,0 +1,17 @@
+{# Settings · archive category confirm (T-UR13, ADR-0107, ADR-0136). Handoff: overlays/archive-category.
+   Context: title, post_url, usage_text (view_models.category_usage_text or none).
+   The POST answers 204 with the undo toast; the dialog closes on the dialog-close event (app-toast.js). #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog(
+  "dlg-archive-category",
+  title,
+  variant="confirm",
+  size="plain",
+  action=post_url,
+  hx_post=post_url,
+  actions=[{"tone": "cancel"}, {"tone": "danger", "label": "archive", "name": "archive", "value": "1"}]
+) %}
+  <p>
+    It disappears from pickers. {% if usage_text %}Its {{ usage_text }} and budget history stay{% else %}Its budget history stays{% endif %}, and you can restore it from recently deleted.
+  </p>
+{% endcall %}

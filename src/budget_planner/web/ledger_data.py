@@ -11,8 +11,9 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Final
+from zoneinfo import ZoneInfo
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -22,11 +23,11 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import PAGE_SIZE_MAX
-from budget_planner.domain.periods import month_bounds
-from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
+from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import RecurringRule
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.services import (
+    account_planned as account_planned_service,
     accounts as accounts_service,
     categories as categories_service,
     fx as fx_service,
@@ -36,15 +37,21 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
     transactions as transactions_service,
 )
+from budget_planner.web import ledger_view
+from budget_planner.web.htmx import HX_TRIGGER
+from budget_planner.web.http_headers import HX_PUSH_URL
+from budget_planner.web.ledger_export import export_links
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
 from budget_planner.web.params import query_choice, query_date, query_int
 from budget_planner.web.rendering import render_context
 
+FILTER_FORM_ID: Final = "ledger-filters"
 _PAGE_SIZE_DEFAULT: Final = 50
 _DIRECTIONS: Final = tuple(d.value for d in Direction)
 _SCOPES: Final = ("all", "unpromoted")
 _PLANNED_LOOKBACK: Final = timedelta(days=30)
 _PLANNED_LOOKAHEAD: Final = timedelta(days=180)
+_DELETED_DAYS: Final = 90
 
 Row = Mapping[str, object]
 
@@ -166,24 +173,6 @@ def hydrate_txn_rows(
     return out
 
 
-def planned_row_from_persisted(
-    pl: PlannedTransaction, acc: Account | None, cat: Category | None
-) -> dict[str, object]:
-    """Row view of a just-created planned transaction for ``_row.html``."""
-    return {
-        "key": f"p-{pl.id}",
-        "kind": "persisted",
-        "operation_date": pl.operation_date,
-        "amount_minor": pl.amount,
-        "description": pl.description,
-        "is_promoted": pl.promoted_to_txn_id is not None,
-        "account": acc,
-        "category": cat,
-        "persisted_id": pl.id,
-        "currency": acc.currency if acc else "",
-    }
-
-
 def _planned_key(view: planned_service.PlannedView) -> str:
     if view.persisted_id is not None:
         return f"p-{view.persisted_id}"
@@ -255,15 +244,15 @@ def _recurring_row(
     conn: sqlite3.Connection,
     user_id: int,
     rule: RecurringRule,
-    refs: tuple[Account | None, Category | None],
+    refs: tuple[Account | None, Category | None, Account | None],
     formula_fx: formula_svc.FormulaFx,
 ) -> dict[str, object]:
-    acc, cat = refs
+    acc, cat, dest = refs
     overrides = recurring_service.list_overrides(conn, user_id, rule.id)
     # T-122: the override (if any) on the current `next_due` bolds / italicises its cells.
     override = next((ov for ov in overrides if ov.occurrence_date == rule.next_due), None)
     # Formula-aware default (ADR-0045); overrides win per ADR-0038 precedence.
-    effective = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=formula_fx)
+    effective, cyclic = formula_svc.live_rule_amount(conn, user_id, rule, rule.next_due, formula_fx)
     amount_overridden = override is not None and override.amount_override is not None
     if override is not None and override.amount_override is not None:
         effective = override.amount_override
@@ -277,13 +266,14 @@ def _recurring_row(
         "default_description": rule.default_description,
         "active": rule.active,
         "account": acc,
+        "dest_account": dest,
         "category": cat,
         "overrides": overrides,
         "override_deltas": {
             ov.occurrence_date: ledger_totals.override_delta(
-                formula_svc.resolve_rule_amount(
-                    conn, user_id, rule, ov.occurrence_date, fx=formula_fx
-                ),
+                formula_svc.live_rule_amount(conn, user_id, rule, ov.occurrence_date, formula_fx)[
+                    0
+                ],
                 ov.amount_override,
             )
             for ov in overrides
@@ -295,6 +285,7 @@ def _recurring_row(
         "effective_amount_minor": effective,
         "amount_formula": rule.amount_formula,
         "is_formula": rule.amount_formula is not None,
+        "formula_cycle": cyclic,
         "currency": acc.currency if acc else "",
     }
 
@@ -319,7 +310,11 @@ def _recurring_rows(
             conn,
             user_id,
             rule,
-            (accts.get(rule.account_id), cats.get(rule.category_id)),
+            (
+                accts.get(rule.account_id),
+                cats.get(rule.category_id),
+                accts.get(rule.dest_account_id) if rule.dest_account_id is not None else None,
+            ),
             formula_fx,
         )
         for rule in rules
@@ -372,7 +367,9 @@ def _planned_rows(
     conn: sqlite3.Connection, user_id: int, filters: LedgerFilters, today: date
 ) -> list[dict[str, object]]:
     views = planned_service.list_planned(conn, user_id, planned_filter(filters, today), today=today)
-    return _hydrate_planned_rows(conn, user_id, views, today)
+    # Entry order (oldest first), as the handoff lists its three rows (derived.md, T-UR00b F2).
+    ordered = sorted(views, key=lambda v: v.persisted_id or 0)
+    return _hydrate_planned_rows(conn, user_id, ordered, today)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -418,11 +415,14 @@ def filter_summary(
 def period_spent_minor(
     conn: sqlite3.Connection, user_id: int, settings: Settings, today: date
 ) -> int | None:
-    """Actual hero "spent this period": this month's expenses in the base currency.
+    """Actual hero "spent this period": expenses in the Budget/Today pay window, base currency.
+
+    The window is resolved as Budget and Today resolve it (``resolve_period_start`` +
+    ``fiscal_window``, ADR-0151 section 2), not the calendar month.
 
     ``None`` when a needed FX rate is not cached (the hero omits a wrong figure).
     """
-    start, end = month_bounds(today.year, today.month)
+    window = account_planned_service.resolve_window(conn, user_id, today)
     rows = hydrate_txn_rows(
         conn,
         user_id,
@@ -430,8 +430,8 @@ def period_spent_minor(
             conn,
             user_id,
             TransactionFilter(
-                date_from=start,
-                date_to=end,
+                date_from=window.start,
+                date_to=window.last_day,
                 directions=(Direction.EXPENSE,),
                 live_accounts_only=True,
             ),
@@ -470,6 +470,57 @@ def _page_keys(
     }
 
 
+def _actual_keys(
+    conn: sqlite3.Connection,
+    user_id: int,
+    settings: Settings,
+    *,
+    filters: LedgerFilters,
+    rows: Sequence[TxnRow],
+    day_nets: Mapping[str, int | None],
+) -> dict[str, object]:
+    """Keys of ``fragments/ledger/actual-table.html``: day groups, pagination, empty states."""
+    cats, accts = _lookups(conn, user_id)
+    summary = filter_summary(filters, cats, accts)
+    has_next = len(rows) == filters.page_size
+    return {
+        "days": ledger_view.actual_days(rows, day_nets, settings.base_currency),
+        "links": ledger_view.page_links(filters, has_next=has_next),
+        "color_rules": ledger_view.category_rules(rows),
+        "no_matches": not rows and (summary.is_active or filters.page > 1),
+        "summary_text": ledger_view.no_matches_text(summary),
+    }
+
+
+def _sched_keys(
+    conn: sqlite3.Connection,
+    user_id: int,
+    view: ViewKind,
+    filters: LedgerFilters,
+    rows: Sequence[Row],
+    *,
+    today: date,
+) -> dict[str, object]:
+    """Keys of ``fragments/ledger/{planned,recurring}-table.html``: row views, hues, empty state."""
+    cats, accts = _lookups(conn, user_id)
+    summary = filter_summary(filters, cats, accts)
+    shown = [c for r in rows if isinstance(c := r.get("category"), Category)]
+    keys: dict[str, object] = {
+        "color_rules": ledger_view.hue_rules(shown),
+        "no_matches": not rows and summary.is_active,
+        "summary_text": ledger_view.no_matches_text(summary),
+    }
+    if view == "planned":
+        keys["planned_rows"] = ledger_view.planned_views(rows)
+    else:
+        keys["groups"] = ledger_view.recurring_groups(rows, cats, today)
+    return keys
+
+
+def _view_template(view: ViewKind) -> str:
+    return f"fragments/ledger/{view}-table.html"
+
+
 def table_context(
     conn: sqlite3.Connection,
     user_id: int,
@@ -482,19 +533,34 @@ def table_context(
     """Template keys for the ``/ledger/table`` fragment."""
     rows: Sequence[object]
     day_nets: dict[str, int | None] = {}
+    view_keys: dict[str, object]
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
-    elif view == "planned":
-        rows = _planned_rows(conn, user_id, filters, today)
+        view_keys = _actual_keys(
+            conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets
+        )
+        hero = ledger_view.ledger_hero(
+            period_spent_minor(conn, user_id, settings, today), settings.base_currency
+        )
     else:
-        fx = fx_service.converter_for(conn, settings, today)
-        rows = _recurring_rows(conn, user_id, filters, fx)
+        sched, hero = _sched_page(
+            conn, user_id, settings=settings, view=view, filters=filters, today=today
+        )
+        rows, view_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today=today)
     cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
     return {
         **_page_keys(view, rows, filters, today),
+        **view_keys,
         "day_nets": day_nets,
         "categories_by_id": cats,
+        "export": export_links(view, filters),
+        "oob_export": True,  # the menu sits outside the swapped region; refresh it with it
+        # hero and tab counts sit outside the swapped region too: they refresh with the rows
+        "title": ledger_view.VIEW_TITLES[view],
+        "hero": hero,
+        "tabs": ledger_view.ledger_tabs(view, _tab_counts(conn, user_id)),
+        "oob": True,
     }
 
 
@@ -508,25 +574,114 @@ def render_table_for(
     today: date,
 ) -> HTMLResponse:
     """Render the ledger table fragment for ``view`` (shared by the legacy fragment aliases)."""
-    ctx = table_context(
-        conn, user_id, settings=settings, view=view, filters=parse_filters(request), today=today
-    )
-    return render_context(request, "ledger/_table.html", ctx)
+    filters = parse_filters(request)
+    ctx = table_context(conn, user_id, settings=settings, view=view, filters=filters, today=today)
+    response = render_context(request, _view_template(view), ctx)
+    if request.headers.get(HX_TRIGGER) == FILTER_FORM_ID:
+        # A filter change keeps the URL in step, so a reload or Back reopens the same filters.
+        response.headers[HX_PUSH_URL] = ledger_view.ledger_url(view, filters)
+    return response
+
+
+def _deleted_stamp(deleted_at: datetime | None, tz_name: str) -> str:
+    """``29 OCT 20:30`` in the display timezone (a naive stamp is UTC, ADR-0007)."""
+    if deleted_at is None:
+        return ""
+    aware = deleted_at if deleted_at.tzinfo else deleted_at.replace(tzinfo=UTC)
+    return aware.astimezone(ZoneInfo(tz_name)).strftime("%d %b %H:%M").upper()
+
+
+def deleted_context(
+    conn: sqlite3.Connection, user_id: int, settings: Settings
+) -> dict[str, object]:
+    """Template keys of the Recently deleted page: soft-deleted rows of the last 90 days."""
+    cats, accts = _lookups(conn, user_id)
+    tz = settings.display_timezone
+    txns = transactions_service.list_recently_deleted(conn, user_id, days=_DELETED_DAYS)
+    planned = planned_service.list_recently_deleted(conn, user_id, days=_DELETED_DAYS)
+    archived = categories_service.list_recently_deleted(conn, user_id, days=_DELETED_DAYS)
+    return {
+        "nav_current": "ledger",
+        "txn_rows": tuple(
+            ledger_view.deleted_money_row(
+                "txn",
+                t.id,
+                deleted_at=_deleted_stamp(t.deleted_at, tz),
+                day=t.operation_date,
+                description=t.description,
+                amount=t.amount,
+                category=cats.get(t.category_id),
+                account=accts.get(t.account_id),
+            )
+            for t in txns
+        ),
+        "planned_rows": tuple(
+            ledger_view.deleted_money_row(
+                "planned",
+                p.id,
+                deleted_at=_deleted_stamp(p.deleted_at, tz),
+                day=p.operation_date,
+                description=p.description,
+                amount=p.amount,
+                category=cats.get(p.category_id),
+                account=accts.get(p.account_id),
+            )
+            for p in planned
+        ),
+        "category_rows": tuple(
+            ledger_view.deleted_category_row(c, deleted_at=_deleted_stamp(c.deleted_at, tz))
+            for c in archived
+        ),
+        "color_rules": ledger_view.hue_rules(
+            [cats.get(t.category_id) for t in txns]
+            + [cats.get(p.category_id) for p in planned]
+            + list(archived)
+        ),
+    }
 
 
 def _lookup_keys(
-    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: LedgerFilters,
+    live: tuple[list[Category], list[Account]],
 ) -> dict[str, object]:
     """Category and account lists, the id lookup and the no-matches filter summary."""
     cats_all = categories_service.list_all(conn, user_id, include_deleted=True)
     accts_all = accounts_service.list_all(conn, user_id, include_deleted=True)
     return {
-        "categories": categories_service.list_all(conn, user_id),
-        "accounts": accounts_service.list_all(conn, user_id),
+        "categories": live[0],
+        "accounts": live[1],
         "categories_by_id": {c.id: c for c in cats_all},
         "filter_summary": filter_summary(
             filters, {c.id: c for c in cats_all}, {a.id: a for a in accts_all}
         ),
+    }
+
+
+def _chrome_keys(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    view: ViewKind,
+    filters: LedgerFilters,
+    spent: int | None,
+    base_ccy: str,
+) -> dict[str, object]:
+    """Keys of the page chrome: hero, view tabs, filter bar, export links, lookups."""
+    live = (categories_service.list_all(conn, user_id), accounts_service.list_all(conn, user_id))
+    tab_counts = _tab_counts(conn, user_id)
+    return {
+        **_lookup_keys(conn, user_id, filters, live),
+        "nav_current": "ledger",
+        "title": ledger_view.VIEW_TITLES[view],
+        "hero": ledger_view.ledger_hero(spent, base_ccy),
+        "tabs": ledger_view.ledger_tabs(view, tab_counts),
+        "bar": ledger_view.filter_bar(filters, live[0], live[1]),
+        "export": export_links(view, filters),
+        "views": view_kinds(),
+        "filters": filters,
+        "tab_counts": tab_counts,
     }
 
 
@@ -542,38 +697,57 @@ def index_context(
     """Template keys for the ``/ledger`` page shell."""
     rows: Sequence[object]
     day_nets: dict[str, int | None] = {}
-    recurring_summary: ledger_totals.RecurringTotals | None = None
-    planned_summary: ledger_totals.PlannedTotals | None = None
     base_ccy = settings.base_currency
-    fx = fx_service.converter_for(conn, settings, today)
     spent: int | None = None
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
         spent = period_spent_minor(conn, user_id, settings, today)
-    elif view == "planned":
-        planned = _planned_rows(conn, user_id, filters, today)
-        planned_summary = ledger_totals.planned_totals(
-            [r for r in planned if _on_live_account(r)],
-            base_ccy,
-            lambda amount, day, ccy: fx.to_base(amount, ccy, day),
-            today,
+        page_keys = _actual_keys(
+            conn, user_id, settings, filters=filters, rows=actual, day_nets=day_nets
         )
-        rows = planned
     else:
-        recurring = _recurring_rows(conn, user_id, filters, fx)
-        recurring_summary = ledger_totals.recurring_monthly_totals(
-            recurring, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
+        sched, hero = _sched_page(
+            conn, user_id, settings=settings, view=view, filters=filters, today=today
         )
-        rows = recurring
+        rows, page_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today=today)
+    chrome = _chrome_keys(conn, user_id, view=view, filters=filters, spent=spent, base_ccy=base_ccy)
+    if view != "actual":
+        chrome["hero"] = hero
     return {
         **_page_keys(view, rows, filters, today),
-        **_lookup_keys(conn, user_id, filters),
+        **chrome,
+        **page_keys,
         "spent_minor": spent,
-        "views": view_kinds(),
         "day_nets": day_nets,
-        "filters": filters,
-        "tab_counts": _tab_counts(conn, user_id),
-        "recurring_summary": recurring_summary,
-        "planned_summary": planned_summary,
     }
+
+
+def _sched_page(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    settings: Settings,
+    view: ViewKind,
+    filters: LedgerFilters,
+    today: date,
+) -> tuple[Sequence[Row], ledger_view.LedgerHero | None]:
+    """Rows and hero of the Planned (pending net) or Recurring (monthly in and out) view."""
+    base_ccy = settings.base_currency
+    fx = fx_service.converter_for(conn, settings, today)
+
+    def base_of(amount: int, day: date, ccy: str) -> int:
+        return fx.to_base(amount, ccy, day)
+
+    if view == "planned":
+        planned = _planned_rows(conn, user_id, filters, today)
+        live = [r for r in planned if _on_live_account(r)]
+        totals = ledger_totals.planned_totals(live, base_ccy, base_of, today)
+        return planned, ledger_view.schedule_hero(
+            view, planned=totals, recurring=None, currency=base_ccy
+        )
+    recurring = _recurring_rows(conn, user_id, filters, fx)
+    monthly = ledger_totals.recurring_monthly_totals(recurring, base_ccy, base_of)
+    return recurring, ledger_view.schedule_hero(
+        view, planned=None, recurring=monthly, currency=base_ccy
+    )

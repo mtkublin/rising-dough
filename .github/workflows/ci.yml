@@ -23,6 +23,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          filter: blob:none
 
       - name: Install uv
         uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433 # v4.1.0
@@ -34,7 +37,7 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
-      - name: Set up Node (dev-only toolchain — Tailwind + stylelint; ADR-0027)
+      - name: Set up Node (dev-only toolchain — stylelint; ADR-0027)
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
@@ -53,10 +56,9 @@ jobs:
 
       # ADR-0130 §8: CI runs every pre-commit hook locally enforced. Only the
       # testmon-selected pytest hook is skipped; the full suite + coverage run
-      # in "Run full CI pipeline" below. Runs before the Tailwind build so the
-      # tailwind-check hook sees the committed CSS. All hooks run on a plain
-      # ubuntu runner: stylelint/tailwind-check use the npm toolchain installed
-      # above, lint-imports uses the uv env, remote hooks bring their own envs.
+      # in "Run full CI pipeline" below. All hooks run on a plain ubuntu
+      # runner: stylelint uses the npm toolchain installed above, lint-imports
+      # uses the uv env, remote hooks bring their own envs.
       - name: Cache pre-commit environments
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -67,9 +69,6 @@ jobs:
         env:
           SKIP: pytest-fast
         run: uv run pre-commit run --all-files --show-diff-on-failure
-
-      - name: Build Tailwind CSS (verifies the pre-commit tailwind-check contract)
-        run: npm run css
 
       # ADR-0108 §3 / T-CS05: mypy stays whole-repo; the incremental cache
       # makes reruns cheap. Exact key = deps + every checked file; the

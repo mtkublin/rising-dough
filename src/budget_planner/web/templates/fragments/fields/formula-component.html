@@ -1,0 +1,87 @@
+{# fragment: fields/formula-component
+   Inputs: index (0-based, names the fields), number (1-based, labels), comp (sign '+'/'−',
+   percent text, category_ids), options (selectable categories, ordered), list_id (unique id of the
+   category list), single (bool: only component, so the remove button is hidden).
+   formula.js re-indexes names and labels after add/remove. #}
+<fieldset class="rd-comp" data-js="formula-component">
+  <legend class="u-visually-hidden">Component {{ number }}</legend>
+  <div class="rd-segmented rd-segmented--sign"
+       role="radiogroup"
+       aria-label="Sign of component {{ number }}">
+    <label class="rd-segmented__option rd-segmented__option--sign"><input type="radio"
+       name="components[{{ index }}][sign]"
+       value="+"
+       {% if comp.sign != '−' %} checked{% endif %}
+       aria-label="add">+</label>
+    <label class="rd-segmented__option rd-segmented__option--sign"><input type="radio"
+       name="components[{{ index }}][sign]"
+       value="−"
+       {% if comp.sign == '−' %} checked{% endif %}
+       aria-label="subtract">−</label>
+  </div>
+  <span class="rd-input rd-input--pct">
+    <input class="rd-input__control rd-input__control--end"
+           name="components[{{ index }}][percent]"
+           inputmode="decimal"
+           aria-label="Percentage"
+           placeholder="0"
+           value="{{ comp.percent }}"
+           autocomplete="off"
+           {% if pct_err %}aria-invalid="true" aria-describedby="{{ list_id }}-pct-err"{% endif %}><span class="rd-input__suffix">%</span></span>
+  <span class="rd-comp__of">of</span>
+  <button type="button"
+          class="rd-msel__trigger"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-controls="{{ list_id }}"
+          data-js="multiselect"
+          {% if cat_err %}aria-invalid="true" aria-describedby="{{ list_id }}-cat-err"{% endif %}>
+    <span class="rd-msel__chips">
+      {% for c in options if c.id in comp.category_ids %}
+        <span class="rd-chip"
+              {% if (c.color|category_color).name %} data-color="{{ (c.color|category_color).name }}"{% endif %}>{{ c.name }}</span>
+      {% else %}
+        <span class="rd-msel__placeholder">pick categories</span>
+      {% endfor %}
+    </span>
+    <span class="rd-msel__caret" aria-hidden="true"></span>
+  </button>
+  <button type="button"
+          class="rd-btn rd-btn--icon rd-comp__remove"
+          aria-label="Remove component {{ number }}"
+          {% if single|default(none) %}hidden{% endif %}
+          data-js="formula-remove">
+    <svg class="rd-icon" aria-hidden="true" focusable="false">
+      <use href="/static/rd/icons/sprite.svg#icon-close"></use>
+    </svg>
+  </button>
+  <div class="rd-msel"
+       id="{{ list_id }}"
+       role="group"
+       aria-label="Categories for component {{ number }}"
+       hidden>
+    <div class="rd-msel__filter">
+      <svg class="rd-icon" aria-hidden="true" focusable="false">
+        <use href="/static/rd/icons/sprite.svg#icon-search"></use>
+      </svg>
+      <input class="rd-msel__filter-input"
+             type="search"
+             aria-label="Filter categories"
+             placeholder="filter categories"
+             data-js="multiselect-filter">
+    </div>
+    {% for c in options %}
+      <label class="rd-msel__opt"><input type="checkbox"
+       name="components[{{ index }}][categories]"
+       value="{{ c.id }}"
+       {% if c.id in comp.category_ids %} checked{% endif %}><span class="rd-msel__box" aria-hidden="true"></span><span class="rd-chip"
+      {% if (c.color|category_color).name %} data-color="{{ (c.color|category_color).name }}"{% endif %}>{{ c.name }}</span></label>
+    {% endfor %}
+  </div>
+  {% if pct_err or cat_err %}<span class="u-visually-hidden"
+      role="alert">Component {{ number }}: {{ pct_err }} {{ cat_err }}</span>{% endif %}
+  {% if pct_err %}<p class="rd-field__error rd-comp__err rd-comp__err--pct"
+   id="{{ list_id }}-pct-err">▲ {{ pct_err }}</p>{% endif %}
+  {% if cat_err %}<p class="rd-field__error rd-comp__err rd-comp__err--cat"
+   id="{{ list_id }}-cat-err">▲ {{ cat_err }}</p>{% endif %}
+</fieldset>

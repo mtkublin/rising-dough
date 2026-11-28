@@ -9,7 +9,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from typing import Final
 
+from budget_planner.domain import category_colors
 from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import name_error
@@ -17,6 +19,11 @@ from budget_planner.domain.limits import name_error
 _DIRECTIONS_BY_VALUE: Mapping[str, Direction] = MappingProxyType(
     {d.value: d for d in (Direction.INCOME, Direction.EXPENSE)}
 )
+
+
+DEFAULT_COLOUR: Final = "default"
+"""``color`` value of the dialog's "default colour" radio. An empty value cannot carry the intent:
+FastAPI reads an empty form value as absent, and absent means "leave the colour unchanged"."""
 
 
 @dataclass(frozen=True)
@@ -48,9 +55,11 @@ def resolve_color_form(color: str | None, clear_color: str | None) -> tuple[str 
     """ADR-0048: return ``(hex_or_none, clear_requested)``.
 
     ``clear_color`` present means "reset to direction default" and wins over any ``color`` value
-    the browser might send. Raises ``ValueError`` via ``normalise_color`` on malformed hex.
+    the browser might send. ``color == DEFAULT_COLOUR`` (the dialog's "default colour" radio,
+    T-UR13) means the same; an absent ``color`` leaves the colour unchanged.
+    Raises ``ValueError`` via ``normalise_color`` on malformed hex.
     """
-    if clear_color:
+    if clear_color or color == DEFAULT_COLOUR:
         return None, True
     return normalise_color(color), False
 
@@ -85,13 +94,33 @@ def parse_new_category(
     )
 
 
+def _keeps_stored_colour(color: str | None, stored: str | None) -> bool:
+    """True when the posted colour is the dialog's own preselection for ``stored``.
+
+    The dialog preselects the swatch nearest to a stored hue that is none of the ten swatches
+    (D11-S). Posting that swatch back is an unchanged save: the stored hue stays, so a plain save
+    never recolours a category. Picking another swatch, or the default, is a real change.
+    """
+    if not color or not stored:
+        return False
+    # ``color`` is already normalised by the form parser; the DB CHECK constrains ``stored``.
+    posted, kept = color.lower(), stored.lower()
+    return posted != kept and posted == category_colors.nearest_form_swatch(kept).cat
+
+
 def parse_category_patch(
-    *, name: str, color: str | None, clear_color: str | None
+    *,
+    name: str,
+    color: str | None,
+    clear_color: str | None,
+    stored_color: str | None = None,
 ) -> ParsedCategoryPatch:
-    """Validate the edit form (name, colour)."""
+    """Validate the edit form (name, colour); ``stored_color`` is the category's current colour."""
     errors, resolved, cleared = _name_and_color(name, color, clear_color)
     if errors:
         return ParsedCategoryPatch(patch=None, errors=errors)
+    if not cleared and _keeps_stored_colour(resolved, stored_color):
+        resolved = None
     return ParsedCategoryPatch(
         patch=PatchCategory(name=name.strip(), color=resolved, clear_color=cleared)
     )

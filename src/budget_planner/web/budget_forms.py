@@ -15,6 +15,8 @@ from budget_planner.services.budget_rules import OverrideCommand
 from budget_planner.web.params import parse_int
 
 _TIERS = frozenset({"recurring", "one-off", "default"})
+# The one-off override's stored year range (the table CHECK); anything else is a 422, not a 500.
+OVERRIDE_YEARS = range(1900, 10000)
 
 
 @dataclass(frozen=True)
@@ -32,12 +34,22 @@ def non_negative_amount(raw: str, currency: str) -> int | None:
 
 
 def parse_override(
-    category_id: int, *, tier: str, month: str, year: str, amount: str, currency: str
+    category_id: int,
+    *,
+    tier: str,
+    month: str,
+    year: str,
+    amount: str,
+    currency: str,
+    allow_default: bool = True,
 ) -> ParsedOverride:
-    """Validate the Override slide-over form (ADR-0031 section 2)."""
-    if tier not in _TIERS:
+    """Validate the Override slide-over form (ADR-0031 section 2).
+
+    ``allow_default=False`` is the year grid's inline editor: it never writes the default tier.
+    """
+    if tier not in _TIERS or (tier == "default" and not allow_default):
         return ParsedOverride(None, "invalid tier")
-    minor = non_negative_amount(amount, currency) if amount.strip() else 0
+    minor = non_negative_amount(amount, currency) if amount.strip() else None
     if minor is None:
         return ParsedOverride(None, "invalid amount")
     if tier == "default":
@@ -57,7 +69,7 @@ def _parse_dated(
             NewBudgetRecurringOverride(category_id=category_id, month=parsed_month, amount=minor)
         )
     parsed_year = parse_int(year, maximum=None)
-    if parsed_year is None:
+    if parsed_year is None or parsed_year not in OVERRIDE_YEARS:
         return ParsedOverride(None, "invalid year")
     return ParsedOverride(
         NewBudgetOneOffOverride(

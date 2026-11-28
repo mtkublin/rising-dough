@@ -1,0 +1,15 @@
+{# fragment: states/ledger-first-run
+   Inputs: new_entry_url, new_account_url. #}
+<div class="rd-empty">
+  {% include "fragments/states/loaf.html" %}
+  <p class="rd-empty__msg">No entries yet.</p>
+  <div class="rd-empty__actions"><a class="rd-btn rd-btn--primary"
+   href="{{ new_entry_url | default('/add?when=happened&dialog=1') }}"
+   hx-get="{{ new_entry_url | default('/add?when=happened&dialog=1') }}"
+   hx-target="#modal-root"
+   hx-swap="innerHTML">[ new entry ]</a><a class="rd-btn"
+   href="{{ new_account_url | default('/accounts/new') }}"
+   hx-get="{{ new_account_url | default('/accounts/new') }}"
+   hx-target="#modal-root"
+   hx-swap="innerHTML">new account</a></div>
+</div>

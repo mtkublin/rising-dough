@@ -105,12 +105,27 @@ def test_unknown_tab_is_422_and_empty_tab_is_categories(client: TestClient) -> N
 
 
 @covers("GET /settings")
-def test_htmx_request_gets_drawer_fragment(client: TestClient) -> None:
+def test_htmx_request_gets_the_new_shell_page(
+    client: TestClient, _migrated: Settings, db: sqlite3.Connection
+) -> None:
+    # ADR-0152: the slide-over drawer is gone; an HX GET returns the page the regions select from.
+    make_category(_migrated, "Mine only")
+    db.execute("INSERT INTO users (id, name) VALUES (2, 'other') ON CONFLICT(id) DO NOTHING")
+    db.execute(
+        "INSERT INTO categories (user_id, name, direction, is_system) "
+        "VALUES (2, 'Theirs only', 'expense', 0)"
+    )
+    db.commit()
     r = client.get("/settings", headers=HX)
+    region = _html.text_of(r.text, ui.category_slot)
+    assert "Mine only" in region
+    assert "Theirs only" not in r.text
     assert r.status_code == 200
-    assert "<html" not in r.text
-    assert _html.exists(r.text, ui.drawer)
-    assert _html.resolve_one(r.text, ui.drawer)["aria-modal"] == "true"
+    assert _html.text_of(r.text, ui.heading) == "Categories"
+    assert _selected_tabs(r.text) == ["Categories"]
+    assert _html.exists(r.text, ui.category_slot)
+    assert "<aside" not in r.text
+    assert "aria-modal" not in r.text
 
 
 @covers("GET /settings")
@@ -177,10 +192,10 @@ def test_security_page_marks_current_session_and_lists_others(
     client: TestClient, db: sqlite3.Connection
 ) -> None:
     before = _html.text_of(client.get("/settings/security").text, ui.sessions)
-    assert "This device" in before
+    assert "THIS DEVICE" in before
     issue_session(db)
     after = client.get("/settings/security").text
-    assert _html.count(after, ui.session_signout.inside(ui.sessions)) == 2
+    assert _html.count(after, ui.session_signout.inside(ui.sessions)) == 1  # not the current device
 
 
 @covers("GET /settings/security")
@@ -221,3 +236,23 @@ def test_settings_pages_do_not_link_to_password_page(client: TestClient, path: s
     r = client.get(path)
     hrefs = {a.get("href") for a in _html.resolve(r.text, ui.any_link)}
     assert "/settings/password" not in hrefs
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/settings",
+        "/settings?tab=prefs",
+        "/settings?tab=fx",
+        "/settings/security",
+        "/settings/users",
+    ],
+)
+@covers("GET /settings")
+def test_settings_landmarks_have_unique_names(admin_client: TestClient, path: str) -> None:
+    """The hero and the panel are two regions; axe landmark-unique needs distinct names."""
+    r = admin_client.get(path)
+    assert r.status_code == 200
+    names = [_html.accessible_name(el) for el in _html.resolve(r.text, ui.any_region)]
+    assert len(names) >= 2
+    assert len(names) == len(set(names)), names

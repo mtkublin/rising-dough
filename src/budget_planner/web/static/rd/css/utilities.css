@@ -1,0 +1,26 @@
+/* Utilities: last layer, single-purpose */
+.u-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+/* Minor copy variants that differ between phone and desktop mockups */
+@media (width < 48rem) {
+  .u-hide-below-md {
+    display: none !important;
+  }
+}
+
+@media (width >= 48rem) {
+  .u-hide-from-md {
+    display: none !important;
+  }
+}
+
+.u-nowrap {
+  white-space: nowrap;
+}

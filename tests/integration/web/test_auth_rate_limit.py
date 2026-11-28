@@ -100,7 +100,7 @@ def test_password_login_throttles_with_429_and_retry_after(
     assert r.status_code == 429
     assert r.headers["retry-after"] == "50"
     alert = _html.resolve_one(r.text, auth.login_error)
-    assert _html.text_of(r.text, auth.login_error) == RATE_LIMITED_LOGIN_ERROR
+    assert _html.text_of(r.text, auth.login_error) == f"▲ {RATE_LIMITED_LOGIN_ERROR}"
     assert alert.has_attr("data-throttled")
     assert not any(e.has_attr("aria-invalid") for e in _html.resolve(r.text, auth.email))
 

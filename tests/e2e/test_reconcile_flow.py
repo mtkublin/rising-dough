@@ -8,7 +8,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.e2e.forms import PANEL, add_happened, wait_for_htmx
+from tests.e2e.forms import add_happened, wait_for_htmx
 from tests.ui_map import accounts, ledger
 from tests.ui_map.locator import to_playwright
 
@@ -46,9 +46,9 @@ def test_reconcile_creates_adjustment_transaction(
     # Reconcile through the account row's form: bank says 70.00 -> +10.00 adjustment.
     page.goto(f"{base_url}/accounts")
     wait_for_htmx(page)
-    to_playwright(page, accounts.row(account_id)).get_by_role("button", name="Reconcile").click()
-    expect(to_playwright(page, PANEL)).to_be_visible()
-    to_playwright(page, accounts.reconcile_actual.inside(PANEL)).fill("70.00")
+    to_playwright(page, accounts.reconcile_button(account_id)).click()
+    expect(to_playwright(page, accounts.reconcile_dialog)).to_be_visible()
+    to_playwright(page, accounts.reconcile_actual).fill("70.00")
     with page.expect_response(
         lambda r: r.url.endswith("/reconcile") and r.request.method == "POST"
     ) as resp:

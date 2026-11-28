@@ -1,0 +1,16 @@
+{# fragment: fields/field-error (macro, T-UR04g)
+   {% from "fragments/fields/field-error.html" import field_error %}
+   field_error(name, errors)   errors: name -> message (the 422 context); renders nothing when name has no message.
+   The paragraph id is "field-<name>-error": the control carries aria-describedby with it, the 422 summary links to #field-<name>. #}
+{% macro field_error(name, errors) %}
+  {% if errors[name]|default(none) %}<p class="rd-field__error"
+   id="field-{{ name }}-error">▲ {{ errors[name] }}</p>{% endif %}
+{% endmacro %}
+{# formula_error_slot(errors): the formula's error line, always in the DOM (hidden when empty) so the
+   live preview can clear it out of band (hx-swap-oob="outerHTML" on #field-formula-error) with no
+   missing target. Same id as field_error("formula", errors): one element in both dialogs. #}
+{% macro formula_error_slot(errors) %}
+  <p class="rd-field__error"
+     id="field-formula-error"
+     {% if not errors["formula"]|default(none) %}hidden{% endif %}>{% if errors["formula"]|default(none) %}▲ {{ errors["formula"] }}{% endif %}</p>
+{% endmacro %}

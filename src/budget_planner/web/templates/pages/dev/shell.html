@@ -1,0 +1,78 @@
+{# Dev-only placeholder page on the new base (T-UR02): exercises the shell journeys.
+   Served at /dev/shell outside production; not a product page. #}
+{% extends "layouts/base.html" %}
+{% block title %}/dev/shell · Rising Dough{% endblock %}
+{% block main %}
+  <h1 class="rd-h1">Shell</h1>
+  <section class="rd-card rd-card--outline" aria-labelledby="appearance-title">
+    <h2 class="rd-card__title" id="appearance-title">Appearance</h2>
+    <div class="rd-card__body">
+      <div class="rd-setting-line">
+        <span class="rd-field__label" id="theme-label">theme</span>
+        <div class="rd-segmented"
+             role="group"
+             aria-labelledby="theme-label"
+             data-js="theme-switch">
+          <button type="button"
+                  class="rd-segmented__option"
+                  aria-pressed="true"
+                  data-theme-value="system">system</button>
+          <button type="button"
+                  class="rd-segmented__option"
+                  aria-pressed="false"
+                  data-theme-value="light">light</button>
+          <button type="button"
+                  class="rd-segmented__option"
+                  aria-pressed="false"
+                  data-theme-value="dark">dark</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="rd-card rd-card--outline" aria-labelledby="dialog-title">
+    <h2 class="rd-card__title" id="dialog-title">Dialog</h2>
+    <div class="rd-card__body">
+      <button type="button"
+              class="rd-btn"
+              hx-get="/dev/shell/dialog"
+              hx-target="#modal-root">open dev dialog</button>
+    </div>
+  </section>
+  <section class="rd-card rd-card--outline" aria-labelledby="shell-menu-title">
+    <h2 class="rd-card__title" id="shell-menu-title">Dialog shell</h2>
+    <div class="rd-card__body">
+      {% with menu_id="dev-row-menu", title="Dev row", sub="every item kind", items=[
+        {"label": "standard", "hx_get": "/dev/shell/dialog/standard"},
+        {"label": "invalid", "hx_get": "/dev/shell/dialog/invalid"},
+        {"label": "sheet", "hx_get": "/dev/shell/dialog/sheet", "phone": true},
+        {"label": "blocked", "hx_get": "/dev/shell/dialog/blocked"},
+        {"label": "delete", "hx_get": "/dev/shell/dialog/confirm", "danger": true},
+        {"label": "plain link", "href": "/dev/shell"},
+        {"label": "post toast", "hx_post": "/dev/shell/toast", "hx_swap": "none", "hx_confirm": "Show the dev toast?"},
+      ] %}
+        {% include "fragments/menus/row-menu.html" %}
+      {% endwith %}
+    </div>
+  </section>
+  <section class="rd-card rd-card--outline" aria-labelledby="toast-title">
+    <h2 class="rd-card__title" id="toast-title">Toast</h2>
+    <div class="rd-card__body">
+      <button type="button"
+              class="rd-btn"
+              hx-post="/dev/shell/toast"
+              hx-swap="none">show dev toast</button>
+      <button type="button"
+              class="rd-btn"
+              hx-post="/dev/shell/fail/409"
+              hx-swap="none">fail with 409</button>
+      <button type="button"
+              class="rd-btn"
+              hx-post="/dev/shell/fail/500"
+              hx-swap="none">fail with 500</button>
+      <button type="button"
+              class="rd-btn"
+              hx-post="/dev/shell/fail/404"
+              hx-swap="none">fail with plain 404</button>
+    </div>
+  </section>
+{% endblock %}

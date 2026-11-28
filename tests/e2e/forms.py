@@ -1,4 +1,4 @@
-"""Shared helpers for e2e tests that drive the real slide-over forms (T-Q248, T-Q278).
+"""Shared helpers for e2e tests that drive the real entry forms (T-Q248, T-Q278, T-UR09).
 
 Everything goes through the UI map (ADR-0106 section 2); no CSS selectors.
 """
@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Page
 
-from tests.e2e.ui_actions import open_add_slide_over, pick
-from tests.ui_map import ledger, shell
+from tests.e2e.ui_actions import choose_account, choose_category, fill_stable, open_new_entry
+from tests.ui_map import entries, shell
 from tests.ui_map.locator import to_playwright
 
 PANEL = shell.slideover
@@ -22,16 +22,16 @@ def wait_for_htmx(page: Page) -> None:
 def add_happened(
     page: Page, *, category: str, account: str, amount: str, day: str, note: str
 ) -> None:
-    """Open the Happened overlay on the current page and submit it."""
+    """Open the new-entry dialog (happened tab) on the current new-shell page and submit it."""
     wait_for_htmx(page)
-    open_add_slide_over(page)
-    pick(page, ledger.field_category, category)
-    pick(page, ledger.field_account, account)
-    to_playwright(page, ledger.overlay_field(ledger.field_amount)).fill(amount)
-    to_playwright(page, ledger.overlay_field(ledger.field_date)).fill(day)
-    to_playwright(page, ledger.overlay_field(ledger.field_note)).fill(note)
+    open_new_entry(page)
+    choose_category(page, category)
+    choose_account(page, account)
+    fill_stable(to_playwright(page, entries.hero_amount), amount)
+    fill_stable(to_playwright(page, entries.field_date.inside(entries.dialog)), day)
+    fill_stable(to_playwright(page, entries.field_note.inside(entries.dialog)), note)
     with page.expect_response(
         lambda r: r.url.endswith("/transactions") and r.request.method == "POST"
     ) as resp:
-        to_playwright(page, ledger.overlay_add_entry).click()
+        to_playwright(page, entries.save).click()
     assert resp.value.ok, resp.value.text()

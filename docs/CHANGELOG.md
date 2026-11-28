@@ -1,5 +1,399 @@
 # Changelog
 
+2026-11-28 WFPATCH (T-UR65, T-UR22): operator patches applied: handoff reference job removed, drill setup token for explore drills (20c2f08a).
+
+2026-11-28 DUPERR (T-UR16): one message for a failing save in a dialog, ADR-0143 amendment (1fe3cc2c).
+
+2026-11-28 SWEEPCSS (T-UR16): tables fit at 768, recurring own tracks, phone 320 overlaps, forecast phone chart scrolls in card, auth loaf hidden below 22rem (f8b78ce8).
+
+2026-11-28 SCRIBE7 (-): pre-release bookkeeping and run log (297b9837).
+
+2026-11-27 NOJSCSRF (T-UR84): the no-JS override form carries the CSRF token, so a JS-less save works; 375 scope labels wrap (3ed5d045).
+
+2026-11-27 CIFIX (-): full suite green: override page without inline blocks, mockup twins, POST /categories/picker contract coverage, picker button locator (03f818db).
+
+2026-11-27 A11YHERO (T-UR16): axe landmark-unique fixed on settings (7ac72bea).
+
+2026-11-27 LEDGERPH (T-UR74): ledger filters fit at 375 and mid widths (three columns 48-90rem) (55192fcd).
+
+2026-11-27 SWEEP (T-UR16): pre-release visual sweep record (5b77555a).
+
+2026-11-27 FORMULA (T-UR89): formula preview skips the request while no term is set (e85b245e).
+
+2026-11-27 PICKNEW (T-UR68): picker no-match creates the typed category inline (3b360a20).
+
+2026-11-27 KEYMAP (T-UR97): keyboard map and reduced-motion journeys (f7b673c1).
+
+2026-11-27 LEGEND (T-UR94, T-UR87): Today legend tiles take the bar colours; afford fits 13 chars (134e05b2).
+
+2026-11-27 UIMAP (T-UR86, T-UR88): mobile layout sweep opens dialogs by real clicks (29a0b6e4).
+
+2026-11-27 SNAPROUTES (T-UR98): accepted-UI snapshot cases on the handoff seed (99d99658).
+
+2026-11-27 FLASH (T-UR96): planned save flash pinned on every page (8ed5a6f4).
+
+2026-11-27 PLANCSS (T-UR85, T-UR71): plan budget column alignment and year region pinned by e2e (d3d9ca1c).
+
+2026-11-27 YEARCELL (T-UR84): direct override link renders a full page without JS (0134a4e7).
+
+2026-11-27 FXSAVE (T-UR69): EUR account without cached rate is listed and left out of totals (08906bf2).
+
+2026-11-27 GUARD (T-UR72): agent_guard reads redirects, pipes and chains (b196e379).
+
+2026-11-27 CATCASE (T-UR95): category names unique ignoring case (cd83c243).
+
+2026-11-27 OVERCNT (T-UR70): hero N over counts budgeted rows only (c5643be5).
+
+2026-11-27 UI-ACCEPT: operator accepts the ui/sourdough UI state at 3df85e88; ADR-0154 Accepted, T-UR65 unblocked, T-UR50 superseded by T-UR65 (operator-decisions-2026-11-27.md).
+
+2026-11-27 OUTCLICK: outside click or tap closes the year cell editor and its chips; value not saved (T-UR93, R27) (ae8e960f).
+
+2026-11-27 CHIPMOB: year scope chips re-place on visual viewport changes and stay attached to the edited cell on touch widths (T-UR92, R26) (457f4767).
+
+2026-11-27 UNBOX: collapsed "categories without a budget" list has no outer box; unbudgeted status cell shows only set budget (T-UR90, T-UR91, R24, R25) (f732ed4d).
+
+2026-11-27 CIFIX4: hero N over keeps counting unbudgeted lines with spend after the collapsed list split (T-UR75; T-UR70 still open) (93f57deb).
+
+2026-11-27 REFDIFF2: intended-difference rows for operator reviews R4-R23 (256 reference cases); derived.md F4b line closed (T-UR66, T-UR73) (098526ca).
+
+2026-11-27 ZOOM: no touch-width field renders below 16px (auth pages included), non-vacuous zoom sweep, year editor and afford fit at 16px (T-UR81, R21) (321231ac).
+
+2026-11-27 PLANCAT: Plan/budget and Plan/year: budgeted categories are rows, every live unbudgeted category sits in the collapsed list (archived never linked), set budget in the status column (T-UR75, T-UR80, R14, R20) (9acc546a).
+
+2026-11-27 YEARCHIP: year cell scope is two chips (this month only, every <Month>) hovering under the cell, this month preselected, no default from the year cell; flip above at the viewport bottom; theme colours (T-UR77, R16, R17) (7e81a1ba).
+
+2026-11-27 BUDSCOPE: the budget override scope selector stays on one row at desktop widths (T-UR76, R15) (e2b3d292).
+
+2026-11-27 EMPTYNE: planned and ledger first-run empty-state new entry opens the dialog in place (T-UR83) (0267134e).
+
+2026-11-27 TODAYLEG: Today spent and left labels carry their bar glyph like committed, built from the bar constants (T-UR82, R23) (e9ed0d71).
+
+2026-11-27 RECUR: recurring empty-state new entry opens the dialog in place; day of month follows the start date until typed (T-UR78, T-UR79, R18, R19) (95af9e5f).
+
+2026-11-27 DOCREV2: operator drill review 2 (R14-R23), tasks T-UR75..T-UR82, requirement amendments (16010c5a).
+
+2026-11-27 YEARUX: year grid cell edit picks its scope inline (this month, every <month>, default); chip row in flow, labels from tier_labels, link and inline agree (T-UR56, F4.8a, R5) (7e870377).
+
+2026-11-27 CIFIX3: budget edit link test carries the row tier; picker year-arrow journey waits on the swapped head wrapper (bcf445c2).
+
+2026-11-26 MOBILE: touch-width inputs 16px, ledger from/to and dialog field pairs stack at <48rem, formula component and scope selector fit 375 (T-UR61..T-UR63) (b731025c).
+
+2026-11-26 FORM: repeats formula preview evaluates in the start month and retriggers on start date, one message at a time, add component keeps the sign (T-UR58) (5472d1a2).
+
+2026-11-26 BUDUX: budget tab: set budget on unbudgeted rows, edit budget opens on the row's tier, every month (default) label (T-UR55, F4.6c) (0bf5cd4a).
+
+2026-11-26 CIFIX2: contract and mockup-map tests follow the fixed account kind and the anchor locators (088adb7b).
+
+2026-11-26 ACCDUP: duplicate account name on create or rename is a 422 on name (T-UR67, F2.1c) (4c97e651).
+
+2026-11-26 PYEAR: month picker year arrows change only the shown year; a month click navigates (T-UR57, F4.6b) (cbd51cb9).
+
+2026-11-26 ACCFIX: empty-state new account opens the dialog in place; new income category appears in the anchor list without reload (T-UR52, T-UR53) (30fef1db).
+
+2026-11-26 ACCTYPE: an existing account's kind is fixed: read-only on edit, 422 on change (T-UR60, F2.1b) (67aa36c6).
+
+2026-11-26 PICK: category picker: a desktop mouse click on a listed category selects it (T-UR54) (e32a1e14).
+
+2026-11-26 DOCDEC: operator decisions R4 set budget, R5 year scope chips, R8 promoted rows stay (T-UR55, T-UR56, T-UR59) (dc994669).
+
+2026-11-26 VISDOC: ADR-0154 accepted UI becomes the visual reference, T-UR65/T-UR66, visual.yml operator patch (237284a8).
+
+2026-11-26 DOCREV: operator drill review 2026-11-26: tasks T-UR52..T-UR64, requirements F2.1b, F4.6b, touch-width inputs (ce941646).
+
+2026-11-26 WEBKIT: WebKit e2e green: download interruptions settled in the crawl, picker chip leads on WebKit (pointerdown), setup journey xfail on http (T-UR40 prep) (bea9ce19).
+
+2026-11-26 UR41: frontend audit re-run on the migrated templates: no blockers, 3 minor designer findings (T-UR41) (b63b2283).
+
+2026-11-26 INV1: reference reds: reconcile/picker recipes, D6-B rows; reconcile lists newest snapshots first; Today names archived categories (T-UR00b, T-UR50) (5301de28).
+
+2026-11-26 RACE: typed note no longer lost: the amount's delayed focus-select runs only while it still has focus (T-UR44, T-UR48) (7bae62cf).
+
+2026-11-26 DEAD: dead-Python sweep: unused Jinja filters, year_cell_state, format_whole, any_recurring_row removed (T-UR51) (ec9131d5).
+
+2026-11-26 RECSYNC: zero-delta reconcile says Already in sync; snapshot wording matches the schema (T-UR45, S1.10) (279d0c4c).
+
+2026-11-26 CIFIX: formula create test expects the off-ledger stale events (T-UR48a) (84ebafda).
+
+2026-11-26 FLASHCA: new category and account saves keep the flash and refetch via events, no HX-Refresh (T-UR48a) (d9309309).
+
+2026-11-26 W2FIX: tests follow wave-2 behaviour: blank override refused, :int route keys normalised, reconcile ignores posted category (T-UR45, T-UR47) (ec1f2345).
+
+2026-11-26 T22: drill setup token via a hashed dispatch input, token never in GitHub; bootstrap admin fallback until the workflow patch is applied (T-UR22, ADR-0134 amendment) (8b4e0d1f).
+
+2026-11-26 BUGA2: saves and promotes off the ledger keep the flash and refetch via events instead of HX-Refresh (T-UR48a) (c57383e1).
+
+2026-11-26 OVR1024: 1024 px actions-column rule scoped to the tablet range (T-UR49) (ba245dee).
+
+2026-11-26 BUGA: dialog 500s on bad day_of_month/year/opening balance/duplicate category fixed; blank override amount refused (T-UR47) (5561a853).
+
+2026-11-26 D8R: reconcile dialog per handoff: always books to Reconciliation, always saves a snapshot, live hero (T-UR45, ADR-0011 amendment) (d6d8221b).
+
+2026-11-26 INTENDED: "Intended differences" table in derived.md drives strict xfails in the reference comparison (T-UR00b, ADR-0147) (edb37f0f).
+
+2026-11-26 D8E: overlay `insert_row` op for the delete-account reference page (T-UR00b, ADR-0147 §4) (9215e6b9).
+
+2026-11-26 BUGCE: new-entry openers stay on the page (`hx-get` into the modal root, palette `n` / tab-bar `+`); clipped actions column at 1024 fixed (T-UR47) (40a17c3c).
+
+2026-11-26 BUGB: removed routes answer 404, `:int` ids, `not_found_response` with HTMX `HX-Reswap: none` on 422 (T-UR47) (c4162bf4).
+
+2026-11-26 OVL1: harness: D2-b/D3-a overlay rows, D10-A test token port + guard, RGB compare, picker-handoff-list seed modifier (b3940d92).
+
+2026-11-26 CI1: ci.yml: guard checkout fetch-depth 0 + blob:none (Q2); Tailwind step removed (T-UR15 leftover) (51718efc).
+
+2026-11-26 AMT: amount input accepts space/nbsp thousands grouping (T-UR46) (a2e070fc).
+
+2026-11-26 D1B: app-owned rd/app/overrides.css; vendored rd CSS byte-identical; D1-b picker underline (7ad71800).
+
+2026-11-26 D5: new-entry tabs carry typed amount, category, account, note (D5-b, T-UR44) (54cabd3b).
+
+2026-11-26 DOC2: requirements F1.1/F1.1a/F2.5 and tasks T-UR44..T-UR51 (fc9c0aab).
+
+2026-11-26 DOC1: ADR-0147/0107 amendments, derived.md "Intended differences", decisions-file correction (352fbe4c).
+
+2026-11-26 SCRIBE8: docs: ui-sourdough run log refresh (final state, QFIX10-14), ADR-0150 amendment 2026-11-26, orchestrator pre-push checklist.
+
+2026-11-26 feat(N2): T-UR00b: recipe fixes (scroll back, close-button ring, home key, answer wait) (1d48851).
+
+2026-11-26 feat(I1): T-UR00b: one flash region, category swatch snap (unchanged save keeps colour), picker placeholder row (20a1799).
+
+2026-11-26 fix(X7): T-UR00b: formula fragment tests, patch files excluded from whitespace hooks (db4357a).
+
+2026-11-26 docs(P1): T-UR00b: operator options for blocked handoff comparisons (measured) (d9f28d0).
+
+2026-11-26 feat(Q1): T-UR00b: formula component errors, live region, chart cap decimals, recurring dialog rows (73fc6f5).
+
+2026-11-26 feat(F9): T-UR00b: recent chip lead on pointer pick, formula preview line, recipe normalisation docs (d4c06a8).
+
+2026-11-26 feat(V1): T-UR00b: viewport-specific harness fixes (row menus, year cell, long board marks, one-time password) (254bd6d).
+
+2026-11-25 QFIX14: e2e override removal waits for the grid reload; one-off cell marker asserted exactly (c1aad4f0).
+
+2026-11-25 QFIX13: e2e quiescence barrier and fill_stable helper; retries counted in the pytest summary (f1bb3b22).
+
+2026-11-25 fix(X6): T-UR00b: CI tests after N1/R1/F8 merges (e92f3d3).
+
+2026-11-25 feat(F8): T-UR00b: new-entry dialog parity (account order, grouped hero, credit line, picker a11y) (81c0fdf).
+
+2026-11-25 feat(N1): T-UR00b: near-pass fixes (keyboard row menus, afford text run, aria-invalid glue bug, rule titles, promote-all hidden overlay) (8bac99c).
+
+2026-11-25 feat(R1): T-UR00b: recent chips = most used in the last 90 days (handoff rule), seed history shaped (f33072c).
+
+2026-11-25 fix(X5): T-UR00b: tests for the F6 picker rule (ruff) (c70d6ee).
+
+2026-11-25 feat(F6): T-UR00b: ledger dialogs parity (chips lead, grouped amounts, credit line, override remove) (63013b5).
+
+2026-11-25 feat(F4b): T-UR00b: accounts parity (checked date, sparkline rows, new-account dialog, credit card option) (ea03dc6).
+
+2026-11-25 feat(O1): T-UR00b: overlay absent/class/app-value row kinds; no-matches, forecast net, analytics deltas (75d65c4).
+
+2026-11-25 feat(H4): T-UR00b: harness mapping (settings categories modifier, long board route) (b75e9d4).
+
+2026-11-25 feat(F7): T-UR00b: plan dialogs, inline year-cell editor, UNMAPPED_OVERLAYS empty (1182712).
+
+2026-11-25 fix(X3): T-UR00b: CI tests aligned after F3/F4/F5 merges (3488f95).
+
+2026-11-25 feat(F3): T-UR00b: settings parity (duplicate category 422, security/users copy, category dialogs, one-time password copy) (2eb889a).
+
+2026-11-25 feat(F2): T-UR00b: ledger planned/recurring/actual parity (entry order, expanded override rows, seed shape) (58624ad).
+
+2026-11-25 feat(F5): T-UR00b: Today / new-entry / shell parity (skeleton, flash copy, empty seed, exact bar cells) (afec381).
+
+2026-11-25 feat(H3): T-UR00b: afford 250.00 mapping on Today pages, row-menu pointer parked (88675c4).
+
+2026-11-25 feat(F4): T-UR00b: accounts/auth/errors parity (error pages, offline card, auth copy, currency validation) (108b685).
+
+2026-11-25 fix(X2): T-UR00b: CI tests aligned with F1 plan rules and seed (9e0a261).
+
+2026-11-25 feat(W4a+W4b+W3): T-UR00b: integrate W4a/W4b/W3 overlay mappings (UNMAPPED_OVERLAYS now only override--year-cell) (40bfc05).
+
+2026-11-25 feat(F1): T-UR00b: plan surface handoff parity (budget rows, year rows, seed, overlay rows) (16304ef).
+
+2026-11-25 feat(E1): T-UR00b: state recipes for error/auth/today state pages (654c0de).
+
+2026-11-25 fix(X1): T-UR00b: detect-secrets false positive in mapping test (badede2).
+
+2026-11-25 feat(W2): T-UR00b: users and invites overlay openers (6c18fec).
+
+2026-11-25 feat(W1): T-UR00b: click recipes for client-side overlays (85e8447).
+
+2026-11-25 feat(H2): T-UR00b: page routes, anonymous auth, modifiers, settings tabs (281812b).
+
+2026-11-25 feat(S1): T-UR00b: seed + Today cap + ledger glyph match the handoff (fa6c0e1).
+
+2026-11-25 feat(H1): T-UR00b: overlays render over their handoff base surface (ADR-0147) (0b52f5a).
+
+2026-11-25 PAR-B: dialog 422 summary box removed; dialog-level visible errors for every failed save (b43d8c6b, Q18).
+
+2026-11-25 UR15d: old CSS, fonts, Tailwind toolchain and dead helpers removed; kept JS relocated (d8e57560, ADR-0107 §2, T-UR15).
+
+2026-11-25 QFIX9: same-account validation tests assert the field-level error (aff88b94).
+
+2026-11-25 UR15c: old shell removed (base.html, partials, old JS); dev/components ported; template_logic empty (6eab98c6, T-UR15).
+
+2026-11-25 PAR-A: topbar email removed; session badge reads THIS DEVICE (f13810bd, Q17, Q23).
+
+2026-11-25 PAR-C: handoff copy for non-positive amount and duplicate email (0533c399).
+
+2026-11-25 QFIX8: tailwind rebuild, clock-dependent tests and e2e barrier path (fa0179ba, 6c105cc8).
+
+2026-11-25 PAR-D: seed follows the handoff for chip colours, picker names and 23 upcoming rows (6e1cb970).
+
+2026-11-25 UR15a: budget and forecast pages retired; redirects to /plan (c9d835d5, T-UR15).
+
+2026-11-25 QFIX7: regenerate tests/contract/routes.md after UR20b (5ec2559c).
+
+2026-11-25 UR20b: add-user dialog, one-time password dialog, users pinning tests (9c1a902d, T-UR20).
+
+2026-11-25 QFIX6: ruff format on test_recurring_formula; all pre-commit hooks pass repo-wide (bce51a9a).
+
+2026-11-25 QFIX5: repair CI on ba0c7226: djlint invite page, tailwind rebuild, recurring formula create test (4e11d8aa).
+
+2026-11-25 QFIX4: e2e submit barrier asserts a 2xx answer before DB reads (be8082f6).
+
+2026-11-25 UR15b: legacy entry flows removed; create answers the dialog (ba0c7226, T-UR15).
+
+2026-11-25 UR20a: invite landing pages and invite management on /settings/users (e41ee9fe, T-UR20).
+
+2026-11-25 UR00f: 20 of 59 unmapped overlay pages mapped in the handoff reference comparison (3c5aec99, T-UR00b).
+
+2026-11-25 QFIX3: drop stale old-UI snapshot baselines for migrated pages (91de6dfe).
+
+2026-11-25 UR21a: setup-token hash wiring (env, Terraform pass-through, ci_environments entry; Q10, T-UR21a) (4495a27c).
+
+2026-11-25 UR23: account delete rule pinned; blocked and confirm dialog tests (e3ec9932, T-UR23).
+
+2026-11-25 UR28: planned export and over-limit edit credit line pinned (c765a4d8, T-UR28).
+
+2026-11-25 QFIX2: repair 4 Chromium e2e failures (auth flash locator, crawl inventory, promote flow) (eb53536c).
+
+2026-11-25 QFIX1: repair red non-e2e CI: ledger hero ctx tests, clock-independent seed, q2 note, css rebuild (38683f35).
+
+2026-11-25 T-UR43a: stored formula cycle shows 0.00 with a warning; saves rejected (9eea034f, Q25, ADR-0047).
+
+2026-11-25 T-UR41a: unknown routes return an HTML 404 page for browsers and JSON for API clients (0fba76e9, Q12).
+
+2026-11-25 T-UR24: remove inline promote routes and the legacy promote branch (f62c0bb6, ADR-0134 §5).
+
+2026-11-25 T-UR42a: dev-only Pillow for visual compare decode; ADR-0153 (95ddde59, Q14).
+
+2026-11-25 T-UR40a: operator decisions Q1/Q9/Q16 recorded; Q2 ci patch prepared (dfb11105).
+
+2026-11-25 T-UR21d: pin /setup token absent from access log (e472afb9, Q28).
+
+2026-11-25 T-UR08: unknown or foreign account delete returns 404 (761d280d, Q15).
+
+2026-11-25 T-UR10: ledger planned/recurring/recently-deleted views; F1-F3 fixed (942e2f8d, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR02: UR02e offline banner alone outside forms; assertive flash suppressed (53e01c52, Q29).
+
+2026-11-25 T-UR14: security and users pages; Q21/Q22 contract edits (a5ad323e, ADR-0134).
+
+2026-11-25 T-UR08: UR08b accounts dialogs; Q21 contract edits (9c42c5dd, ADR-0107).
+
+2026-11-25 T-UR28b: formula hero figure through format_figure (fc5c8e2a).
+
+2026-11-25 T-UR09: UR09b edit-transaction dialog; HX-Refresh dropped after save (3b190535, Q26).
+
+2026-11-25 docs(ui-redesign): operator QA decisions and remote handover
+
+2026-11-25 ui/sourdough: merge origin/main up to 4baabf1f (PR #58, agent guard hooks) (aa771d57).
+
+2026-11-25 T-UR02: UR02d new shell shows the network-failure flash outside forms (2c6f39f5, T-UR25, ADR-0143).
+
+2026-11-25 T-UR00b: UR00e reference compare: honest size-mismatch ratio, mismatch always fails, visual.yml shard names (2dbf6502, T-UR00b, ADR-0147).
+
+2026-11-25 T-UR00b: UR00d reference harness: recurring-board modifier, overlay dialog routes, mapping tests (2e2457f6, ADR-0147).
+
+2026-11-25 T-UR12: UR12b Plan chart parity: Jul-Sep seed history, committed geometry rows (294bbbce, ADR-0147 §4 amendment).
+
+2026-11-25 T-UR21c: classify /setup as a non-page for the e2e crawl (f6fd3573, T-UR21).
+
+2026-11-25 QCI1: check-item no longer double-prefixes `wi/wi`; adds `--hotspots` and `--allow-framework-rows` (ca6768e2, T-Q326, ADR-0150).
+
+2026-11-25 QOR1: orchestrator skill no idle turns and heartbeat timer (82344851, ADR-0150 amendment 2026-11-25).
+
+2026-11-25 T-UR04: UR04g dialog shell gaps: placeholder, hero race, action attrs, field_error, formula refresh, stale unit, budget hero sign (4d4bd510, ADR-0107).
+
+2026-11-25 T-UR21: first-run `/setup` page with one-time token (ef3458b2, ADR-0134 §9).
+
+2026-11-25 T-UR27: theme switch e2e, ui_map entries and audit (427f6c17, ADR-0134 §8).
+
+2026-11-25 T-UR02: UR02c rd-styled error flash shown above an open dialog (faff04b2, ADR-0107, ADR-0143).
+
+2026-11-25 T-UR11: Plan year tab, budget override dialogs, year-cell editor (dd99961c, ADR-0107, ADR-0136, ADR-0152).
+
+2026-11-25 T-UR07: Today new-entry and promote dialogs on the shared shell (2540995c, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR13: settings categories, currency+FX, preferences on the new shell (15aa38f6, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR12: plan forecast and analytics tabs on the new shell (8de349c3, ADR-0107, ADR-0123).
+
+2026-11-25 T-UR04: static output hero in the dialog shell (5be4c7c1, ADR-0107).
+
+2026-11-25 T-UR00: ADR-0152 contract tests pin behaviour, not dialog transport (59d19398, ADR-0152).
+
+2026-11-25 T-UR04: shared dialog shell macro and row-menu item kinds (8f958ecd, ADR-0107, ADR-0130 §7).
+
+2026-11-25 T-UR07, T-UR08: wave 5 tests follow Today and Accounts onto the new shell.
+
+2026-11-25 T-UR02: shell live regions, toast renderer, visible error flashes, topbar email (ADR-0107).
+
+2026-11-25 T-UR07: today page on the new shell (ADR-0107).
+
+2026-11-25 T-UR08: accounts page on the new shell (ADR-0107).
+
+2026-11-25 T-UR11: plan budget tab on the new shell (ADR-0107).
+
+2026-11-25 T-UR03: canonical signed figure formatter (ADR-0130 §7).
+
+2026-11-25 T-UR05: auth pages on the new markup (ADR-0107).
+
+2026-11-25 T-UR00b: calibrated cluster cap 52 px (ADR-0147).
+
+2026-11-25 T-UR06: reject backslash paths in the 422 back link (ADR-0107).
+
+2026-11-25 T-UR00b: strict tolerance with cluster cap; errors pages mapped (ADR-0147).
+
+2026-11-25 T-UR06: errors pages on the new shell (ADR-0107).
+
+2026-11-25 T-UR00b: shard the handoff reference job by width and theme (ADR-0147).
+
+2026-11-24 T-UR00b: handoff reference job sharded by width and theme (ADR-0147).
+
+2026-11-24 T-UR04: dialog responses wrapped so the vendored dialog.js opens them (ADR-0107).
+
+2026-11-24 T-UR25: offline save failure keeps typed input and shows the offline state; no service worker (ADR-0134).
+
+2026-11-24 T-UR00b: seed parity: owner Safari session, forecast cells, `recurring-board` modifier (ADR-0147).
+
+2026-11-24 T-UR03: `direction_label` filter in the category picker (ADR-0107).
+
+2026-11-24 T-UR00b: CI-rendered handoff references, every surface compared, committed reference PNGs removed (ADR-0147).
+
+2026-11-24 T-UR04: dialog/OOB/toast/422 response helpers `web/dialogs.py`, error summary, kept JS in `rd/js` (ADR-0107, ADR-0143).
+
+2026-11-24 T-UR04: eight shared redesign fragments with UI-map tests (ADR-0107).
+
+2026-11-24 T-UR00b: seed-dependent overlay rows with a service drift test; `invite-used` seed modifier (ADR-0147).
+
+2026-11-24 T-UR03: category colour presets/edge contrast, bar spans, aria label, year-cell state helpers and filters (ADR-0107).
+
+2026-11-24 T-UR00b: handoff data overlay, apply module and guard (ADR-0147).
+
+2026-11-24 T-UR00b: handoff seed for the visual reference suite (ADR-0147).
+
+2026-11-24 T-UR02: new base layout, shell fragments, `/dev/shell` placeholder (ADR-0107).
+
+2026-11-24 T-UR00: old-frontend removal ledger and `test_old_frontend_removed.py` guard (ADR-0107).
+
+2026-11-24 T-UR36: category usage counts across transactions, planned and recurring; picker without Reconciliation (ADR-0151).
+
+2026-11-24 T-UR36: device label unknown parts; spent this period over the pay window; forecast delta from net worth (ADR-0151).
+
+2026-11-24 T-UR01: vendored `static/rd/` assets, CSS bundle build and hooks (ADR-0107).
+
+2026-11-24 T-UR36: designer follow-up ADR renumbered ADR-0150 -> ADR-0151 after main's orchestrator ADR-0150.
+
 2026-11-24 T-Q325 to T-Q329: orchestrator v2 (ADR-0150): role agents `.claude/agents/` (explorer, implementer, scribe, reviewer, tester, visual-auditor); `scripts/ci/check_item.py` + `just check-item` (executable DoD, unit-tested); `-n auto` capped at 2 workers in linked worktrees (`tests/worker_cap.py`, conftest hook); `orchestrator-mode` skill rewritten as a flow (308 -> 175 lines), `brief-common.md` now the item-brief template with the Definition of Ready; run-log format `docs/runs/README.md`; CLAUDE.md updated. No allowlist change.
 
 2026-11-24 T-Q324: ADR-0150 (orchestrator v2: role agents in `.claude/agents/`, executable Definition of Done `scripts/ci/check_item.py`, one tester run per wave with `SKIP=pytest-fast` for orchestrated item agents, worker cap in code, run logs); ADR-0066 and ADR-0120 amendments; tasks T-Q324 to T-Q329; docs only.
@@ -1475,6 +1869,7 @@
 - 2026-11-23 v3.2.0 (Phase P backend preconditions, ADR-0148): user edit guards (T-UR29), invites data layer and mail port with no-op default (T-UR30, T-UR31), setup-token service (T-UR32), account delete rule, value-inventory gap fills G1..G11 for the redesign (T-UR34); migrations 0019 invites, 0020 setup_token_consumed.
 - 2026-11-23 T-UR35c: docs only, Phase P closeout (T-UR34 ✅, T-UR35 progress), T-UR34c2 moved to the frontend phase, new T-UR21a setup-token hash wiring before T-UR21 (ADR-0148).
 - 2026-11-23 T-UR35d: T-UR35 marked done; v3.2.0 live, prod smoke passed (ADR-0148).
+- 2026-11-23 T-UR36 (docs): designer follow-up answers folded in (ADR-0151; amends ADR-0148, ADR-0134). Agreed: afford "over", edit-preview "before", re-auth 5/min. Changed (code in T-UR36 on `ui/sourdough`): category usage counts planned and recurring too, Reconciliation out of the picker, device label shows the known part, "spent this period" = pay period, forecast delta from today's net worth. F1.6, §10.1, §10.3 amended; work branch `ui/sourdough` created.
 - 2026-11-23 T-Q318: WebKit change-secret journey fixed in the e2e harness: the page fixture's blanket X-CSRF-Token header now follows session rotation from the cookie jar (WebKit hides redirect-response headers). App and prod unchanged (ADR-0065).
 - 2026-11-23 T-Q306(f): docs only: `drill.yml` header rewritten for the upgrade drill (phases, TTL, environments without reviewers, explicit `detect` secrets), deploy runbook section "What the drill gate proves", ADR-0149 amendment (ADR-0149).
 - 2026-11-24 OPS-3: `drill.yml` writer-started loop uses `for _ in` (clears actionlint SC2034); the `drill_allow_empty_db: "true"` actionlint report is an actionlint false positive on a quoted string literal and is left as is (ADR-0149).

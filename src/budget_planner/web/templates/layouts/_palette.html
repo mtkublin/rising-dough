@@ -1,0 +1,105 @@
+{# fragment: overlays/command-palette (global dialog, rendered once by layouts/base.html).
+   Entries are static (no palette route); each runs its data-href. Today is "g t" (ADR-0147 section 5). #}
+<dialog class="rd-dialog rd-dialog--palette"
+        id="palette"
+        aria-label="Command palette"
+        data-js="palette">
+  <div class="rd-palette">
+    <div class="rd-palette__search">
+      <span aria-hidden="true">→</span>
+      <input class="rd-palette__input"
+             role="combobox"
+             aria-expanded="true"
+             aria-controls="pal-list"
+             aria-autocomplete="list"
+             aria-label="Command"
+             placeholder="type a command or jump to…"
+             autocomplete="off"
+             data-js="palette-input"
+             aria-activedescendant="pal-o0">
+      <kbd class="rd-kbd">esc</kbd>
+    </div>
+    <div class="rd-palette__body">
+      <ul class="rd-palette__list"
+          role="listbox"
+          id="pal-list"
+          aria-label="Commands">
+        <li role="presentation">
+          <p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p>
+          <ul role="group" aria-labelledby="pal-g-navigate">
+            <li role="option"
+                id="pal-o0"
+                class="rd-palette__option"
+                aria-selected="true"
+                data-href="/today">
+              <span>Go to Today</span>
+              <kbd class="rd-palette__keys">g t</kbd>
+            </li>
+            <li role="option"
+                id="pal-o1"
+                class="rd-palette__option"
+                aria-selected="false"
+                data-href="/ledger">
+              <span>Go to Ledger</span>
+              <kbd class="rd-palette__keys">g l</kbd>
+            </li>
+            <li role="option"
+                id="pal-o2"
+                class="rd-palette__option"
+                aria-selected="false"
+                data-href="/plan">
+              <span>Go to Plan</span>
+              <kbd class="rd-palette__keys">g p</kbd>
+            </li>
+            <li role="option"
+                id="pal-o3"
+                class="rd-palette__option"
+                aria-selected="false"
+                data-href="/accounts">
+              <span>Go to Accounts</span>
+              <kbd class="rd-palette__keys">g a</kbd>
+            </li>
+            <li role="option"
+                id="pal-o4"
+                class="rd-palette__option"
+                aria-selected="false"
+                data-href="/settings">
+              <span>Open Settings</span>
+              <kbd class="rd-palette__keys">g s</kbd>
+            </li>
+          </ul>
+        </li>
+        <li role="presentation">
+          <p class="rd-palette__group" id="pal-g-actions">ACTIONS</p>
+          <ul role="group" aria-labelledby="pal-g-actions">
+            <li role="option"
+                id="pal-o5"
+                class="rd-palette__option"
+                aria-selected="false"
+                data-href="/add?when=happened&dialog=1"
+                data-hx-get="/add?when=happened&dialog=1">
+              <span>New entry</span>
+              <kbd class="rd-palette__keys">n</kbd>
+            </li>
+            <li role="option"
+                id="pal-o6"
+                class="rd-palette__option"
+                aria-selected="false"
+                data-href="#shortcuts">
+              <span>Shortcuts</span>
+              <kbd class="rd-palette__keys">?</kbd>
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <p class="rd-palette__empty" data-js="palette-empty" hidden>
+        No command matches “<span data-js="palette-query"></span>”.
+      </p>
+    </div>
+    <p class="rd-palette__foot">
+      <span>↑↓ move</span>
+      <span>↵ run</span>
+      <span>? all shortcuts</span>
+    </p>
+  </div>
+</dialog>

@@ -141,6 +141,14 @@ epic = "E04"
 reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
 
 [[framework]]
+path = "src/budget_planner/web/routers/setup.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
 path = "src/budget_planner/web/routers/today.py"
 rule = "module-singleton"
 count = 1

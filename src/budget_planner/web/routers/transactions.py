@@ -13,21 +13,19 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.domain.transactions import NewTransaction, PatchTransaction
 from budget_planner.services import (
-    accounts as accounts_service,
-    categories as categories_service,
     export as export_service,
     transactions as transactions_service,
 )
 from budget_planner.services.limit_preview import compute_limit_preview
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
-from budget_planner.web.htmx import Event, refresh_unless_on, trigger
+from budget_planner.web.errors import not_found_response
+from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import EXPORT_FORMATS, query_choice, query_int
-from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
-from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
+from budget_planner.web.paths import TABLE_PATH
+from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -39,7 +37,7 @@ def list_page() -> RedirectResponse:
     Redirects to the unified ledger with the ``actual`` view selected. Kept at
     ``302`` for one release per ADR-0023; a follow-up task flips to ``301``.
     The HTMX fragment alias ``/transactions/table`` and the CRUD sub-routes
-    (``/transactions/new``, ``/transactions/{id}/edit``, etc.) remain live.
+    (``/transactions/{id}/edit``, etc.) remain live; the new-entry dialog is ``/add``.
     """
     return RedirectResponse(url="/ledger?view=actual", status_code=302)
 
@@ -50,6 +48,7 @@ def limit_preview(
     *,
     account_id: str = "",
     category_id: str = "",
+    category: str = "",
     amount: str = "",
     txn_id: str = "",
     conn: sqlite3.Connection = Depends(get_db),
@@ -58,8 +57,9 @@ def limit_preview(
     edited_id = query_int("txn_id", txn_id)
     acc_id = query_int("account_id", account_id)
     cat_id = query_int("category_id", category_id)
+    cat_id = cat_id if cat_id is not None else query_int("category", category)
     preview = None
-    if acc_id is not None and cat_id is not None:
+    if acc_id is not None:
         preview = compute_limit_preview(
             conn,
             user_id,
@@ -68,7 +68,7 @@ def limit_preview(
             amount_raw=amount,
             exclude_txn_id=edited_id,
         )
-    return render(request, "partials/transactions/_limit_preview.html", preview=preview)
+    return render(request, "fragments/fields/credit-line.html", preview=preview)
 
 
 @router.get(TABLE_PATH, response_class=HTMLResponse)
@@ -90,122 +90,80 @@ def table_fragment(
     )
 
 
-@router.get(NEW_PATH, response_class=HTMLResponse)
-def new_form(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    # T-069 — wrap the form in a slide-over so the FAB can swap it into
-    # `#modal-root`. The inner include preserves the legacy fragment shape
-    # (same form fields + hx-post target) so existing tests + flows stand.
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="New transaction",
-        form_include="partials/transactions/_form.html",
-        action="/transactions",
-        method="post",
-        txn=None,
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        errors={},
-    )
-
-
 @router.post("")
 def create_txn(
     request: Request,
     *,
-    operation_date: str = Form(...),
-    category_id: int = Form(...),
-    account_id: int = Form(...),
-    amount: str = Form(...),
+    operation_date: str = Form(""),
+    category_id: str = Form(""),
+    category: str = Form(""),
+    account_id: str = Form(""),
+    amount: str = Form(""),
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    # The dialog posts the picker's "category" (vendored combobox.js), the old form category_id.
+    chosen = entry_forms.category_choice(category_id, category)
     check = entry_forms.check_txn_create(
         conn,
         user_id,
         operation_date=operation_date,
-        category_id=category_id,
-        account_id=account_id,
+        category_id=chosen,
+        account_id=entry_forms.account_choice(account_id),
         amount=amount,
         description=description,
         dest_account_id=dest_account_id,
     )
     if check.errors:
-        return form_responses.txn_form_errors(request, conn, user_id, txn=None, errors=check.errors)
-    op_date, amount_minor = check.valid_values()
-    new_txn = transactions_service.create(
-        conn,
-        user_id,
-        NewTransaction(
-            operation_date=op_date,
-            category_id=category_id,
-            account_id=account_id,
-            amount=amount_minor,
-            description=description,
-            dest_account_id=check.dest_id,
-        ),
-    )
-    row = ledger_data.hydrate_txn_rows(conn, user_id, [new_txn])[0]
-    html = render(request, "partials/transactions/_row.html", txn=row)
-    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    # The form is hosted by every page's Add overlay, not just the ledger: no
-    # row insert; the ledger refetches on `ledger-stale`, other pages reload.
-    refresh_unless_on(request, html, LEDGER_PATH)
-    return html
+        return form_responses.entry_create_errors(
+            request,
+            conn,
+            user_id,
+            tab="happened",
+            chosen=chosen,
+            errors=check.errors,
+            posted=entry_forms.posted_entry(
+                chosen,
+                account_id,
+                amount,
+                operation_date=operation_date,
+                description=description,
+                dest_account_id=dest_account_id,
+            ),
+        )
+    entry_forms.save_txn(conn, user_id, check, description)
+    return form_responses.created_txn_response(request)
 
 
-@router.get("/{txn_id}/edit", response_class=HTMLResponse)
+@router.get("/{txn_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     txn_id: int,
     request: Request,
+    hero: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
+    """The edit dialog (T-UR09b); ``hero=1`` re-renders it for the hero refresh."""
     txn = transactions_service.find_by_id(conn, user_id, txn_id)
     if txn is None:
-        return render(
-            request,
-            "partials/transactions/_form.html",
-            action="",
-            method="post",
-            txn=None,
-            categories=[],
-            accounts=[],
-            errors={"txn": "not found"},
-            status_code=404,
-        )
-    # T-114 / ADR-0030 §4 — wrap edit in slide-over so clicking Edit opens a
-    # dialog rather than replacing the ledger row inline (which broke tbody
-    # structure and visually removed the row).
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="Edit transaction",
-        form_include="partials/transactions/_form.html",
-        action=f"/transactions/{txn_id}",
-        method="post",
-        txn=txn,
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        errors={},
-    )
+        return not_found_response(request, "transaction", txn_id)
+    if hero:
+        return form_responses.edit_transaction_hero(request, conn, user_id, txn)
+    return form_responses.open_edit_transaction(request, conn, user_id, txn)
 
 
-@router.post("/{txn_id}")
+@router.post("/{txn_id:int}")
 def update_txn(
     txn_id: int,
     request: Request,
     *,
-    operation_date: str = Form(...),
-    category_id: int = Form(...),
-    account_id: int = Form(...),
-    amount: str = Form(...),
+    operation_date: str = Form(""),
+    category_id: str = Form(""),
+    category: str = Form(""),
+    account_id: str = Form(""),
+    amount: str = Form(""),
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
@@ -213,64 +171,72 @@ def update_txn(
 ) -> Response:
     existing = transactions_service.find_by_id(conn, user_id, txn_id)
     if existing is None:
-        return form_responses.txn_not_found(request)
+        return not_found_response(request, "transaction", txn_id)
+    # The dialog posts the picker's "category" (vendored combobox.js); a missing field is a 422.
+    chosen = entry_forms.category_choice(category_id, category)
+    account = entry_forms.account_choice(account_id)
     check = entry_forms.check_txn_update(
         conn,
         user_id,
         existing_dest_id=existing.dest_account_id,
         operation_date=operation_date,
-        category_id=category_id,
-        account_id=account_id,
+        category_id=chosen,
+        account_id=account,
         amount=amount,
         description=description,
         dest_account_id=dest_account_id,
     )
     if check.errors:
-        return form_responses.txn_form_errors(
-            request, conn, user_id, txn=existing, errors=check.errors
+        return form_responses.edit_transaction_errors(
+            request,
+            conn,
+            user_id,
+            existing,
+            posted=entry_forms.posted_entry(
+                chosen,
+                account_id,
+                amount,
+                operation_date=operation_date,
+                description=description,
+                dest_account_id=dest_account_id,
+            ),
+            errors=entry_forms.pick_category_error(check.errors, chosen),
         )
-    op_date, amount_minor = check.valid_values()
-    transactions_service.update(
-        conn,
-        user_id,
-        txn_id,
-        PatchTransaction(
-            operation_date=op_date,
-            category_id=category_id,
-            account_id=account_id,
-            amount=amount_minor,
-            description=description,
-            dest_account_id=check.dest_id,
-        ),
-    )
-    # The edit form is hosted by every page (T-D151): no row swap; the ledger
-    # refetches on `ledger-stale`, other pages reload.
-    return form_responses.stale_refresh(
-        request, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE
-    )
+    entry_forms.save_txn_update(conn, user_id, txn_id, check, description)
+    return form_responses.updated_txn_response(request)
 
 
-@router.post("/{txn_id}/delete")
+@router.post("/{txn_id:int}/delete")
 def delete_txn(
-    txn_id: int, conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
+    txn_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     transactions_service.soft_delete(conn, user_id, txn_id)
-    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    return resp
+    return form_responses.deleted_txn_response(request, txn_id)
 
 
-@router.post("/{txn_id}/restore")
+@router.post("/{txn_id:int}/restore")
 def restore_txn(
-    txn_id: int, conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
+    txn_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     """T-R70 — undo a soft-delete (ADR-0019)."""
     try:
         transactions_service.undelete(conn, user_id, txn_id)
     except LookupError:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "transaction", txn_id)
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    trigger(
+        resp,
+        Event.BALANCE_STALE,
+        Event.FORECAST_STALE,
+        Event.LEDGER_STALE,
+        toast=toast_payload("success", "Transaction restored"),
+    )
     return resp
 
 

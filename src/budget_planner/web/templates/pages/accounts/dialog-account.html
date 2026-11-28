@@ -1,0 +1,142 @@
+{# pages/accounts/dialog-account (T-UR08b, handoff overlays new-account*, edit-account*; ADR-0107, ADR-0143)
+   The new and the edit dialog on the shared shell macro. Context: dlg (accounts_view.AccountDialog),
+   errors (field -> message, set by invalid_dialog_response), field_count, field_errors.
+   POST names are unchanged: name, currency, opening_balance (the hero amount), type, is_liability
+   (radio: "" asset, "on" liability), credit_limit. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog(dlg.dialog_id, dlg.title, action=dlg.action, hx_post=dlg.action, hx_target=dlg.target, hx_swap=dlg.swap, hero=dlg.hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": dlg.submit_label}], field_count=field_count|default(0), field_errors=field_errors|default(()), form_id="" if dlg.editing else "account-form") %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="field-name">name</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="field-name"
+             name="name"
+             type="text"
+             value="{{ dlg.name }}"
+             placeholder="e.g. Revolut EUR"
+             {% if errors.name|default(none) %}aria-invalid="true" aria-describedby="field-name-error"{% endif %}
+             required>
+    </span>
+    {% if errors.name|default(none) %}<p class="rd-field__error"
+   id="field-name-error">▲ {{ errors.name }}</p>{% endif %}
+  </div>
+  <div class="rd-fields-row">
+    <div class="rd-field{% if dlg.editing %} rd-field--readonly{% endif %}">
+      <label class="rd-field__label" for="field-currency">currency</label>
+      <span class="rd-input">
+        {% if dlg.editing %}
+          <input class="rd-input__control"
+                 id="field-currency"
+                 name="currency"
+                 type="text"
+                 value="{{ dlg.currency }}"
+                 readonly>
+        {% else %}
+          <input class="rd-input__control"
+                 id="field-currency"
+                 name="currency"
+                 type="text"
+                 value="{{ dlg.currency }}"
+                 placeholder="type to filter ISO code…"
+                 list="iso-codes"
+                 autocomplete="off"
+                 maxlength="3"
+                 {% if errors.currency|default(none) %}aria-invalid="true" aria-describedby="field-currency-error"{% endif %}
+                 required>
+        {% endif %}
+      </span>
+      {% if errors.currency|default(none) %}<p class="rd-field__error"
+   id="field-currency-error">▲ {{ errors.currency }}</p>{% endif %}
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label" for="field-type">type</label>
+      <span class="rd-select-wrap">
+        <select class="rd-select rd-select--field" id="field-type" name="type">
+          {% for opt in dlg.type_options %}
+            <option value="{{ opt.value }}"{% if opt.selected %} selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </span>
+    </div>
+  </div>
+  {% if not dlg.editing %}
+    <datalist id="iso-codes">
+      {% for code in iso_4217_currencies %}<option value="{{ code }}"></option>{% endfor %}
+    </datalist>
+    {% if not errors.currency|default(none) %}<p class="rd-field__hint rd-field__hint--solo">currency is fixed after creation</p>{% endif %}
+    {# The opening balance is as of the day the account is created (no stored opening date): min = max = today. #}
+    <div class="rd-field">
+      <label class="rd-field__label" for="field-as_of">as of</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="field-as_of"
+               name="as_of"
+               type="date"
+               value="{{ dlg.as_of }}"
+               min="{{ dlg.as_of }}"
+               max="{{ dlg.as_of }}">
+      </span>
+    </div>
+  {% endif %}
+  {% if dlg.editing %}
+    {# The kind is fixed at creation (T-UR60): read-only text; the hidden value lets the server reject a change. #}
+    <div class="rd-field rd-field--readonly">
+      <label class="rd-field__label" for="field-counts_as">counts as</label>
+      <span class="rd-input">
+        <input class="rd-input__control"
+               id="field-counts_as"
+               type="text"
+               value="{{ dlg.counts_as }}"
+               readonly
+               {% if errors.is_liability|default(none) %}aria-invalid="true" aria-describedby="field-is_liability-error"{% endif %}>
+        <input type="hidden"
+               name="is_liability"
+               value="{{ 'on' if dlg.is_liability else '' }}">
+      </span>
+      {% if errors.is_liability|default(none) %}<p class="rd-field__error"
+   id="field-is_liability-error">▲ {{ errors.is_liability }}</p>{% endif %}
+    </div>
+  {% else %}
+    <div class="rd-field rd-field--seg"
+         role="radiogroup"
+         aria-labelledby="{{ dlg.dialog_id }}-counts">
+      <span class="rd-field__label" id="{{ dlg.dialog_id }}-counts">counts as</span>
+      <div class="rd-segmented">
+        <label class="rd-segmented__option"><input type="radio"
+       name="is_liability"
+       value=""
+       {% if not dlg.is_liability %} checked{% endif %}>asset</label>
+        <label class="rd-segmented__option"><input type="radio"
+       name="is_liability"
+       value="on"
+       {% if dlg.is_liability %} checked{% endif %}>liability</label>
+      </div>
+    </div>
+  {% endif %}
+  {# A liability needs a positive credit limit (parse_account_patch); the handoff dialogs omit the field. #}
+  <label class="rd-field"
+         data-show-when="is_liability=on"
+         {% if not dlg.is_liability %}hidden{% endif %}>
+    <span class="rd-field__label">credit limit</span>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="field-credit_limit"
+             name="credit_limit"
+             type="text"
+             inputmode="decimal"
+             data-js="amount-input"
+             autocomplete="off"
+             value="{{ dlg.credit_limit }}"
+             {% if not dlg.is_liability %}disabled data-reveal-disabled {% endif %}
+             {% if errors.credit_limit|default(none) %}aria-invalid="true" aria-describedby="field-credit_limit-error"{% endif %}>
+    </span>
+  </label>
+  {% if errors.credit_limit|default(none) %}<p class="rd-field__error"
+   id="field-credit_limit-error">▲ {{ errors.credit_limit }}</p>{% endif %}
+  {% if dlg.liability_hint %}
+    <p class="rd-field__hint rd-field__hint--solo rd-field__hint--ink"
+       role="status"
+       data-show-when="is_liability=on"
+       {% if not dlg.is_liability %}hidden{% endif %}>{{ dlg.liability_hint }}</p>
+  {% endif %}
+{% endcall %}

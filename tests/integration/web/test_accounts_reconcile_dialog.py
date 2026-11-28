@@ -1,0 +1,237 @@
+"""Reconcile dialog: live difference hero, one balance field, available credit (T-UR08b)."""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from collections.abc import Iterator
+
+import pytest
+from fastapi.testclient import TestClient
+
+from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.snapshots import NewAccountSnapshot
+from budget_planner.repositories import accounts as accounts_repo, snapshots as snapshots_repo
+from tests.ui_map import _html, accounts, shell
+from tests.ui_map.locator import by_id
+
+USER_ID = 1
+
+
+@pytest.fixture
+def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
+    conn = get_connection(_migrated)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _asset(db: sqlite3.Connection) -> int:
+    new = NewAccount(name="Checking", currency="PLN", opening_balance=10_000)
+    return accounts_repo.create(db, USER_ID, new).id
+
+
+def _visa(db: sqlite3.Connection) -> int:
+    new = NewAccount(
+        name="Visa",
+        currency="PLN",
+        opening_balance=-123_456,
+        is_liability=True,
+        credit_limit_minor=500_000,
+    )
+    return accounts_repo.create(db, USER_ID, new).id
+
+
+def _hero(html: str) -> str:
+    return _html.text_of(html, accounts.reconcile_difference)
+
+
+def _txn_count(db: sqlite3.Connection) -> int:
+    return int(db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
+
+
+def _count(db: sqlite3.Connection, table: str) -> int:
+    return int(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])  # noqa: S608 - test-only fixed table names
+
+
+def test_asset_dialog_starts_at_zero_difference(client: TestClient, db: sqlite3.Connection) -> None:
+    acc = _asset(db)
+    r = client.get(f"/accounts/{acc}/reconcile")
+    assert r.status_code == 200
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert _html.exists(r.text, accounts.reconcile_dialog)
+    assert _hero(r.text) == "0.00"
+    assert "100.00 PLN" in _html.text_of(r.text, accounts.reconcile_dialog)
+    assert _html.resolve_one(r.text, accounts.reconcile_actual)["value"] == ""
+
+
+def test_hero_refresh_shows_the_signed_difference_of_the_typed_balance_and_writes_nothing(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    before = (_txn_count(db), _count(db, "audit_log"), _count(db, "account_snapshots"))
+    r = client.get(f"/accounts/{acc}/reconcile?hero=1&actual_balance=70.00")
+    assert r.status_code == 200
+    assert _hero(r.text) == "\N{MINUS SIGN}30.00"
+    assert _html.resolve_one(r.text, accounts.reconcile_actual)["value"] == "70.00"
+    after = (_txn_count(db), _count(db, "audit_log"), _count(db, "account_snapshots"))
+    assert after == before
+
+
+def test_hero_refresh_formats_a_larger_typed_balance_with_a_plus_sign(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    r = client.get(f"/accounts/{acc}/reconcile?hero=1&actual_balance=3,690.10")
+    assert r.status_code == 200
+    assert _hero(r.text) == "+3,590.10"
+
+
+@pytest.mark.parametrize("typed", ["", "abc"])
+def test_hero_refresh_of_an_unfinished_amount_is_zero_and_not_an_error(
+    client: TestClient, db: sqlite3.Connection, typed: str
+) -> None:
+    acc = _asset(db)
+    r = client.get(f"/accounts/{acc}/reconcile?hero=1&actual_balance={typed}")
+    assert r.status_code == 200
+    assert _hero(r.text) == "0.00"
+    assert _html.error_lines(r.text) == {}
+
+
+def test_dialog_has_one_balance_field_and_no_category_snapshot_or_preview_controls(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    r = client.get(f"/accounts/{acc}/reconcile")
+    field = _html.resolve_one(r.text, accounts.reconcile_actual)
+    assert field["hx-get"] == f"/accounts/{acc}/reconcile?hero=1"
+    assert field["hx-trigger"] == "input changed delay:300ms"
+    assert not _html.exists(r.text, by_id("field-category_id"))
+    assert not _html.exists(r.text, by_id("reconcile-preview"))
+    assert _html.exists(r.text, accounts.reconcile_record)
+
+
+def test_limited_liability_is_asked_for_available_credit(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    card = _visa(db)
+    r = client.get(f"/accounts/{card}/reconcile?hero=1&actual_balance=4000.00")
+    assert _hero(r.text) == "+234.56"
+    assert _html.text_of(r.text, accounts.reconcile_available_help) == (
+        "enter what you can still spend (limit \N{MINUS SIGN} spent)"
+    )
+    fresh = client.get(f"/accounts/{card}/reconcile")
+    assert _html.resolve_one(fresh.text, accounts.reconcile_available)["value"] == "3765.44"
+    assert _hero(fresh.text) == "0.00"
+
+
+def test_snapshots_list_available_credit_for_a_limited_liability_and_balance_otherwise(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    card, acc = _visa(db), _asset(db)
+    for account, balance in ((card, -100_000), (card, -150_000), (acc, 370_244)):
+        snapshots_repo.create(db, USER_ID, NewAccountSnapshot(account_id=account, balance=balance))
+        db.execute(
+            "UPDATE account_snapshots SET taken_at = '2026-04-01T09:00:00.000Z' "
+            "WHERE id = (SELECT max(id) FROM account_snapshots)"
+        )
+    card_html = client.get(f"/accounts/{card}/reconcile").text
+    acc_html = client.get(f"/accounts/{acc}/reconcile").text
+    assert sorted(_html.texts(card_html, accounts.snapshot_item)) == [
+        "01 APR 3,500.00 PLN",
+        "01 APR 4,000.00 PLN",
+    ]
+    assert _html.texts(acc_html, accounts.snapshot_item) == ["01 APR 3,702.44 PLN"]
+
+
+def test_submit_of_an_impossible_available_is_422_and_keeps_the_typed_value(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    card = _visa(db)
+    r = client.post(f"/accounts/{card}/reconcile", data={"actual_balance": "5000.01"})
+    assert r.status_code == 422
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert _html.error_lines(r.text) == {
+        "field-actual_balance-error": "▲ available credit cannot exceed the credit limit",
+    }
+    field = _html.resolve_one(r.text, by_id("field-actual_balance"))
+    assert field.get("aria-invalid") == "true"
+    assert field["value"] == "5000.01"
+    assert str(field.get("aria-describedby")).split()[0] == "field-actual_balance-error"
+
+
+@pytest.mark.parametrize("typed", ["", "abc"])
+def test_submit_of_an_empty_or_non_numeric_balance_is_422_with_a_field_error(
+    client: TestClient, db: sqlite3.Connection, typed: str
+) -> None:
+    acc = _asset(db)
+    r = client.post(f"/accounts/{acc}/reconcile", data={"actual_balance": typed})
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {"field-actual_balance-error": "▲ invalid number"}
+    assert _html.resolve_one(r.text, accounts.reconcile_actual)["value"] == typed
+    assert _txn_count(db) == 0
+    assert _count(db, "account_snapshots") == 0
+
+
+def test_submit_swaps_the_row_closes_the_dialog_and_flashes(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    r = client.post(f"/accounts/{acc}/reconcile", data={"actual_balance": "70.00"})
+    assert r.status_code == 200
+    assert json.loads(r.headers["HX-Trigger"]) == {"balance-stale": True, "forecast-stale": True}
+    assert "70.00" in _html.text_of(r.text, accounts.row(acc))
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert "Checking reconciled" in _html.text_of(r.text, shell.flash_region)
+    adjustment = db.execute(
+        "SELECT t.amount FROM transactions t JOIN categories c ON c.id = t.category_id "
+        "WHERE t.account_id = ? AND c.direction = 'adjustment'",
+        (acc,),
+    ).fetchall()
+    assert [row[0] for row in adjustment] == [-3_000]
+    snaps = db.execute("SELECT balance, note FROM account_snapshots WHERE account_id = ?", (acc,))
+    assert [tuple(row) for row in snaps] == [(7_000, "reconcile snapshot")]
+    names = db.execute(
+        "SELECT c.name FROM transactions t JOIN categories c ON c.id = t.category_id "
+        "WHERE t.account_id = ?",
+        (acc,),
+    ).fetchall()
+    assert [row[0] for row in names] == ["Reconciliation"]
+
+
+def test_zero_delta_submit_says_already_in_sync_and_only_snapshots(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    txns = _txn_count(db)
+    r = client.post(f"/accounts/{acc}/reconcile", data={"actual_balance": "100.00"})
+    assert r.status_code == 200
+    assert "Already in sync" in _html.text_of(r.text, shell.flash_region)
+    assert _txn_count(db) == txns
+    snaps = db.execute("SELECT balance, note FROM account_snapshots WHERE account_id = ?", (acc,))
+    assert [tuple(row) for row in snaps] == [(10_000, "reconcile snapshot")]
+    assert _count(db, "account_snapshots") == 1  # exactly one row in the DB: no other account's
+
+
+def test_dialog_lists_the_five_newest_snapshots_newest_first(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    acc = _asset(db)
+    for month, balance in enumerate((100_000, 200_000, 300_000, 400_000, 500_000, 600_000), 1):
+        snapshots_repo.create(db, USER_ID, NewAccountSnapshot(account_id=acc, balance=balance))
+        db.execute(
+            "UPDATE account_snapshots SET taken_at = ? "
+            "WHERE id = (SELECT max(id) FROM account_snapshots)",
+            (f"2026-0{month}-01T09:00:00.000Z",),
+        )
+    html = client.get(f"/accounts/{acc}/reconcile").text
+    assert _html.texts(html, accounts.snapshot_item) == [
+        "01 JUN 6,000.00 PLN",
+        "01 MAY 5,000.00 PLN",
+        "01 APR 4,000.00 PLN",
+        "01 MAR 3,000.00 PLN",
+        "01 FEB 2,000.00 PLN",
+    ]

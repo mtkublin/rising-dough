@@ -1,0 +1,49 @@
+{# Settings · currency and FX (T-UR13, ADR-0107, ADR-0139). Handoff: pages/settings/currency-fx.html (empty state only).
+   Context: active_tab, fx_rows (view_models.FxRateRow, cached rates only). The rates table is a derived screen (derived.md). #}
+{% extends "layouts/base.html" %}
+{% block title %}Settings · currency & fx · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Currency &amp; FX</h1>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Currency and FX settings">
+    <div class="rd-settings">
+      <div class="rd-settings__head">{% include "fragments/nav/settings-tabs.html" %}</div>
+      <section class="rd-card rd-card--outline" aria-labelledby="fx-title">
+        <h2 class="rd-card__title" id="fx-title">FX cache</h2>
+        <div class="rd-card__body">
+          {% if fx_rows %}
+            <div class="rd-table-scroll rd-table-scroll--tight"
+                 tabindex="0"
+                 role="region"
+                 aria-label="Cached FX rates (scrolls sideways)">
+              <table class="rd-ledger">
+                <caption class="u-visually-hidden">Cached FX rates</caption>
+                <thead>
+                  <tr class="rd-row rd-row--head">
+                    <th scope="col">PAIR</th>
+                    <th scope="col">AS OF</th>
+                    <th scope="col" class="rd-row__amount">RATE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for rate in fx_rows %}
+                    <tr class="rd-row">
+                      <th scope="row">{{ rate.pair }}</th>
+                      <td>{{ rate.as_of|date_fmt }}</td>
+                      <td class="rd-row__amount">{{ rate.rate_text }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="rd-card__muted">No FX rates cached yet · refreshed when the app starts.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </section>
+{% endblock %}

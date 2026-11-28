@@ -87,29 +87,29 @@ def _row_text(html: str, account_id: int) -> str:
 
 def test_outflow_subline_with_sign_and_projection(client: TestClient, ids: dict[str, int]) -> None:
     html = client.get("/accounts").text
-    assert "\u22129,824.01 planned → 2,575.99" in _row_text(html, ids["out"])
+    assert "12,400.00 PLN → 2,575.99 after planned" in _row_text(html, ids["out"])
 
 
 def test_inflow_subline_positive(client: TestClient, ids: dict[str, int]) -> None:
     html = client.get("/accounts").text
-    assert "+700.00 planned → 700.00" in _row_text(html, ids["inn"])
+    assert "0.00 PLN → 700.00 after planned" in _row_text(html, ids["inn"])
 
 
 def test_zero_net_hides_subline(client: TestClient, ids: dict[str, int]) -> None:
     html = client.get("/accounts").text
-    assert "planned" not in _row_text(html, ids["zero"])
+    assert "after planned" not in _row_text(html, ids["zero"])
 
 
 def test_liability_has_subline_and_keeps_available(client: TestClient, ids: dict[str, int]) -> None:
     text = _row_text(client.get("/accounts").text, ids["card"])
-    assert "\u2212100.00 planned → -600.00" in text
-    assert "Available" in text
+    assert "\u2212500.00 PLN → \u2212600.00 after planned" in text
+    assert "used 25% · available 1,500.00 of 2,000.00" in text
 
 
 def test_reconcile_row_includes_subline(client: TestClient, ids: dict[str, int]) -> None:
     r = client.post(f"/accounts/{ids['out']}/reconcile", data={"actual_balance": "12400.00"})
     assert r.status_code == 200
-    assert "\u22129,824.01 planned → 2,575.99" in _row_text(r.text, ids["out"])
+    assert "→ 2,575.99 after planned" in _row_text(r.text, ids["out"])
 
 
 def test_hero_planned_total(client: TestClient, ids: dict[str, int]) -> None:
@@ -130,4 +130,4 @@ def test_archived_category_with_planned_row_does_not_crash(
         conn.close()
     r = client.get("/accounts")
     assert r.status_code == 200
-    assert "\u22129,824.01 planned" in _row_text(r.text, ids["out"])
+    assert "→ 2,575.99 after planned" in _row_text(r.text, ids["out"])

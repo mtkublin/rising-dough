@@ -1,0 +1,14 @@
+{# pages/ledger/recently-deleted.html: soft-deleted rows of the last 90 days (T-UR10a, handoff pages/ledger/recently-deleted.html).
+   Context: txn_rows, planned_rows, category_rows (ledger_view.DeletedRowView tuples), color_rules.
+   Restore posts to the entity's restore route; fragments/ledger/deleted-panel.html refetches itself on the route's events. #}
+{% extends "layouts/base.html" %}
+{% block title %}Recently deleted · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Recently deleted</h1>
+      <p class="rd-hero__note rd-hero__note--band">last 90 days</p>
+    </div>
+  </section>
+  {% include "fragments/ledger/deleted-panel.html" %}
+{% endblock %}

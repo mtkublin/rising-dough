@@ -1,0 +1,61 @@
+{# Settings · preferences (T-UR13, ADR-0107). Handoff: pages/settings/preferences.html.
+   Context: active_tab, settings (base_currency, display_timezone). The theme switch is client-only (localStorage `rd-theme`, ADR-0134 §8): rd/js/theme.js applies it in <head>, rd/js/theme-switch.js drives the buttons (T-UR27). #}
+{% extends "layouts/base.html" %}
+{% block title %}Settings · preferences · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Preferences</h1>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Preferences settings">
+    <div class="rd-settings">
+      <div class="rd-settings__head">{% include "fragments/nav/settings-tabs.html" %}</div>
+      <section class="rd-card rd-card--outline" aria-labelledby="appearance-title">
+        <h2 class="rd-card__title" id="appearance-title">Appearance</h2>
+        <div class="rd-card__body">
+          <div class="rd-setting-line">
+            <span class="rd-field__label" id="theme-label">theme</span>
+            <div class="rd-segmented"
+                 role="group"
+                 aria-labelledby="theme-label"
+                 data-js="theme-switch">
+              <button type="button"
+                      class="rd-segmented__option"
+                      aria-pressed="true"
+                      data-theme-value="system">system</button>
+              <button type="button"
+                      class="rd-segmented__option"
+                      aria-pressed="false"
+                      data-theme-value="light">light</button>
+              <button type="button"
+                      class="rd-segmented__option"
+                      aria-pressed="false"
+                      data-theme-value="dark">dark</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="rd-card rd-card--outline" aria-labelledby="workspace-title">
+        <h2 class="rd-card__title" id="workspace-title">Workspace</h2>
+        <div class="rd-card__body">
+          <dl class="rd-kv">
+            <div class="rd-kv__row">
+              <dt class="rd-caption">BASE CURRENCY</dt>
+              <dd>
+                {{ settings.base_currency }}
+              </dd>
+            </div>
+            <div class="rd-kv__row">
+              <dt class="rd-caption">DISPLAY TIMEZONE</dt>
+              <dd>
+                {{ settings.display_timezone }}
+              </dd>
+            </div>
+          </dl>
+          <p class="rd-kv__note">Set by the server; read-only.</p>
+        </div>
+      </section>
+    </div>
+  </section>
+{% endblock %}

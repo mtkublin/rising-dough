@@ -28,7 +28,8 @@ from budget_planner.repositories import (
     snapshots as snapshots_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, errors
+from tests.ui_map import _html
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 MISSING = 99_999
@@ -121,7 +122,9 @@ def test_create_transit_non_numeric_destination_is_422(
         data=_txn_form(ctx, category_id=ctx["transit"], dest_account_id="abc"),
     )
     assert r.status_code == 422
-    assert "invalid destination" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-dest_account_id-error": "▲ invalid destination",
+    }
     assert _txn_count(_migrated) == before
 
 
@@ -134,7 +137,9 @@ def test_create_transit_unknown_destination_is_422(
         data=_txn_form(ctx, category_id=ctx["transit"], dest_account_id=str(MISSING)),
     )
     assert r.status_code == 422
-    assert "unknown destination" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-dest_account_id-error": "▲ unknown destination",
+    }
     assert _txn_count(_migrated) == before
 
 
@@ -168,7 +173,9 @@ def test_edit_transaction_unknown_account_is_422_and_row_unchanged(
         data=_txn_form(ctx, account_id=MISSING),
     )
     assert r.status_code == 422
-    assert "unknown account" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-account_id-error": "▲ unknown account",
+    }
     conn = get_connection(_migrated)
     try:
         row = transactions_repo.find_by_id(conn, USER_ID, ctx["txn"])
@@ -202,11 +209,11 @@ def _planned_count(settings: Settings) -> int:
 
 
 @pytest.mark.parametrize(
-    ("over", "message"),
+    ("over", "line_id", "message"),
     [
-        ({"category_id": MISSING}, "unknown category"),
-        ({"dest_account_id": "abc"}, "invalid dest account"),
-        ({"dest_account_id": str(MISSING)}, "unknown dest account"),
+        ({"category_id": MISSING}, "catpick-new-entry-error", "unknown category"),
+        ({"dest_account_id": "abc"}, "field-dest_account_id-error", "invalid dest account"),
+        ({"dest_account_id": str(MISSING)}, "field-dest_account_id-error", "unknown dest account"),
     ],
 )
 def test_create_planned_validation_errors_are_422(
@@ -214,12 +221,13 @@ def test_create_planned_validation_errors_are_422(
     ctx: dict[str, int],
     _migrated: Settings,
     over: dict[str, object],
+    line_id: str,
     message: str,
 ) -> None:
     before = _planned_count(_migrated)
     r = client.post("/planned", data=_planned_form(ctx, **over))
     assert r.status_code == 422
-    assert message in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {line_id: f"▲ {message}"}
     assert _planned_count(_migrated) == before
 
 
@@ -229,7 +237,9 @@ def test_edit_planned_unknown_account_is_422(client: TestClient, ctx: dict[str, 
         data=_planned_form(ctx, account_id=MISSING),
     )
     assert r.status_code == 422
-    assert "unknown account" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-account_id-error": "▲ unknown account",
+    }
 
 
 # --- recurring router ----------------------------------------------------
@@ -243,7 +253,9 @@ def test_override_month_before_rule_start_is_422_with_message(
         data={"year": 2025, "month": 6, "amount": "10.00"},
     )
     assert r.status_code == 422
-    assert "rule has no occurrence in 2025-06" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-month-error": "▲ rule has no occurrence in 2025-06",
+    }
 
 
 # --- categories router ---------------------------------------------------
@@ -266,7 +278,7 @@ def test_update_category_rejects_bad_color_and_keeps_name(
 # --- accounts router -----------------------------------------------------
 
 
-def test_reconcile_non_numeric_category_falls_back_and_saves_snapshot(
+def test_reconcile_ignores_a_posted_category_and_saves_a_snapshot(
     client: TestClient, ctx: dict[str, int], _migrated: Settings
 ) -> None:
     r = client.post(
@@ -288,7 +300,9 @@ def test_update_account_blank_name_rerenders_form_with_error(
 ) -> None:
     r = client.post(f"/accounts/{ctx['acc']}", data={"name": "   ", "currency": "PLN"})
     assert r.status_code == 422
-    assert "name required" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ Name is required",
+    }
     conn = get_connection(_migrated)
     try:
         acc = accounts_repo.find_by_id(conn, USER_ID, ctx["acc"])
@@ -309,7 +323,7 @@ def test_override_default_tier_sets_default_and_emits_trigger(
         data={"tier": "default", "amount": "250.00"},
     )
     assert r.status_code == 200
-    assert r.text == "ok"
+    assert "Rent budget saved" in _html.all_text(r.text, by_id("flash-region"))
     assert "budget-stale" in r.headers["HX-Trigger"]
     conn = get_connection(_migrated)
     try:
@@ -326,4 +340,6 @@ def test_override_non_numeric_month_is_422(client: TestClient, ctx: dict[str, in
         data={"tier": "one-off", "month": "x", "year": "2026", "amount": "1.00"},
     )
     assert r.status_code == 422
-    assert r.text == "invalid month"
+    assert _html.error_lines(r.text) == {
+        "dialog-error-month": "▲ Month: pick a month from 1 to 12",
+    }

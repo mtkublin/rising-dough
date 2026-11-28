@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.accounts import Account, NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.transactions import NewTransaction
@@ -23,7 +23,8 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import balance as balance_service
-from tests.ui_map import _html, accounts, errors, shell
+from tests.ui_map import _html, accounts, errors, rd_shell, shell
+from tests.ui_map.locator import role
 
 USER_ID = 1
 
@@ -75,7 +76,24 @@ def test_create_rejects_bad_currency(client: TestClient) -> None:
         data={"name": "X", "currency": "EURO", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "currency" in _html.all_text(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-currency-error": "▲ ISO 4217 code required",
+    }
+    assert r.headers["HX-Retarget"] == "#modal-root"
+
+
+def test_create_rejects_unknown_currency_code(client: TestClient, db: sqlite3.Connection) -> None:
+    """A well-formed code outside ISO 4217 (XYZ) is a 422 under the field; nothing is written."""
+    before = _count(db, "accounts")
+    r = client.post(
+        "/accounts",
+        data={"name": "Mystery", "currency": "xyz", "opening_balance": "0"},
+    )
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-currency-error": "▲ Unknown currency code",
+    }
+    assert _count(db, "accounts") == before
 
 
 def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
@@ -85,7 +103,9 @@ def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -
         data={"name": "   ", "currency": "PLN", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "name: name required" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ Name is required",
+    }
     assert _count(db, "accounts") == before
 
 
@@ -96,7 +116,9 @@ def test_create_rejects_bad_opening(client: TestClient, db: sqlite3.Connection) 
         data={"name": "A", "currency": "PLN", "opening_balance": "nan!"},
     )
     assert r.status_code == 422
-    assert "opening_balance: invalid number" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-opening_balance-error": "▲ invalid number",
+    }
     assert _count(db, "accounts") == before
 
 
@@ -111,21 +133,23 @@ def test_edit_and_update(client: TestClient, acc_id: int) -> None:
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/edit")
     assert r.status_code == 404
-    assert "account: not found" in _html.all_text(r.text, errors.alert)
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _count(db, "accounts")
     r = client.post("/accounts/9999", data={"name": "X"})
     assert r.status_code == 404
-    assert "account: not found" in _html.all_text(r.text, errors.alert)
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _count(db, "accounts") == before
 
 
 def test_update_blank_name(client: TestClient, acc_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/accounts/{acc_id}", data={"name": "   "})
     assert r.status_code == 422
-    assert "name: name required" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ Name is required",
+    }
     stored = accounts_repo.find_by_id(db, USER_ID, acc_id)
     assert stored is not None
     assert stored.name == "Main"
@@ -170,7 +194,7 @@ def test_snapshot_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _count(db, "audit_log")
     r = client.post("/accounts/9999/snapshot")
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _count(db, "audit_log") == before
 
 
@@ -183,7 +207,7 @@ def test_reconcile_form_renders(client: TestClient, acc_id: int) -> None:
 def test_reconcile_form_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/reconcile")
     assert r.status_code == 404
-    assert "Account not found." in _html.text_of(r.text, accounts.reconcile_dialog)
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_reconcile_submit(client: TestClient, acc_id: int) -> None:
@@ -199,7 +223,9 @@ def test_reconcile_submit_bad_number(
     before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "notnum"})
     assert r.status_code == 422
-    assert "actual_balance: invalid number" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-actual_balance-error": "▲ invalid number",
+    }
     assert _count(db, "transactions") == before
 
 
@@ -207,7 +233,7 @@ def test_reconcile_submit_404(client: TestClient, db: sqlite3.Connection) -> Non
     before = _count(db, "transactions")
     r = client.post("/accounts/9999/reconcile", data={"actual_balance": "1"})
     assert r.status_code == 404
-    assert r.text == "not found"
+    assert _html.text_of(r.text, errors.heading) == "Not found"
     assert _count(db, "transactions") == before
 
 
@@ -254,7 +280,7 @@ def test_create_credit_card_account_round_trips_limit(client: TestClient) -> Non
     )
     assert r.status_code == 200
     card = _html.all_text(r.text, accounts.any_row)
-    assert "Credit card" in card
+    assert "credit card" in card
     assert "10,000.00" in card
 
 
@@ -270,7 +296,9 @@ def test_create_liability_without_limit_returns_422(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
-    assert "credit_limit" in _html.all_text(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-credit_limit-error": "▲ positive credit limit required",
+    }
 
 
 def test_create_liability_with_zero_limit_rejected(
@@ -288,11 +316,16 @@ def test_create_liability_with_zero_limit_rejected(
         },
     )
     assert r.status_code == 422
-    assert "credit_limit: positive credit limit required" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-credit_limit-error": "▲ positive credit limit required",
+    }
     assert _count(db, "accounts") == before
 
 
-def test_update_asset_to_credit_card_sets_limit(client: TestClient, acc_id: int) -> None:
+def test_update_liability_limit_is_saved(client: TestClient, _migrated: Settings) -> None:
+    acc_id = _create(
+        _migrated, name="Main", currency="PLN", is_liability=True, credit_limit_minor=100_000
+    )
     r = client.post(
         f"/accounts/{acc_id}",
         data={
@@ -306,71 +339,96 @@ def test_update_asset_to_credit_card_sets_limit(client: TestClient, acc_id: int)
     assert "5,000.00" in _html.all_text(r.text, accounts.any_row)
 
 
-def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated: Settings) -> None:
-    conn = get_connection(_migrated)
+def _stored(settings: Settings, account: int) -> Account:
+    conn = get_connection(settings)
     try:
-        acc = accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(
-                name="Visa",
-                currency="PLN",
-                is_liability=True,
-                credit_limit_minor=1_000_000,
-            ),
-        )
+        found = accounts_repo.find_by_id(conn, USER_ID, account)
     finally:
         conn.close()
+    assert found is not None
+    return found
+
+
+def test_update_cannot_turn_a_liability_into_an_asset(
+    client: TestClient, db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    acc = _create(
+        _migrated, name="Visa", currency="PLN", is_liability=True, credit_limit_minor=1_000_000
+    )
+    audit_before = _count(db, "audit_log")
     r = client.post(
-        f"/accounts/{acc.id}",
-        data={"name": "Visa", "type": "", "is_liability": "", "credit_limit": ""},
+        f"/accounts/{acc}",
+        data={"name": "Renamed", "type": "", "is_liability": "", "credit_limit": ""},
+    )
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
+    after = _stored(_migrated, acc)
+    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa", True, 1_000_000)
+    assert _count(db, "audit_log") == audit_before
+
+
+def test_update_cannot_turn_an_asset_into_a_liability(
+    client: TestClient, db: sqlite3.Connection, acc_id: int, _migrated: Settings
+) -> None:
+    audit_before = _count(db, "audit_log")
+    r = client.post(
+        f"/accounts/{acc_id}",
+        data={"name": "Main", "type": "", "is_liability": "on", "credit_limit": "5000.00"},
+    )
+    assert r.status_code == 422
+    assert _html.error_lines(r.text) == {
+        "field-is_liability-error": "▲ can't be changed after the account is created",
+    }
+    after = _stored(_migrated, acc_id)
+    assert (after.is_liability, after.credit_limit_minor) == (False, None)
+    assert _count(db, "audit_log") == audit_before
+
+
+def test_update_with_the_same_kind_saves(client: TestClient, _migrated: Settings) -> None:
+    acc = _create(
+        _migrated, name="Visa", currency="PLN", is_liability=True, credit_limit_minor=1_000_000
+    )
+    r = client.post(
+        f"/accounts/{acc}",
+        data={"name": "Visa 2", "type": "", "is_liability": "on", "credit_limit": "2000.00"},
     )
     assert r.status_code == 200
-    conn = get_connection(_migrated)
-    try:
-        after = accounts_repo.find_by_id(conn, USER_ID, acc.id)
-    finally:
-        conn.close()
-    assert after is not None
-    assert after.is_liability is False
-    assert after.credit_limit_minor is None
+    after = _stored(_migrated, acc)
+    assert (after.name, after.is_liability, after.credit_limit_minor) == ("Visa 2", True, 200_000)
 
 
 # ---------------------------------------------------------------------------
-# T-123 — Credit-limit field initial-render lockstep bug (ADR-0030 §6 contract).
-#
-# The sync `<script>` previously resolved the form via
-# `document.currentScript.previousElementSibling`, which breaks when the form
-# fragment is nested inside `partials/_slideover.html`. These tests pin the
-# server-rendered contract: `hidden` + `aria-hidden="true"` on the limit label
-# and `disabled` on the input must track `account is None or not
-# account.is_liability` in lockstep.
+# T-123, T-UR08b: the credit-limit field's server-rendered state tracks the liability radio.
+# reveal.js toggles ``hidden`` and ``disabled`` on ``data-show-when`` parts; the server renders the
+# initial state (a disabled field carries ``data-reveal-disabled`` so reveal.js can enable it).
 
 
-def _limit_markup(html: str) -> tuple[Tag, Tag]:
-    soup = BeautifulSoup(html, "html.parser")
-    label = soup.find("label", attrs={"data-limit-field": True})
-    assert isinstance(label, Tag), "credit-limit label with data-limit-field expected"
-    limit_input = label.find("input", attrs={"name": "credit_limit"})
-    assert isinstance(limit_input, Tag), "credit_limit input expected inside label"
+def _limit(html: str) -> tuple[Tag, Tag]:
+    limit_input = _html.resolve_one(html, accounts.form_credit_limit)
+    label = limit_input.find_parent("label")
+    assert isinstance(label, Tag)
     return label, limit_input
 
 
 def test_new_form_hides_credit_limit_by_default(client: TestClient) -> None:
     r = client.get("/accounts/new")
     assert r.status_code == 200
-    label, limit_input = _limit_markup(r.text)
+    label, limit_input = _limit(r.text)
     assert label.has_attr("hidden")
-    assert label.get("aria-hidden") == "true"
+    assert label["data-show-when"] == "is_liability=on"
     assert limit_input.has_attr("disabled")
+    assert limit_input.has_attr("data-reveal-disabled")
 
 
-def test_new_form_marks_form_root_for_sync(client: TestClient) -> None:
+def test_new_dialog_lists_every_iso_currency_in_the_datalist(client: TestClient) -> None:
     r = client.get("/accounts/new")
-    assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    form = soup.find("form", attrs={"data-account-form": True})
-    assert isinstance(form, Tag), "account form must expose data-account-form hook"
+    options = _html.resolve(r.text, role("option").inside(accounts.currency_options))
+    codes = [o["value"] for o in options]
+    assert {"PLN", "EUR", "USD"} <= set(codes)
+    assert len(codes) == len(set(codes)) > 100
+    assert _html.resolve_one(r.text, accounts.form_currency)["list"] == "iso-codes"
 
 
 def test_edit_form_shows_credit_limit_for_liability(
@@ -392,18 +450,18 @@ def test_edit_form_shows_credit_limit_for_liability(
         conn.close()
     r = client.get(f"/accounts/{visa.id}/edit")
     assert r.status_code == 200
-    label, limit_input = _limit_markup(r.text)
+    label, limit_input = _limit(r.text)
     assert not label.has_attr("hidden")
-    assert label.get("aria-hidden") is None
     assert not limit_input.has_attr("disabled")
+    assert limit_input["value"] == "10000.00"
+    assert _html.resolve_one(r.text, accounts.form_currency).has_attr("readonly")
 
 
 def test_edit_form_hides_credit_limit_for_asset(client: TestClient, acc_id: int) -> None:
     r = client.get(f"/accounts/{acc_id}/edit")
     assert r.status_code == 200
-    label, limit_input = _limit_markup(r.text)
+    label, limit_input = _limit(r.text)
     assert label.has_attr("hidden")
-    assert label.get("aria-hidden") == "true"
     assert limit_input.has_attr("disabled")
 
 
@@ -430,11 +488,11 @@ def test_liability_available_shows_two_decimals(client: TestClient, _migrated: S
     r = client.get("/accounts")
     assert r.status_code == 200
     cards = _html.all_text(r.text, accounts.any_row)
-    assert "Available 3,765.44 ·" in cards
-    assert "Available 3,765 ·" not in cards
+    assert "available 3,765.44 of 5,000.00" in cards
+    assert "available 3,765 of" not in cards
 
 
-def test_create_reloads_page_without_swap(client: TestClient) -> None:
+def test_create_flashes_and_refetches_without_reload(client: TestClient) -> None:
     # T-D150: the accounts table has no region that refetches on a trigger.
     r = client.post(
         "/accounts",
@@ -443,7 +501,8 @@ def test_create_reloads_page_without_swap(client: TestClient) -> None:
     )
     assert r.status_code == 200
     assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Refresh" not in r.headers
+    assert "Travel created" in _html.text_of(r.text, rd_shell.flash_saved)
     assert "balance-stale" in r.headers["HX-Trigger"]
 
 
@@ -550,7 +609,9 @@ def test_create_returns_the_new_row(client: TestClient, _migrated: Settings) -> 
 def test_update_credit_card_limit_is_shown_in_the_row(
     client: TestClient, _migrated: Settings
 ) -> None:
-    acc = _create(_migrated, name="Main", currency="PLN")
+    acc = _create(
+        _migrated, name="Main", currency="PLN", is_liability=True, credit_limit_minor=100_000
+    )
     r = client.post(
         f"/accounts/{acc}",
         data={

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import timedelta
 
 import pyarrow.parquet as pq
@@ -15,7 +16,8 @@ from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.repositories import planned as planned_repo
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import USER_ID, audit_ops, hx_events, query, scalar
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, ledger, rd_shell as shell
+from tests.ui_map.locator import by_id, role
 
 Ids = dict[str, int]
 HTMX = {"HX-Request": "true"}
@@ -60,22 +62,17 @@ def test_table_alias_renders_planned_rows(client: TestClient, seeded: Ids) -> No
     assert _html.exists(r.text, ledger.planned_row(seeded["pl"]))
 
 
-@covers("GET /planned/new")
-def test_new_form_is_a_slideover(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/planned/new", headers=HTMX)
-    assert r.status_code == 200
-    assert "<html" not in r.text
-
-
 @covers("POST /planned")
 def test_create_persists_audits_and_signals(
     client: TestClient, seeded: Ids, _migrated: Settings
 ) -> None:
     r = client.post("/planned", data=_form(seeded))
     assert r.status_code == 200
-    assert hx_events(r) == FORECAST_LEDGER
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert hx_events(r) == {**FORECAST_LEDGER, "today-stale": True, "budget-stale": True}
+    assert "HX-Reswap" not in r.headers
+    assert "HX-Refresh" not in r.headers
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Planned entry saved"
     new_id = scalar(_migrated, "SELECT MAX(id) FROM planned_transactions")
     assert new_id != seeded["pl"]
     assert (
@@ -117,6 +114,8 @@ def test_create_validation_errors(client: TestClient, seeded: Ids, _migrated: Se
 def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     ok = client.get(f"/planned/{seeded['pl']}/edit", headers=HTMX)
     assert ok.status_code == 200
+    assert ok.headers["HX-Retarget"] == "#modal-root"  # a dialog now, not a slide-over
+    assert _html.exists(ok.text, role("dialog", re.compile(r"^edit planned")))
     assert "<html" not in ok.text
     assert client.get("/planned/99999/edit").status_code == 404
 
@@ -128,7 +127,9 @@ def test_update_persists_audits_and_signals(
     r = client.post(f"/planned/{seeded['pl']}", data=_form(seeded, amount="9"))
     assert r.status_code == 200
     assert hx_events(r) == FORECAST_LEDGER
-    assert r.headers["HX-Reswap"] == "none"
+    # the dialog closes: #modal-root is emptied out of band (was HX-Reswap none + reload)
+    assert "HX-Reswap" not in r.headers
+    assert _html.resolve_one(r.text, by_id("modal-root")).get("hx-swap-oob") == "innerHTML"
     assert (
         scalar(_migrated, "SELECT amount FROM planned_transactions WHERE id = ?", (seeded["pl"],))
         == 900
@@ -158,7 +159,10 @@ def test_delete_then_restore_round_trip(
     assert scalar(_migrated, sql, (seeded["pl"],)) == 1
     restored = client.post(f"/planned/{seeded['pl']}/restore")
     assert restored.status_code == 200
-    assert hx_events(restored) == FORECAST_LEDGER
+    assert hx_events(restored) == {
+        **FORECAST_LEDGER,
+        "toast": {"variant": "success", "message": "Planned entry restored"},
+    }
     assert scalar(_migrated, sql, (seeded["pl"],)) == 0
     assert len(audit_ops(_migrated, "planned_transaction", seeded["pl"])) == 3
 
@@ -169,15 +173,17 @@ def test_delete_and_restore_unknown_id_are_404(client: TestClient, seeded: Ids) 
     assert client.post("/planned/99999/restore").status_code == 404
 
 
-@covers("GET /planned/{planned_id}/promote", "GET /planned/{planned_id}/promote/inline")
-def test_promote_forms_and_unknown_id(client: TestClient, seeded: Ids) -> None:
+@covers("GET /planned/{planned_id}/promote")
+def test_promote_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     modal = client.get(f"/planned/{seeded['pl']}/promote", headers=HTMX)
     assert modal.status_code == 200
     assert "<html" not in modal.text
-    inline = client.get(f"/planned/{seeded['pl']}/promote/inline", headers=HTMX)
-    assert inline.status_code == 200
     assert client.get("/planned/99999/promote").status_code == 404
-    assert client.get("/planned/99999/promote/inline").status_code == 404
+
+
+def test_inline_promote_route_is_gone(client: TestClient, seeded: Ids) -> None:
+    """T-UR24: the inline promote form route no longer exists."""
+    assert client.get(f"/planned/{seeded['pl']}/promote/inline", headers=HTMX).status_code == 404
 
 
 @covers("POST /planned/{planned_id}/promote")
@@ -190,8 +196,14 @@ def test_promote_creates_transaction_and_links_it(
         data={"operation_date": "2026-11-02", "amount": "25", "description": "promoted"},
     )
     assert r.status_code == 200
-    assert hx_events(r) == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
-    assert r.headers["HX-Reswap"] == "none"
+    assert hx_events(r) == {
+        "balance-stale": True,
+        "forecast-stale": True,
+        "ledger-stale": True,
+        "today-stale": True,
+        "budget-stale": True,
+    }
+    assert "HX-Reswap" not in r.headers
     assert scalar(_migrated, "SELECT COUNT(*) FROM transactions") == txns_before + 1
     linked = scalar(
         _migrated,

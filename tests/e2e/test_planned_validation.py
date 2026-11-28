@@ -8,8 +8,8 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.e2e.ui_actions import pick
-from tests.ui_map import ledger, shell, today
+from tests.e2e.ui_actions import choose_account, choose_category, fill_stable, open_new_entry
+from tests.ui_map import entries
 from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -23,22 +23,18 @@ def test_same_source_and_dest_shows_error_in_open_panel(
         f"{base_url}/accounts",
         form={"name": "Checking", "currency": "PLN", "opening_balance": "500.00"},
     ).ok
-    assert page.request.post(
-        f"{base_url}/categories", form={"name": "Groceries", "direction": "expense"}
-    ).ok
     page.goto(f"{base_url}/today")
-    assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, today.add_planned).first.click()
-    panel = to_playwright(page, shell.slideover)
-    expect(panel).to_be_visible()
-    pick(page, ledger.field_category, "Groceries")
-    pick(page, ledger.field_account, "Checking")
-    pick(page, ledger.field_dest_account, "Checking")
-    to_playwright(page, ledger.field_amount.inside(shell.slideover)).fill("10.00")
-    to_playwright(page, ledger.add_entry.inside(shell.slideover)).click()
-    expect(to_playwright(page, ledger.form_errors.inside(shell.slideover))).to_contain_text(
+    open_new_entry(page)
+    to_playwright(page, entries.tab_planned).click()
+    choose_category(page, "Transit")  # a transit shows its destination account
+    choose_account(page, "Checking")
+    to_playwright(page, entries.field_dest).select_option(label="Checking")
+    fill_stable(to_playwright(page, entries.hero_amount), "10.00")
+    to_playwright(page, entries.save).click()
+    dialog = to_playwright(page, entries.dialog)
+    expect(to_playwright(page, entries.field_error("dest_account_id"))).to_contain_text(
         "must differ"
     )
-    expect(panel).to_be_visible()
+    expect(dialog).to_be_visible()
     # DB: the rejected planned entry was not stored.
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM planned_transactions") == 0

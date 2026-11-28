@@ -26,6 +26,7 @@ class Locator:
     exact: bool = False  # exact (case-sensitive, full) name/label match
     id_prefix: bool = False  # id kind: match ids starting with ``value``
     within: Locator | None = None  # scope: search inside this locator's match
+    pressed: bool | None = None  # toggle state (role=button; aria-pressed)
 
     def inside(self, scope: Locator) -> Locator:
         """Return a copy scoped to ``scope`` (outermost scope wins)."""
@@ -40,8 +41,9 @@ def role(
     *,
     level: int | None = None,
     exact: bool = False,
+    pressed: bool | None = None,
 ) -> Locator:
-    return Locator("role", role_name, name=name, level=level, exact=exact)
+    return Locator("role", role_name, name=name, level=level, exact=exact, pressed=pressed)
 
 
 def label(text: str, *, exact: bool = False) -> Locator:
@@ -71,6 +73,8 @@ def to_playwright(root: Any, loc: Locator) -> Any:
             kwargs["name"] = loc.name
         if loc.level is not None:
             kwargs["level"] = loc.level
+        if loc.pressed is not None:
+            kwargs["pressed"] = loc.pressed
         return scope.get_by_role(loc.value, **kwargs)
     if loc.kind == "label":
         return scope.get_by_label(loc.value, exact=loc.exact)

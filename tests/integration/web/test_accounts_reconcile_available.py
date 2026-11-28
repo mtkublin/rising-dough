@@ -10,9 +10,8 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import balance as balance_service
-from budget_planner.services.account_reconcile import ReconcilePreview
-from budget_planner.web import accounts_data
 from tests.ui_map import _html, accounts
+from tests.ui_map.locator import role
 
 USER_ID = 1
 
@@ -49,8 +48,7 @@ def test_form_liability_with_limit_asks_available(client: TestClient, _migrated:
     assert r.status_code == 200
     assert _html.resolve_one(r.text, accounts.reconcile_available)["value"] == "3765.44"
     help_text = _html.text_of(r.text, accounts.reconcile_available_help)
-    assert "Limit 5,000.00" in help_text
-    assert "1,234.56" in help_text
+    assert help_text == "enter what you can still spend (limit \N{MINUS SIGN} spent)"
 
 
 def test_submit_sets_available(client: TestClient, _migrated: Settings) -> None:
@@ -59,7 +57,7 @@ def test_submit_sets_available(client: TestClient, _migrated: Settings) -> None:
     assert r.status_code == 200
     assert _balance(_migrated, card) == -100_000
     row = _html.text_of(client.get("/accounts").text, accounts.row(card))
-    assert "Available 4,000.00 ·" in row
+    assert "used 20% · available 4,000.00 of 5,000.00" in row
 
 
 def test_available_equals_limit_zeroes_used(client: TestClient, _migrated: Settings) -> None:
@@ -102,29 +100,13 @@ def test_accounts_index_renders_service_utilisation(
     _make_card(_migrated, limit=500_000)
     r = client.get("/accounts")
     assert r.status_code == 200
-    bar = _html.resolve_one(r.text, accounts.credit_utilisation)
-    assert "Used 24%" in _html.text_of(r.text, accounts.credit_utilisation)
-    assert "Available 3,765.44" in _html.text_of(r.text, accounts.credit_utilisation)
-    assert "--used-pct: 24%" in str(bar["style"])
-
-
-def test_modal_context_carries_preview_for_entered_amount(_migrated: Settings) -> None:
-    card = _make_card(_migrated, limit=None, liability=False)
-    conn = get_connection(_migrated)
-    try:
-        acc = accounts_repo.find_by_id(conn, USER_ID, card)
-        assert acc is not None
-        derived = balance_service.derive_balance(conn, USER_ID, card)
-        ctx = accounts_data.reconcile_modal_context(conn, USER_ID, acc, derived, -120_000)
-        none_ctx = accounts_data.reconcile_modal_context(conn, USER_ID, acc, derived)
-        other_user_view = accounts_repo.find_by_id(conn, USER_ID + 1, card)
-    finally:
-        conn.close()
-    preview = ctx["preview"]
-    assert isinstance(preview, ReconcilePreview)
-    assert (preview.difference_minor, preview.adjustment) == (3_456, "increase")
-    assert none_ctx["preview"] is None
-    assert other_user_view is None
+    line = _html.text_of(r.text, accounts.credit_utilisation)
+    assert "used 24% \u00b7 available 3,765.44 of 5,000.00" in line
+    bar = _html.resolve_one(
+        r.text, role("img", "percent spent").inside(accounts.credit_utilisation)
+    )
+    assert bar["aria-label"] == "24 percent spent, 76 percent left"
+    assert bar.get_text() == "\u2588" * 2 + "\u2591" * 8
 
 
 def test_form_unknown_account_is_not_found(client: TestClient) -> None:

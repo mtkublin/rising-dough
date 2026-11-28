@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.ui_map import shell
+from tests.ui_map import rd_shell, shell
 from tests.ui_map.locator import by_id, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -16,7 +16,7 @@ pytestmark = pytest.mark.e2e
 _PROBE_TARGET = by_id("probe-target")  # injected by _PROBE below
 
 _FLASH_BODY = (
-    '<div  id="flash-region-assertive" role="alert" aria-live="assertive" hx-swap-oob="true">'
+    '<div  id="flash-region" role="status" aria-live="polite" hx-swap-oob="true">'
     '<div class="flash flash-error" data-flash-kind="error"><span>{msg}</span></div></div>'
 )
 _PROBE = (
@@ -28,7 +28,7 @@ _PROBE = (
 
 
 def _open(page: Page, base_url: str) -> None:
-    page.goto(f"{base_url}/today")
+    page.goto(f"{base_url}/ledger")  # old shell page; Today is on the new shell
     assert page.evaluate("typeof window.htmx") == "object"
 
 
@@ -45,7 +45,7 @@ def test_server_flash_partial_is_shown_and_target_kept(
         ),
     )
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(f"boom {status}")
+    expect(to_playwright(page, shell.flash_region)).to_contain_text(f"boom {status}")
     expect(to_playwright(page, _PROBE_TARGET)).to_have_text("KEEP")
 
 
@@ -60,7 +60,7 @@ def test_plain_error_body_shows_generic_flash(
         lambda route: route.fulfill(status=status, content_type="text/plain", body="nope"),
     )
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(re.compile(r"\S"))
+    expect(to_playwright(page, shell.flash_region)).to_contain_text(re.compile(r"\S"))
     expect(to_playwright(page, _PROBE_TARGET)).to_have_text("KEEP")
 
 
@@ -77,11 +77,20 @@ def test_form_rerender_on_422_still_swaps(live_server: tuple[str, Path], page: P
     expect(to_playwright(page, _PROBE_TARGET)).to_have_text("bad value")
 
 
-def test_network_failure_shows_flash(live_server: tuple[str, Path], page: Page) -> None:
+def test_network_failure_shows_offline_card_alone(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """Outside a form the handoff offline card shows in <main>; no assertive flash (F4)."""
     base_url, _ = live_server
     _open(page, base_url)
     page.route("**/__probe", lambda route: route.abort())
     page.evaluate(_PROBE)
-    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(
+    expect(to_playwright(page, rd_shell.offline_card_title)).to_be_visible()
+    expect(to_playwright(page, rd_shell.offline_card)).to_contain_text(
+        "Changes can\u2019t be saved right now. We\u2019ll retry when you\u2019re back online."
+    )
+    expect(to_playwright(page, rd_shell.offline_card_retry)).to_be_visible()
+    page.wait_for_timeout(200)
+    expect(to_playwright(page, shell.flash_region)).not_to_contain_text(
         "Could not reach the server"
     )

@@ -5,13 +5,36 @@ from decimal import Decimal
 import pytest
 
 from budget_planner.domain.money import (
+    ascii_minus,
     currency_decimals,
+    format_figure,
+    format_major,
     format_money,
-    format_whole,
     minor_to_major,
+    parse_amount_minor,
     parse_amount_str,
+    sign_glyph,
     to_minor_units,
 )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("\N{MINUS SIGN}12.50", "-12.50"),
+        ("-3", "-3"),
+        ("+", "+"),
+        ("", ""),
+        ("1\N{MINUS SIGN}2", "1-2"),
+    ],
+)
+def test_ascii_minus(text: str, expected: str) -> None:
+    assert ascii_minus(text) == expected
+
+
+def test_sign_glyph() -> None:
+    assert sign_glyph(True) == "\N{MINUS SIGN}"
+    assert sign_glyph(False) == "+"
 
 
 def test_currency_decimals_defaults_to_two() -> None:
@@ -45,6 +68,25 @@ def test_minor_to_major_round_trip() -> None:
             assert fwd == amount, f"{ccy}:{amount} -> {back} -> {fwd}"
 
 
+_M = chr(0x2212)
+
+
+@pytest.mark.parametrize(
+    ("minor", "currency", "kwargs", "expected"),
+    [
+        (-123456, "PLN", {}, _M + "1,234.56"),
+        (1200, "PLN", {"plus": True}, "+12.00"),
+        (1200, "PLN", {}, "12.00"),
+        (0, "PLN", {"plus": True}, "0.00"),
+        (-70000, "JPY", {}, _M + "70,000"),
+        (-123456, "PLN", {"with_currency": True}, _M + "1,234.56 PLN"),
+        (1200, "PLN", {"plus": True, "with_currency": True}, "+12.00 PLN"),
+    ],
+)
+def test_format_figure(minor: int, currency: str, kwargs: dict[str, bool], expected: str) -> None:
+    assert format_figure(minor, currency, **kwargs) == expected
+
+
 def test_format_money_positive_pln() -> None:
     assert format_money(123456, "PLN") == "1,234.56 PLN"
 
@@ -66,18 +108,6 @@ def test_format_money_zero(currency: str, expected: str) -> None:
 
 def test_format_money_minus_one_jpy_keeps_sign() -> None:
     assert format_money(-1, "JPY") == "-1 JPY"
-
-
-@pytest.mark.parametrize("amount_minor", [-49, -1, 0, 49])
-def test_format_whole_rounds_to_zero_without_sign(amount_minor: int) -> None:
-    assert format_whole(amount_minor, "PLN") == "0"
-    assert format_whole(amount_minor, "PLN", grouped=False) == "0"
-
-
-def test_format_whole_keeps_sign_when_nonzero() -> None:
-    assert format_whole(-150, "PLN") == "-2"  # 1.5 -> 2
-    assert format_whole(-250, "PLN") == "-2"  # 2.5 -> even 2 (T-Q281; was -3)
-    assert format_whole(-51, "PLN") == "-1"
 
 
 def test_format_money_uppercases_currency() -> None:
@@ -120,6 +150,90 @@ def test_parse_amount_str_accepts_both_separators(
 )
 def test_parse_amount_str_rejects_malformed(raw: str, currency: str) -> None:
     assert parse_amount_str(raw, currency) is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("2,239.80", Decimal("2239.80")),  # grouped, as an edit dialog prefills it
+        ("1,234,567.50", Decimal("1234567.50")),
+        ("-1,000.00", Decimal("-1000.00")),
+    ],
+)
+def test_parse_amount_str_accepts_grouped_thousands_before_a_dot(
+    raw: str, expected: Decimal
+) -> None:
+    assert parse_amount_str(raw, "PLN") == expected
+
+
+@pytest.mark.parametrize("raw", ["2,23.80", "12,3456.00", ",239.80", "2,239,.80", "1.234,50"])
+def test_parse_amount_str_rejects_misplaced_grouping(raw: str) -> None:
+    assert parse_amount_str(raw, "PLN") is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "currency", "minor"),
+    [
+        ("2,50", "PLN", 250),  # a lone comma stays the decimal separator
+        ("12,34", "PLN", 1234),
+        ("2,239.80", "PLN", 223_980),  # grouping only when a dot follows
+        ("1,234.00", "PLN", 123_400),
+        ("1,234", "JPY", None),  # no dot: the decimal reading, not allowed for a yen amount
+        ("1,234", "PLN", None),  # decimal reading has three decimals: rejected, never 1234.00
+        ("1.234,56", "PLN", None),  # European grouping is not read
+    ],
+)
+def test_parse_amount_minor_keeps_the_meaning_of_ambiguous_commas(
+    raw: str, currency: str, minor: int | None
+) -> None:
+    assert parse_amount_minor(raw, currency) == minor
+
+
+@pytest.mark.parametrize(
+    ("raw", "currency", "minor"),
+    [
+        ("2 239.80", "PLN", 223_980),  # space (U+0020) groups thousands before a dot
+        ("1 234 567,89", "PLN", 123_456_789),  # spaces group, decimal comma
+        ("1\N{NO-BREAK SPACE}234.50", "PLN", 123_450),  # no-break space (U+00A0)
+        ("1\N{NARROW NO-BREAK SPACE}234", "JPY", 1_234),  # narrow no-break space (U+202F)
+        ("1 234,5", "PLN", 123_450),
+        ("-1 000", "PLN", -100_000),
+        ("2,239.80", "PLN", 223_980),  # comma grouping unchanged
+        ("12,5", "PLN", 1_250),  # lone decimal comma unchanged
+    ],
+)
+def test_parse_amount_minor_accepts_space_grouped_thousands(
+    raw: str, currency: str, minor: int
+) -> None:
+    assert parse_amount_minor(raw, currency) == minor
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "12 34.5",  # group is not three digits
+        "1,23 4",  # mixed comma and space grouping
+        "1 234 5",  # trailing group is short
+        "1 234 56.7",  # short group after the first
+        "1 234.5 6",  # space after the decimal part
+    ],
+)
+def test_parse_amount_str_rejects_misplaced_space_grouping(raw: str) -> None:
+    assert parse_amount_str(raw, "PLN") is None
+
+
+def test_parse_amount_str_strips_outer_whitespace_around_space_grouping() -> None:
+    assert parse_amount_str("  1 234  ", "PLN") == Decimal("1234")
+
+
+def test_format_major_grouped_round_trips_and_leaves_zero_decimals_bare() -> None:
+    assert format_major(223_980, "PLN") == "2239.80"
+    assert format_major(223_980, "PLN", grouped=True) == "2,239.80"
+    assert format_major(99_999, "PLN", grouped=True) == "999.99"
+    assert format_major(123_456, "JPY", grouped=True) == "123456"  # "1,234" would read as 1.234
+    assert parse_amount_str(format_major(123_456_789, "PLN", grouped=True), "PLN") == Decimal(
+        "1234567.89"
+    )
 
 
 def test_parse_amount_str_round_trip_to_minor_units_matches_dot_input() -> None:

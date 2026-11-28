@@ -28,8 +28,9 @@ from budget_planner.services.invites import (
     resend_invite,
     revoke_invite,
 )
+from budget_planner.services.password_change import MSG_TOO_SHORT
+from budget_planner.services.setup import MSG_CONFIRM_MISMATCH
 from budget_planner.services.users import (
-    DUPLICATE_EMAIL_MESSAGE,
     INVALID_EMAIL_MESSAGE,
     UserInputError,
 )
@@ -39,6 +40,7 @@ ADMIN_ID = 1
 PW = "pw"
 PW_CHOSEN = "s3cret"
 PW_EMPTY = ""
+SHORT_VALUE = "-".join(("too", "short"))
 TOK1 = "tok-1-32"
 TOK2 = "tok-2-32"
 NOW = datetime(2026, 11, 20, 9, 30, 15, 250000, tzinfo=UTC)
@@ -118,7 +120,7 @@ def test_create_refuses_live_user_email(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE users SET email = 'root@example.test' WHERE id = ?", (ADMIN_ID,))
     with pytest.raises(UserInputError) as err:
         _issue(conn, FakeTokenSource(), email="ROOT@example.test")
-    assert err.value.fields == {"email": DUPLICATE_EMAIL_MESSAGE}
+    assert err.value.fields == {"email": invites_service.EXISTING_ACCOUNT_MESSAGE}
     assert conn.execute("SELECT count(*) FROM invites").fetchone()[0] == 0
 
 
@@ -550,3 +552,56 @@ def test_mail_message_repr_is_redacted() -> None:
     message = MailMessage(to=EMAIL, subject="s", body="link tok-1-32")
 
     assert repr(message) == "MailMessage(<redacted>)"
+
+
+def test_link_invite_returns_state_and_invite(conn: sqlite3.Connection) -> None:
+    issued = _issue(conn, FakeTokenSource())
+
+    assert invites_service.link_invite(conn, issued.token, now=NOW) == ("pending", issued.invite)
+    assert (
+        invites_service.link_invite(conn, issued.token, now=NOW + INVITE_LIFETIME)[0] == "expired"
+    )
+    assert invites_service.link_invite(conn, "unknown", now=NOW) == ("invalid", None)
+
+
+def test_accept_with_confirm_checks_length_and_match_and_writes_nothing(
+    conn: sqlite3.Connection,
+) -> None:
+    issued = _issue(conn, FakeTokenSource())
+    good = "twelve-chars"
+
+    with pytest.raises(UserInputError) as short:
+        accept_invite(
+            conn,
+            issued.token,
+            name="n",
+            password=SHORT_VALUE,
+            password_confirm=SHORT_VALUE,
+            hasher=FAKE_HASHER,
+            now=NOW,
+        )
+    assert short.value.fields == {"password": MSG_TOO_SHORT}
+    with pytest.raises(UserInputError) as mismatch:
+        accept_invite(
+            conn,
+            issued.token,
+            name="n",
+            password=good,
+            password_confirm=good + "x",
+            hasher=FAKE_HASHER,
+            now=NOW,
+        )
+    assert mismatch.value.fields == {"password_confirm": MSG_CONFIRM_MISMATCH}
+    assert link_state(conn, issued.token, now=NOW) == "pending"
+    assert conn.execute("SELECT count(*) FROM users").fetchone()[0] == 1
+
+    user = accept_invite(
+        conn,
+        issued.token,
+        name="n",
+        password=good,
+        password_confirm=good,
+        hasher=FAKE_HASHER,
+        now=NOW,
+    )
+    assert user.email == "new@example.test"

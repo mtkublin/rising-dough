@@ -1,0 +1,94 @@
+{#
+  pages/auth/invite.html: accept an invite (AU08) and its states (AU09: expired, used, invalid) (T-UR20a, ADR-0134 section 1).
+  Handoff: pages/auth/invite.html, invite--expired.html, invite--used.html, invite--invalid.html.
+  Context: token, pending (form or state page), email (read-only), invited_by, name, errors (field -> message), alert.
+#}
+{% extends "layouts/auth.html" %}
+{% block title %}Accept invite · Rising Dough{% endblock %}
+{% block bake %}
+  <a class="rd-auth__brand" href="/auth/login">Rising Dough</a>
+  <p class="rd-auth__headline rd-auth__headline--wide">
+    Your money, <i>proofed</i> and rising.
+  </p>
+  <span class="rd-auth__spacer"></span>
+{% endblock %}
+{% block form %}
+  {% if pending %}
+    {% if invited_by %}
+      <p class="rd-caption rd-caption--upper" id="invite-caption">invited by {{ invited_by }}</p>
+    {% endif %}
+    <h1 class="rd-auth__title">Create your account</h1>
+    {% if alert %}<div class="rd-alert" role="alert" id="form-alert">▲ {{ alert }}</div>{% endif %}
+    <form class="rd-form" method="post" action="/invite/{{ token }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <div class="rd-field rd-field--readonly">
+        <label class="rd-field__label" for="inv-email">email</label>
+        <span class="rd-input">
+          <input class="rd-input__control"
+                 id="inv-email"
+                 name="email"
+                 type="email"
+                 value="{{ email }}"
+                 autocomplete="username"
+                 readonly>
+        </span>
+      </div>
+      <div class="rd-field">
+        <label class="rd-field__label" for="inv-name">name</label>
+        <span class="rd-input">
+          <input class="rd-input__control"
+                 id="inv-name"
+                 name="name"
+                 type="text"
+                 value="{{ name }}"
+                 placeholder="Your name"
+                 autocomplete="name"
+                 {% if errors.get('name') %}aria-describedby="inv-name-error" aria-invalid="true"{% endif %}
+                 required>
+        </span>
+        {% if errors.get("name") %}
+          <p class="rd-field__error" id="inv-name-error">▲ {{ errors.get("name") }}</p>
+        {% endif %}
+      </div>
+      <div class="rd-field">
+        <label class="rd-field__label" for="inv-password">password</label>
+        <span class="rd-input">
+          <input class="rd-input__control"
+                 id="inv-password"
+                 name="password"
+                 type="password"
+                 autocomplete="new-password"
+                 minlength="12"
+                 aria-describedby="{% if errors.get('password') %}inv-password-error{% else %}inv-password-hint{% endif %}"
+                 {% if errors.get('password') %}aria-invalid="true"{% endif %}
+                 required>
+        </span>
+        {% if errors.get("password") %}
+          <p class="rd-field__error" id="inv-password-error">▲ {{ errors.get("password") }}</p>
+        {% else %}
+          <p class="rd-field__hint" id="inv-password-hint">12+ characters</p>
+        {% endif %}
+      </div>
+      <div class="rd-field">
+        <label class="rd-field__label" for="inv-confirm">confirm password</label>
+        <span class="rd-input">
+          <input class="rd-input__control"
+                 id="inv-confirm"
+                 name="password_confirm"
+                 type="password"
+                 autocomplete="new-password"
+                 {% if errors.get('password_confirm') %}aria-describedby="inv-confirm-error" aria-invalid="true"{% endif %}
+                 required>
+        </span>
+        {% if errors.get("password_confirm") %}
+          <p class="rd-field__error" id="inv-confirm-error">▲ {{ errors.get("password_confirm") }}</p>
+        {% endif %}
+      </div>
+      <button type="submit" class="rd-btn rd-btn--primary rd-btn--block">[ create account ]</button>
+    </form>
+  {% else %}
+    <h1 class="rd-auth__title">Create your account</h1>
+    <div class="rd-alert" role="alert" id="form-alert">▲ {{ alert }}</div>
+    <a class="rd-auth__link rd-auth__link--ink" href="/auth/login">back to sign in</a>
+  {% endif %}
+{% endblock %}

@@ -19,5 +19,5 @@ def length_error(value: str, *, maximum: int) -> str | None:
 def name_error(name: str) -> str | None:
     """Form error for a required, length-bounded display name (or None)."""
     if not name.strip():
-        return "name required"
+        return "Name is required"
     return length_error(name, maximum=NAME_MAX_LENGTH)

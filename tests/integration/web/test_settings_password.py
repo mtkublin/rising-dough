@@ -52,7 +52,7 @@ def test_get_renders_form(client: TestClient) -> None:
     r = client.get("/settings/security")
     assert r.status_code == 200
     html = r.text
-    assert "Change password" in html
+    assert _html.exists(html, ui.change_password_button)
     for name in ("current_password", "new_password", "confirm_password"):
         assert f'name="{name}"' in html
     assert 'autocomplete="new-password"' in html
@@ -61,8 +61,9 @@ def test_get_renders_form(client: TestClient) -> None:
 
 def test_get_forced_shows_banner(forced: TestClient) -> None:
     html = forced.get("/settings/password").text
-    assert "Your password needs rotating" in html
-    assert "Sign out instead" in html
+    assert _html.exists(html, ui.forced_banner)
+    assert _html.exists(html, ui.sign_out_instead)
+    assert _html.exists(html, ui.save_and_continue)
 
 
 def test_get_htmx_returns_fragment(forced: TestClient) -> None:
@@ -158,7 +159,9 @@ def test_post_wrong_current_audits_and_keeps_state(
         headers={"User-Agent": "audit-ua"},
     )
     assert r.status_code == 422
-    assert "current password" in _html.text_of(r.text, ui.password_error("current_password"))
+    assert "Current password is wrong" in _html.text_of(
+        r.text, ui.password_error("current_password")
+    )
     assert _html.resolve_one(r.text, ui.current_password)["aria-invalid"] == "true"
     assert "definitely-wrong" not in _html.text_of(r.text, ui.password_form)
     row = _user(conn)
@@ -199,7 +202,7 @@ def test_post_error_htmx_returns_fragment(client: TestClient) -> None:
     r = client.post("/settings/password", data=_form(new="short"), headers={"HX-Request": "true"})
     assert r.status_code == 422
     assert r.text.lstrip().startswith("<form")
-    assert _html.exists(r.text, ui.password_summary)
+    assert _html.exists(r.text, ui.password_error("new_password"))
 
 
 def test_post_requires_csrf(anon_client: TestClient, session_cookie: tuple[str, str]) -> None:
@@ -250,7 +253,9 @@ def test_forced_post_elsewhere_is_blocked(forced: TestClient) -> None:
     assert r.headers["location"].startswith("/settings/password")
 
 
-@pytest.mark.parametrize("path", ["/health", "/healthz", "/static/auth.css", "/settings/password"])
+@pytest.mark.parametrize(
+    "path", ["/health", "/healthz", "/static/rd/css/pages/auth.css", "/settings/password"]
+)
 def test_forced_exempt_paths(forced: TestClient, path: str) -> None:
     r = forced.get(path, follow_redirects=False)
     assert r.status_code != 302
@@ -274,3 +279,28 @@ def test_unflagged_user_is_not_redirected(client: TestClient) -> None:
 def test_anonymous_not_affected_by_rotation_gate(anon_client: TestClient) -> None:
     r = anon_client.get("/accounts", follow_redirects=False)
     assert r.headers["location"].startswith("/auth/login")
+
+
+def test_wrong_current_password_prints_the_inline_error_only(
+    client: TestClient, conn: sqlite3.Connection
+) -> None:
+    before = _user(conn)["password_hash"]
+    r = client.post("/settings/password", data=_form(current="definitely-wrong"))
+    assert r.status_code == 422
+    assert not _html.exists(r.text, ui.password_summary)  # the handoff has no summary box
+    assert (
+        _html.text_of(r.text, ui.password_error("current_password")).strip()
+        == "\u25b2 Current password is wrong"
+    )
+    assert _user(conn)["password_hash"] == before
+
+
+def test_policy_errors_print_one_inline_error_per_field(client: TestClient) -> None:
+    r = client.post(
+        "/settings/password", data=_form(new="short", confirm="something-else-entirely")
+    )
+    assert r.status_code == 422
+    assert not _html.exists(r.text, ui.password_summary)
+    assert _html.exists(r.text, ui.password_error("new_password"))
+    assert _html.exists(r.text, ui.password_error("confirm_password"))
+    assert "attempts" not in _html.text_of(r.text, ui.password_error("new_password"))

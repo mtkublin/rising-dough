@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.domain.money import MAX_MINOR, parse_amount_minor
 from budget_planner.web.params import parse_int, parse_year_month
-from tests.ui_map import _html, errors
+from tests.ui_map import _html
 
 BAD_GETS = [
     "/budget?year=abc",
@@ -23,7 +23,6 @@ BAD_GETS = [
     "/budget/yearly?year=abc",
     "/plan?year=99999",
     "/plan?year=abc",
-    "/forecast?horizon_months=abc",
     "/ledger?account_id=99999999999999999999999",
     "/ledger?date_from=2026-02-30",
     "/today/afford?amount=nan",
@@ -43,6 +42,7 @@ def test_bad_query_is_422_with_message(client: TestClient, url: str) -> None:
 @pytest.mark.parametrize(
     "url",
     [
+        "/forecast?horizon_months=abc",
         "/forecast?horizon_months=100000",
         "/ledger?page_size=1000000",
         "/ledger?page=-1",
@@ -62,7 +62,9 @@ def test_reconcile_rejects_bad_amount(client: TestClient, raw: str) -> None:
 def test_create_account_rejects_bad_opening_balance(client: TestClient, raw: str) -> None:
     resp = client.post("/accounts", data={"name": "x", "currency": "PLN", "opening_balance": raw})
     assert resp.status_code == 422
-    assert "invalid number" in _html.all_text(resp.text, errors.alert)
+    assert _html.error_lines(resp.text) == {
+        "field-opening_balance-error": "▲ invalid number",
+    }
 
 
 @pytest.mark.parametrize("raw", ["NaN", "1e400", "99999999999999999999"])

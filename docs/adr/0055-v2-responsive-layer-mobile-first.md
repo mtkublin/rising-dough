@@ -1,6 +1,6 @@
 # ADR-0055: v2 Rising Dough — Responsive Layer and Mobile Shell
 
-- **Status**: Proposed
+- **Status**: Superseded by ADR-0107 (2026-11-25, T-UR15: the old responsive layer is deleted)
 - **Date**: 2026-10-28
 - **Related**: ADR-0023 (prior IA; "no mobile adaptive nav" in v1), ADR-0051 (new IA)
 - **Supersedes**: ADR-0023 §Design direction "no mobile adaptive nav" — v2 ships a mobile layer.

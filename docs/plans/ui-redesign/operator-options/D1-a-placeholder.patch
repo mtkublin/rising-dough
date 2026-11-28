@@ -1,0 +1,34 @@
+diff --git a/tests/visual/overlay.py b/tests/visual/overlay.py
+--- a/tests/visual/overlay.py
++++ b/tests/visual/overlay.py
+@@ -57,6 +57,7 @@
+         "title",
+         "value",
+         "datetime",
++        "placeholder",
+         "aria-keyshortcuts",
+         "data-digits",
+         "data-marks",
+diff --git a/tests/visual/handoff_overlay.toml b/tests/visual/handoff_overlay.toml
+--- a/tests/visual/handoff_overlay.toml
++++ b/tests/visual/handoff_overlay.toml
+@@ -58,8 +58,17 @@
+ reason = "value-inventory 5 row 7: 12,521.63 of 14,977.37 is 84% available, not 80%"
+ 
+ # --- row 12 / ADR-0151: Reconciliation is system-only, so N = 25 - 1 = 24.
+-# The search input placeholder carries the same count but `placeholder` is not
+-# an allowed overlay attribute (ADR-0147 section 4); see the item report.
++# The search input placeholder carries the same count (`placeholder` is an allowed overlay
++# attribute, operator decision Q3, 2026-11-25).
++
++[[row]]
++page = "pages/overlays/*.html"
++select = "input.rd-catpick__input"
++field = "placeholder"
++old = "search all 21 categories"
++value = "search all 24 categories"
++optional = true  # only the overlays with a category picker
++reason = "value-inventory 5 row 12, ADR-0151: the same count as the button above (24 searchable categories)"
+ 
+ [[row]]
+ page = "pages/overlays/*.html"

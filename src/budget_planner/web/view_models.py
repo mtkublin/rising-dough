@@ -10,22 +10,24 @@ this module does no I/O and reads no clock (``today`` comes in as an argument).
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from types import MappingProxyType
-from typing import Final, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_money, percent_of
+from budget_planner.domain.money import format_figure, format_money, percent_of, round_div
 from budget_planner.services import (
-    analytics as analytics_service,
     budget as budget_service,
     ledger_totals,
     today as today_service,
 )
-from budget_planner.web.today_data import UpcomingRow
+from budget_planner.services.categories import CategoryUsage
+
+if TYPE_CHECKING:
+    from budget_planner.web.today_data import UpcomingRow
 
 MONTH_SHORT: Final[tuple[str, ...]] = (
     "Jan",
@@ -57,7 +59,7 @@ MONTH_LONG: Final[tuple[str, ...]] = (
 )
 
 _MAX_PCT: Final = 100
-_UPCOMING_CAP: Final = 6
+UPCOMING_CAP: Final = 6
 ROW_BAR_CELLS: Final = 10
 """Block cells in a table-row bar (handoff README: 10 in rows and on phone)."""
 HERO_BAR_CELLS: Final = 20
@@ -65,9 +67,6 @@ HERO_BAR_CELLS: Final = 20
 _SIGN_MARKS: Final = ("-", "\u2212")
 _GROUP_MARKS: Final = (",", ".")
 _NEXT_WEEK_DAYS: Final = 7
-_YEAR_TIERS: Final[Mapping[str, str]] = MappingProxyType(
-    {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"}
-)
 
 DeltaKind = Literal["up", "down", "flat"]
 
@@ -106,6 +105,100 @@ def bar_cells(
     return BarCells(filled=filled, empty=cells - filled, left_pct=_MAX_PCT - used)
 
 
+def bar_cells_exact(
+    part_minor: int, total_minor: int, cells: int, *, is_over: bool = False, min_one: bool = False
+) -> BarCells:
+    """Like ``bar_cells`` but rounds the exact share, not the floored percent.
+
+    The handoff hero bar fills ``round(share * cells)`` cells (77.76 % of 20 -> 16, where the
+    floored 77 % gives 15). ``left_pct`` stays ``100 - floored used_pct`` (the bar's label).
+    """
+    floored = clamped_percent(part_minor, total_minor)
+    if is_over or total_minor <= 0:
+        return bar_cells(floored, cells, is_over=is_over, min_one=min_one)
+    share = max(0, min(part_minor, total_minor))
+    filled = round_div(share * cells, total_minor)
+    if min_one and share > 0:
+        filled = max(filled, 1)
+    return BarCells(filled=filled, empty=cells - filled, left_pct=_MAX_PCT - floored)
+
+
+@dataclass(frozen=True, slots=True)
+class BarSpans:
+    """Block-character bar for the template: modifier class, two text runs, label."""
+
+    modifier: str
+    filled: str
+    remainder: str
+    remainder_class: str
+    left_pct: int
+    label: str
+
+
+BAR_FILLED: Final = "\u2588"
+BAR_LEFT: Final = "\u2591"
+BAR_REST: Final = "\u2592"
+
+
+_DIRECTION_LABELS: Final[Mapping[Direction, str]] = MappingProxyType(
+    {
+        Direction.EXPENSE: "\u2193 expense",
+        Direction.INCOME: "\u2191 income",
+        Direction.TRANSIT: "\u21c4 transit",
+        Direction.ADJUSTMENT: "\u00b1 adjustment",
+    }
+)
+
+
+def direction_label(direction: Direction | str) -> str:
+    """Handoff wording for a category direction, arrow included: ``↓ expense``."""
+    return _DIRECTION_LABELS[Direction(direction)]
+
+
+def bar_aria_label(used_pct: int, left_pct: int) -> str:
+    """Handoff wording for a ``role="img"`` bar: ``78 percent spent, 15 percent left``."""
+    return f"{used_pct} percent spent, {left_pct} percent left"
+
+
+def bar_spans(
+    used_pct: int,
+    cells: int,
+    *,
+    is_over: bool = False,
+    has_budget: bool = True,
+    min_one: bool = False,
+    share: bool = False,
+) -> BarSpans:
+    """Block characters for a budget bar (``share=False``) or a share bar (``share=True``).
+
+    Built on ``bar_cells``. Filled cells are full blocks; the remainder is the light
+    shade (``.rd-bar__left``) for budget bars and the medium shade (``.rd-bar__rest``)
+    for share bars. ``is_over`` -> ``rd-bar--over`` (all filled); ``has_budget=False``
+    -> ``rd-bar--none`` (all remainder, label ``no budget``).
+    """
+    remainder_class = "rd-bar__rest" if share else "rd-bar__left"
+    remainder_char = BAR_REST if share else BAR_LEFT
+    if not has_budget:
+        return BarSpans(
+            modifier="rd-bar--none",
+            filled="",
+            remainder=remainder_char * cells,
+            remainder_class=remainder_class,
+            left_pct=0,
+            label="no budget",
+        )
+    parts = bar_cells(used_pct, cells, is_over=is_over, min_one=min_one)
+    used = used_pct if is_over else _MAX_PCT - parts.left_pct
+    return BarSpans(
+        modifier="rd-bar--over" if is_over else "",
+        filled=BAR_FILLED * parts.filled,
+        remainder=remainder_char * parts.empty,
+        remainder_class=remainder_class,
+        left_pct=parts.left_pct,
+        label=bar_aria_label(used, parts.left_pct),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class HeroFit:
     """Counts for the hero figure's ``data-digits`` / ``data-marks`` / ``data-signs``."""
@@ -141,25 +234,6 @@ def month_name(month: int) -> str:
     return MONTH_LONG[month - 1]
 
 
-def period_label(year: int, month: int) -> str:
-    """``YYYY-MM`` label for a budget month."""
-    return f"{year}-{month:02d}"
-
-
-@dataclass(frozen=True, slots=True)
-class MonthOption:
-    """One ``<option>`` of the month selector."""
-
-    number: int
-    label: str
-    is_selected: bool
-
-
-def month_options(selected: int) -> tuple[MonthOption, ...]:
-    """The twelve month options with ``selected`` flagged."""
-    return tuple(MonthOption(n, f"{n:02d}", n == selected) for n in range(1, 13))
-
-
 @dataclass(frozen=True, slots=True)
 class BudgetLineView:
     """One category row: service line plus the values the table prints."""
@@ -172,6 +246,11 @@ class BudgetLineView:
     cells: BarCells
     is_over: bool
     delta_kind: DeltaKind
+    has_budget: bool
+    over_minor: int
+    bar: BarSpans
+    edit_url: str = ""
+    """Link of the row's "edit budget" dialog, opened on the row's current tier."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,6 +259,10 @@ class BudgetView:
 
     summary: budget_service.MonthSummary
     lines: tuple[BudgetLineView, ...]
+    """Categories with a budget: the table rows."""
+    unbudgeted_lines: tuple[BudgetLineView, ...]
+    """Every other live expense category: the rows of the collapsed list (R14)."""
+    unbudgeted_heading: str
     left_per_day_minor: int
     spent_pct: int
     committed_pct: int
@@ -191,6 +274,9 @@ class BudgetView:
     period_end: date
     period_day: int
     period_total_days: int
+    left_text: str = ""
+    no_budgets: bool = False
+    """True while no listed category has a budget (the tab then prints the "set budget" hint)."""
 
 
 def _delta_kind(delta_minor: int) -> DeltaKind:
@@ -201,7 +287,13 @@ def _delta_kind(delta_minor: int) -> DeltaKind:
     return "flat"
 
 
-def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
+def _row_bar(used_pct: int, *, is_over: bool, has_budget: bool) -> BarSpans:
+    """Table-row bar; an over-budget row is announced as ``over budget`` (handoff)."""
+    spans = bar_spans(used_pct, ROW_BAR_CELLS, is_over=is_over, has_budget=has_budget)
+    return replace(spans, label="over budget") if is_over and has_budget else spans
+
+
+def _line_view(line: budget_service.CategoryBudgetLine, edit_url: str = "") -> BudgetLineView:
     budgeted = line.budgeted_minor or 0
     used_pct = clamped_percent(line.spent_minor, budgeted)
     is_over = line.spent_minor > budgeted
@@ -215,23 +307,45 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
         cells=cells,
         is_over=is_over,
         delta_kind=_delta_kind(line.delta_vs_prev_month_minor),
+        has_budget=line.budgeted_minor is not None,
+        over_minor=max(0, line.spent_minor - budgeted),
+        bar=_row_bar(used_pct, is_over=is_over, has_budget=line.budgeted_minor is not None),
+        edit_url=edit_url,
     )
 
 
-def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView:
-    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker)."""
+def budget_view(
+    summary: budget_service.MonthSummary,
+    today: date,
+    base_currency: str | None = None,
+    edit_urls: Mapping[int, str] | None = None,
+) -> BudgetView:
+    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker).
+
+    With ``base_currency`` the hero text ``left_text`` is the signed remaining figure
+    (U+2212 when over). ``edit_urls`` maps a category id to its row's edit-budget dialog link.
+    """
     totals = summary.totals
-    lines = tuple(_line_view(line) for line in summary.lines)
+    urls = edit_urls or {}
+    every = tuple(_line_view(line, urls.get(line.category_id, "")) for line in summary.lines)
+    lines = tuple(line for line in every if line.has_budget)
+    unbudgeted = tuple(line for line in every if not line.has_budget)
+    noun = "category" if len(unbudgeted) == 1 else "categories"
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
     is_over = totals.budgeted_minor > 0 and totals.spent_minor > totals.budgeted_minor
-    cells = bar_cells(spent_pct, HERO_BAR_CELLS, is_over=is_over, min_one=True)
+    cells = bar_cells_exact(
+        totals.spent_minor, totals.budgeted_minor, HERO_BAR_CELLS, is_over=is_over, min_one=True
+    )
     return BudgetView(
         summary=summary,
         lines=lines,
+        unbudgeted_lines=unbudgeted,
+        unbudgeted_heading=f"{len(unbudgeted)} {noun} without a budget",
         left_per_day_minor=left_per_day(summary),
         spent_pct=spent_pct,
         committed_pct=clamped_percent(totals.committed_minor, totals.budgeted_minor),
         is_over=is_over,
+        # Budgeted rows only; unbudgeted spend shows only in the collapsed list (T-UR70).
         over_count=sum(1 for line in lines if line.is_over),
         left_pct=cells.left_pct,
         cells=cells,
@@ -239,6 +353,112 @@ def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView
         period_end=summary.next_income_date,
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
+        left_text=(format_figure(totals.remaining_minor, base_currency) if base_currency else ""),
+        no_budgets=not lines,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class PickerCell:
+    """One link of the period picker: month or year."""
+
+    label: str
+    url: str
+    current: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodPicker:
+    """Inputs of ``popovers/period-picker`` (month kind)."""
+
+    id: str
+    is_year: bool
+    year: int
+    prev_year_url: str
+    next_year_url: str
+    cells: tuple[PickerCell, ...]
+    note: str
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetPeriod:
+    """Inputs of ``plan/period-nav`` for the budget tab."""
+
+    label: str
+    prev_url: str
+    next_url: str
+    picker: PeriodPicker
+
+
+def day_month(day: date) -> str:
+    """``7 oct``: the handoff's lower-case day and short month."""
+    return f"{day.day} {MONTH_SHORT[day.month - 1].lower()}"
+
+
+def period_note(month: int, start: date, end: date) -> str:
+    """Picker note ``oct = 7 oct -> 7 nov``: the month's income-to-income range."""
+    return f"{MONTH_SHORT[month - 1].lower()} = {day_month(start)} \u2192 {day_month(end)}"
+
+
+def month_period(
+    picked: budget_service.PickerMonth,
+    *,
+    picker_id: str,
+    note: str,
+    base_url: str,
+    view_year: int | None = None,
+) -> BudgetPeriod:
+    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string.
+
+    ``view_year`` is the year the picker grid shows (F4.6b); the year arrows only change it, the
+    page period stays ``picked``.
+    """
+
+    def url(year: int, month: int) -> str:
+        return f"{base_url}&year={year}&month={month}"
+
+    shown = picked.year if view_year is None else view_year
+
+    def year_url(year: int) -> str:
+        return f"{url(picked.year, picked.month)}&pick_year={year}"
+
+    picker = PeriodPicker(
+        id=picker_id,
+        is_year=False,
+        year=shown,
+        prev_year_url=year_url(shown - 1),
+        next_year_url=year_url(shown + 1),
+        cells=tuple(
+            PickerCell(
+                MONTH_SHORT[n - 1],
+                url(shown, n),
+                (shown, n) == (picked.year, picked.month),
+            )
+            for n in range(1, 13)
+        ),
+        note=note if shown == picked.year else "",
+    )
+    return BudgetPeriod(
+        label=f"{month_name(picked.month)} {picked.year}",
+        prev_url=url(picked.prev_year, picked.prev_month),
+        next_url=url(picked.next_year, picked.next_month),
+        picker=picker,
+    )
+
+
+def budget_period(
+    picked: budget_service.PickerMonth,
+    summary: budget_service.MonthSummary,
+    base_url: str,
+    view_year: int | None = None,
+) -> BudgetPeriod:
+    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
+    return month_period(
+        picked,
+        picker_id="period-budget",
+        note=period_note(picked.month, summary.period_start, summary.next_income_date),
+        base_url=base_url,
+        view_year=view_year,
     )
 
 
@@ -275,7 +495,7 @@ class UpcomingView:
     later_count: int
 
 
-def _upcoming_item(
+def upcoming_item(
     row: UpcomingRow,
     today: date,
     categories_by_id: Mapping[int, Category],
@@ -310,8 +530,8 @@ def upcoming_view(
     """Group, cap and annotate Today's upcoming rows."""
     next_7: list[UpcomingItem] = []
     later: list[UpcomingItem] = []
-    for row in upcoming[:_UPCOMING_CAP]:
-        item = _upcoming_item(row, today, categories_by_id, accounts_by_id)
+    for row in upcoming[:UPCOMING_CAP]:
+        item = upcoming_item(row, today, categories_by_id, accounts_by_id)
         near = (row.operation_date - today).days <= _NEXT_WEEK_DAYS
         (next_7 if near else later).append(item)
     shown = (*next_7, *later)
@@ -319,8 +539,8 @@ def upcoming_view(
         next_7=tuple(next_7),
         later=tuple(later),
         total_count=len(upcoming),
-        cap=_UPCOMING_CAP,
-        has_more=len(upcoming) > _UPCOMING_CAP,
+        cap=UPCOMING_CAP,
+        has_more=len(upcoming) > UPCOMING_CAP,
         overdue_count=sum(1 for item in shown if item.is_overdue),
         due_today_count=sum(1 for item in shown if item.is_due_today),
         next_7_count=len(next_7),
@@ -373,130 +593,12 @@ def plan_header(tab: str, year: int, month: int, year_selected: int | None = Non
     )
 
 
-# --- Plan year tab -----------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class YearCellView:
-    """One month cell of a year row."""
-
-    month: int
-    month_label: str
-    month_initial: str
-    amount_minor: int
-    tier: str
-
-
-@dataclass(frozen=True, slots=True)
-class YearRowView:
-    """One category row of the year heatmap."""
-
-    category_id: int
-    category_name: str
-    category_direction: Direction
-    category_color: str | None
-    total_minor: int
-    cells: tuple[YearCellView, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class YearView:
-    """Year tab rows split into budgeted and unset, plus labels."""
-
-    month_labels: tuple[str, ...]
-    with_rows: tuple[YearRowView, ...]
-    unset_rows: tuple[YearRowView, ...]
-    unset_heading: str
-
-
-def _year_row(row: budget_service.YearlyRow) -> YearRowView:
-    return YearRowView(
-        category_id=row.category_id,
-        category_name=row.category_name,
-        category_direction=row.category_direction,
-        category_color=row.category_color,
-        total_minor=row.total_minor,
-        cells=tuple(
-            YearCellView(
-                month=i,
-                month_label=MONTH_SHORT[i - 1],
-                month_initial=MONTH_SHORT[i - 1][0],
-                amount_minor=cell.amount_minor or 0,
-                tier=_YEAR_TIERS.get(cell.origin, "default"),
-            )
-            for i, cell in enumerate(row.cells, start=1)
-        ),
-    )
-
-
-def year_view(rows: tuple[budget_service.YearlyRow, ...]) -> YearView:
-    """Split the yearly grid into rows with a budget and rows without."""
-    with_rows = tuple(_year_row(r) for r in rows if r.total_minor)
-    unset_rows = tuple(_year_row(r) for r in rows if not r.total_minor)
-    noun = "category" if len(unset_rows) == 1 else "categories"
-    return YearView(
-        month_labels=MONTH_SHORT,
-        with_rows=with_rows,
-        unset_rows=unset_rows,
-        unset_heading=f"Show {len(unset_rows)} {noun} without a budget",
-    )
-
-
-# --- Analytics spend rows ----------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class SpendRowView:
-    """One spend-by-category row with its bar width and 12-month delta."""
-
-    category_id: int
-    category_name: str
-    amount_minor: int
-    bar_pct: int
-    has_average: bool
-    delta_minor: int
-    delta_kind: Literal["over", "under", "flat"]
-
-
-def spend_rows(
-    bundle: analytics_service.AnalyticsBundle, averages: Mapping[int, int]
-) -> tuple[SpendRowView, ...]:
-    """Spend rows scaled against the largest row, with deltas vs the 12-month average."""
-    rows = bundle.spend_by_category
-    top = rows[0].amount_minor if rows else 1
-    out: list[SpendRowView] = []
-    for row in rows:
-        avg = averages.get(row.category_id, 0)
-        delta = row.amount_minor - avg
-        kind: Literal["over", "under", "flat"] = (
-            "over" if delta > 0 else "under" if delta < 0 else "flat"
-        )
-        out.append(
-            SpendRowView(
-                category_id=row.category_id,
-                category_name=row.category_name,
-                amount_minor=row.amount_minor,
-                bar_pct=percent_of(row.amount_minor, top),
-                has_average=avg > 0,
-                delta_minor=delta,
-                delta_kind=kind,
-            )
-        )
-    return tuple(out)
-
-
-# --- Override form -----------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class OverridePeriod:
-    """Year/month an override form opens on."""
-
-    year: int
-    month: int
-    label: str
-
-
-def override_period(month: int, year: int) -> OverridePeriod:
-    """The override form's month/year with its short month label."""
-    return OverridePeriod(year, month, MONTH_SHORT[month - 1])
+def category_usage_text(usage: CategoryUsage) -> str | None:
+    """Usage line "41 entries · 2 planned · 1 rule"; zero parts omitted, None when all zero."""
+    entries, planned, rules = usage.entry_count, usage.planned_count, usage.rule_count
+    parts = [
+        f"{entries} {'entry' if entries == 1 else 'entries'}" if entries else "",
+        f"{planned} planned" if planned else "",
+        f"{rules} {'rule' if rules == 1 else 'rules'}" if rules else "",
+    ]
+    return " · ".join(p for p in parts if p) or None

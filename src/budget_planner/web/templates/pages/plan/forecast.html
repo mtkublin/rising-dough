@@ -1,0 +1,83 @@
+{# Plan · forecast (T-UR12, ADR-0107). Handoff: pages/plan/forecast.html.
+   Context: forecast (view_models.ForecastPageView), tab, base_ccy. Rendered by GET /plan?tab=forecast.
+   The horizon buttons reload #main (hx-select) and push the URL, so the hero, chart and table stay
+   in step with the horizon; the hero refetches the page on forecast-stale (ADR-0143). #}
+{% extends "layouts/base.html" %}
+{% block title %}Plan · forecast · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero"
+           aria-labelledby="hero-label"
+           hx-get="/plan?tab=forecast&amp;horizon={{ forecast.horizon }}"
+           hx-trigger="forecast-stale from:body"
+           hx-target="#main"
+           hx-select="#main"
+           hx-swap="outerHTML">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__label" id="hero-label">{{ forecast.hero_label }}</h1>
+      <p class="rd-hero__figure-row">
+        <span class="rd-hero__figure rd-hero__figure--wide"
+              data-digits="{{ (forecast.hero_balance_minor|hero_fit(base_ccy)).digits }}"
+              data-marks="{{ (forecast.hero_balance_minor|hero_fit(base_ccy)).marks }}"
+              data-signs="{{ (forecast.hero_balance_minor|hero_fit(base_ccy)).signs }}">{{ forecast.hero_text }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
+      </p>
+      {% if forecast.hero_note %}<p class="rd-hero__note">{{ forecast.hero_note }}</p>{% endif %}
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Forecast">
+    <div class="rd-plan-head">
+      {% include "pages/plan/_tabs.html" %}
+      <div class="rd-horizon">
+        <span class="rd-caption" id="horizon-label">HORIZON · MONTHS</span>
+        <div class="rd-segmented"
+             role="group"
+             aria-labelledby="horizon-label"
+             hx-history="false">
+          {% for option in forecast.options %}
+            <button type="button"
+                    class="rd-segmented__option"
+                    aria-pressed="{{ 'true' if option.pressed else 'false' }}"
+                    value="{{ option.months }}"
+                    hx-get="{{ option.url }}"
+                    hx-target="#main"
+                    hx-select="#main"
+                    hx-swap="outerHTML"
+                    hx-push-url="true">{{ option.months }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% with chart=forecast.chart %}
+      {% include "fragments/charts/forecast.html" %}
+    {% endwith %}
+    <section class="rd-fc" aria-labelledby="fc-table-title">
+      <h2 class="rd-fc__title" id="fc-table-title">Projected balance by month</h2>
+      <div class="rd-table-scroll rd-fc__scroll"
+           tabindex="0"
+           role="region"
+           aria-label="Table (scrolls sideways)">
+        <table class="rd-ledger rd-ledger--forecast">
+          <caption class="u-visually-hidden">Projected balance by month</caption>
+          <thead>
+            <tr class="rd-row rd-row--head">
+              <th scope="col">MONTH</th>
+              <th scope="col" class="rd-fc__num">INCOME</th>
+              <th scope="col" class="rd-fc__num">EXPENSES</th>
+              <th scope="col" class="rd-fc__num">PLANNED BUDGET</th>
+              <th scope="col" class="rd-fc__num">NET</th>
+              <th scope="col" class="rd-fc__num">BALANCE (EOM)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in forecast.rows %}
+              {% include "fragments/rows/forecast-month.html" %}
+            {% else %}
+              <tr class="rd-row">
+                <td colspan="6">No projection data available.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+{% endblock %}

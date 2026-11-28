@@ -30,7 +30,7 @@ Always read the relevant ADR before changing an area it covers.
 
 ## Stack
 
-- Python 3.12, FastAPI, Jinja2, HTMX, Tailwind (local build, `just css`), server-rendered SVG charts (no CDN, no Plotly, no SPA framework: ADR-0123).
+- Python 3.12, FastAPI, Jinja2, HTMX, plain `@layer` CSS bundled by `just css` (Python, no Tailwind: ADR-0107 §4), server-rendered SVG charts (no CDN, no Plotly, no SPA framework: ADR-0123).
 - SQLite only in v1 (DuckDB deferred).
 - `uv` for deps, `just` for recipes.
 - Pre-commit: `ruff`, `ruff-format`, `mypy --strict`, `import-linter`, `pytest` (testmon-selected), `sqlfluff`, `djlint`, `stylelint`, `bandit`, `detect-secrets`. CI runs the same hooks (`SKIP=pytest-fast`) plus the full suite (ADR-0130 §8).
@@ -42,7 +42,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Concept | Owner | Status | Interim (target rows) |
 |---|---|---|---|
 | FX conversion and rate lookup | `services/fx.py` `converter_for` -> `FxConverter.to_base` (cache-only, ADR-0139) | exists | - |
-| Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`, `minor_to_major`); one rounding helper (T-Q229) | exists (Q-011, T-Q216) | - |
+| Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `format_figure`, `to_minor_units`, `minor_to_major`); one rounding helper (T-Q229) | exists (Q-011, T-Q216) | - |
 | Periods and month windows | `domain/periods.py` `month_bounds` | exists (Q-003) | - |
 | Recurring occurrence expansion | `services/recurring.pending_occurrences` | exists (Q-002, T-Q207) | - |
 | Direction to sign | `domain/transactions.signed_legs` | exists (Q-036) | - |
@@ -60,8 +60,10 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Due-date status (in N days, due today, overdue) and override delta | `services/ledger_totals.py` `planned_status` (also `override_delta`) | exists (T-UR34c) | - |
 | Segmented bar cells and hero amount fit | `web/view_models.py` `bar_cells`, `hero_fit` | exists (T-UR34k) | - |
 | Session device label from a user agent | `domain/user_agent.py` `device_label` | exists (T-UR34h) | - |
+| Category colour preset and edge contrast | `domain/category_colors.py` `category_color`, `edge_color`, `contrast_ratio` (`data-color` preset name or nonce'd rule, `--cat-edge` 3:1 on `--color-panel`; ADR-0107 §5) | exists (T-UR03) | - |
 | Rate-limit attempts left | `services/rate_limit.py` `attempts_left` | exists (T-UR34i) | - |
 | Form field labels and 422 field summary | `web/field_labels.py` `field_label`, `field_summary` | exists (T-UR34l) | - |
+| Dialog and row HTMX responses (open, saved, removed, 422) | `web/dialogs.py` `dialog_response`, `saved_response`, `removed_response`, `invalid_dialog_response` (headers via `web/htmx.py` `trigger`) | exists (T-UR04b) | - |
 | Account in-use reference counts | `services/accounts.py` `account_references` | exists (T-UR33) | - |
 | Invites (create, resend, revoke, accept, link state) | `services/invites.py` `create_invite`, `resend_invite`, `revoke_invite`, `accept_invite`, `link_state` (7-day `INVITE_LIFETIME`; token stored hashed; ADR-0134 §1, §10) | exists (T-UR30) | - |
 | First-run setup (open predicate, token check, consume) | `services/setup.py` `is_open`, `check_token`, `complete_setup` (hash from `BUDGET_PLANNER_SETUP_TOKEN_HASH`, ADR-0134 §9) | exists (T-UR32) | - |
@@ -141,7 +143,7 @@ Any change that touches templates (`src/budget_planner/web/templates/**`), CSS (
 
 Agents working on frontend tasks must invoke this skill rather than inferring visual correctness from code.
 
-The toolchain the skill validates against (local Tailwind build, `stylelint`, Jinja partials, Playwright visual regression) is defined in [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md).
+The toolchain the skill validates against (`stylelint` on the rd CSS, Jinja partials, Playwright visual regression; the Tailwind parts of ADR-0027 are superseded by ADR-0107 §4) is defined in [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md).
 
 ## Releases & environments (MANDATORY)
 

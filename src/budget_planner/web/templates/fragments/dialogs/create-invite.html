@@ -1,0 +1,47 @@
+{# Settings · invite by email dialog (T-UR20a, ADR-0107, ADR-0134 section 1). Handoff: overlays/invite-user.html (and --error).
+   Context: email, is_admin (submitted values), errors (field -> message), field_count / field_errors (invalid_dialog_response).
+   No email is sent while the invite email switch is off (Q9): the dialog that follows shows the link. Role radios post `role`. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% call dialog(
+  "dlg-create-invite",
+  "invite by email",
+  size="md",
+  action="/settings/users/invites",
+  hx_post="/settings/users/invites",
+  field_count=field_count|default(0),
+  field_errors=field_errors|default(()),
+  actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ send invite ]"}]
+) %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="iu-email">email</label>
+    <span class="rd-input">
+      <input class="rd-input__control"
+             id="iu-email"
+             name="email"
+             type="email"
+             value="{{ email }}"
+             placeholder="name@example.com"
+             autocomplete="off"
+             required
+             {% if "email" in errors %}aria-invalid="true" aria-describedby="iu-email-error"{% endif %}>
+    </span>
+    {% if "email" in errors %}<p class="rd-field__error" id="iu-email-error">▲ {{ errors.email }}</p>{% endif %}
+  </div>
+  <div class="rd-field rd-field--seg"
+       role="radiogroup"
+       aria-labelledby="iu-role-label">
+    <span class="rd-field__label" id="iu-role-label">role</span>
+    <div class="rd-segmented">
+      <label class="rd-segmented__option">
+      <input type="radio"
+             name="role"
+             value="member"
+             {% if not is_admin %}checked{% endif %}>member</label>
+      <label class="rd-segmented__option">
+      <input type="radio"
+             name="role"
+             value="admin"
+             {% if is_admin %}checked{% endif %}>admin</label>
+    </div>
+  </div>
+{% endcall %}

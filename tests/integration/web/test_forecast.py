@@ -9,7 +9,7 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
-from tests.ui_map import _html, plan
+from tests.ui_map import _html, plan_forecast
 
 USER_ID = 1
 
@@ -26,27 +26,16 @@ def seeded(_migrated: Settings) -> int:
         conn.close()
 
 
-def test_index(client: TestClient, seeded: int) -> None:
-    """T-R50 — Plotly replaced by server-rendered SVG (ADR-0054)."""
+def test_forecast_lands_on_the_plan_forecast_tab(client: TestClient, seeded: int) -> None:
+    """T-UR15a: the old page is a redirect; the chart and table are the Plan hub's."""
     r = client.get("/forecast")
     assert r.status_code == 200
-    assert _html.exists(r.text, plan.forecast_chart)
-    assert _html.exists(r.text, plan.forecast_table)
+    assert _html.document_title(r.text) == "Plan · forecast · Rising Dough"
+    assert _html.exists(r.text, plan_forecast.chart)
+    assert _html.text_of(r.text, plan_forecast.horizon_selected) == "12"
 
 
-def test_monthly_table_row_count(client: TestClient, seeded: int) -> None:
-    r = client.get("/forecast/view?horizon_months=5")
-    assert _html.count(r.text, plan.forecast_rows) == 5 + 1  # header row
-
-
-def test_planned_budget_column_present(client: TestClient, seeded: int) -> None:
-    r = client.get("/forecast")
-    assert _html.exists(r.text, plan.forecast_planned_header)
-
-
-def test_forecast_nav_link_present(client: TestClient, seeded: int) -> None:
-    """Rising Dough v2 collapses Forecast under /plan?tab=forecast — the rail
-    exposes 'Plan' and the Forecast page is reachable via the Plan hub."""
-    r = client.get("/forecast")
-    links = _html.resolve(r.text, plan.plan_nav_link)
-    assert any(link.get("href") == "/plan" for link in links)
+def test_forecast_view_redirect_keeps_the_horizon(client: TestClient, seeded: int) -> None:
+    r = client.get("/forecast/view?horizon_months=6")
+    assert len(_html.resolve(r.text, plan_forecast.rows)[1:]) == 6  # minus the header row
+    assert _html.text_of(r.text, plan_forecast.horizon_selected) == "6"

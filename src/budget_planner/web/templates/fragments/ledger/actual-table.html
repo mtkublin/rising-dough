@@ -1,0 +1,79 @@
+{# fragment: ledger/actual-table
+   The Actual view region the filter bar and ledger-stale refetch (GET /ledger/table).
+   Inputs: days (ledger_view.TxnDayView list), links (ledger_view.PageLinks), color_rules (custom hues),
+   summary_text and filters_active (no-matches state), view. States: rows, first run (nothing at all),
+   no matches (filters hide everything). Row ids txn-{id} and #txn-table are contract ids. #}
+<div id="ledger-table"
+     data-ledger-table-root
+     data-view="actual"
+     aria-live="polite"
+     hx-get="/ledger/table"
+     hx-trigger="ledger-stale from:body"
+     hx-swap="outerHTML"
+     hx-include="#ledger-filters"
+     hx-disinherit="hx-include">
+  <div id="txn-table" data-ledger-table data-view="actual">
+    {% if color_rules %}
+      <style nonce="{{ csp_nonce }}">
+          {{ color_rules|safe }}
+      </style>
+    {% endif %}
+    {% if days %}
+      <form id="tx-bulk" method="get" action="/ledger" class="rd-ledger-form">
+        {% include "fragments/ledger/bulk-bar.html" %}
+        <div class="rd-table-scroll"
+             tabindex="0"
+             role="region"
+             aria-label="Transactions (scrolls sideways)">
+          <table class="rd-ledger rd-ledger--actual" data-js="bulk">
+            <caption class="u-visually-hidden">Transactions</caption>
+            <thead>
+              <tr class="rd-row rd-row--head">
+                <th scope="col" class="rd-row__select">
+                  <input type="checkbox"
+                         class="rd-check"
+                         data-js="bulk-all"
+                         aria-label="Select all on this page">
+                </th>
+                <th scope="col">DESCRIPTION · ACCOUNT</th>
+                <th scope="col">CATEGORY</th>
+                <th scope="col" class="rd-row__amount">AMOUNT</th>
+                <th scope="col">
+                  <span class="u-visually-hidden">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            {% for day in days %}
+              <tbody class="rd-ledger__day">
+                {% include "fragments/rows/transaction-day.html" %}
+                {% for row in day.rows %}
+                  {% include "fragments/rows/transaction-row.html" %}
+                {% endfor %}
+              </tbody>
+            {% endfor %}
+          </table>
+        </div>
+      </form>
+      {% with page=links.page, newer_url=links.newer_url, older_url=links.older_url, deleted_url="/ledger/recently-deleted" %}
+        {% include "fragments/ledger/pagination.html" %}
+      {% endwith %}
+    {% else %}
+      {% if no_matches %}
+        {% with summary=summary_text, clear_url="/ledger" %}
+          {% include "fragments/states/no-matches.html" %}
+        {% endwith %}
+      {% else %}
+        {% with new_entry_url="/add?when=happened&dialog=1" %}
+          {% include "fragments/states/ledger-first-run.html" %}
+        {% endwith %}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% if oob|default(none) %}
+  {% include "fragments/ledger/hero.html" %}
+  {% include "fragments/ledger/tabs.html" %}
+{% endif %}
+{% if oob_export|default(none) and export %}
+  {% include "fragments/ledger/export-menu.html" %}
+{% endif %}

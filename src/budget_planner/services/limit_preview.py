@@ -38,11 +38,14 @@ def compute_limit_preview(
     user_id: int,
     *,
     account_id: int,
-    category_id: int,
+    category_id: int | None,
     amount_raw: str,
     exclude_txn_id: int | None = None,
 ) -> LimitPreview | None:
     """Project post-transaction utilization for a liability account.
+
+    ``category_id=None`` (no category picked yet) previews only a zero amount: it moves nothing, so
+    the line shows before = after (the handoff's 422 dialog keeps its line).
 
     ``exclude_txn_id`` (edit mode, ADR-0134 §2): the caller's transaction being edited is left out
     of the "before" balance so its current amount is not counted twice. A foreign or unknown id is
@@ -51,18 +54,19 @@ def compute_limit_preview(
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None or not acc.is_liability or acc.credit_limit_minor is None:
         return None
-    cat = categories_service.find_by_id(conn, user_id, category_id)
-    if cat is None:
+    delta = _delta(
+        conn,
+        user_id,
+        currency=acc.currency,
+        account_id=account_id,
+        category_id=category_id,
+        amount_raw=amount_raw,
+    )
+    if delta is None:
         return None
-    dec = parse_amount_str(amount_raw, acc.currency)
-    if dec is None or dec <= 0:
-        return None
-    amount_minor = to_minor_units(dec, acc.currency)
     current = balance_service.derive_balance(conn, user_id, account_id) - _edited_effect(
         conn, user_id, account_id, exclude_txn_id
     )
-    # Only the source leg matters for this account; a transit's destination is irrelevant here.
-    delta = signed_legs(cat.direction, amount_minor, account_id, account_id)[0].amount_minor
     projected = current + delta
     limit = acc.credit_limit_minor
     used_before = max(-current, 0)
@@ -77,6 +81,29 @@ def compute_limit_preview(
         currency=acc.currency,
         account_name=acc.name,
     )
+
+
+def _delta(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    currency: str,
+    account_id: int,
+    category_id: int | None,
+    amount_raw: str,
+) -> int | None:
+    """Signed effect of the typed amount on the account; ``None`` when there is no preview."""
+    dec = parse_amount_str(amount_raw, currency)
+    if dec is None or dec < 0:
+        return None
+    if category_id is None:
+        return 0 if dec == 0 else None
+    cat = categories_service.find_by_id(conn, user_id, category_id)
+    if cat is None:
+        return None
+    # Only the source leg matters for this account; a transit's destination is irrelevant here.
+    amount_minor = to_minor_units(dec, currency)
+    return signed_legs(cat.direction, amount_minor, account_id, account_id)[0].amount_minor
 
 
 def _edited_effect(

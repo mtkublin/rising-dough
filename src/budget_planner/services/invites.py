@@ -45,6 +45,8 @@ from budget_planner.repositories._shared import transaction
 from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.repositories.invites import Invite
 from budget_planner.services import users as users_service
+from budget_planner.services.password_change import MIN_PASSWORD_LENGTH, MSG_TOO_SHORT
+from budget_planner.services.setup import MSG_CONFIRM_MISMATCH
 
 #: An invite link works for 7 days from create or resend (ADR-0134 section 1).
 INVITE_LIFETIME: Final = timedelta(days=7)
@@ -54,6 +56,7 @@ INVITE_MAIL_SUBJECT: Final = "You are invited to Rising Dough"
 
 logger = logging.getLogger(__name__)
 
+EXISTING_ACCOUNT_MESSAGE: Final = "This person already has an account"
 PENDING_INVITE_MESSAGE: Final = "This email already has a pending invite."
 INVITE_NOT_FOUND_MESSAGE: Final = "Invite not found."
 INVITE_FINAL_MESSAGE: Final = "This invite was already used or revoked. Create a new one."
@@ -175,7 +178,7 @@ def create_invite(
     token = tokens.new_token(INVITE_TOKEN_BYTES)
     with transaction(conn):
         if users_repo.get_by_email_live(conn, draft.email) is not None:
-            raise users_service.UserInputError({"email": users_service.DUPLICATE_EMAIL_MESSAGE})
+            raise users_service.UserInputError({"email": EXISTING_ACCOUNT_MESSAGE})
         if invites_repo.find_pending_for_email(conn, draft.email, now=now) is not None:
             raise users_service.UserInputError({"email": PENDING_INVITE_MESSAGE})
         invite = invites_repo.insert(
@@ -267,6 +270,26 @@ def link_state(conn: sqlite3.Connection, token: str, *, now: datetime) -> Invite
     return INVALID if invite is None else invite_state(invite, now=now)
 
 
+def link_invite(
+    conn: sqlite3.Connection, token: str, *, now: datetime
+) -> tuple[InviteLinkState, Invite | None]:
+    """State and invite of a link token (``None`` for an unknown token), for the landing page."""
+    invite = _invite_for_token(conn, token)
+    if invite is None:
+        return INVALID, None
+    return invite_state(invite, now=now), invite
+
+
+def _check_new_password(password: str, password_confirm: str) -> None:
+    errors: dict[str, str] = {}
+    if len(password) < MIN_PASSWORD_LENGTH:
+        errors["password"] = MSG_TOO_SHORT
+    elif password != password_confirm:
+        errors["password_confirm"] = MSG_CONFIRM_MISMATCH
+    if errors:
+        raise users_service.UserInputError(errors)
+
+
 def accept_invite(
     conn: sqlite3.Connection,
     token: str,
@@ -275,18 +298,23 @@ def accept_invite(
     password: str,
     hasher: PasswordHasher,
     now: datetime,
+    password_confirm: str | None = None,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> AuthUser:
     """Create the user (invite's email and role), mark the invite used; one transaction.
 
     Raises :class:`InviteConflictError` unless the link is ``pending``; user input
     errors propagate as :class:`~budget_planner.services.users.UserInputError`
-    and roll everything back.
+    and roll everything back. With ``password_confirm`` (the landing page) the
+    password needs 12 characters and must match it, keyed ``password`` /
+    ``password_confirm``.
     """
     with transaction(conn):
         invite = _invite_for_token(conn, token)
         if invite is None or invite_state(invite, now=now) != PENDING:
             raise InviteConflictError(INVITE_LINK_UNUSABLE_MESSAGE)
+        if password_confirm is not None:
+            _check_new_password(password, password_confirm)
         draft = users_service.build_draft(email=invite.email, name=name, is_admin=invite.is_admin)
         user = users_service.create_invited_user(
             conn, draft, password=password, hasher=hasher, request_ctx=request_ctx

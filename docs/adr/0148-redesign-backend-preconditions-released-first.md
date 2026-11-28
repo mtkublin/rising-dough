@@ -52,3 +52,7 @@ Behaviour that changes in the precondition release (user edit guards, account de
 - **Everything in the redesign release** (ADR-0134 as written). Rejected by the operator: one large release mixing schema, behaviour and the whole frontend.
 - **Backend items on `ui/sourdough`, released with the frontend.** Same release risk; only separates review.
 - **Also build old-chrome pages for invites and setup now.** Rejected: throwaway templates in a frontend that is about to be deleted, and new files under old-frontend paths (T-UR00 ledger).
+
+## Amendments
+
+- 2026-11-23: [ADR-0151](0151-designer-follow-up-answers-2026-11-23.md) §3: the designer follow-up answers arrived after v3.2.0; their four backend deltas land as T-UR36, the first code item on `ui/sourdough`, and ship with the redesign release. The only backend exception to "the migration is frontend work only".

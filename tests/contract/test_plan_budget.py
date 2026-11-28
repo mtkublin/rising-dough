@@ -251,8 +251,8 @@ def test_income_anchor_rejects_invalid_category(
 
 
 @covers("GET /budget/rules/{category_id}/overrides/new")
-def test_override_form_inline_is_a_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
-    r = client.get(f"/budget/rules/{cat_id}/overrides/new?inline=1")
+def test_override_form_is_a_dialog_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?year=2026&month=3")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
     assert _html.count(r.text, plan.override_tier) == 3
@@ -263,10 +263,11 @@ def test_override_form_inline_is_a_fragment_with_cancel(client: TestClient, cat_
 
 
 @covers("GET /budget/rules/{category_id}/overrides/new")
-def test_override_form_slide_over_has_no_cancel(client: TestClient, cat_id: int) -> None:
-    r = client.get(f"/budget/rules/{cat_id}/overrides/new")
+def test_override_form_opens_in_the_modal_root(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?year=2026&month=3")
     assert r.status_code == 200
-    assert not _html.exists(r.text, plan.override_cancel)
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert r.headers["HX-Reswap"] == "innerHTML"
 
 
 @covers("GET /budget/rules/{category_id}/overrides/new")

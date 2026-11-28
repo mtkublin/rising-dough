@@ -247,6 +247,12 @@ MAX_MINOR: Final = 10**15
 """Largest accepted absolute amount in minor units (T-Q233, Q-023); far below SQLite's int64."""
 
 _AMOUNT_RE: Final = re.compile(r"[+-]?\d+(?:\.(\d+))?", re.ASCII)
+_GROUPED_RE: Final = re.compile(r"[+-]?\d{1,3}(?:,\d{3})+\.\d+", re.ASCII)
+# Thousands grouped by a space, no-break space or narrow no-break space ("1 234 567,89").
+_SPACE_GROUPED_RE: Final = re.compile(
+    r"[+-]?\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?", re.ASCII
+)
+_SPACE_SEPARATORS: Final = (" ", "\u00a0", "\u202f")
 
 
 def parse_amount_str(raw: str, currency: str) -> Decimal | None:
@@ -254,12 +260,20 @@ def parse_amount_str(raw: str, currency: str) -> Decimal | None:
 
     The one amount parser (Q-023). Returns ``None`` (the router surfaces a 422) for:
 
-    - anything but ASCII digits with an optional sign and one ``.`` or ``,`` separator
-      (no exponents, ``NaN``/``Infinity``, underscores, non-ASCII digits, hex);
+    - anything but ASCII digits with an optional sign and one ``.`` or ``,`` separator, or
+      thousands grouped by commas before a ``.`` (``2,239.80``), or by spaces, no-break
+      spaces or narrow no-break spaces in groups of three (``2 239.80``, ``1 234 567,89``);
+      no exponents, ``NaN``/``Infinity``, underscores, non-ASCII digits, hex;
     - more fractional digits than the currency supports (``12.345`` for PLN);
     - an absolute value above ``MAX_MINOR`` minor units.
     """
-    normalised = raw.strip().replace(",", ".")
+    text = raw.strip()
+    if _GROUPED_RE.fullmatch(text):  # "2,239.80": commas group thousands when a "." follows
+        text = text.replace(",", "")
+    elif _SPACE_GROUPED_RE.fullmatch(text):  # "2 239.80": spaces group thousands, any decimal
+        for separator in _SPACE_SEPARATORS:
+            text = text.replace(separator, "")
+    normalised = text.replace(",", ".")
     match = _AMOUNT_RE.fullmatch(normalised)
     if match is None:
         return None
@@ -297,6 +311,35 @@ def format_money(amount_minor: int, currency: str) -> str:
     return f"{sign}{whole}{('.' + frac) if frac else ''} {currency.upper()}"
 
 
+_MINUS: Final = "\N{MINUS SIGN}"
+
+
+def ascii_minus(text: str) -> str:
+    """Typed text with the display minus (U+2212) turned back into ``-`` for parsing."""
+    return text.replace(_MINUS, "-")
+
+
+def sign_glyph(negative: bool) -> str:
+    """Display sign of an amount: U+2212 when ``negative``, ``+`` otherwise."""
+    return _MINUS if negative else "+"
+
+
+def format_figure(
+    amount_minor: int, currency: str, *, plus: bool = False, with_currency: bool = False
+) -> str:
+    """Signed display figure: U+2212 for negatives, ``+`` for positives when ``plus``.
+
+    Magnitude comes from ``format_money`` (grouping, exponent); zero carries no sign.
+    The currency suffix is added only with ``with_currency``.
+    """
+    text = format_money(abs(amount_minor), currency)
+    if not with_currency:
+        text = text.rsplit(" ", 1)[0]
+    if amount_minor < 0:
+        return _MINUS + text
+    return "+" + text if plus and amount_minor > 0 else text
+
+
 def bps_to_percent(bps: int) -> Decimal:
     """Basis points as a percent ``Decimal`` (150 -> 1.5); not a currency amount."""
     return Decimal(bps) / _BPS_PER_PERCENT
@@ -306,11 +349,13 @@ _INT_LABEL_EPSILON: Final = 1e-9
 
 
 def format_axis_number(value: float) -> str:
-    """Chart axis label: grouped integer when whole, else two decimals."""
-    rounded = round(value)
-    if abs(value - rounded) < _INT_LABEL_EPSILON:
-        return f"{int(rounded):,}"
-    return f"{value:,.2f}"
+    """Chart axis label: grouped integer when whole, else two decimals; negatives take U+2212."""
+    sign = _MINUS if value < 0 else ""
+    magnitude = abs(value)
+    rounded = round(magnitude)
+    if abs(magnitude - rounded) < _INT_LABEL_EPSILON:
+        return f"{sign}{int(rounded):,}"
+    return f"{sign}{magnitude:,.2f}"
 
 
 def percent_of(part_minor: int, total_minor: int) -> int:
@@ -320,18 +365,17 @@ def percent_of(part_minor: int, total_minor: int) -> int:
     return part_minor * 100 // total_minor
 
 
-def format_major(amount_minor: int, currency: str) -> str:
-    """Bare major-unit decimal at the currency exponent, for edit forms."""
+def format_major(amount_minor: int, currency: str, *, grouped: bool = False) -> str:
+    """Bare major-unit decimal at the currency exponent, for edit forms.
+
+    ``grouped`` separates thousands with commas (``2,239.80``, the handoff dialogs; the amount
+    parser reads it back). A currency without decimals stays bare: ``1,234`` would read as 1.234.
+    """
     decimals = currency_decimals(currency)
-    return f"{minor_to_major(amount_minor, currency):.{decimals}f}"
-
-
-def format_whole(amount_minor: int, currency: str, *, grouped: bool = True) -> str:
-    """Whole major units (ties to even), for dense tables; sign preserved, never ``-0``."""
-    value = Decimal(round_scaled(minor_to_major(amount_minor, currency)))
-    if value == 0:
-        value = Decimal(0)
-    return format(value, ",.0f" if grouped else ".0f")
+    value = minor_to_major(amount_minor, currency)
+    if grouped and decimals > 0:
+        return f"{value:,.{decimals}f}"
+    return f"{value:.{decimals}f}"
 
 
 def format_bps_percent(bps: int) -> str:

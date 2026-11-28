@@ -1,0 +1,23 @@
+{# fragment: fields/formula
+   Inputs: formula_id (unique id prefix), components (list of sign/percent/category_ids; at least
+   one), options (selectable categories), next_amount (formatted text with currency, or none).
+   Renders each component (pct_err / cat_err: the component's own error lines from errors) through fields/formula-component. The server computes the next
+   amount (HTMX); formula.js only adds, removes and re-indexes components. #}
+<div class="rd-formula"
+     data-js="formula"
+     role="group"
+     aria-labelledby="{{ formula_id }}-label">
+  <p class="rd-field__label" id="{{ formula_id }}-label">formula</p>
+  {% for comp in components %}
+    {% with index=loop.index0, number=loop.index, pct_err=(errors|default({}))["components[" ~ loop.index0 ~ "][percent]"]|default(none), cat_err=(errors|default({}))["components[" ~ loop.index0 ~ "][categories]"]|default(none), list_id=formula_id ~ "-" ~ loop.index0 ~ "-list", single=(components|length == 1) %}
+      {% include "fragments/fields/formula-component.html" %}
+    {% endwith %}
+  {% endfor %}
+  <p class="u-visually-hidden rd-formula__live" aria-live="polite"></p>
+  <button type="button"
+          class="rd-btn rd-btn--quiet rd-formula__add"
+          data-js="formula-add">+ add component</button>
+  <output class="rd-formula__result"
+          {% if not next_amount|default(none) %}hidden{% endif %}
+          {% if result_id|default(none) %}id="{{ result_id }}"{% endif %}>{% if next_amount|default(none) %}→ next amount {{ next_amount }}{% endif %}</output>
+</div>

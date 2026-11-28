@@ -1,0 +1,436 @@
+/* Plan: shared head (tabs + period), budget table */
+.rd-plan-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rd-period {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.rd-period__label {
+  padding: 0 var(--space-4);
+}
+
+.rd-tabs--compact .rd-tabs__tab {
+  padding: 0 var(--space-3);
+}
+
+.rd-ledger--budget {
+  --ledger-cols: var(--track-budget-cat) minmax(0, 1fr) var(--track-budget-spent) var(--track-amount-lg) var(--track-budget-actions);
+}
+
+.rd-row--budget,
+.rd-row--total {
+  grid-template-columns: minmax(0, 1fr) auto var(--track-icon);
+  grid-template-areas:
+    "cat status actions"
+    "bar spent spent";
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+/* Narrow phones: the status takes its own line under the chip so a long category name never meets it. */
+@media (width < 26rem) {
+  .rd-row--budget,
+  .rd-row--total {
+    grid-template-areas:
+      "cat cat actions"
+      "status status status"
+      "bar spent spent";
+  }
+}
+
+.rd-budget__cat {
+  grid-area: cat;
+  justify-self: start;
+  min-width: 0;
+}
+
+.rd-budget__bar {
+  grid-area: bar;
+}
+
+.rd-budget__spent {
+  grid-area: spent;
+  justify-self: end;
+  text-align: end !important;
+  font-size: var(--font-size-data);
+}
+
+.rd-budget__status {
+  grid-area: status;
+  justify-self: end;
+  text-align: end !important;
+  font-size: var(--font-size-body);
+}
+
+.rd-budget__status--over {
+  color: var(--color-over);
+}
+
+.rd-budget__status--none {
+  color: var(--color-ink-muted);
+}
+
+.rd-row--total {
+  border-top-color: var(--color-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-row--total:hover {
+  background: none;
+}
+
+.rd-row--total .rd-muted {
+  font-weight: var(--font-weight-regular);
+}
+
+.rd-ledger tfoot {
+  display: block;
+}
+
+@media (width >= 48rem) {
+  .rd-plan-head {
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .rd-tabs--compact .rd-tabs__tab {
+    padding: 0 var(--space-4-5);
+  }
+
+  .rd-ledger--budget {
+    min-width: var(--table-min-budget);
+  }
+
+  .rd-row--budget,
+  .rd-row--total {
+    grid-template-columns: var(--ledger-cols);
+    grid-template-areas: none;
+    gap: var(--space-5);
+    min-height: var(--size-row-md);
+    padding: 0;
+  }
+
+  .rd-budget__spent {
+    font-size: var(--font-size-body);
+  }
+
+  .rd-budget__actions,
+  .rd-row--budget .rd-row__actions {
+    justify-self: end;
+  }
+
+  .rd-row--head .rd-budget__spent,
+  .rd-row--head .rd-budget__status {
+    font-size: inherit;
+  }
+}
+
+/* Forecast */
+.rd-horizon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rd-fc {
+  margin-top: var(--space-8);
+}
+
+.rd-fc__title {
+  font-size: var(--font-size-title-sm);
+  line-height: var(--line-height-title-sm);
+}
+
+.rd-fc__scroll {
+  margin-top: var(--space-4);
+}
+
+.rd-ledger--forecast {
+  min-width: var(--table-min-budget);
+}
+
+.rd-row--forecast,
+.rd-ledger--forecast .rd-row--head {
+  grid-template-columns: var(--track-month) repeat(5, minmax(var(--track-min-xs), 1fr));
+  grid-template-areas: none;
+  gap: var(--space-4);
+  padding: 0;
+  font-size: var(--font-size-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.rd-row--forecast {
+  min-height: var(--size-control-lg);
+}
+
+.rd-ledger--forecast .rd-row--head {
+  display: grid;
+  padding: var(--space-2) 0;
+  border: 0;
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-ledger--forecast thead {
+  display: block;
+}
+
+.rd-fc__month {
+  font-weight: var(--font-weight-medium) !important;
+}
+
+.rd-fc__num {
+  text-align: end !important;
+}
+
+.rd-fc__num .rd-amount__cur {
+  font-weight: var(--font-weight-regular);
+}
+
+.rd-fc__net--negative {
+  color: var(--color-over);
+}
+
+.rd-fc__bal {
+  font-weight: var(--font-weight-medium);
+}
+
+/* Analytics */
+.rd-analytics__range {
+  margin-top: var(--space-5);
+}
+
+.rd-analytics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+  margin-top: var(--space-6);
+}
+
+.rd-analytics__card {
+  margin: 0;
+}
+
+.rd-analytics__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.rd-analytics__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rd-analytics__plot {
+  margin-top: var(--space-6);
+}
+
+.rd-analytics__scroll {
+  margin-top: var(--space-4);
+}
+
+.rd-ledger--spend {
+  min-width: 0;
+}
+
+.rd-row--spend,
+.rd-ledger--spend .rd-row--head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "cat period"
+    "bar delta";
+  gap: var(--space-2) var(--space-4);
+}
+
+.rd-row--spend {
+  position: relative;
+  margin: 0 calc(var(--space-2) * -1);
+  padding: var(--space-2);
+  border-radius: var(--radius-item);
+}
+
+.rd-ledger--spend .rd-row--head {
+  display: none;
+}
+
+.rd-spend__cat {
+  grid-area: cat;
+  justify-self: start;
+}
+
+.rd-spend__bar {
+  grid-area: bar;
+}
+
+.rd-spend__period {
+  grid-area: period;
+  text-align: end !important;
+  font-size: var(--font-size-heading);
+}
+
+.rd-spend__delta {
+  grid-area: delta;
+  text-align: end !important;
+  font-size: var(--font-size-body);
+}
+
+.rd-spend__delta--down {
+  color: var(--color-ink-muted);
+}
+
+.rd-bar--share {
+  font-size: var(--font-size-heading);
+}
+
+/* Whole row is the link target */
+.rd-stretch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.rd-stretch:focus-visible {
+  outline: none;
+}
+
+.rd-stretch:focus-visible::after {
+  outline: var(--border-width-focus) solid var(--color-ink);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+.rd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.rd-legend__loaf {
+  width: var(--space-3);
+  height: var(--space-3-5);
+  border-radius: var(--radius-pill) var(--radius-pill) var(--radius-xs) var(--radius-xs);
+  background: var(--color-ink-muted);
+}
+
+.rd-legend__loaf--outline {
+  border: var(--border-width-strong) solid var(--color-ink-muted);
+  background: none;
+}
+
+.rd-legend__loaf--now {
+  background: var(--color-now-fill);
+  box-shadow: var(--ring-now);
+}
+
+.rd-chart__band {
+  fill: var(--color-raised);
+  opacity: 0;
+}
+
+.rd-chart__pt:hover .rd-chart__band,
+.rd-chart__pt:focus-visible .rd-chart__band {
+  opacity: 1;
+}
+
+.rd-largest {
+  margin-top: var(--space-4);
+}
+
+.rd-largest__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--size-row);
+  margin: 0 calc(var(--space-2) * -1);
+  padding: 0 var(--space-2);
+  border-top: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-item);
+}
+
+.rd-largest__link:hover {
+  background: var(--color-raised);
+}
+
+.rd-largest__name {
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-largest__date {
+  font-size: var(--font-size-data);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-ink-muted);
+}
+
+@media (width >= 48rem) {
+  .rd-row--spend,
+  .rd-ledger--spend .rd-row--head {
+    grid-template-columns: var(--track-spend-cat) minmax(0, 1fr) var(--track-spend-period) var(--track-spend-delta);
+    grid-template-areas: none;
+    gap: var(--space-4);
+  }
+
+  .rd-ledger--spend .rd-row--head {
+    display: grid;
+    margin: 0;
+    padding: var(--space-2) 0;
+  }
+
+  .rd-row--spend {
+    min-height: var(--size-control-lg);
+    padding: 0 var(--space-2);
+  }
+}
+
+@media (width >= 64rem) {
+  .rd-analytics {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  }
+}
+
+/* Override dialog opened as a plain page (T-UR84): without scripts the dialog shows as a card. */
+.rd-override-page dialog:not([open]) {
+  display: block;
+  position: static;
+  margin: var(--space-6) auto;
+  max-width: 32rem;
+  border-radius: var(--radius-lg);
+}
+
+/* The scope options wrap inside the card instead of clipping at narrow widths (NOJSCSRF). */
+.rd-override-page .rd-segmented {
+  border-radius: var(--radius-lg);
+}
+
+.rd-override-page .rd-segmented__option {
+  height: auto;
+  min-height: var(--size-control-sm);
+  padding-block: var(--space-1);
+  border-radius: var(--radius-lg);
+  white-space: normal;
+  text-align: center;
+}

@@ -10,24 +10,19 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.domain.errors import require_present
-from budget_planner.domain.planned import (
-    NewPlannedTransaction,
-    PatchPlannedTransaction,
-)
 from budget_planner.services import (
     accounts as accounts_service,
-    categories as categories_service,
     export as export_service,
     planned as planned_service,
 )
 from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
+from budget_planner.web.dialogs import removed_response, saved_response
+from budget_planner.web.errors import not_found_response
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
-from budget_planner.web.params import EXPORT_FORMATS, parse_date, positive_amount, query_choice
-from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
-from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
+from budget_planner.web.params import EXPORT_FORMATS, query_choice
+from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TABLE_PATH
 
 router = APIRouter(prefix="/planned", tags=["planned"])
 
@@ -122,116 +117,86 @@ def table_fragment(
     )
 
 
-@router.get(NEW_PATH, response_class=HTMLResponse)
-def new_form(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    # T-069 — slide-over wrapper for FAB launches.
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="New planned transaction",
-        form_include="partials/planned/_form.html",
-        planned=None,
-        action="/planned",
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        errors={},
-    )
-
-
 @router.post("")
 def create_planned(
     request: Request,
     *,
-    operation_date: str = Form(...),
-    category_id: int = Form(...),
-    account_id: int = Form(...),
-    amount: str = Form(...),
+    operation_date: str = Form(""),
+    category_id: str = Form(""),
+    category: str = Form(""),
+    account_id: str = Form(""),
+    amount: str = Form(""),
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    # The dialog posts the picker's "category" (vendored combobox.js), the old form category_id.
+    chosen = entry_forms.category_choice(category_id, category)
     check = entry_forms.check_planned_create(
         conn,
         user_id,
         operation_date=operation_date,
-        category_id=category_id,
-        account_id=account_id,
+        category_id=chosen,
+        account_id=entry_forms.account_choice(account_id),
         amount=amount,
         dest_account_id=dest_account_id,
     )
     if check.errors:
-        return form_responses.planned_form_errors(
-            request, conn, user_id, planned=None, errors=check.errors
+        return form_responses.entry_create_errors(
+            request,
+            conn,
+            user_id,
+            tab="planned",
+            chosen=chosen,
+            errors=check.errors,
+            posted=entry_forms.posted_entry(
+                chosen,
+                account_id,
+                amount,
+                operation_date=operation_date,
+                description=description,
+                dest_account_id=dest_account_id,
+            ),
         )
-    op_date, amount_minor = check.valid_values()
-    pl = planned_service.create(
-        conn,
-        user_id,
-        NewPlannedTransaction(
-            operation_date=op_date,
-            category_id=category_id,
-            account_id=account_id,
-            amount=amount_minor,
-            description=description,
-            dest_account_id=check.dest_id,
-        ),
-    )
-    view = ledger_data.planned_row_from_persisted(pl, check.account, check.category)
-    html = render(request, "partials/planned/_row.html", view=view)
-    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    # The form is hosted by every page's overlay: no row insert; the ledger
-    # refetches on `ledger-stale`, other pages reload (T-D142).
-    refresh_unless_on(request, html, LEDGER_PATH)
-    return html
+    entry_forms.save_planned(conn, user_id, check, description)
+    return form_responses.created_planned_response(request)
 
 
-@router.get("/{planned_id}/edit", response_class=HTMLResponse)
+@router.get("/{planned_id:int}/edit", response_class=HTMLResponse)
 def edit_form(
     planned_id: int,
     request: Request,
+    hero: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
+    """The edit-planned dialog (T-UR10); ``hero=1`` renders it from the form for the hero swap."""
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return render(
+        return not_found_response(request, "planned", planned_id)
+    if hero:
+        return form_responses.edit_planned_dialog(
             request,
-            "partials/planned/_form.html",
-            planned=None,
-            action="",
-            categories=[],
-            accounts=[],
-            errors={"planned": "not found"},
-            status_code=404,
+            conn,
+            user_id,
+            pl,
+            posted=dict(request.query_params),
+            hero_only=True,
         )
-    # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /planned/new.
-    return render(
-        request,
-        SLIDEOVER_TEMPLATE,
-        slide_over_title="Edit planned transaction",
-        form_include="partials/planned/_form.html",
-        planned=pl,
-        action=f"/planned/{planned_id}",
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        errors={},
-    )
+    return form_responses.edit_planned_dialog(request, conn, user_id, pl)
 
 
-@router.post("/{planned_id}")
+@router.post("/{planned_id:int}")
 def update_planned(
     planned_id: int,
     request: Request,
     *,
-    operation_date: str = Form(...),
-    category_id: int = Form(...),
-    account_id: int = Form(...),
-    amount: str = Form(...),
+    operation_date: str = Form(""),
+    category_id: str = Form(""),
+    category: str = Form(""),
+    account_id: str = Form(""),
+    amount: str = Form(""),
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
@@ -239,56 +204,63 @@ def update_planned(
 ) -> Response:
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
+    chosen = entry_forms.category_choice(category_id, category)
+    account = entry_forms.account_choice(account_id)
     check = entry_forms.check_planned_update(
         conn,
         user_id,
         existing_dest_id=pl.dest_account_id,
         operation_date=operation_date,
-        category_id=category_id,
-        account_id=account_id,
+        category_id=chosen,
+        account_id=account,
         amount=amount,
         dest_account_id=dest_account_id,
     )
     if check.errors:
-        return form_responses.planned_form_errors(
-            request, conn, user_id, planned=pl, errors=check.errors
+        return form_responses.edit_planned_dialog(
+            request,
+            conn,
+            user_id,
+            pl,
+            posted=entry_forms.posted_entry(
+                chosen,
+                account_id,
+                amount,
+                operation_date=operation_date,
+                description=description,
+                dest_account_id=dest_account_id,
+            ),
+            errors=entry_forms.pick_category_error(check.errors, chosen),
         )
-    op_date, amount_minor = check.valid_values()
-    planned_service.update(
-        conn,
-        user_id,
-        planned_id,
-        PatchPlannedTransaction(
-            operation_date=op_date,
-            category_id=category_id,
-            account_id=account_id,
-            amount=amount_minor,
-            description=description,
-        ),
-    )
-    # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
-    return form_responses.stale_refresh(request, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    entry_forms.save_planned_update(conn, user_id, planned_id, check, description)
+    return form_responses.planned_saved(request)
 
 
-@router.post("/{planned_id}/delete")
+@router.post("/{planned_id:int}/delete")
 def delete_planned(
     planned_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
+    """Soft-delete: the row goes, the toast offers undo (``/restore``)."""
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     planned_service.soft_delete(conn, user_id, planned_id)
-    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    return resp
+    return removed_response(
+        request,
+        message="Planned entry deleted",
+        undo_url=f"{PLANNED_PATH}/{planned_id}/restore",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
 
 
-@router.post("/{planned_id}/restore")
+@router.post("/{planned_id:int}/restore")
 def restore_planned(
     planned_id: int,
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
@@ -296,88 +268,52 @@ def restore_planned(
     try:
         planned_service.undelete(conn, user_id, planned_id)
     except LookupError:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     resp = Response(content="", media_type=HTML_MEDIA_TYPE)
-    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    trigger(
+        resp,
+        Event.FORECAST_STALE,
+        Event.LEDGER_STALE,
+        toast=toast_payload("success", "Planned entry restored"),
+    )
     return resp
 
 
-@router.get("/{planned_id}/promote", response_class=HTMLResponse)
+@router.get("/{planned_id:int}/promote", response_class=HTMLResponse)
 def promote_form(
     planned_id: int,
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    pl = planned_service.find_by_id(conn, user_id, planned_id)
-    if pl is None:
-        return render(
-            request,
-            "partials/planned/_promote_modal.html",
-            planned=None,
-            errors={"planned": "not found"},
-            status_code=404,
-        )
-    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
-    return render(
-        request,
-        "partials/planned/_promote_modal.html",
-        planned=pl,
-        account=acc,
-        errors={},
-    )
-
-
-@router.get("/{planned_id}/promote/inline", response_class=HTMLResponse)
-def promote_inline(
-    planned_id: int,
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
 ) -> Response:
-    """F-02 — Row-expand inline Promote form for Today Upcoming."""
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
-    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
-    return render(
-        request,
-        "partials/planned/_promote_inline_row.html",
-        planned=pl,
-        account=acc,
-        categories_by_id=categories_by_id,
-    )
+    return form_responses.promote_planned_dialog(request, conn, user_id, pl, acc)
 
 
-@router.post("/{planned_id}/promote")
+@router.post("/{planned_id:int}/promote")
 def promote_submit(
     planned_id: int,
     request: Request,
     *,
-    operation_date: str = Form(...),
-    amount: str = Form(...),
+    operation_date: str = Form(""),
+    amount: str = Form(""),
     description: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
-        return Response(status_code=404, content="not found")
+        return not_found_response(request, "planned", planned_id)
     acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
-    op_date = parse_date(operation_date)
-    errors: dict[str, str] = {}
-    if op_date is None:
-        errors["operation_date"] = "invalid date"
-    minor: int | None = None
-    if acc is not None:
-        minor, err = positive_amount(amount, acc.currency)
-        if err:
-            errors["amount"] = err
-    if errors:
-        return form_responses.promote_modal_errors(request, pl, acc, errors)
-    op_date = require_present(op_date, "validated operation date")
-    minor = require_present(minor, "validated amount")
+    op_date, minor, errors = entry_forms.check_promote_input(acc, operation_date, amount)
+    posted = {"amount": amount, "operation_date": operation_date, "description": description}
+    if errors or op_date is None or minor is None:
+        return form_responses.promote_planned_dialog(
+            request, conn, user_id, pl, acc, posted=posted, errors=errors
+        )
     try:
         planned_service.promote_to_actual(
             conn,
@@ -395,9 +331,16 @@ def promote_submit(
         planned_service.UnsupportedDirectionError,
         planned_service.ValidationError,
     ) as exc:
-        return form_responses.promote_modal_errors(request, pl, acc, {"promotion": str(exc)})
-    html = Response()
-    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
+        return form_responses.promote_planned_dialog(
+            request, conn, user_id, pl, acc, posted=posted, errors={"promotion": str(exc)}
+        )
+    html = saved_response(
+        request,
+        None,
+        {},
+        message="Planned entry promoted",
+        events=(Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
     refresh_unless_on(request, html, LEDGER_PATH)
     return html
 

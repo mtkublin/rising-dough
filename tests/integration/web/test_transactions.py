@@ -21,7 +21,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, entries, errors, ledger, rd_shell as shell
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
@@ -87,21 +88,25 @@ def test_table_fragment_is_not_full_page(client: TestClient, seeded: dict[str, i
     r = client.get("/transactions/table")
     assert r.status_code == 200
     assert _html.exists(r.text, ledger.table)
-    assert not _html.exists(r.text, ledger.heading)  # fragment: no page chrome
+    # No document or base layout; the hero (the page's one h1) refreshes with the rows.
+    assert _html.is_fragment(r.text)
+    assert _html.count(r.text, ledger.heading) == 1
 
 
 def test_new_form_fragment(client: TestClient, seeded: dict[str, int]) -> None:
-    r = client.get("/transactions/new")
+    r = client.get("/add?when=happened&dialog=1", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    form = _html.resolve_one(r.text, ledger.form)
+    form = _html.resolve_one(r.text, entries.dialog).find("form")
+    assert form is not None
     assert form.get("hx-post") == "/transactions"
-    for field in (
-        ledger.field_date,
-        ledger.field_category,
-        ledger.field_account,
-        ledger.field_amount,
-    ):
-        assert ledger.controls(r.text, field.inside(ledger.form))
+    date_field = _html.resolve_one(r.text, entries.field_date)
+    account = _html.resolve_one(r.text, entries.field_account)
+    amount = _html.resolve_one(r.text, entries.hero_amount)
+    assert (date_field.get("name"), date_field.get("type")) == ("operation_date", "date")
+    assert account.get("name") == "account_id"
+    assert amount.get("name") == "amount"
+    # The category is picked from the shared picker; its radios post as "category".
+    assert _html.exists(r.text, entries.category_group)
 
 
 def test_create_valid_persists_and_triggers(
@@ -118,9 +123,17 @@ def test_create_valid_persists_and_triggers(
         },
     )
     assert r.status_code == 200
-    assert _html.exists(r.text, ledger.row(_new_txn_id(_migrated)))
+    # the dialog closes (modal-root emptied out of band) and the flash says what happened
+    assert _html.text_of(r.text, shell.modal_root) == ""
+    assert _html.all_text(r.text, errors.status) == "● Transaction saved"
     hx = json.loads(r.headers["HX-Trigger"])
-    assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
+    assert hx == {
+        "balance-stale": True,
+        "forecast-stale": True,
+        "ledger-stale": True,
+        "today-stale": True,
+        "budget-stale": True,
+    }
     conn = get_connection(_migrated)
     try:
         row = conn.execute("SELECT amount, description FROM transactions").fetchone()
@@ -128,6 +141,34 @@ def test_create_valid_persists_and_triggers(
         conn.close()
     assert row[0] == 1234
     assert row[1] == "Test"
+
+
+def test_create_accepts_space_grouped_thousands_and_audits_the_stored_minor(
+    client: TestClient, seeded: dict[str, int], _migrated: Settings
+) -> None:
+    r = client.post(
+        "/transactions",
+        data={
+            "operation_date": "2026-10-20",
+            "category_id": seeded["groc"],
+            "account_id": seeded["acc"],
+            "amount": "1 234.50",
+            "description": "Spaced",
+        },
+    )
+    assert r.status_code == 200
+    assert _html.all_text(r.text, errors.status) == "● Transaction saved"
+    conn = get_connection(_migrated)
+    try:
+        row = conn.execute("SELECT id, amount FROM transactions").fetchone()
+        ops = conn.execute(
+            "SELECT operation FROM audit_log WHERE entity_type = 'transaction' AND entity_id = ?",
+            (row[0],),
+        ).fetchall()
+    finally:
+        conn.close()
+    assert row[1] == 123450
+    assert [op[0] for op in ops] == ["create"]
 
 
 def _create_data(seeded: dict[str, int]) -> dict[str, str | int]:
@@ -149,8 +190,9 @@ def test_create_off_ledger_refreshes_page_without_swap(
         headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/today"},
     )
     assert r.status_code == 200
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
+    assert "HX-Reswap" not in r.headers
+    assert "HX-Refresh" not in r.headers
+    assert {"today-stale", "budget-stale"} <= set(json.loads(r.headers["HX-Trigger"]))
 
 
 def test_create_on_ledger_does_not_refresh_page(client: TestClient, seeded: dict[str, int]) -> None:
@@ -164,11 +206,26 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, seeded: dict
     assert "HX-Refresh" not in r.headers
 
 
-def test_new_form_targets_itself_not_ledger_table(
+def test_new_form_posts_into_the_modal_root_not_the_ledger_table(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
-    r = client.get("/transactions/new")
-    assert _html.resolve_one(r.text, ledger.form).get("hx-target") == "#txn-form"
+    r = client.get("/add?when=happened&dialog=1", headers={"HX-Request": "true"})
+    form = _html.resolve_one(r.text, entries.dialog).find("form")
+    assert form is not None
+    assert form.get("hx-target") == "#modal-root"
+
+
+def test_new_form_on_a_plain_page_load_opens_the_dialog_through_the_shell(
+    client: TestClient, seeded: dict[str, int]
+) -> None:
+    """The top bar links here: a full load is a shell page that fetches ``/add`` on load."""
+    r = client.get("/add?when=happened&dialog=1")
+    assert r.status_code == 200
+    opener = _html.resolve_one(r.text, entries.opener)
+    assert (opener.get("hx-get"), opener.get("hx-trigger")) == (
+        "/add?when=happened&dialog=1",
+        "load",
+    )
 
 
 def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str, int]) -> None:
@@ -182,7 +239,9 @@ def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str
         },
     )
     assert r.status_code == 422
-    assert "amount" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }
 
 
 def test_create_rejects_cross_currency_transit(client: TestClient, _migrated: Settings) -> None:
@@ -206,15 +265,16 @@ def test_create_rejects_cross_currency_transit(client: TestClient, _migrated: Se
         },
     )
     assert r.status_code == 422
-    assert "cross-currency" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-dest_account_id-error": "▲ cross-currency transit not supported",
+    }
 
 
 def test_edit_and_update(client: TestClient, seeded: dict[str, int], _migrated: Settings) -> None:
     txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"], amount=5000)
     r = client.get(f"/transactions/{txn_id}/edit", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    assert _html.resolve_one(r.text, ledger.form).get("hx-post") == f"/transactions/{txn_id}"
-    assert ledger.control(r.text, ledger.field_amount).get("value") == "50.00"
+    assert _html.resolve_one(r.text, entries.edit_amount).get("value") == "50.00"
     r2 = client.post(
         f"/transactions/{txn_id}",
         data={
@@ -239,7 +299,7 @@ def test_delete_soft_deletes(
     txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
     r = client.post(f"/transactions/{txn_id}/delete")
     assert r.status_code == 200
-    assert r.text == ""
+    assert r.headers["HX-Reswap"] == "delete"
     assert "balance-stale" in r.headers["HX-Trigger"]
     conn = get_connection(_migrated)
     try:
@@ -281,7 +341,10 @@ def test_create_rejects_unknown_account_and_category(
         },
     )
     assert r.status_code == 422
-    assert "unknown account" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "catpick-new-entry-error": "▲ unknown category",
+        "field-account_id-error": "▲ unknown account",
+    }
 
 
 def test_create_rejects_bad_date(client: TestClient, seeded: dict[str, int]) -> None:
@@ -295,7 +358,9 @@ def test_create_rejects_bad_date(client: TestClient, seeded: dict[str, int]) -> 
         },
     )
     assert r.status_code == 422
-    assert "operation_date" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-operation_date-error": "▲ invalid date",
+    }
 
 
 def test_create_rejects_bad_amount_string(client: TestClient, seeded: dict[str, int]) -> None:
@@ -314,6 +379,10 @@ def test_create_rejects_bad_amount_string(client: TestClient, seeded: dict[str, 
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/transactions/9999/edit")
     assert r.status_code == 404
+    assert _html.text_of(r.text, errors.heading) == "Not found"
+    flash = client.get("/transactions/9999/edit", headers={"HX-Request": "true"})
+    assert flash.status_code == 404
+    assert "Transaction not found" in _html.text_of(flash.text, by_id("flash-region"))
 
 
 def test_update_404(client: TestClient, seeded: dict[str, int]) -> None:
@@ -327,6 +396,7 @@ def test_update_404(client: TestClient, seeded: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 404
+    assert _html.text_of(r.text, errors.heading) == "Not found"
 
 
 def test_update_invalid(client: TestClient, seeded: dict[str, int], _migrated: Settings) -> None:
@@ -410,8 +480,8 @@ def test_preview_hidden_for_asset_account(client: TestClient, visa_setup: dict[s
         },
     )
     assert r.status_code == 200
-    assert _html.exists(r.text, ledger.limit_preview)
-    assert _html.text_of(r.text, ledger.limit_preview) == ""
+    assert _html.exists(r.text, entries.credit_line)
+    assert _html.text_of(r.text, entries.credit_line) == ""
 
 
 def test_preview_shows_available_for_within_limit_expense(
@@ -426,8 +496,9 @@ def test_preview_shows_available_for_within_limit_expense(
         },
     )
     assert r.status_code == 200
-    text = _html.text_of(r.text, ledger.limit_preview)
-    assert "After this transaction" in text
+    text = _html.text_of(r.text, entries.credit_line)
+    assert "Visa \N{MIDDLE DOT} 10,000.00 of 10,000.00 left" in text
+    assert "after this" in text
     assert "9,500.00" in text
 
 
@@ -443,9 +514,11 @@ def test_preview_shows_over_limit_for_overshoot_expense(
         },
     )
     assert r.status_code == 200
-    text = _html.text_of(r.text, ledger.limit_preview)
-    assert "Over limit" in text
-    assert "5,000.00" in text
+    text = _html.text_of(r.text, entries.credit_line)
+    assert text == (
+        "\N{BLACK UP-POINTING TRIANGLE} Visa \N{MIDDLE DOT} 5,000.00 over the credit limit"
+        " (10,000.00 left)"
+    )
 
 
 def test_preview_handles_adjustment_signed_amount(
@@ -485,8 +558,8 @@ def test_preview_updates_on_amount_change(client: TestClient, visa_setup: dict[s
             "amount": "500.00",
         },
     )
-    assert "9,900.00" in _html.text_of(r1.text, ledger.limit_preview)
-    assert "9,500.00" in _html.text_of(r2.text, ledger.limit_preview)
+    assert "9,900.00" in _html.text_of(r1.text, entries.credit_line)
+    assert "9,500.00" in _html.text_of(r2.text, entries.credit_line)
 
 
 def test_preview_bad_amount_returns_blank_fragment(
@@ -501,7 +574,7 @@ def test_preview_bad_amount_returns_blank_fragment(
         },
     )
     assert r.status_code == 200
-    assert _html.text_of(r.text, ledger.limit_preview) == ""
+    assert _html.text_of(r.text, entries.credit_line) == ""
 
 
 def test_form_submits_even_when_over_limit(client: TestClient, visa_setup: dict[str, int]) -> None:
@@ -531,27 +604,6 @@ def _update_data(seeded: dict[str, int], amount: str = "99.99") -> dict[str, str
     }
 
 
-def test_edit_form_targets_itself_and_closes_on_success(
-    client: TestClient, seeded: dict[str, int], _migrated: Settings
-) -> None:
-    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
-    r = client.get(f"/transactions/{txn_id}/edit")
-    form = _html.resolve_one(r.text, ledger.form)
-    assert form.get("hx-target") == "#txn-form"
-    assert form.has_attr("data-close-overlay-on-success")
-
-
-def test_update_off_ledger_refreshes_page_without_swap(
-    client: TestClient, seeded: dict[str, int], _migrated: Settings
-) -> None:
-    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
-    r = client.post(f"/transactions/{txn_id}", data=_update_data(seeded), headers=_ON_TODAY)
-    assert r.status_code == 200
-    assert r.headers["HX-Reswap"] == "none"
-    assert r.headers["HX-Refresh"] == "true"
-    assert "ledger-stale" in r.headers["HX-Trigger"]
-
-
 def test_update_on_ledger_does_not_refresh_page(
     client: TestClient, seeded: dict[str, int], _migrated: Settings
 ) -> None:
@@ -570,5 +622,7 @@ def test_update_invalid_amount_rerenders_form_in_place(
         f"/transactions/{txn_id}", data=_update_data(seeded, amount="0"), headers=_ON_TODAY
     )
     assert r.status_code == 422
-    assert _html.exists(r.text, ledger.form)
-    assert "amount" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.exists(r.text, entries.edit_dialog)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }
