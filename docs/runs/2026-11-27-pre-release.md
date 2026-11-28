@@ -1,15 +1,15 @@
 # Run 2026-11-27 pre-release
 
-- Work branch: `ui/sourdough`; base `?`; PR: #54 (draft, `ui/sourdough` -> `main`; to be marked ready by the operator)
+- Work branch: `ui/sourdough`; base `30b85766` (UI acceptance docs commit); PR: #54 (draft, `ui/sourdough` -> `main`; to be marked ready by the operator)
 - Request: operator "let's do all we can before the release" after UI acceptance at `3df85e88`. Decisions in `docs/plans/ui-redesign/operator-decisions-2026-11-27.md`.
-- Waves: `?`; items: 20 merged (listed below); agent runs: `?` (the table below has one row per item, not per run).
+- Waves: n/a (not recorded); items: 20 merged (listed below); agent runs: n/a (not recorded) (the table below has one row per item, not per run).
 - Not merged: CSP (T-UR16 hardening) PARTIAL after timebox: Chromium and Firefox show 0 violations with style-src nonce-only; WebKit reports 3 style-src-attr violations on the native select in `fragments/ledger/filter-bar.html`. The release keeps `'unsafe-inline'`; follow-up T-UR99; branch `origin/wi/ui/sourdough/CSP` `351d7930`.
 
 ## Items merged
 
 | item | task | merge sha |
 |---|---|---|
-| SCRIBE5 | ? | e65a3f9a |
+| SCRIBE5 | - | e65a3f9a |
 | OVERCNT | T-UR70 | c5643be5 |
 | CATCASE | T-UR95 | cd83c243 |
 | GUARD | T-UR72 | b196e379 |
@@ -23,7 +23,7 @@
 | KEYMAP | T-UR97 | f7b673c1 |
 | PICKNEW | T-UR68 | 3b360a20 |
 | FORMULA | T-UR89 | e85b245e |
-| SCRIBE6 | ? | 22af385b |
+| SCRIBE6 | - | 22af385b |
 | SWEEP | T-UR16 | 5b77555a |
 | LEDGERPH | T-UR74 | 55192fcd |
 | A11YHERO | T-UR16 | 7ac72bea |
@@ -32,30 +32,30 @@
 
 ## Agent runs
 
-Wall times are not in the brief and are recorded as `n/a`. Roles and per-run attempts are not in the brief and are `?`. Verdict is the item's outcome as given in the brief; returns are listed under Returns and re-work.
+Wall times are not in the brief and are recorded as `n/a`. Roles and per-run attempts are not in the brief and are n/a (not recorded). Verdict is the item's outcome as given in the brief; returns are listed under Returns and re-work.
 
 | item | role(s) | verdict |
 |---|---|---|
-| SCRIBE5 | ? | MERGE |
-| OVERCNT | ? | MERGE |
-| CATCASE | ? | MERGE |
-| GUARD | ? | MERGE (after RETURN x2) |
-| FXSAVE | ? | MERGE (after RETURN) |
-| YEARCELL | ? | MERGE (after RETURN) |
-| PLANCSS | ? | MERGE |
-| FLASH | ? | MERGE |
-| SNAPROUTES | ? | MERGE |
-| UIMAP | ? | MERGE |
-| LEGEND | ? | MERGE |
-| KEYMAP | ? | MERGE |
-| PICKNEW | ? | MERGE (after RETURN; audit FINDINGS, then CLEAN) |
-| FORMULA | ? | MERGE (first approach blocked, redone) |
-| SCRIBE6 | ? | MERGE |
-| SWEEP | ? | MERGE |
-| LEDGERPH | ? | MERGE (audit FINDINGS, then CLEAN) |
-| A11YHERO | ? | MERGE |
-| CIFIX | ? | MERGE (audit FINDINGS, see NOJSCSRF) |
-| NOJSCSRF | ? | MERGE |
+| SCRIBE5 | n/a (not recorded) | MERGE |
+| OVERCNT | n/a (not recorded) | MERGE |
+| CATCASE | n/a (not recorded) | MERGE |
+| GUARD | n/a (not recorded) | MERGE (after RETURN x2) |
+| FXSAVE | n/a (not recorded) | MERGE (after RETURN) |
+| YEARCELL | n/a (not recorded) | MERGE (after RETURN) |
+| PLANCSS | n/a (not recorded) | MERGE |
+| FLASH | n/a (not recorded) | MERGE |
+| SNAPROUTES | n/a (not recorded) | MERGE |
+| UIMAP | n/a (not recorded) | MERGE |
+| LEGEND | n/a (not recorded) | MERGE |
+| KEYMAP | n/a (not recorded) | MERGE |
+| PICKNEW | n/a (not recorded) | MERGE (after RETURN; audit FINDINGS, then CLEAN) |
+| FORMULA | n/a (not recorded) | MERGE (first approach blocked, redone) |
+| SCRIBE6 | n/a (not recorded) | MERGE |
+| SWEEP | n/a (not recorded) | MERGE |
+| LEDGERPH | n/a (not recorded) | MERGE (audit FINDINGS, then CLEAN) |
+| A11YHERO | n/a (not recorded) | MERGE |
+| CIFIX | n/a (not recorded) | MERGE (audit FINDINGS, see NOJSCSRF) |
+| NOJSCSRF | n/a (not recorded) | MERGE |
 
 ## Returns and re-work
 
@@ -112,4 +112,4 @@ Wall times are not in the brief and are recorded as `n/a`. Roles and per-run att
 
 ## Escalations and deferred questions
 
-- Deferred questions asked at the end: `?` (the operator list above is the question set).
+- Deferred questions asked at the end: n/a (not recorded) (the operator list above is the question set).
