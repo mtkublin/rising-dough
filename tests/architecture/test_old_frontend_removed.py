@@ -40,6 +40,8 @@ ALLOWED_NEW_ROOTS = (
     f"{WEB}/templates/pages",
     f"{WEB}/templates/fragments",
     f"{WEB}/static/rd",
+    # ADR-0154 amendment 2026-11-28: the accepted-UI baselines (`<case>.<width>.<theme>.png`) reuse this root.
+    "tests/visual/__snapshots__",
 )
 IGNORED_PARTS = {"__pycache__", ".DS_Store"}
 OWNER = re.compile(r"T-UR\d{2}[a-z]?")
