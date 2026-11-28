@@ -3167,6 +3167,23 @@ form.htmx-request .rd-btn[type="submit"]::after {
   .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__amount {
     min-width: max-content;
   }
+
+  /*
+   * A long chip ("Reconciliation") would widen its row past the list region and push that row's
+   * kebab right of the others. The chip column is capped at 6.25rem (100px, wider than the usual
+   * chips) and a longer label is cut with an ellipsis, so every kebab shares one x.
+   */
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat {
+    min-width: 0;
+    max-width: 6.25rem;
+  }
+
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat .rd-chip {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 @media (width >= 48rem) {
@@ -5497,6 +5514,25 @@ form.htmx-request .rd-btn[type="submit"]::after {
 
   .rd-table-scroll .rd-ledger--accounts {
     --ledger-cols: minmax(110px, 1.6fr) var(--track-trend) var(--track-checked) var(--track-txns) minmax(130px, 1.4fr) var(--track-reconcile) var(--track-icon);
+  }
+}
+
+/*
+ * Desktop-narrow band (64 to 75rem): the panel is 928px at 1024 while the recently-deleted
+ * transaction tables sum to 970px (six tracks, five gaps), which cut the amount and restore columns
+ * until scrolled. Tighter tracks on those tables only; 75rem and up keep the desktop tracks.
+ */
+@media (64rem <= width < 75rem) {
+  .rd-table-scroll .rd-ledger--deleted-planned,
+  .rd-table-scroll .rd-ledger--deleted-cats {
+    --track-deleted: 120px;
+    --track-deleted-due: 110px;
+    --track-min-sm: 120px;
+    --track-amount-sched: 130px;
+    --track-amount: 120px;
+    --track-restore: 100px;
+
+    min-width: 0;
   }
 }
 }
