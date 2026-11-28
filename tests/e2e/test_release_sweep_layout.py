@@ -34,6 +34,7 @@ AMOUNT_HEADER = re.compile(r"^(amount|balance|net|spent [/] budget|expires)$", r
 TABLE_ROUTES = ("/ledger", "/plan", "/forecast", "/accounts", "/settings/security")
 CATEGORIES = ("Groceries", "Transport", "Restaurants and takeaway", "Subscriptions", "Savings")
 TOLERANCE_PX = 1.0
+PROMOTE_LINK = role("link", "promote", exact=True)  # the row's main action (ui_map planned_promote)
 
 
 def _viewport(width: int) -> ViewportSize:
@@ -187,7 +188,7 @@ def test_planned_status_clears_the_promote_button_at_768(
         tab = context.new_page()
         tab.goto(f"{base_url}/ledger?view=planned")
         row = to_playwright(tab, ledger.any_planned_row).first
-        promote = to_playwright(tab, ledger.promote).first
+        promote = to_playwright(tab, PROMOTE_LINK.inside(ledger.any_planned_row)).first
         promote_box = promote.bounding_box()
         assert promote_box is not None
         # The status is the fifth cell; its content (text and children) must end before the button.
