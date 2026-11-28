@@ -47,6 +47,11 @@ on:
         type: boolean
         required: false
         default: false
+      setup_token_hash:
+        description: Drill only (T-UR22, ADR-0134 section 9) - sha256 hex of the per-deploy setup token (not secret). Ignored for prod; empty keeps /setup closed.
+        type: string
+        required: false
+        default: ""
       reuse_drill_run_id:
         description: >-
           Drill only (T-D139, ADR-0116) - this apply targets an EXISTING drill VM (rollback): keep the
@@ -375,6 +380,8 @@ jobs:
       # T-D90: drill-only knobs, forced to their prod-safe values otherwise.
       TF_VAR_drill_expires_at: ${{ inputs.env == 'drill' && inputs.drill_expires_at || '' }}
       TF_VAR_boot_log_upload: ${{ inputs.env == 'drill' && inputs.boot_log_upload || false }}
+      # T-UR22: read by scripts/ci/tf_env.py (drill only), which exports TF_VAR_setup_token_hash.
+      DRILL_SETUP_TOKEN_HASH: ${{ inputs.env == 'drill' && inputs.setup_token_hash || '' }}
       # ADR-0127 §7: rehearsal knobs, forced to their defaults otherwise (prod ignores them).
       TF_VAR_drill_root_volume_type: ${{ inputs.env == 'drill' && inputs.drill_root_volume_type || 'l_ssd' }}
       TF_VAR_drill_allow_empty_db: ${{ inputs.env == 'drill' && inputs.drill_allow_empty_db || 'true' }}

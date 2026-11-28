@@ -3,7 +3,7 @@
 A handoff page such as ``errors/409`` or ``today--flash`` is a state the app reaches by an action:
 a failing POST, an aborted request, a saved write. Each recipe here drives the loaded app page the
 way a user (or the browser) does, so the app's own handler or fragment renders the state; nothing
-is injected into the DOM. The page is already loaded at its route (``test_reference.PAGE_ROUTES``);
+is injected into the DOM. The page is already loaded at its route (``reference_map.PAGE_ROUTES``);
 the caller applies ``FREEZE_CSS`` and screenshots afterwards (the same hook as ``handoff_clicks``).
 
 The 409 and 500 pages use the dev failure routes (``POST /dev/shell/fail/<status>``, mounted while

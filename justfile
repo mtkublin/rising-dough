@@ -88,17 +88,6 @@ visual-update:
 visual-reference *surface:
     docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash -c 'pip install --quiet --break-system-packages "uv==0.11.2" && export UV_PYTHON_PREFERENCE=only-system && uv sync --group dev --frozen && uv run python -m tests.visual.handoff "$@"' _ {{surface}}
 
-# Compare every surface against the handoff references, in the pinned container; the references
-# are rendered first. `just test-visual --reference=handoff [surface]` (a bare word is a surface).
-test-visual *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    opts=()
-    for a in {{args}}; do
-      case "$a" in -*) opts+=("$a") ;; *) opts+=("--surface=$a") ;; esac
-    done
-    docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh reference ${opts[@]+"${opts[@]}"}
-
 # Run the e2e journeys on Chromium (ADR-0106 §4). Extra args pass through
 # (paths, -k, later --target=...). Optional locally: e2e runs on GitHub
 # (e2e.yml, pinned Playwright container) on every PR, T-Q297.

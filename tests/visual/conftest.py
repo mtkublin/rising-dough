@@ -27,7 +27,6 @@ from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.auth_support import issue_session, seed_login_user
-from tests.visual import handoff
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 from tests.visual.handoff_seed import build_seed
 
@@ -53,49 +52,6 @@ CHROMIUM_STABLE_ARGS = [
 ]
 
 
-def pytest_addoption(parser: pytest.Parser) -> None:
-    parser.addoption(
-        "--reference",
-        default=None,
-        choices=["handoff"],
-        help="compare against the designer-handoff references (T-UT10, ADR-0106)",
-    )
-    parser.addoption(
-        "--surface",
-        default=None,
-        help="limit --reference=handoff to one surface (today, ledger, plan, ...)",
-    )
-    parser.addoption(
-        "--reference-shard",
-        default=os.environ.get(handoff.SHARD_ENV),
-        help="limit --reference=handoff to one '<viewport>:<theme>' shard, e.g. 1440:dark "
-        f"(default: ${handoff.SHARD_ENV}; also the only shard the references are rendered for)",
-    )
-
-
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """With ``--reference=handoff`` run only the reference comparisons."""
-    if config.getoption("--reference") != "handoff":
-        return
-    keep = [
-        i
-        for i in items
-        if "test_reference" in i.nodeid
-        and isinstance(i, pytest.Function)
-        and hasattr(i, "callspec")
-    ]
-    only = handoff.parse_shard(config.getoption("--reference-shard"))
-    if only:
-        keep = [
-            i
-            for i in keep
-            if isinstance(i, pytest.Function)
-            and (i.callspec.params.get("viewport"), i.callspec.params.get("theme")) == only
-        ]
-    config.hook.pytest_deselected(items=[i for i in items if i not in keep])
-    items[:] = keep
-
-
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
@@ -103,12 +59,12 @@ def _free_port() -> int:
 
 
 def _uses_handoff_seed(request: pytest.FixtureRequest) -> bool:
-    """The reference comparison and the accepted-UI snapshots render the handoff seed.
+    """The accepted-UI snapshots render the handoff seed.
 
-    Both need the deterministic data the operator accepted (ADR-0154 §1, T-UR98); every
+    They need the deterministic data the operator accepted (ADR-0154 §1, T-UR98); every
     other module keeps the anonymized demo copy.
     """
-    return str(request.module.__name__).rsplit(".", 1)[-1] in {"test_reference", "test_snapshots"}
+    return str(request.module.__name__).rsplit(".", 1)[-1] == "test_snapshots"
 
 
 @pytest.fixture(scope="module")
@@ -117,7 +73,7 @@ def scratch_db(
 ) -> tuple[Path, str]:
     """A scratch DB plus a live session for user 1; never ``data/budget.sqlite`` (prod).
 
-    ``test_reference.py`` and ``test_snapshots.py``: the handoff base seed (`build_seed`).
+    ``test_snapshots.py``: the handoff base seed (`build_seed`).
     Other modules: a copy of ``data/demo.sqlite`` (or empty), migrated, login user
     seeded (T-D02b). Returns ``(path, session id)``.
     """
@@ -192,7 +148,7 @@ def serve_db(db_path: Path, extra_env: Mapping[str, str] | None = None) -> Itera
 
 @pytest.fixture(scope="module")
 def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
-    """The module's server: handoff seed for test_reference.py, demo copy otherwise."""
+    """The module's server: handoff seed for test_snapshots.py, demo copy otherwise."""
     with serve_db(scratch_db[0]) as base:
         yield base
 

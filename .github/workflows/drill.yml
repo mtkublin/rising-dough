@@ -67,6 +67,11 @@ on:
         type: boolean
         required: false
         default: true
+      setup_token_hash:
+        description: "Explore only, REQUIRED there (T-UR22). sha256 hex of a setup token you generated locally (openssl rand -hex 32); open /setup?token=<token> to create the first admin. Never paste the token itself."
+        type: string
+        required: false
+        default: ""
       boot_logs:
         description: Upload boot diagnostics to the drill bucket (boot_log_upload, ADR-0094)
         type: boolean
@@ -175,6 +180,8 @@ jobs:
     permissions: {}
     outputs:
       expires-at: ${{ steps.ttl.outputs.expires_at }}
+      # T-UR22: the operator's sha256 (public-safe); explore only, empty otherwise.
+      setup-token-hash: ${{ steps.setup-token.outputs.hash }}
     steps:
       - name: Compute expires-at (RFC3339 UTC)
         id: ttl
@@ -201,6 +208,31 @@ jobs:
           fi
           echo "expires_at=$(date -u -d "+${ttl} minutes" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
+      # T-UR22 / ADR-0134 section 9 (amendment 2026-11-26): the repository is PUBLIC, so
+      # the token never enters GitHub. The operator generates it locally and passes only
+      # its sha256. Explore requires it (a drill has no bootstrap admin, so without it
+      # nobody could sign in); gate and upgrade drills accept none.
+      - name: Validate the setup token hash
+        id: setup-token
+        env:
+          MODE: ${{ inputs.mode }}
+          INPUT_HASH: ${{ inputs.setup_token_hash }}
+        run: |
+          set -euo pipefail
+          if [ "${MODE}" != "explore" ]; then
+            if [ -n "${INPUT_HASH}" ]; then
+              echo "::error::setup_token_hash is explore only" >&2
+              exit 1
+            fi
+            exit 0
+          fi
+          if ! [[ "${INPUT_HASH}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::explore needs setup_token_hash = sha256 hex (64 lowercase hex chars) of a token you generated locally" >&2
+            exit 1
+          fi
+          echo "hash=${INPUT_HASH}" >> "$GITHUB_OUTPUT"
+          echo "Setup open: use /setup?token=<your token> on the drill URL (token not stored in GitHub)." >> "$GITHUB_STEP_SUMMARY"
+
   # mode=explore: a fresh boot of the dispatched ref, unchanged (ADR-0149 §1).
   apply:
     name: terraform apply (drill)
@@ -217,6 +249,7 @@ jobs:
       replace: module.compute.scaleway_instance_server.app tailscale_tailnet_key.vm
       drill_expires_at: ${{ needs.ttl.outputs.expires-at }}
       boot_log_upload: ${{ inputs.boot_logs }}
+      setup_token_hash: ${{ needs.ttl.outputs.setup-token-hash }}
     secrets: inherit  # pragma: allowlist secret
 
   smoke:

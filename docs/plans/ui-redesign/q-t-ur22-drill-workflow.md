@@ -1,5 +1,7 @@
 # T-UR22: drill workflow patch (operator)
 
+Applied 2026-11-28 by WFPATCH (diff applied cleanly to drill.yml and terraform.yml).
+
 The agent token has no `workflow` scope, so the `.github/workflows` edits for T-UR22 are not committed. Everything else is merged (Terraform `admin_email` optional for drills, compose without the admin env when empty, `scripts/ci/tf_env.py`, ADR-0134 amendment 2026-11-26).
 
 ## Operator how-to (3 lines)

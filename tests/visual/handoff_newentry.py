@@ -1,7 +1,7 @@
 """Browser recipes of four new-entry handoff overlays beyond the plain tabs (T-UR00b, ADR-0147).
 
 ``new-entry--happened`` / ``--planned`` / ``--repeats-fixed`` are plain ``/add?when=<tab>`` fetches
-(``test_reference.OVERLAY_DIALOGS``). The four states here need the user's input:
+(``reference_map.OVERLAY_DIALOGS``). The four states here need the user's input:
 
 * ``new-entry--error``: the dialog submitted with the amount 0.00 and no category (a real
   browser submit, so the CSRF token travels with the form); the app answers with its 422 dialog.

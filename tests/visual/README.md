@@ -6,10 +6,10 @@ Opt-in suites (not part of `just ci`). ADR-0027 section 4, amended by ADR-0106.
 
 The accepted-UI baselines (ADR-0154 section 1-4). Decisions:
 
-- Data: the **handoff base seed** (`handoff_seed.build_seed`) served by the frozen-clock server at 2026-10-31, the data the operator accepted; deterministic, the same as `test_reference.py`. Not `data/demo.sqlite`.
+- Data: the **handoff base seed** (`handoff_seed.build_seed`) served by the frozen-clock server at 2026-10-31, the data the operator accepted; deterministic, the same seed the handoff mapping uses. Not `data/demo.sqlite`.
 - Matrix: 30 cases (`snapshot_routes.CASES`: 20 pages, 10 dialogs) x 1440/1024/375 x light/dark = 180 images, `__snapshots__/<case>.<width>.<theme>.png`.
 - Pages: Today, Ledger (actual, planned, recurring, recently deleted), Plan (budget, year, forecast, analytics), Accounts, Settings (preferences, categories, FX, security, users), auth pages signed out (login, invite, invalid invite), errors (404, 422).
-- Dialogs, over their base page: new entry (happened, planned, repeats), edit transaction, new account, reconcile, set budget, override, new category, command palette. They reuse `handoff_openers.OPENERS`, `test_reference.OVERLAY_DIALOGS` and `handoff_clicks`; no route table is copied (`snapshot_routes` imports them, so `test_reference.py` stays the single source until it is removed in T-UR65).
+- Dialogs, over their base page: new entry (happened, planned, repeats), edit transaction, new account, reconcile, set budget, override, new category, command palette. They reuse `handoff_openers.OPENERS`, `reference_map.OVERLAY_DIALOGS` and `handoff_clicks`; no route table is copied (`snapshot_routes` imports them; `reference_map.py` is the single source).
 - Linux only (pinned Playwright container). Tolerance `MAX_DIFF_PIXEL_RATIO = 0.001`. Missing baseline: fails when `CI` is set (writing the actual shot into `__snapshots__/` for the artifact), skips locally. Run with `-m visual` (the default addopts deselect it).
 
 ### How T-UR65 produces the baselines
@@ -20,7 +20,9 @@ The accepted-UI baselines (ADR-0154 section 1-4). Decisions:
 
 Never generate or commit baselines on macOS or from a laptop. `just visual` runs the comparison in docker, `just visual-update` regenerates.
 
-## Handoff references (`handoff.py`, `test_reference.py`, T-UT10)
+## Handoff references (`handoff.py`, `reference_map.py`, T-UT10)
+
+> T-UR65 (ADR-0154, 2026-11-28): the comparison against the handoff is retired. The `reference` job of `visual.yml`, `test_reference.py` (comparison tests and fixture), the Intended-differences xfails, `just test-visual` and `visual_in_container.sh reference` are gone. What remains is a manual tool: `just visual-reference` renders the overlaid handoff, and `reference_map.py` keeps the page-to-route mapping the snapshots use. The paragraphs below describe the retired comparison and are history.
 
 References come from the designer handoff (`docs/design/rising-dough-frontend/`, frozen), not from the app.
 

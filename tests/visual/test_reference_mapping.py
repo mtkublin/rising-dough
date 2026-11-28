@@ -51,7 +51,7 @@ from tests.visual.handoff_states import (
     setup_server_env,
     state_recipe,
 )
-from tests.visual.test_reference import (
+from tests.visual.reference_map import (
     ANONYMOUS_PAGES,
     FORM_SUBMITS,
     LEDGER_BOARD,
