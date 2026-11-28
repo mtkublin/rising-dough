@@ -3,8 +3,7 @@
 Serves the frozen designer handoff (``docs/design/rising-dough-frontend/``)
 over a loopback HTTP server and screenshots every page at 1440 / 1024 / 375 in
 light and dark. The images are the target the redesigned templates are compared
-against; ``just visual-reference`` regenerates them, ``just test-visual
---reference=handoff <surface>`` compares.
+against (retired comparison, T-UR65); ``just visual-reference`` regenerates them.
 
 PNG decode via Pillow (dev-only dependency, ADR-0153); the diff itself is stdlib.
 """
@@ -12,7 +11,6 @@ PNG decode via Pillow (dev-only dependency, ADR-0153); the diff itself is stdlib
 from __future__ import annotations
 
 import http.server
-import os
 import struct
 import sys
 import threading
@@ -129,22 +127,8 @@ def shoot(browser: Browser, base: str, page: str, *, viewport: str, theme: str, 
         context.close()
 
 
-SHARD_ENV: Final = "REFERENCE_SHARD"  # "<viewport>:<theme>"; set by the CI matrix job
-
-
-def parse_shard(shard: str | None) -> tuple[str, str] | None:
-    """``"<viewport>:<theme>"`` (CI shard, T-UR00b) -> ``(viewport, theme)``; None = all."""
-    if not shard:
-        return None
-    viewport, _, theme = shard.partition(":")
-    if viewport not in VIEWPORTS or theme not in THEMES:
-        raise ValueError(f"bad shard {shard!r}; expected <viewport>:<theme>, e.g. 1440:dark")
-    return viewport, theme
-
-
-def generate(only_surface: str | None = None, shard: str | None = None) -> int:
-    """Render page x viewport x theme (or one surface / shard) into ``REFERENCE_DIR``."""
-    only = parse_shard(shard or os.environ.get(SHARD_ENV))
+def generate(only_surface: str | None = None) -> int:
+    """Render page x viewport x theme (or one surface) into ``REFERENCE_DIR``."""
     count = 0
     with serve_handoff() as base, sync_playwright() as p:
         browser = p.chromium.launch(args=CHROMIUM_ARGS)
@@ -154,8 +138,6 @@ def generate(only_surface: str | None = None, shard: str | None = None) -> int:
                     continue
                 for viewport in VIEWPORTS:
                     for theme in THEMES:
-                        if only and (viewport, theme) != only:
-                            continue
                         shoot(
                             browser,
                             base,

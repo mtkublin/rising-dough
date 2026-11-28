@@ -24,28 +24,7 @@ Never generate or commit baselines on macOS or from a laptop. `just visual` runs
 
 > T-UR65 (ADR-0154, 2026-11-28): the comparison against the handoff is retired. The `reference` job of `visual.yml`, `test_reference.py` (comparison tests and fixture), the Intended-differences xfails, `just test-visual` and `visual_in_container.sh reference` are gone. What remains is a manual tool: `just visual-reference` renders the overlaid handoff, and `reference_map.py` keeps the page-to-route mapping the snapshots use. The paragraphs below describe the retired comparison and are history.
 
-References come from the designer handoff (`docs/design/rising-dough-frontend/`, frozen), not from the app.
-
-- Never committed (ADR-0147 section 1): `tests/visual/reference/` is gitignored and rendered in the same job and pinned container as the app (the `reference` job of `visual.yml`, advisory until surfaces migrate). CI shards the 1272 tests into six jobs of 212, one per width x theme (`strategy.matrix`, `fail-fast: false`, 45 min each): the job sets `REFERENCE_SHARD=<viewport>:<theme>` (e.g. `1440:dark`; also the `--reference-shard` option in `tests/visual/conftest.py`) so `handoff.generate` renders only that shard's references and only its tests run. Artifacts per shard: `visual-references-<viewport>-<theme>`, `visual-reference-actual-<viewport>-<theme>`; each shard appends a pass/fail and wall-time line to the job summary. Rendering uses the OVERLAID handoff (`overlay.py`, data from `handoff_overlay.toml`).
 - Render locally: `just visual-reference [surface]` (docker, pinned container; never on the host). Serves the handoff on 127.0.0.1, screenshots every page (106) at 1440 / 1024 / 375, light and dark (`?theme=`), animations frozen, browser clock fixed at 2026-10-31T10:00Z, fonts awaited, network idle. Output: `reference/<group>/<page>.<viewport>.<theme>.png`.
-- Compare: `just test-visual --reference=handoff [surface]` (same container; surface: today, accounts, ledger, plan, settings, auth, errors, overlays). Renders the references first, then runs only `test_reference.py` for every surface. Expected red with the old app (T-UR00b red run) until each surface migrates.
-- Fixture: the app side of `test_reference.py` uses the frozen server on the handoff seed (next section) at 2026-10-31 (`frozen_server.HANDOFF_FIXTURE_DATE`). `test_snapshots.py` (old-UI route baselines, removed per migrated surface) still serves a copy of `data/demo.sqlite`.
-
-### Tolerance (ADR-0147 section 2)
-
-One strict tolerance for every app-vs-handoff comparison, all surfaces alike (`handoff.compare`):
-
-| Check | Limit |
-|---|---|
-| Differing pixels | `MAX_DIFF_PIXEL_RATIO` = 0.1% |
-| Largest 8-connected differing region | `MAX_DIFF_CLUSTER_PX` = 52 px (calibrated, T-UR00b) |
-| Handoff vs itself (noise floor) | `SELF_TOLERANCE` = 0.05% |
-
-Different image sizes always fail (`handoff.passes`), whatever the ratio; the reported ratio covers the shared top-left window plus the missing area, and the message carries both sizes. The cluster cap catches a small but real defect (a missing icon, a shifted label) that stays under the ratio on a tall page. Calibration: every handoff-vs-itself test appends `<cluster> <page> <viewport> <theme>` to `$VISUAL_KEEP_DIR/self-clusters.txt` (default `visual-actual/`), and each shard's summary line reports `max self-cluster: <N>px`. Both files are uploaded with the `visual-reference-actual-<viewport>-<theme>` artifact (the reference job sets `VISUAL_KEEP_DIR=visual-actual`). Set the cap to twice the largest self-cluster seen over at least two CI runs under load. Exceptions only through the "Tolerance exceptions" table in `docs/plans/ui-redesign/derived.md` (reason plus operator sign-off). A failing comparison writes `<page>.<viewport>.<theme>.diff.png` into `VISUAL_KEEP_DIR`: differing pixels red, the largest cluster outlined in blue; the assertion message carries ratio, cluster size and its box. `test_snapshots.py` (old-UI baselines) keeps its own `diff_ratio` threshold (`MAX_DIFF_PIXEL_RATIO` there is its own constant).
-
-#### Intended differences, tolerance exceptions, overlay rows
-
-Three different tools, do not mix them. A page that differs from the handoff by operator decision is an *intended difference*: a row of "## Intended differences" in `docs/plans/ui-redesign/derived.md`, parsed by `intended.py` and marked `xfail(strict=True)` in `test_app_matches_handoff` for the listed page and width/theme shards (only the app comparison, never the handoff self test). It must fail; if it starts to match, the strict xfail fails (XPASS) and the row must go. A *tolerance exception* is a pixel allowance on a page that should match (the "Tolerance exceptions" table, reason plus sign-off). An *overlay row* (`handoff_overlay.toml`, `overlay.py`) changes the handoff side so both render the same data; it removes a data difference and says nothing about design. A shards cell must name widths/themes or say "all" (free text raises); when two rows list the same page and shard the first row wins. `test_intended.py` checks the parser and that the marked set equals the table.
 
 #### Cluster cap calibration (T-UR00b)
 

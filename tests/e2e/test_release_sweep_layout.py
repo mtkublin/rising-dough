@@ -373,3 +373,68 @@ def test_phone_rows_do_not_overlap_at_320(
         assert overlaps == []
     finally:
         context.close()
+
+
+def test_recently_deleted_tables_fit_their_region_at_1024(
+    signed_in: tuple[str, Browser, StorageState], live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, browser, state = signed_in
+    db_path = live_server[1]
+    context = _context(browser, 1024, state)
+    try:
+        post = page.request.post
+        # Soft-delete one transaction and the planned entry so both deleted tables render rows.
+        txn = db_probe.txn_id(db_path, "sweep Groceries")
+        assert post(f"{base_url}/transactions/{txn}/delete").ok
+        planned = db_probe.planned_id(db_path, "sweep planned")
+        assert post(f"{base_url}/planned/{planned}/delete").ok
+        tab = context.new_page()
+        tab.goto(f"{base_url}/ledger/recently-deleted")
+        regions = to_playwright(tab, TABLE_REGION)
+        assert regions.count() >= 2
+        for index in range(regions.count()):
+            region = regions.nth(index)
+            assert region.is_visible(), index
+            assert region.evaluate("(el) => el.scrollWidth <= el.clientWidth + 1"), index
+            headers = region.get_by_role("columnheader", name=AMOUNT_HEADER)
+            region_box = region.bounding_box()
+            assert region_box is not None
+            for h in range(headers.count()):
+                box = headers.nth(h).bounding_box()
+                assert box is not None
+                assert (
+                    box["x"] + box["width"] <= region_box["x"] + region_box["width"] + TOLERANCE_PX
+                )
+    finally:
+        context.close()
+
+
+def test_ledger_row_kebabs_share_one_x_at_320(
+    signed_in: tuple[str, Browser, StorageState], live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, browser, state = signed_in
+    db_path = live_server[1]
+    context = _context(browser, 320, state)
+    try:
+        # A reconcile off the balance books a "Reconciliation" row (the long chip).
+        acc = db_probe.account_id(db_path, "Checking")
+        assert page.request.post(
+            f"{base_url}/accounts/{acc}/reconcile", form={"actual_balance": "900.00"}
+        ).ok
+        tab = context.new_page()
+        tab.goto(f"{base_url}/ledger")
+        # The actions cell holds the row kebab: its left edge is the kebab's column.
+        lefts: list[float] = tab.evaluate(
+            """() => [...document.querySelectorAll('tr.rd-row > .rd-row__actions')]
+              .filter((c) => c.getClientRects().length)
+              .map((c) => c.getBoundingClientRect().left)"""
+        )
+        chips: list[str] = tab.evaluate(
+            "() => [...document.querySelectorAll('tr.rd-row .rd-chip')]"
+            ".map((c) => c.textContent.trim())"
+        )
+        assert any("econciliation" in c for c in chips)
+        assert len(lefts) >= 2
+        assert max(lefts) - min(lefts) <= 1.0, lefts
+    finally:
+        context.close()

@@ -283,6 +283,23 @@
   .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__amount {
     min-width: max-content;
   }
+
+  /*
+   * A long chip ("Reconciliation") would widen its row past the list region and push that row's
+   * kebab right of the others. The chip column is capped at 6.25rem (100px, wider than the usual
+   * chips) and a longer label is cut with an ellipsis, so every kebab shares one x.
+   */
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat {
+    min-width: 0;
+    max-width: 6.25rem;
+  }
+
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat .rd-chip {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 @media (width >= 48rem) {
