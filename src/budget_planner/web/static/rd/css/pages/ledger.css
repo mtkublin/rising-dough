@@ -475,6 +475,11 @@
     --ledger-cols: 72px minmax(96px, 2fr) minmax(124px, 1.2fr) 120px 80px 136px;
   }
 
+  /* Recurring (has cadence group rows): a roomier description track (13 characters, no mid-word break) from the chip, amount and action tracks. */
+  .rd-table-scroll .rd-ledger--sched:has(.rd-row--cadence) {
+    --ledger-cols: 64px minmax(150px, 2fr) 124px 104px 84px 92px;
+  }
+
   .rd-table-scroll .rd-ledger--accounts {
     --ledger-cols: minmax(110px, 1.6fr) var(--track-trend) var(--track-checked) var(--track-txns) minmax(130px, 1.4fr) var(--track-reconcile) var(--track-icon);
   }

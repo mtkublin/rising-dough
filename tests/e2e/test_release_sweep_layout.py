@@ -86,6 +86,17 @@ def _seed(base_url: str, db_path: Path, page: Page) -> None:
             "default_description": "sweep rule",
         },
     ).ok
+    assert post(
+        f"{base_url}/recurring",
+        form={
+            "cadence": "monthly",
+            "start_date": today,
+            "category_id": sub,
+            "account_id": acc,
+            "default_amount": "11.31",
+            "default_description": "Subscriptions",
+        },
+    ).ok
 
 
 @pytest.fixture
@@ -283,5 +294,82 @@ def test_recent_chip_strip_stays_inside_the_dialog(
         assert strip["right"] <= group_box["x"] + group_box["width"] + TOLERANCE_PX
         assert strip["right"] <= width + TOLERANCE_PX
         assert strip["overflowX"] == "auto"
+    finally:
+        context.close()
+
+
+def test_recurring_descriptions_do_not_break_mid_word_at_768(
+    signed_in: tuple[str, Browser, StorageState],
+) -> None:
+    base_url, browser, state = signed_in
+    context = _context(browser, 768, state)
+    try:
+        tab = context.new_page()
+        tab.goto(f"{base_url}/ledger?view=recurring")
+        region = to_playwright(tab, TABLE_REGION).first
+        broken: list[str] = region.evaluate(
+            """(el) => {
+              const out = [];
+              for (const cell of el.querySelectorAll('tbody tr td:nth-child(2)')) {
+                const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+                for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+                  for (const m of n.textContent.matchAll(/\\S{8,}/g)) {
+                    const range = document.createRange();
+                    range.setStart(n, m.index);
+                    range.setEnd(n, m.index + m[0].length);
+                    const tops = new Set([...range.getClientRects()].map((q) => Math.round(q.top)));
+                    if (tops.size > 1) out.push(m[0]);
+                  }
+                }
+              }
+              return out;
+            }"""
+        )
+        assert broken == []
+        seen: list[str] = region.evaluate(
+            "(el) => [...el.querySelectorAll('tbody tr td:nth-child(2)')].map((c) => c.textContent)"
+        )
+        assert any("Subscriptions" in text for text in seen)
+    finally:
+        context.close()
+
+
+# Text-bearing boxes of one row that must never overlap on a phone (chip, sub line, title, figure).
+_ROW_OVERLAPS_JS = """
+() => {
+  const out = [];
+  const sel = '.rd-chip, .rd-row__sub, .rd-row__title, .rd-amount, .rd-budget__status';
+  for (const row of document.querySelectorAll('tr.rd-row')) {
+    if (row.getClientRects().length === 0) continue;
+    const els = [...row.querySelectorAll(sel)].filter((e) => e.getClientRects().length > 0);
+    for (let i = 0; i < els.length; i++) {
+      for (let j = i + 1; j < els.length; j++) {
+        if (els[i].contains(els[j]) || els[j].contains(els[i])) continue;
+        const a = els[i].getBoundingClientRect();
+        const b = els[j].getBoundingClientRect();
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (ox > 1 && oy > 1) {
+          out.push(els[i].textContent.trim() + ' / ' + els[j].textContent.trim());
+        }
+      }
+    }
+  }
+  return out;
+}
+"""
+
+
+@pytest.mark.parametrize("route", ["/accounts", "/plan", "/ledger"])
+def test_phone_rows_do_not_overlap_at_320(
+    signed_in: tuple[str, Browser, StorageState], route: str
+) -> None:
+    base_url, browser, state = signed_in
+    context = _context(browser, 320, state)
+    try:
+        tab = context.new_page()
+        tab.goto(f"{base_url}{route}")
+        overlaps: list[str] = tab.evaluate(_ROW_OVERLAPS_JS)
+        assert overlaps == []
     finally:
         context.close()

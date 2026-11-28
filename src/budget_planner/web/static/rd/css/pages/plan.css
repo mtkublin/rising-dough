@@ -33,6 +33,17 @@
   padding: var(--space-3) 0;
 }
 
+/* Narrow phones: the status takes its own line under the chip so a long category name never meets it. */
+@media (width < 26rem) {
+  .rd-row--budget,
+  .rd-row--total {
+    grid-template-areas:
+      "cat cat actions"
+      "status status status"
+      "bar spent spent";
+  }
+}
+
 .rd-budget__cat {
   grid-area: cat;
   justify-self: start;

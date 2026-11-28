@@ -3157,6 +3157,18 @@ form.htmx-request .rd-btn[type="submit"]::after {
   font-size: var(--font-size-body);
 }
 
+/*
+ * Phone grids: the category chip and the amount keep their own width (a td has min-width 0, so an
+ * auto track could shrink below its content and the chip or the figure ran over the neighbour);
+ * the one-fr description column absorbs the squeeze.
+ */
+@media (width < 48rem) {
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat,
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__amount {
+    min-width: max-content;
+  }
+}
+
 @media (width >= 48rem) {
   .rd-table-scroll {
     margin-top: var(--space-6);
@@ -5478,6 +5490,11 @@ form.htmx-request .rd-btn[type="submit"]::after {
     --ledger-cols: 72px minmax(96px, 2fr) minmax(124px, 1.2fr) 120px 80px 136px;
   }
 
+  /* Recurring (has cadence group rows): a roomier description track (13 characters, no mid-word break) from the chip, amount and action tracks. */
+  .rd-table-scroll .rd-ledger--sched:has(.rd-row--cadence) {
+    --ledger-cols: 64px minmax(150px, 2fr) 124px 104px 84px 92px;
+  }
+
   .rd-table-scroll .rd-ledger--accounts {
     --ledger-cols: minmax(110px, 1.6fr) var(--track-trend) var(--track-checked) var(--track-txns) minmax(130px, 1.4fr) var(--track-reconcile) var(--track-icon);
   }
@@ -5519,6 +5536,17 @@ form.htmx-request .rd-btn[type="submit"]::after {
     "bar spent spent";
   gap: var(--space-2);
   padding: var(--space-3) 0;
+}
+
+/* Narrow phones: the status takes its own line under the chip so a long category name never meets it. */
+@media (width < 26rem) {
+  .rd-row--budget,
+  .rd-row--total {
+    grid-template-areas:
+      "cat cat actions"
+      "status status status"
+      "bar spent spent";
+  }
 }
 
 .rd-budget__cat {
