@@ -25,7 +25,14 @@
 }
 
 .rd-chart--forecast {
-  min-width: var(--chart-min);
+  min-width: var(--chart-min); /* keeps tick labels readable; the plot scrolls sideways inside its card */
+}
+
+/* Phone: the 1184-unit viewBox needs about 1100px for 10px+ tick labels; the plot scrolls inside its card. */
+@media (width < 48rem) {
+  .rd-chart--forecast {
+    min-width: var(--chart-min-phone);
+  }
 }
 
 .rd-chart__grid {

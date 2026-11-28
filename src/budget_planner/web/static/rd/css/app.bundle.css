@@ -306,6 +306,7 @@ dialog {
   --table-min-budget: 860px;
   --table-min-year: 1150px;
   --chart-min: 640px;
+  --chart-min-phone: 1100px;
   --track-month: 130px;
   --track-due: 110px;
   --track-amount-sched: 160px;
@@ -1009,7 +1010,9 @@ form.htmx-request .rd-btn[type="submit"]::after {
   flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
-  overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto; /* the chip strip scrolls inside its box like .rd-tabs, never past the dialog */
   scrollbar-width: none;
 }
 
@@ -1429,7 +1432,14 @@ form.htmx-request .rd-btn[type="submit"]::after {
 }
 
 .rd-chart--forecast {
-  min-width: var(--chart-min);
+  min-width: var(--chart-min); /* keeps tick labels readable; the plot scrolls sideways inside its card */
+}
+
+/* Phone: the 1184-unit viewBox needs about 1100px for 10px+ tick labels; the plot scrolls inside its card. */
+@media (width < 48rem) {
+  .rd-chart--forecast {
+    min-width: var(--chart-min-phone);
+  }
 }
 
 .rd-chart__grid {
@@ -3147,6 +3157,18 @@ form.htmx-request .rd-btn[type="submit"]::after {
   font-size: var(--font-size-body);
 }
 
+/*
+ * Phone grids: the category chip and the amount keep their own width (a td has min-width 0, so an
+ * auto track could shrink below its content and the chip or the figure ran over the neighbour);
+ * the one-fr description column absorbs the squeeze.
+ */
+@media (width < 48rem) {
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat,
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__amount {
+    min-width: max-content;
+  }
+}
+
 @media (width >= 48rem) {
   .rd-table-scroll {
     margin-top: var(--space-6);
@@ -4660,6 +4682,13 @@ form.htmx-request .rd-btn[type="submit"]::after {
   pointer-events: none;
 }
 
+/* Narrow phones: the art would run under the headline and past the edge. */
+@media (width < 22rem) {
+  .rd-auth__loaf {
+    display: none;
+  }
+}
+
 .rd-auth__brand {
   position: relative;
   font-family: var(--font-display);
@@ -5416,6 +5445,60 @@ form.htmx-request .rd-btn[type="submit"]::after {
 .rd-ledger-head > .rd-tabs {
   min-width: 0;
 }
+
+/*
+ * Tablet band (48 to 64rem): the panel is 672px, narrower than the desktop track sums
+ * (760 to 970px), which cut the amount column inside the scroll region. Tighter tracks and gaps
+ * and no table min-width let every table fit; the scroll region stays as the safety net.
+ * Declared in the pages layer so it beats each table's own min-width. Tokens are re-declared on the table so each table's own track list picks them up.
+ */
+@media (48rem <= width < 64rem) {
+  .rd-table-scroll .rd-ledger {
+    --track-min-lg: 120px;
+    --track-min-md: 110px;
+    --track-min-sm: 104px;
+    --track-amount-lg: 120px;
+    --track-amount: 110px;
+    --track-amount-sched: 120px;
+    --track-actions: 84px;
+    --track-due: 84px;
+    --track-deleted: 96px;
+    --track-deleted-due: 84px;
+    --track-restore: 100px;
+    --track-budget-cat: 130px;
+    --track-budget-spent: 130px;
+    --track-budget-actions: 52px;
+    --track-trend: 72px;
+    --track-checked: 76px;
+    --track-txns: 52px;
+    --track-reconcile: 96px;
+    --track-session-actions: 100px;
+    --track-user-role: 80px;
+    --track-user-seen: 110px;
+    --track-month: 100px;
+    --track-min-xs: 90px;
+
+    min-width: 0;
+  }
+
+  .rd-table-scroll .rd-ledger .rd-row {
+    gap: var(--space-2);
+  }
+
+  /* Planned and recurring: due, description, category, amount, status (wraps), main action + row menu. */
+  .rd-table-scroll .rd-ledger--sched {
+    --ledger-cols: 72px minmax(96px, 2fr) minmax(124px, 1.2fr) 120px 80px 136px;
+  }
+
+  /* Recurring (has cadence group rows): a roomier description track (13 characters, no mid-word break) from the chip, amount and action tracks. */
+  .rd-table-scroll .rd-ledger--sched:has(.rd-row--cadence) {
+    --ledger-cols: 64px minmax(150px, 2fr) 124px 104px 84px 92px;
+  }
+
+  .rd-table-scroll .rd-ledger--accounts {
+    --ledger-cols: minmax(110px, 1.6fr) var(--track-trend) var(--track-checked) var(--track-txns) minmax(130px, 1.4fr) var(--track-reconcile) var(--track-icon);
+  }
+}
 }
 
 /* pages/plan.css */
@@ -5453,6 +5536,17 @@ form.htmx-request .rd-btn[type="submit"]::after {
     "bar spent spent";
   gap: var(--space-2);
   padding: var(--space-3) 0;
+}
+
+/* Narrow phones: the status takes its own line under the chip so a long category name never meets it. */
+@media (width < 26rem) {
+  .rd-row--budget,
+  .rd-row--total {
+    grid-template-areas:
+      "cat cat actions"
+      "status status status"
+      "bar spent spent";
+  }
 }
 
 .rd-budget__cat {

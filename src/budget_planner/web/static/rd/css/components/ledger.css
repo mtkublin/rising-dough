@@ -273,6 +273,18 @@
   font-size: var(--font-size-body);
 }
 
+/*
+ * Phone grids: the category chip and the amount keep their own width (a td has min-width 0, so an
+ * auto track could shrink below its content and the chip or the figure ran over the neighbour);
+ * the one-fr description column absorbs the squeeze.
+ */
+@media (width < 48rem) {
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__cat,
+  .rd-ledger .rd-row:not(.rd-row--sched) > .rd-row__amount {
+    min-width: max-content;
+  }
+}
+
 @media (width >= 48rem) {
   .rd-table-scroll {
     margin-top: var(--space-6);
