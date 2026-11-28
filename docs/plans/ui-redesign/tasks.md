@@ -366,6 +366,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - Progress (2026-11-26): CSP style-src hardening attempted on branch wi/ui/sourdough/CSP (not merged): nonce'd `<style>` in swapped fragments mismatched the page nonce (fixed there via `data-color-rules` + `color-rules.js`), but WebKit still reports style-src-attr violations from an unidentified source; parked until after the drill.
 - Decided (2026-11-27): CSP style-src: one timeboxed attempt (< 1 h); if unsolved, release keeps 'unsafe-inline' and the hardening becomes a post-release follow-up.
 - 2026-11-27 CSP attempt (timeboxed): Chromium and Firefox show 0 violations with style-src nonce-only; WebKit reports 3 style-src-attr violations on the native <select class=rd-select> in fragments/ledger/filter-bar.html (empty sample, no app source; likely WebKit-internal, unconfirmed). Per operator rule the release keeps 'unsafe-inline'; hardening is a post-release follow-up; branch origin/wi/ui/sourdough/CSP (351d7930).
+- 2026-11-27 release sweep: docs/audits/2026-11-27-release-sweep.md (21 routes x 320/375/768/1024/1440/1920, light+dark): no blocking findings; A11YHERO (7ac72bea) fixed axe landmark-unique on settings. Minor findings left for operator triage: tables at 768 wider than the scroll region; auth loaf overlaps the greeting at 320; failing-save message shown twice (toast + dialog flash); forecast SVG and new-entry chip row exceed their container at 320/375.
 
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
@@ -572,7 +573,7 @@ Source list: [operator-review-2026-11-26.md](operator-review-2026-11-26.md).
 - Scope: derived.md:200 stale "Left open (F4b)" line.
 - Source: derived.md:200.
 
-### ◻ T-UR74 [S] /ledger search placeholder cut at 375
+### ✅ T-UR74 [S] /ledger search placeholder cut at 375 (merged 55192fcd)
 - Scope: /ledger search placeholder "search description…" is cut at 375 with 16px inputs (cosmetic).
 - Source: MOBILE re-audit.
 
@@ -610,6 +611,7 @@ Source: [review, Drill review 2](operator-review-2026-11-26.md). R22 needs no ne
 ### ✅ T-UR84 [S] Year-cell override dialog opened without JS renders a bare fragment (merged 0134a4e7)
 - Scope: the year-cell override dialog opened without JS (direct `/budget/rules/<id>/overrides/new` link) renders a bare unstyled fragment.
 - Source: BUDSCOPE audit 2026-11-27.
+- 2026-11-27 NOJSCSRF (3ed5d045): the no-JS override form carries the hidden `_csrf_token` (ADR-0065), so a JS-less save works; 375 scope labels wrap.
 
 ### ✅ T-UR85 [S] Plan/budget unbudgeted list: spent and status columns aligned with the main table (merged d3d9ca1c)
 - Scope: spent and status columns of the unbudgeted list are not aligned with the main table at 1440 and 1024 (1440: spent 965 vs 995, status 1170 vs 1085).
