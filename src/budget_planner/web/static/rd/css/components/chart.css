@@ -25,13 +25,13 @@
 }
 
 .rd-chart--forecast {
-  max-width: 100%;
+  min-width: var(--chart-min); /* keeps tick labels readable; the plot scrolls sideways inside its card */
 }
 
-/* From 40rem the plot keeps a readable width and scrolls inside its card; below it the SVG scales to the card (viewBox keeps the aspect). */
-@media (width >= 40rem) {
+/* Phone: the 1184-unit viewBox needs about 1100px for 10px+ tick labels; the plot scrolls inside its card. */
+@media (width < 48rem) {
   .rd-chart--forecast {
-    min-width: var(--chart-min);
+    min-width: var(--chart-min-phone);
   }
 }
 

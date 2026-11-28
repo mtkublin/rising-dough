@@ -447,16 +447,16 @@
     --track-amount-sched: 120px;
     --track-actions: 84px;
     --track-due: 84px;
-    --track-deleted: 110px;
-    --track-deleted-due: 96px;
-    --track-restore: 84px;
+    --track-deleted: 96px;
+    --track-deleted-due: 84px;
+    --track-restore: 100px;
     --track-budget-cat: 130px;
     --track-budget-spent: 130px;
     --track-budget-actions: 52px;
     --track-trend: 72px;
     --track-checked: 76px;
     --track-txns: 52px;
-    --track-reconcile: 84px;
+    --track-reconcile: 96px;
     --track-session-actions: 100px;
     --track-user-role: 80px;
     --track-user-seen: 110px;
@@ -470,8 +470,12 @@
     gap: var(--space-2);
   }
 
-  /* Planned and recurring: the amount cell carries its due status, the last two tracks hold the main action and the row menu. */
+  /* Planned and recurring: due, description, category, amount, status (wraps), main action + row menu. */
   .rd-table-scroll .rd-ledger--sched {
-    --ledger-cols: var(--track-due) minmax(var(--track-min-md), 2fr) minmax(var(--track-min-sm), 1.2fr) 170px 100px var(--track-icon);
+    --ledger-cols: 72px minmax(96px, 2fr) minmax(124px, 1.2fr) 120px 80px 136px;
+  }
+
+  .rd-table-scroll .rd-ledger--accounts {
+    --ledger-cols: minmax(110px, 1.6fr) var(--track-trend) var(--track-checked) var(--track-txns) minmax(130px, 1.4fr) var(--track-reconcile) var(--track-icon);
   }
 }

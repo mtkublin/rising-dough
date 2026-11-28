@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -23,7 +23,7 @@ from playwright.sync_api import (
 )
 
 from tests.e2e import db_probe
-from tests.ui_map import entries, plan_forecast, rd_shell
+from tests.ui_map import entries, ledger, plan_forecast, rd_shell
 from tests.ui_map.locator import Locator as UiLocator, role, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -62,6 +62,29 @@ def _seed(base_url: str, db_path: Path, page: Page) -> None:
                 "description": f"sweep {name}",
             },
         ).ok
+    sub = db_probe.category_id(db_path, "Subscriptions")
+    due = (datetime.now(tz=UTC).date() + timedelta(days=17)).isoformat()
+    assert post(
+        f"{base_url}/planned",
+        form={
+            "operation_date": due,
+            "category_id": sub,
+            "account_id": acc,
+            "amount": "2239.80",
+            "description": "sweep planned",
+        },
+    ).ok
+    assert post(
+        f"{base_url}/recurring",
+        form={
+            "cadence": "monthly",
+            "start_date": today,
+            "category_id": sub,
+            "account_id": acc,
+            "default_amount": "20.00",
+            "default_description": "sweep rule",
+        },
+    ).ok
 
 
 @pytest.fixture
@@ -155,19 +178,80 @@ def test_auth_loaf_clears_the_greeting_at_320(live_server: tuple[str, Path], pag
         context.close()
 
 
-@pytest.mark.parametrize("width", [320, 375])
-def test_forecast_chart_stays_inside_its_card(
-    signed_in: tuple[str, Browser, StorageState], width: int
+def test_planned_status_clears_the_promote_button_at_768(
+    signed_in: tuple[str, Browser, StorageState],
 ) -> None:
     base_url, browser, state = signed_in
-    context = _context(browser, width, state)
+    context = _context(browser, 768, state)
+    try:
+        tab = context.new_page()
+        tab.goto(f"{base_url}/ledger?view=planned")
+        row = to_playwright(tab, ledger.any_planned_row).first
+        promote = to_playwright(tab, ledger.promote).first
+        promote_box = promote.bounding_box()
+        assert promote_box is not None
+        # The status is the fifth cell; its content (text and children) must end before the button.
+        status_right: float = row.evaluate(
+            """(el) => {
+              const cell = el.children[4];
+              const range = document.createRange();
+              range.selectNodeContents(cell);
+              const rights = [range.getBoundingClientRect().right];
+              for (const c of cell.querySelectorAll('*')) {
+                rights.push(c.getBoundingClientRect().right);
+              }
+              return Math.max(...rights);
+            }"""
+        )
+        assert status_right <= promote_box["x"] + TOLERANCE_PX
+    finally:
+        context.close()
+
+
+def test_category_chips_do_not_clip_in_the_recurring_table_at_768(
+    signed_in: tuple[str, Browser, StorageState],
+) -> None:
+    base_url, browser, state = signed_in
+    context = _context(browser, 768, state)
+    try:
+        tab = context.new_page()
+        tab.goto(f"{base_url}/ledger?view=recurring")
+        region = to_playwright(tab, TABLE_REGION).first
+        clipped: list[str] = region.evaluate(
+            """(el) => [...el.querySelectorAll('tbody td span, tbody td a')]
+              .filter((c) => c.getClientRects().length && c.scrollWidth > c.clientWidth + 1)
+              .map((c) => c.textContent.trim())"""
+        )
+        assert clipped == []
+        names: list[str] = region.evaluate(
+            "(el) => [...el.querySelectorAll('tbody tr')].map((r) => r.textContent)"
+        )
+        assert any("Subscriptions" in n for n in names)
+    finally:
+        context.close()
+
+
+def test_forecast_chart_keeps_readable_labels_and_scrolls_inside_its_card(
+    signed_in: tuple[str, Browser, StorageState],
+) -> None:
+    base_url, browser, state = signed_in
+    context = _context(browser, 375, state)
     try:
         tab = context.new_page()
         tab.goto(f"{base_url}/forecast")
-        chart = _box(tab, plan_forecast.chart)
-        container = _box(tab, plan_forecast.chart_scroll)
-        assert chart["x"] + chart["width"] <= container["x"] + container["width"] + TOLERANCE_PX
-        assert chart["x"] >= container["x"] - TOLERANCE_PX
+        container = to_playwright(tab, plan_forecast.chart_scroll)
+        container_box = container.bounding_box()
+        assert container_box is not None
+        assert container_box["x"] + container_box["width"] <= 375 + TOLERANCE_PX
+        scroll = container.evaluate(
+            "(el) => ({ overflowX: getComputedStyle(el).overflowX,"
+            " wide: el.scrollWidth > el.clientWidth })"
+        )
+        assert scroll == {"overflowX": "auto", "wide": True}
+        label_height: float = to_playwright(tab, plan_forecast.chart).evaluate(
+            "(el) => el.querySelector('text').getBoundingClientRect().height"
+        )
+        assert label_height >= 10
     finally:
         context.close()
 
