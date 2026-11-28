@@ -25,7 +25,14 @@
 }
 
 .rd-chart--forecast {
-  min-width: var(--chart-min);
+  max-width: 100%;
+}
+
+/* From 40rem the plot keeps a readable width and scrolls inside its card; below it the SVG scales to the card (viewBox keeps the aspect). */
+@media (width >= 40rem) {
+  .rd-chart--forecast {
+    min-width: var(--chart-min);
+  }
 }
 
 .rd-chart__grid {

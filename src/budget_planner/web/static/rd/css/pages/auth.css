@@ -44,6 +44,13 @@
   pointer-events: none;
 }
 
+/* Narrow phones: the art would run under the headline and past the edge. */
+@media (width < 22rem) {
+  .rd-auth__loaf {
+    display: none;
+  }
+}
+
 .rd-auth__brand {
   position: relative;
   font-family: var(--font-display);

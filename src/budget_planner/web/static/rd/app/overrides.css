@@ -17,8 +17,9 @@
    box is 928px wide at 1024px (app and panel padding), so the actions column was clipped by the
    sideways scroll. The handoff table fits from about 1106px (app padding 2 x 24px, panel padding
    2 x 16px, tracks ~1010px), so the override stops at 70rem and 1440px keeps the handoff layout.
-   Slimmer flexible and amount tracks fit 900px; the actions tracks keep 150px. */
-@media (48rem <= width < 70rem) {
+   Slimmer flexible and amount tracks fit 900px; the actions tracks keep 150px. Below 64rem the
+   tablet band in css/pages/ledger.css (SWEEPCSS) fits every table to the 672px panel. */
+@media (64rem <= width < 70rem) {
   .rd-ledger--sched {
     --ledger-cols: var(--track-due) minmax(150px, 2fr) minmax(110px, 1.2fr) 150px var(--track-actions) var(--track-actions);
 
