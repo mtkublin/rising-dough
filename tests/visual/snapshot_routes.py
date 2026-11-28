@@ -1,8 +1,8 @@
 """Cases of the accepted-UI snapshot suite (T-UR98, ADR-0154 section 1-2).
 
-One table, no copy of the reference mapping: page routes come from ``test_reference.PAGE_ROUTES`` /
+One table, no copy of the reference mapping: page routes come from ``reference_map.PAGE_ROUTES`` /
 ``SURFACE_ROUTES``, dialog routes from ``handoff_openers.OPENERS`` and
-``test_reference.OVERLAY_DIALOGS``,
+``reference_map.OVERLAY_DIALOGS``,
 click states from ``handoff_clicks.CLICK_RECIPES``. Data: the handoff base seed at the frozen date.
 """
 
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from tests.visual.handoff import THEMES, VIEWPORTS
-from tests.visual.test_reference import (
+from tests.visual.reference_map import (
     ANONYMOUS_PAGES,
     LEDGER_BOARD,
     OVERLAY_DIALOGS,

@@ -1,5 +1,7 @@
 # Operator patch: visual.yml reference job off the per-PR path (T-UR66, T-UR65)
 
+Applied 2026-11-28 by WFPATCH (part 2: the `reference` job removed from visual.yml; part 1 superseded; test side: handoff comparison tests, `just test-visual` and the `reference` mode of visual_in_container.sh removed, mapping moved to tests/visual/reference_map.py).
+
 Agents cannot push `.github/workflows/*` (no workflow scope), so you apply these edits. Context: [ADR-0154](../../adr/0154-accepted-ui-screenshots-replace-the-handoff-references.md).
 
 ## Part 1 (T-UR66, apply now)
